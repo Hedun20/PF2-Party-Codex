@@ -188,7 +188,7 @@
   box-shadow: 0 16px 42px rgba(168, 85, 247, 0.18);
 }
 
-.entity-card h3 { margin: 8px 0; }
+.entity-card h3 { margin: 8px 0; font-family: var(--display); }
 .entity-card p { color: var(--muted); line-height: 1.5; }
 .tag-row { display: flex; flex-wrap: wrap; gap: 7px; }
 .tag-row span {
@@ -550,6 +550,7 @@ textarea { min-height: 96px; resize: vertical; }
   padding: 8px 10px;
   background: rgba(227, 182, 95, 0.08);
   white-space: nowrap;
+  font-family: var(--hand);
 }
 
 .timeline-track {
@@ -640,6 +641,7 @@ textarea { min-height: 96px; resize: vertical; }
   color: var(--gold);
   font-size: 0.77rem;
   text-transform: uppercase;
+  font-family: var(--hand);
 }
 
 .timeline-card h3 {

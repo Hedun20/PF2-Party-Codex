@@ -35,6 +35,7 @@ export default function QuickEditor({ onSaved }) {
   const [metadata, setMetadata] = useState({ pages: [], tags: [], worlds: [], countries: [], cities: [] });
   const [form, setForm] = useState({ type: "world", visibility: "public", tags: [], related: [], pins: [] });
   const [pinDraft, setPinDraft] = useState({ label: "", path: "" });
+  const [localMapPreview, setLocalMapPreview] = useState("");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -60,11 +61,21 @@ export default function QuickEditor({ onSaved }) {
   async function uploadMap(event) {
     const file = event.target.files?.[0];
     if (!file) return;
-    const data = new FormData();
-    data.append("file", file);
-    const uploaded = await api.uploadAsset(data);
-    update("mapImage", uploaded.path);
-    setMessage(`Карта загружена: ${uploaded.path}`);
+    setMessage(`Загружаю карту: ${file.name}`);
+    const previewUrl = URL.createObjectURL(file);
+    setLocalMapPreview(previewUrl);
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      const uploaded = await api.uploadAsset(data);
+      update("mapImage", uploaded.path);
+      setLocalMapPreview("");
+      setMessage(`Карта загружена: ${uploaded.path}`);
+    } catch (error) {
+      setMessage(`Не удалось загрузить карту: ${error.message}`);
+    } finally {
+      event.target.value = "";
+    }
   }
 
   function addPin(event) {
@@ -168,7 +179,7 @@ export default function QuickEditor({ onSaved }) {
           <label className="upload-button">
             <Upload size={18} />
             <span>Загрузить карту</span>
-            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={uploadMap} />
+            <input type="file" accept="image/png,image/jpg,image/jpeg,image/pjpeg,image/webp,.png,.jpg,.jpeg,.webp" onChange={uploadMap} />
           </label>
         </div>
         <label>Файл карты<input value={form.mapImage || ""} onChange={(event) => update("mapImage", event.target.value)} placeholder="arka-nochi-map.png" /></label>
@@ -179,9 +190,13 @@ export default function QuickEditor({ onSaved }) {
             {metadata.pages.map((page) => <option key={page.path} value={page.path}>{optionLabel(page)}</option>)}
           </select></label>
         </div>
-        {form.mapImage && (
+        {(form.mapImage || localMapPreview) && (
           <div className="pin-editor" onClick={addPin}>
-            <img src={`/api/assets/${form.mapImage.replace(/^images\//, "")}`} alt="Карта для расстановки пинов" />
+            <img
+              src={localMapPreview || `/api/assets/${form.mapImage.replace(/^images\//, "")}`}
+              alt="Карта для расстановки пинов"
+              onError={() => setMessage("Карта загружена в поле, но браузер не смог открыть файл. Проверь расширение PNG/JPG/WebP и путь в vault/images.")}
+            />
             {(form.pins || []).map((pin, index) => (
               <button key={`${pin.label}-${index}`} type="button" className="pin-editor-dot" style={{ left: `${pin.x}%`, top: `${pin.y}%` }} onClick={(event) => { event.stopPropagation(); removePin(index); }} title="Удалить пин">
                 <Crosshair size={14} />

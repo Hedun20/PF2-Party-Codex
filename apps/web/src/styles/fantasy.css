@@ -95,6 +95,8 @@
   gap: 12px;
   color: var(--gold);
   font-weight: 900;
+  font-family: var(--display);
+  font-size: 1.12rem;
 }
 
 .sidebar-close {
@@ -145,7 +147,8 @@
   color: var(--gold);
   text-transform: uppercase;
   letter-spacing: 0;
-  font-size: 0.78rem;
+  font-family: var(--hand);
+  font-size: 0.98rem;
   font-weight: 800;
 }
 
