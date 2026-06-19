@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+foundry-export/
+apps/web/dist/
+apps/server/tmp/

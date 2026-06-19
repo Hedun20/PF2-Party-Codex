@@ -1,0 +1,19 @@
+{
+  "name": "pf2-party-codex",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first premium Pathfinder 2e campaign wiki with Markdown vault storage and Foundry Journal import/export.",
+  "scripts": {
+    "dev": "concurrently -n server,web -c magenta,cyan \"npm run dev --workspace apps/server\" \"npm run dev --workspace apps/web\"",
+    "build": "npm run build --workspace apps/web",
+    "start": "npm run start --workspace apps/server",
+    "install:all": "npm install"
+  },
+  "workspaces": [
+    "apps/server",
+    "apps/web"
+  ],
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
