@@ -1,7 +1,26 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { api } from "../api/client.js";
 import MarkdownViewer from "../components/MarkdownViewer.jsx";
+
+function LinkList({ title, items = [] }) {
+  if (!items.length) return null;
+  return (
+    <section className="link-panel">
+      <h2>{title}</h2>
+      <div className="related-grid">
+        {items.map((item) => (
+          <Link key={item.path} to={`/page/${encodeURIComponent(item.path)}`}>
+            <span>{item.category}</span>
+            <strong>{item.title}</strong>
+            <p>{item.summary}</p>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export default function PageView({ mode }) {
   const { path } = useParams();
@@ -23,6 +42,8 @@ export default function PageView({ mode }) {
         <div className="tag-row">{page.tags?.map((tag) => <span key={tag}>{tag}</span>)}</div>
       </header>
       <MarkdownViewer content={page.content} />
+      <LinkList title="Связанные статьи" items={page.relatedPages} />
+      <LinkList title="Обратные ссылки" items={page.backlinks} />
     </div>
   );
 }

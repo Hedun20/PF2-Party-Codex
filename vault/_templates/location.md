@@ -3,6 +3,7 @@ type: location
 name: New Location
 visibility: public
 summary:
+related: []
 tags: [location]
 ---
 

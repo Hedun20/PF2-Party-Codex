@@ -1,10 +1,41 @@
 ---
-type: lore
+type: country
 subtype: country
-name: New Country
+name: Новая страна
+category: countries
 visibility: public
-summary:
-tags: [country]
+summary: Короткое описание страны.
+capital:
+ruler:
+population:
+languages: []
+factions: []
+related: []
+tags: [страна]
 ---
 
-# New Country
+# Новая страна
+
+## Кратко
+
+Что игроки знают о стране.
+
+## География
+
+Границы, климат, ключевые регионы.
+
+## Политика
+
+Власть, законы, конфликты, союзы.
+
+## Города
+
+- [[Название города]]
+
+## Связанные статьи
+
+Добавляй ссылки прямо в тексте через `[[Название статьи]]` или в поле `related` во frontmatter.
+
+## GM Secrets
+
+Скрытая информация для мастера.

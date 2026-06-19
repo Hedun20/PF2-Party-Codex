@@ -69,7 +69,8 @@ export async function rebuildVaultIndex() {
 }
 
 export function listPages(mode = "gm") {
-  return pages.map((page) => filterByMode(page, mode)).filter(Boolean);
+  const visiblePages = pages.map((page) => filterByMode(page, mode)).filter(Boolean);
+  return visiblePages.map((page) => withBacklinks(page, visiblePages));
 }
 
 export function getPage(requestedPath, mode = "gm") {
@@ -78,7 +79,51 @@ export function getPage(requestedPath, mode = "gm") {
   const byTitle = pages.find((page) => page.title.toLowerCase() === normalized.toLowerCase());
   const bySlug = pages.find((page) => slugify(page.title) === slugify(normalized));
   const page = direct || byTitle || bySlug;
-  return page ? filterByMode(page, mode) : null;
+  const filtered = page ? filterByMode(page, mode) : null;
+  if (!filtered) return null;
+  const visiblePages = pages.map((item) => filterByMode(item, mode)).filter(Boolean);
+  return withBacklinks(filtered, visiblePages);
+}
+
+function compactPage(page) {
+  return {
+    title: page.title,
+    path: page.path,
+    category: page.category,
+    type: page.type,
+    summary: page.summary
+  };
+}
+
+function linkMatchesPage(link, page) {
+  const target = slugify(link.target || "");
+  return target === slugify(page.title) || target === slugify(page.path.replace(/\.md$/i, ""));
+}
+
+function relatedMatchesPage(related, page) {
+  const target = slugify(String(related || ""));
+  return target === slugify(page.title) || target === slugify(page.path);
+}
+
+function withBacklinks(page, visiblePages) {
+  const backlinks = visiblePages
+    .filter((candidate) => candidate.path !== page.path)
+    .filter((candidate) => {
+      const wikiLinked = candidate.links?.some((link) => linkMatchesPage(link, page));
+      const relatedLinked = Array.isArray(candidate.frontmatter?.related)
+        && candidate.frontmatter.related.some((item) => relatedMatchesPage(item, page));
+      return wikiLinked || relatedLinked;
+    })
+    .map(compactPage);
+
+  const related = Array.isArray(page.frontmatter?.related)
+    ? page.frontmatter.related
+      .map((item) => visiblePages.find((candidate) => relatedMatchesPage(item, candidate)))
+      .filter(Boolean)
+      .map(compactPage)
+    : [];
+
+  return { ...page, backlinks, relatedPages: related };
 }
 
 export function getCategories(mode = "gm") {

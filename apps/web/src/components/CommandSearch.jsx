@@ -8,7 +8,7 @@ export default function CommandSearch({ pages, query, setQuery, onSelectPage }) 
   return (
     <div className="search-wrap">
       <Search size={18} />
-      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search the campaign archive" />
+      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по архиву кампании" />
       {results.length > 0 && (
         <div className="search-results">
           {results.map((page) => (

@@ -65,6 +65,13 @@ Wiki links use:
 
 To create pages manually, copy a template from `vault/_templates/` into the right folder, rename it, and edit the frontmatter and Markdown body.
 
+The current starter vault includes a Russian world timeline:
+
+- `vault/worlds/` contains 8 major worlds and 1 shared small-worlds page.
+- `vault/images/world-map.png` is served as the clickable map image.
+- `vault/_templates/city.md` and `vault/_templates/country.md` are Russian templates for new cities and countries.
+- `related: [...]` frontmatter and `[[wiki links]]` generate visible related links and backlinks in page view.
+
 ## GM Mode And Player Mode
 
 The frontend toggle is for convenience, but redaction also happens server-side through `mode=player`.

@@ -10,9 +10,9 @@ export default function CategoryPage({ pages, mode }) {
   return (
     <div className="page-stack">
       <header className="list-header">
-        <span className="kicker">Archive Section</span>
+        <span className="kicker">Раздел архива</span>
         <h1>{title}</h1>
-        <p>{items.length} visible entries in {mode} mode.</p>
+        <p>{items.length} видимых записей в режиме {mode === "gm" ? "GM" : "игрока"}.</p>
       </header>
       <div className="card-grid">{items.map((page) => <EntityCard key={page.path} page={page} mode={mode} />)}</div>
     </div>

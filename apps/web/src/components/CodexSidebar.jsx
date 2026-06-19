@@ -1,13 +1,16 @@
 import { Link, NavLink } from "react-router-dom";
-import { BookOpen, Castle, Crosshair, Map, ScrollText, Swords, UsersRound, WandSparkles } from "lucide-react";
+import { BookOpen, Castle, Crosshair, Globe2, Map, ScrollText, Swords, UsersRound, WandSparkles } from "lucide-react";
 import LoreDropdown from "./LoreDropdown.jsx";
 
 const sections = [
-  ["NPCs", "npcs", UsersRound],
-  ["Enemies", "enemies", Swords],
-  ["Quests", "quests", ScrollText],
-  ["Sessions", "sessions", BookOpen],
-  ["Locations", "locations", Map]
+  ["Миры", "worlds", Globe2],
+  ["Страны", "countries", Map],
+  ["Города", "cities", Castle],
+  ["NPC", "npcs", UsersRound],
+  ["Враги", "enemies", Swords],
+  ["Квесты", "quests", ScrollText],
+  ["Сессии", "sessions", BookOpen],
+  ["Локации", "locations", Map]
 ];
 
 export default function CodexSidebar() {
@@ -27,11 +30,11 @@ export default function CodexSidebar() {
         <LoreDropdown />
         <NavLink to="/foundry" className="nav-link">
           <WandSparkles size={18} />
-          <span>Foundry Import/Export</span>
+          <span>Foundry импорт/экспорт</span>
         </NavLink>
         <NavLink to="/editor" className="nav-link primary-link">
           <Crosshair size={18} />
-          <span>Quick Create</span>
+          <span>Быстро создать</span>
         </NavLink>
       </nav>
     </aside>

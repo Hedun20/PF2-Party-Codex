@@ -1,35 +1,38 @@
 ---
-title: Ashen Tide Campaign
+title: Атлас миров кампании
 type: campaign
 category: dashboard
-summary: A coastal Pathfinder 2e campaign about pirate syndicates, drowned gods, and a prophecy written in volcanic glass.
+summary: "Русский локальный кодекс кампании: 8 больших миров, малые миры, карта с пинами, Markdown-страницы и секреты GM."
 visibility: public
-tags: [overview, campaign]
+tags: [обзор, кампания, миры]
 ---
 
-# Ashen Tide Campaign
+# Атлас миров кампании
 
-The party has reached [[Black Harbor]] after surviving the wreck of the Moonwake. The city is beautiful, lawless, and threaded with old planar magic.
+Это главный экран кампании. Здесь собраны большие миры, малые миры, карта с пинами и быстрые ссылки на Markdown-страницы.
 
-## Last Session Summary
+## Главные миры
 
-The heroes recovered a sealed reliquary from the tide caves and learned that [[Captain Varos]] is hunting the same artifact.
+- [[Арка Ночи]]
+- [[Сольвейг]]
+- [[Золотой Клин]]
+- [[Морской Узел]]
+- [[Пепельные Княжества]]
+- [[Зеркальная Чаща]]
+- [[Костяная Марка]]
+- [[Лазурный Разлом]]
+- [[Малые миры]]
 
-## Active Quests
+## Как работает карта
 
-- [[The Glass Reliquary]]
-- [[Ash Below The Chapel]]
+PNG-карта лежит в `vault/images/world-map.png`. Пины на главной странице ведут на `.md` файлы в `vault/worlds`.
 
-## Open Mysteries
+## Рабочий процесс мастера
 
-- Why does the relic whisper in Ignan at moonrise?
-- Who is paying the [[Black Harbor Syndicate]]?
-
-## Next Session Hooks
-
-- The dockside auction begins at midnight.
-- A witness claims the [[Grave Knight of Ash]] walked through the lower cemetery.
+- Править миры можно напрямую через Markdown.
+- Новые миры можно добавлять в `vault/worlds`.
+- В режиме игрока скрываются GM-секции.
 
 ## GM Secrets
 
-Captain Varos is not the primary villain. His patron is a splinter cult of a buried fire god.
+Позже сюда можно добавить скрытые связи между мирами, глобальную угрозу и тайную хронологию кампании.
