@@ -44,7 +44,15 @@ function localIps() {
 await rebuildVaultIndex();
 startVaultWatcher();
 
-app.listen(config.port, config.host, () => {
+const server = app.listen(config.port, config.host, () => {
   console.log(`PF2 Party Codex running at http://localhost:${config.port}`);
   for (const ip of localIps()) console.log(`LAN URL: http://${ip}:${config.port}`);
+});
+
+server.on("error", (error) => {
+  if (error.code === "EADDRINUSE") {
+    console.error(`Port ${config.port} is already in use. Stop the existing PF2 Party Codex server or set PORT to another value.`);
+    process.exit(1);
+  }
+  throw error;
 });

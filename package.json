@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "concurrently -n server,web -c magenta,cyan \"npm run dev --workspace apps/server\" \"npm run dev --workspace apps/web\"",
     "build": "npm run build --workspace apps/web",
+    "prestart": "npm run build",
     "start": "npm run start --workspace apps/server",
     "install:all": "npm install"
   },
