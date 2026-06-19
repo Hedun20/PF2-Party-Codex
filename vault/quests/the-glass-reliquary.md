@@ -1,21 +1,21 @@
 ---
 type: quest
-name: The Glass Reliquary
-status: active
+name: Стеклянный реликварий
+status: активен
 visibility: public
-summary: Secure the volcanic glass reliquary before the Syndicate sells it to a cult buyer.
-tags: [main-quest, relic]
+summary: Завладеть реликварием из вулканического стекла до того, как Синдикат продаст его культу.
+tags: [главный-квест, реликвия]
 ---
 
-# The Glass Reliquary
+# Стеклянный реликварий
 
-The reliquary was recovered from a drowned shrine and currently sits in a warded chest.
+Реликварий нашли в затонувшем святилище. Сейчас он лежит в защищённом сундуке.
 
-## Leads
+## Зацепки
 
-- Ask [[Captain Varos]] who hired him.
-- Consult the temple records in [[Black Harbor]].
+- Спросить [[Капитан Варос]], кто его нанял.
+- Изучить храмовые записи в [[Чёрная Гавань]].
 
 ## GM Secrets
 
-The reliquary contains a map, not a soul.
+В реликварии хранится карта, а не душа.

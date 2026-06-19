@@ -26,6 +26,7 @@ app.use("/api", toolsRouter);
 app.use("/api", assetsRouter);
 
 const webDist = path.join(config.rootDir, "apps", "web", "dist");
+app.use("/fonts", express.static(path.join(webDist, "fonts"), { fallthrough: false, index: false }));
 app.use(express.static(webDist));
 app.get("*", (_req, res, next) => {
   res.sendFile(path.join(webDist, "index.html"), (error) => error && next());

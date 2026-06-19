@@ -1,12 +1,12 @@
 ---
 type: lore
 subtype: faction
-name: Black Harbor Syndicate
+name: Синдикат Чёрной Гавани
 visibility: public
-summary: A loose council of smugglers, brokers, and privateers who keep the port profitable.
-tags: [faction, black-harbor]
+summary: Свободный совет контрабандистов, брокеров и каперов, который поддерживает прибыльность порта.
+tags: [фракция, чёрная-гавань]
 ---
 
-# Black Harbor Syndicate
+# Синдикат Чёрной Гавани
 
-The Syndicate never admits membership in writing. Its captains settle disputes through auctions, favors, and elegantly staged disappearances.
+Синдикат никогда не признаёт членство письменно. Его капитаны решают споры через аукционы, услуги и изящно организованные исчезновения.

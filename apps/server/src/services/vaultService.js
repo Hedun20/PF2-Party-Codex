@@ -156,7 +156,7 @@ export async function savePage({ requestedPath, frontmatter = {}, content = "" }
   const safe = ensureMarkdownPath(requestedPath);
   const target = resolveInside(config.vaultDir, safe);
   await fs.mkdir(path.dirname(target), { recursive: true });
-  await fs.writeFile(target, stringifyMarkdown(frontmatter, content), "utf8");
+  await fs.writeFile(target, stringifyMarkdown(cleanFrontmatter(frontmatter), content), "utf8");
   await rebuildVaultIndex();
   return getPage(safe, "gm");
 }
@@ -164,7 +164,7 @@ export async function savePage({ requestedPath, frontmatter = {}, content = "" }
 export async function createPage(payload) {
   const type = payload.type || "lore";
   const category = payload.category || defaultCategory(type);
-  const title = payload.title || payload.name || "Untitled";
+  const title = payload.title || payload.name || payload.pins?.[0]?.label || draftTitle(type);
   const requestedPath = payload.path || `${category}/${slugify(title)}.md`;
   const content = [
     payload.summary || "",
@@ -197,6 +197,37 @@ export async function createPage(payload) {
     },
     content
   });
+}
+
+function cleanFrontmatter(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => cleanFrontmatter(item))
+      .filter((item) => item !== undefined && item !== "" && !(Array.isArray(item) && item.length === 0));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .map(([key, item]) => [key, cleanFrontmatter(item)])
+        .filter(([, item]) => item !== undefined && item !== "" && !(Array.isArray(item) && item.length === 0))
+    );
+  }
+  return value === null ? undefined : value;
+}
+
+function draftTitle(type) {
+  const labels = {
+    world: "Новый мир",
+    country: "Новая страна",
+    city: "Новый город",
+    npc: "Новый NPC",
+    enemy: "Новый враг",
+    quest: "Новый квест",
+    session: "Новая сессия",
+    location: "Новая локация",
+    lore: "Новая статья"
+  };
+  return `${labels[type] || "Новая статья"} ${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}`;
 }
 
 function defaultCategory(type) {

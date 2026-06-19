@@ -1,14 +1,14 @@
 ---
 type: quest
-name: New Quest
-status: active
+name: Новый квест
+status: активен
 visibility: public
 summary:
-tags: [quest]
+tags: [квест]
 ---
 
-# New Quest
+# Новый квест
 
-## Leads
+## Зацепки
 
 ## GM Secrets

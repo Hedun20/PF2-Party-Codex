@@ -1,18 +1,18 @@
 ---
 type: npc
-name: New NPC
+name: Новый NPC
 role:
 ancestry:
 location:
 faction:
-status: alive
+status: жив
 visibility: public
 summary:
 tags: []
 ---
 
-# New NPC
+# Новый NPC
 
-## Public Notes
+## Публичные заметки
 
 ## GM Secrets

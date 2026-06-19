@@ -1,11 +1,11 @@
 ---
 type: lore
 subtype: god
-name: New God
+name: Новый бог
 domains: []
 visibility: public
 summary:
-tags: [god]
+tags: [бог]
 ---
 
-# New God
+# Новый бог

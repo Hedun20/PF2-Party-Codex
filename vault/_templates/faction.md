@@ -1,10 +1,10 @@
 ---
 type: lore
 subtype: faction
-name: New Faction
+name: Новая фракция
 visibility: public
 summary:
-tags: [faction]
+tags: [фракция]
 ---
 
-# New Faction
+# Новая фракция

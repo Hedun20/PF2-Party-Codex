@@ -1,13 +1,13 @@
 ---
 type: session
-name: New Session
+name: Новая сессия
 visibility: public
 summary:
-tags: [recap]
+tags: [пересказ]
 ---
 
-# New Session
+# Новая сессия
 
-## Recap
+## Пересказ
 
 ## GM Secrets

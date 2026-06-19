@@ -11,9 +11,22 @@ function WorldCard({ world, pages }) {
   const countries = children.filter((page) => page.category === "countries").length;
   const cities = children.filter((page) => page.category === "cities").length;
   const hooks = children.filter((page) => ["quests", "npcs", "enemies", "locations"].includes(page.category)).length;
+  const tags = world.tags || [];
+  const affinity = tags.includes("некромантия") || tags.includes("нежить")
+    ? "necrotic"
+    : tags.includes("море")
+      ? "tide"
+      : tags.includes("пустыня")
+        ? "solar"
+        : tags.includes("лес") || tags.includes("феи")
+          ? "wild"
+          : tags.includes("портал") || tags.includes("планарная-магия")
+            ? "astral"
+            : "arcane";
 
   return (
-    <Link className="world-shell-card" to={toPage(world.path)}>
+    <Link className={`world-shell-card ${affinity}`} to={toPage(world.path)}>
+      <span className="world-orbit" />
       <div className="world-shell-top">
         <span className="world-kind">{world.kind}</span>
         <Globe2 size={22} />

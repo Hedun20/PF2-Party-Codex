@@ -264,6 +264,13 @@
   gap: 8px;
 }
 
+.inline-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .type-chip {
   min-height: 42px;
   border: 1px solid var(--line);
@@ -454,27 +461,88 @@ textarea { min-height: 96px; resize: vertical; }
   box-shadow: 0 18px 48px rgba(229, 75, 180, 0.16);
 }
 
+.world-shell-card::after {
+  content: "";
+  position: absolute;
+  inset: 42px 24px auto;
+  height: 150px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255,255,255,0.24), transparent 12%),
+    radial-gradient(circle at 50% 55%, var(--world-glow, rgba(168,85,247,0.34)), transparent 58%);
+  filter: blur(1px);
+  opacity: 0.7;
+  transform: rotate(-8deg);
+  transition: transform 260ms ease, opacity 260ms ease, filter 260ms ease;
+  pointer-events: none;
+}
+
+.world-shell-card:hover::after {
+  opacity: 1;
+  filter: blur(0);
+  transform: rotate(3deg) scale(1.08);
+}
+
+.world-shell-card.arcane { --world-glow: rgba(168, 85, 247, 0.42); }
+.world-shell-card.necrotic { --world-glow: rgba(77, 212, 161, 0.42); }
+.world-shell-card.tide { --world-glow: rgba(56, 189, 248, 0.42); }
+.world-shell-card.solar { --world-glow: rgba(227, 182, 95, 0.48); }
+.world-shell-card.wild { --world-glow: rgba(91, 230, 139, 0.38); }
+.world-shell-card.astral { --world-glow: rgba(229, 75, 180, 0.45); }
+
+.world-orbit {
+  position: absolute;
+  inset: 30px 18px auto;
+  height: 174px;
+  border: 1px solid rgba(227, 182, 95, 0.22);
+  border-radius: 50%;
+  transform: rotate(-12deg);
+  pointer-events: none;
+}
+
+.world-orbit::before,
+.world-orbit::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 16px var(--gold);
+}
+
+.world-orbit::before { left: 18%; top: 14%; }
+.world-orbit::after { right: 12%; bottom: 20%; }
+
 .world-shell-top {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   color: var(--gold);
+  position: relative;
+  z-index: 1;
 }
 
 .world-shell-card h3 {
   margin: 12px 0 8px;
   font-family: var(--display);
   font-size: 1.3rem;
+  position: relative;
+  z-index: 1;
 }
 
 .world-shell-card p {
   color: var(--muted);
   line-height: 1.5;
+  position: relative;
+  z-index: 1;
 }
 
 .world-dot-row {
   display: flex;
   gap: 10px;
+  position: relative;
+  z-index: 1;
 }
 
 .world-dot-row span {

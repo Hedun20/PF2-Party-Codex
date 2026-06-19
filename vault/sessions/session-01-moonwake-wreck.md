@@ -1,11 +1,11 @@
 ---
 type: session
-name: Session 01 - Moonwake Wreck
+name: Сессия 01 - Крушение Лунной Волны
 visibility: public
-summary: The party survived a shipwreck, escaped tide cave predators, and found the reliquary.
-tags: [recap]
+summary: Партия пережила кораблекрушение, выбралась из приливных пещер и нашла реликварий.
+tags: [пересказ]
 ---
 
-# Session 01 - Moonwake Wreck
+# Сессия 01 - Крушение Лунной Волны
 
-The Moonwake shattered on black rocks during an unnatural storm. The party escaped into tide caves and recovered [[The Glass Reliquary]].
+“Лунная Волна” разбилась о чёрные скалы во время неестественного шторма. Герои выбрались в приливные пещеры и нашли [[Стеклянный реликварий]].

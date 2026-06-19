@@ -1,19 +1,19 @@
 ---
 type: enemy
-name: New Enemy
+name: Новый враг
 level:
 creatureType:
 threat:
 weaknesses: []
 resistances: []
-status: active
+status: активен
 visibility: public
 summary:
 tags: []
 ---
 
-# New Enemy
+# Новый враг
 
-## Tactics
+## Тактика
 
 ## GM Secrets

@@ -35,6 +35,7 @@ export default function QuickEditor({ onSaved }) {
   const [metadata, setMetadata] = useState({ pages: [], tags: [], worlds: [], countries: [], cities: [] });
   const [form, setForm] = useState({ type: "world", visibility: "public", tags: [], related: [], pins: [] });
   const [pinDraft, setPinDraft] = useState({ label: "", path: "" });
+  const [tagDraft, setTagDraft] = useState("");
   const [localMapPreview, setLocalMapPreview] = useState("");
   const [message, setMessage] = useState("");
 
@@ -56,6 +57,13 @@ export default function QuickEditor({ onSaved }) {
       const list = current[key] || [];
       return { ...current, [key]: list.includes(value) ? list.filter((item) => item !== value) : [...list, value] };
     });
+  }
+
+  function addTag() {
+    const tag = tagDraft.trim();
+    if (!tag) return;
+    if (!form.tags?.includes(tag)) update("tags", [...(form.tags || []), tag]);
+    setTagDraft("");
   }
 
   async function uploadMap(event) {
@@ -123,7 +131,7 @@ export default function QuickEditor({ onSaved }) {
       </section>
 
       <section className="builder-section two-col">
-        <label>Название<input value={form.name || ""} onChange={(event) => update("name", event.target.value)} required /></label>
+        <label>Название<input value={form.name || ""} onChange={(event) => update("name", event.target.value)} placeholder="Можно оставить пустым: возьмём название первого пина или создадим черновик" /></label>
         <label>Категория<select value={form.category || categoryByType[form.type]} onChange={(event) => update("category", event.target.value)}>
           {Object.entries(categoryByType).map(([_type, category]) => <option key={category} value={category}>{labelCategory(category)}</option>)}
         </select></label>
@@ -156,6 +164,10 @@ export default function QuickEditor({ onSaved }) {
                 {tag}
               </button>
             ))}
+          </div>
+          <div className="inline-add">
+            <input value={tagDraft} onChange={(event) => setTagDraft(event.target.value)} placeholder="Добавить новый тег" />
+            <button type="button" className="type-chip" onClick={addTag}>Добавить тег</button>
           </div>
         </div>
         <div>

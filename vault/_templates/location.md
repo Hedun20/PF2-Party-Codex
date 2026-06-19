@@ -1,14 +1,14 @@
 ---
 type: location
-name: New Location
+name: Новая локация
 visibility: public
 summary:
 related: []
-tags: [location]
+tags: [локация]
 ---
 
-# New Location
+# Новая локация
 
-## Public Notes
+## Публичные заметки
 
 ## GM Secrets

@@ -1,12 +1,12 @@
 ---
 type: quest
-name: Ash Below The Chapel
-status: active
+name: Пепел под часовней
+status: активен
 visibility: public
-summary: Investigate the old chapel where gray ash appears even after rain.
-tags: [side-quest, undead]
+summary: Исследовать старую часовню, где серый пепел появляется даже после дождя.
+tags: [побочный-квест, нежить]
 ---
 
-# Ash Below The Chapel
+# Пепел под часовней
 
-The lower cemetery has become warm to the touch. Grave markers closest to the chapel now bear faint runes.
+Нижнее кладбище стало тёплым на ощупь. На ближайших к часовне надгробиях проступили слабые руны.

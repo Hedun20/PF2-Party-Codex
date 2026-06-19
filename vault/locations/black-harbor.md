@@ -1,17 +1,17 @@
 ---
 type: location
-name: Black Harbor
+name: Чёрная Гавань
 visibility: public
-summary: A glittering pirate port built around drowned elven ruins and profitable secrets.
-tags: [city, coast, syndicate]
+summary: Блестящий пиратский порт, построенный вокруг затонувших эльфийских руин и прибыльных секретов.
+tags: [город, побережье, синдикат]
 ---
 
-# Black Harbor
+# Чёрная Гавань
 
-Black Harbor is a city of wet stone, lamp-lit bridges, privateer flags, and expensive silence.
+Чёрная Гавань — город мокрого камня, мостов под фонарями, каперских флагов и дорогого молчания.
 
-## Districts
+## Районы
 
-- The Lower Quays
-- Glassmarket
-- Chapel Hill
+- Нижние причалы
+- Стеклянный рынок
+- Холм часовни

@@ -1,15 +1,15 @@
 ---
 type: lore
 subtype: god
-name: Nethys
-domains: [magic, destruction]
+name: Нефис
+domains: [магия, разрушение]
 visibility: public
-summary: The god of magic is invoked whenever the party studies the reliquary's impossible script.
-tags: [god, magic]
+summary: Бога магии вспоминают всякий раз, когда партия изучает невозможную письменность реликвария.
+tags: [бог, магия]
 ---
 
-# Nethys
+# Нефис
 
-Local arcanists believe the reliquary's script alternates between revelation and self-erasure, a pattern associated with Nethys.
+Местные арканисты считают, что письменность реликвария чередует откровение и самоистирание — узор, связанный с Нефисом.
 
-Related: [[The Glass Reliquary]]
+Связано: [[Стеклянный реликварий]]

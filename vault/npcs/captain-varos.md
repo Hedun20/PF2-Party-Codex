@@ -1,28 +1,28 @@
 ---
 type: npc
-name: Captain Varos
-role: Pirate Captain
-ancestry: Human
-location: Black Harbor
-faction: Black Harbor Syndicate
+name: Капитан Варос
+role: Пиратский капитан
+ancestry: Человек
+location: Чёрная Гавань
+faction: Синдикат Чёрной Гавани
 status: alive
 visibility: public
-summary: A charming pirate captain with impeccable manners and a very flexible definition of ownership.
-tags: [pirate, possible-ally, absalom]
+summary: Обаятельный пиратский капитан с безупречными манерами и очень гибким пониманием собственности.
+tags: [пират, возможный-союзник, абсалом]
 ---
 
-# Captain Varos
+# Капитан Варос
 
-Varos commands the privateer sloop *Velvet Knife*. He presents himself as a patron of lost causes and fine wine.
+Варос командует каперским шлюпом “Бархатный нож”. Он представляет себя покровителем безнадёжных дел и хорошего вина.
 
-He wants [[The Glass Reliquary]] and has offered the party a temporary alliance.
+Он ищет [[Стеклянный реликварий]] и предложил партии временный союз.
 
-## Public Notes
+## Публичные заметки
 
-- Speaks softly even when threatening people.
-- Keeps a silver holy symbol with the face scratched away.
-- Knows old shipping routes through [[Black Harbor]].
+- Говорит мягко даже тогда, когда угрожает.
+- Носит серебряный священный символ со стёртым лицом.
+- Знает старые морские маршруты через [[Чёрная Гавань]].
 
 ## GM Secrets
 
-Varos is cursed. If he touches the reliquary, the [[Grave Knight of Ash]] can see through his eyes.
+Варос проклят. Если он коснётся реликвария, [[Пепельный рыцарь-могильник]] сможет видеть его глазами.

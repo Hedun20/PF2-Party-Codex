@@ -1,26 +1,26 @@
 ---
 type: enemy
-name: Grave Knight of Ash
+name: Пепельный рыцарь-могильник
 level: 8
-creatureType: undead
-threat: severe
-weaknesses: [vitality]
-resistances: [physical]
-status: active
+creatureType: нежить
+threat: серьёзная
+weaknesses: [жизненная-энергия]
+resistances: [физический]
+status: активен
 visibility: public
-summary: A silent undead champion whose armor leaks gray flame.
-tags: [undead, severe, recurring]
+summary: Молчаливый чемпион-нежить, из доспехов которого сочится серое пламя.
+tags: [нежить, серьёзная-угроза, повторяющийся]
 ---
 
-# Grave Knight of Ash
+# Пепельный рыцарь-могильник
 
-This knight appears wherever old volcanic stone has been consecrated and then betrayed.
+Этот рыцарь появляется там, где старый вулканический камень был освящён, а затем предан.
 
-## Tactics
+## Тактика
 
-- Opens with fear effects and battlefield control.
-- Ignores retreating enemies unless they carry relic fragments.
+- Начинает с эффектов страха и контроля поля боя.
+- Игнорирует отступающих врагов, если у них нет фрагментов реликвии.
 
 :::gm
-The knight is bound to the lost temple under the chapel.
+Рыцарь связан с потерянным храмом под часовней.
 :::
