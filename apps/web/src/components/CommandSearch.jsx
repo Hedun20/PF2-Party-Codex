@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import { labelCategory } from "../utils/labels.js";
 
 export default function CommandSearch({ pages, query, setQuery, onSelectPage }) {
   const results = query.trim()
@@ -14,7 +15,7 @@ export default function CommandSearch({ pages, query, setQuery, onSelectPage }) 
           {results.map((page) => (
             <button key={page.path} onClick={() => { setQuery(""); onSelectPage(page.path); }}>
               <strong>{page.title}</strong>
-              <span>{page.category}</span>
+              <span>{labelCategory(page.category)}</span>
             </button>
           ))}
         </div>

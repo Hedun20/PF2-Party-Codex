@@ -53,6 +53,12 @@ export async function rebuildVaultIndex() {
       title,
       category: inferCategory(relativePath, frontmatter),
       type: frontmatter.type || inferCategory(relativePath, frontmatter),
+      world: frontmatter.world || undefined,
+      country: frontmatter.country || undefined,
+      city: frontmatter.city || undefined,
+      parent: frontmatter.parent || undefined,
+      mapImage: frontmatter.mapImage || undefined,
+      pins: Array.isArray(frontmatter.pins) ? frontmatter.pins : [],
       summary: summarize(content, frontmatter),
       tags: Array.isArray(frontmatter.tags) ? frontmatter.tags : [],
       visibility: frontmatter.visibility || "public",
@@ -123,7 +129,17 @@ function withBacklinks(page, visiblePages) {
       .map(compactPage)
     : [];
 
-  return { ...page, backlinks, relatedPages: related };
+  const children = visiblePages
+    .filter((candidate) => candidate.path !== page.path)
+    .filter((candidate) => {
+      if (page.type === "world") return candidate.world === page.title || candidate.parent === page.title;
+      if (page.type === "country") return candidate.country === page.title || candidate.parent === page.title;
+      if (page.type === "city") return candidate.city === page.title || candidate.parent === page.title;
+      return false;
+    })
+    .map(compactPage);
+
+  return { ...page, backlinks, relatedPages: related, children };
 }
 
 export function getCategories(mode = "gm") {
@@ -147,13 +163,13 @@ export async function savePage({ requestedPath, frontmatter = {}, content = "" }
 
 export async function createPage(payload) {
   const type = payload.type || "lore";
-  const category = payload.category || (type === "npc" ? "npcs" : `${type}s`);
+  const category = payload.category || defaultCategory(type);
   const title = payload.title || payload.name || "Untitled";
   const requestedPath = payload.path || `${category}/${slugify(title)}.md`;
   const content = [
     payload.summary || "",
     "",
-    "## Public Notes",
+    "## Публичные заметки",
     payload.publicNotes || "",
     "",
     payload.gmSecrets ? `## GM Secrets\n${payload.gmSecrets}` : ""
@@ -166,6 +182,12 @@ export async function createPage(payload) {
       type,
       category,
       subtype: payload.subtype || undefined,
+      world: payload.world || undefined,
+      country: payload.country || undefined,
+      city: payload.city || undefined,
+      parent: payload.parent || undefined,
+      mapImage: payload.mapImage || undefined,
+      pins: payload.pins || [],
       summary: payload.summary || "",
       tags: payload.tags || [],
       related: payload.related || [],
@@ -175,6 +197,20 @@ export async function createPage(payload) {
     },
     content
   });
+}
+
+function defaultCategory(type) {
+  const categories = {
+    world: "worlds",
+    country: "countries",
+    city: "cities",
+    npc: "npcs",
+    enemy: "enemies",
+    quest: "quests",
+    session: "sessions",
+    location: "locations"
+  };
+  return categories[type] || "lore";
 }
 
 export async function pageExists(relativePath) {

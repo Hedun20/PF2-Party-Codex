@@ -5,9 +5,9 @@ export default function FoundryImportExportPage({ mode }) {
   return (
     <div className="page-stack">
       <header className="list-header">
-        <span className="kicker">Foundry Journals</span>
-        <h1>Import / Export</h1>
-        <p>Preview imports before writing Markdown. Test exports in a backup Foundry world first.</p>
+        <span className="kicker">Legacy-инструмент</span>
+        <h1>Foundry импорт / экспорт</h1>
+        <p>Раздел скрыт из основной навигации. Код оставлен для будущего импорта журналов, но текущий фокус — локальный Markdown-vault и PNG-карты.</p>
       </header>
       <div className="tool-grid">
         <FoundryImportPanel />

@@ -5,12 +5,19 @@ name: Новая страна
 category: countries
 visibility: public
 summary: Короткое описание страны.
+world:
 capital:
 ruler:
 population:
 languages: []
 factions: []
 related: []
+mapImage:
+pins:
+  - label: Новый город
+    path: cities/new-city.md
+    x: 50
+    y: 50
 tags: [страна]
 ---
 
@@ -31,6 +38,10 @@ tags: [страна]
 ## Города
 
 - [[Название города]]
+
+## PNG-карта и пины
+
+Положи файл карты в `vault/images`, укажи его в `mapImage`, а пины заполни координатами в процентах.
 
 ## Связанные статьи
 

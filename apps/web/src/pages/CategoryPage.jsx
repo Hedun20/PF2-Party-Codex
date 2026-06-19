@@ -1,11 +1,12 @@
 import { useParams } from "react-router-dom";
 import EntityCard from "../components/EntityCard.jsx";
+import { labelCategory } from "../utils/labels.js";
 
 export default function CategoryPage({ pages, mode }) {
   const params = useParams();
   const category = `${params.category}${params["*"] ? `/${params["*"]}` : ""}`;
   const items = pages.filter((page) => page.category === category || page.category?.startsWith(`${category}/`));
-  const title = category.split("/").map((part) => part.replace(/^\w/, (c) => c.toUpperCase())).join(" / ");
+  const title = labelCategory(category);
 
   return (
     <div className="page-stack">

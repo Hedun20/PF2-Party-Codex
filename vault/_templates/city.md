@@ -5,6 +5,7 @@ name: Новый город
 category: cities
 visibility: public
 summary: Короткое описание города.
+world:
 country:
 region:
 population:
@@ -12,6 +13,12 @@ ruler:
 districts: []
 factions: []
 related: []
+mapImage:
+pins:
+  - label: Важное место
+    path: locations/new-place.md
+    x: 50
+    y: 50
 tags: [город]
 ---
 
@@ -30,6 +37,10 @@ tags: [город]
 ## Важные места
 
 - [[Название локации]]
+
+## PNG-карта и пины
+
+Положи карту города в `vault/images`, укажи её в `mapImage`, а пины веди на районы, NPC, квесты и локации.
 
 ## NPC
 

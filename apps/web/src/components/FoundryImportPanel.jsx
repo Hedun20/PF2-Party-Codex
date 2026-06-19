@@ -15,26 +15,26 @@ export default function FoundryImportPanel() {
 
   async function commit() {
     const result = await api.foundryImportCommit(preview, conflictMode);
-    setMessage(`Imported ${result.written.length} pages`);
+    setMessage(`Импортировано страниц: ${result.written.length}`);
   }
 
   return (
     <section className="tool-panel">
-      <h2>Foundry Import</h2>
+      <h2>Импорт Foundry</h2>
       <input type="file" accept="application/json,.json" multiple onChange={upload} />
       {preview.length > 0 && (
         <>
-          <label>Conflicts<select value={conflictMode} onChange={(event) => setConflictMode(event.target.value)}><option>skip</option><option>overwrite</option><option>copy</option></select></label>
+          <label>Конфликты<select value={conflictMode} onChange={(event) => setConflictMode(event.target.value)}><option value="skip">пропустить</option><option value="overwrite">перезаписать</option><option value="copy">создать копию</option></select></label>
           <div className="preview-list">
             {preview.map((item, index) => (
               <div key={`${item.targetPath}-${index}`}>
                 <strong>{item.sourceTitle}</strong>
-                <span>{item.detectedCategory} {"->"} {item.targetPath}{item.conflict ? " (conflict)" : ""}</span>
+                <span>{item.detectedCategory} {"->"} {item.targetPath}{item.conflict ? " (конфликт)" : ""}</span>
                 {item.warnings.map((warning) => <em key={warning}>{warning}</em>)}
               </div>
             ))}
           </div>
-          <button className="gold-button" onClick={commit}>Write Markdown Files</button>
+          <button className="gold-button" onClick={commit}>Записать Markdown-файлы</button>
         </>
       )}
       {message && <p className="save-message">{message}</p>}

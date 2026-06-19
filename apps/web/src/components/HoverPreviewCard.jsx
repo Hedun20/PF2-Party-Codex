@@ -1,11 +1,13 @@
+import { labelCategory } from "../utils/labels.js";
+
 export default function HoverPreviewCard({ page, mode }) {
   return (
     <aside className="hover-card">
       <strong>{page.title}</strong>
-      <p>{page.summary || "No summary yet."}</p>
+      <p>{page.summary || "Описание пока не заполнено."}</p>
       <dl>
         <dt>Категория</dt>
-        <dd>{page.category}</dd>
+        <dd>{labelCategory(page.category)}</dd>
         <dt>Связи</dt>
         <dd>{page.links?.length || 0}</dd>
         <dt>Обновлено</dt>

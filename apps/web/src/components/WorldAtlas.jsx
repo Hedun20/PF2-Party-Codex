@@ -1,70 +1,77 @@
 import { Link } from "react-router-dom";
-import { Clock3, MapPin, Sparkles } from "lucide-react";
+import { Globe2, MapPin, Network } from "lucide-react";
 import { minorWorldsCard, worldCards } from "../data/worlds.js";
 
 function toPage(path) {
   return `/page/${encodeURIComponent(path)}`;
 }
 
-function WorldCard({ world }) {
+function WorldCard({ world, pages }) {
+  const children = pages.filter((page) => page.world === world.title || page.parent === world.title);
+  const countries = children.filter((page) => page.category === "countries").length;
+  const cities = children.filter((page) => page.category === "cities").length;
+  const hooks = children.filter((page) => ["quests", "npcs", "enemies", "locations"].includes(page.category)).length;
+
   return (
-    <Link className="timeline-card" to={toPage(world.path)}>
-      <span className="timeline-year">{world.year}</span>
-      <div>
+    <Link className="world-shell-card" to={toPage(world.path)}>
+      <div className="world-shell-top">
         <span className="world-kind">{world.kind}</span>
-        <h3>{world.title}</h3>
-        <p>{world.summary}</p>
+        <Globe2 size={22} />
       </div>
-      <div className="world-meta">
-        <span>{world.era}</span>
-        <MapPin size={15} />
+      <h3>{world.title}</h3>
+      <p>{world.summary}</p>
+      <div className="world-dot-row" aria-label="Слои мира">
+        <span title="Страны">{countries}</span>
+        <span title="Города">{cities}</span>
+        <span title="Сюжетные сущности">{hooks}</span>
+      </div>
+      <div className="world-card-preview">
+        <strong>Открыть слой мира</strong>
+        <span>Страны: {countries}</span>
+        <span>Города: {cities}</span>
+        <span>NPC, враги, квесты, локации: {hooks}</span>
       </div>
     </Link>
   );
 }
 
-export default function WorldAtlas() {
+export default function WorldAtlas({ pages = [] }) {
   return (
     <section className="atlas-layout" aria-label="Атлас миров">
-      <div className="timeline-panel">
+      <div className="worlds-panel">
         <div className="atlas-title-row">
           <div>
-            <span className="kicker">Таймлайн кампании</span>
-            <h2>8 больших миров на линии времени</h2>
+            <span className="kicker">Верхний слой</span>
+            <h2>Миры кампании</h2>
           </div>
           <div className="atlas-badge">
-            <Clock3 size={18} />
-            <span>карточки ведут в Markdown</span>
+            <Network size={18} />
+            <span>мир {"->"} страна {"->"} город {"->"} сущности</span>
           </div>
         </div>
-        <div className="timeline-track">
-          {worldCards.map((world, index) => (
-            <div className={index % 2 === 0 ? "timeline-node above" : "timeline-node below"} key={world.path}>
-              <WorldCard world={world} />
-            </div>
-          ))}
+        <div className="world-shell-grid">
+          {worldCards.map((world) => <WorldCard key={world.path} world={world} pages={pages} />)}
         </div>
       </div>
 
       <aside className="minor-worlds-panel">
-        <span className="kicker">Общая карточка</span>
+        <span className="kicker">Общий слой</span>
         <h2>{minorWorldsCard.title}</h2>
-        <span className="timeline-year">{minorWorldsCard.year}</span>
         <p>{minorWorldsCard.summary}</p>
         <Link className="gold-button" to={toPage(minorWorldsCard.path)}>Открыть малые миры</Link>
         <div className="world-notes">
-          <strong>Топ-инфо</strong>
-          <span>9 карточек мира</span>
-          <span>9 кликабельных пинов</span>
-          <span>Источник данных: Markdown vault</span>
+          <strong>Логика хранения</strong>
+          <span>PNG лежат в `vault/images`</span>
+          <span>Пины описаны в Markdown</span>
+          <span>Связи строятся из `world`, `country`, `city`, `related`</span>
         </div>
       </aside>
 
       <div className="map-panel">
         <div className="map-copy">
-          <span className="kicker">PNG карта</span>
-          <h2>Карта миров с пинами</h2>
-          <p>Каждый пин открывает связанную Markdown-страницу с описанием мира, секретами GM и связями.</p>
+          <span className="kicker">Общая карта</span>
+          <h2>8 миров как входные точки</h2>
+          <p>Внутри каждого мира можно хранить свои страны, города и PNG-карты с пинами. Мастер просто кладёт файлы в локальный vault.</p>
         </div>
         <div className="map-stage">
           <img src="/api/assets/world-map.png" alt="Карта миров кампании" />
@@ -76,7 +83,7 @@ export default function WorldAtlas() {
               to={toPage(world.path)}
               title={world.title}
             >
-              <Sparkles size={15} />
+              <MapPin size={15} />
               <span>{world.title}</span>
             </Link>
           ))}

@@ -65,12 +65,14 @@ Wiki links use:
 
 To create pages manually, copy a template from `vault/_templates/` into the right folder, rename it, and edit the frontmatter and Markdown body.
 
-The current starter vault includes a Russian world timeline:
+The current starter vault uses a Russian onion / Niagara structure:
 
 - `vault/worlds/` contains 8 major worlds and 1 shared small-worlds page.
 - `vault/images/world-map.png` is served as the clickable map image.
-- `vault/_templates/city.md` and `vault/_templates/country.md` are Russian templates for new cities and countries.
-- `related: [...]` frontmatter and `[[wiki links]]` generate visible related links and backlinks in page view.
+- `vault/countries/` and `vault/cities/` contain nested examples for the world `Арка Ночи`.
+- `vault/_templates/world.md`, `country.md`, and `city.md` are Russian templates with `mapImage`, `pins`, and hierarchy fields.
+- `world`, `country`, `city`, `parent`, `related`, and `[[wiki links]]` generate child layers, related links, and backlinks.
+- PNG maps stay local in `vault/images`; pings/pins are stored in Markdown frontmatter as percentage coordinates.
 
 ## GM Mode And Player Mode
 

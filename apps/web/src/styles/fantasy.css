@@ -1,7 +1,7 @@
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   position: relative;
   overflow: hidden;
 }
@@ -23,11 +23,37 @@
 }
 
 .sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 280px;
+  z-index: 20;
+  transform: translateX(-100%);
+  transition: transform 180ms ease;
   min-height: 100vh;
   padding: 24px 18px;
   border-right: 1px solid var(--line);
   background: rgba(8, 7, 13, 0.82);
   backdrop-filter: blur(18px);
+}
+
+.sidebar-open .sidebar {
+  transform: translateX(0);
+}
+
+.sidebar-open::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 28px;
 }
 
 .brand {
@@ -36,7 +62,19 @@
   gap: 12px;
   color: var(--gold);
   font-weight: 900;
-  margin-bottom: 28px;
+}
+
+.sidebar-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
 }
 
 .main-stage {
