@@ -165,7 +165,21 @@
   border: 1px solid var(--line);
   border-radius: 8px;
   background: linear-gradient(145deg, rgba(24, 18, 36, 0.88), rgba(13, 10, 20, 0.9));
+  box-shadow: inset 0 0 0 1px rgba(168, 85, 247, 0.06);
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.entity-card::before,
+.world-shell-card::before,
+.builder-section::before,
+.page-map-panel::before,
+.hierarchy-panel::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(227, 182, 95, 0.08);
+  border-radius: 6px;
+  pointer-events: none;
 }
 
 .entity-card:hover {
@@ -231,6 +245,7 @@
 }
 
 .builder-section {
+  position: relative;
   display: grid;
   gap: 14px;
   padding: 18px;
@@ -262,6 +277,95 @@
 .type-chip:hover {
   color: #17100d;
   background: var(--gold);
+}
+
+.field-title {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+}
+
+.choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.choice-pill {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.choice-pill.active,
+.choice-pill:hover {
+  color: #10130f;
+  background: var(--green);
+}
+
+.map-upload-row,
+.pin-tools {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.pin-tools {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.upload-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--gold);
+  background: rgba(227, 182, 95, 0.08);
+  cursor: pointer;
+}
+
+.upload-button input {
+  display: none;
+}
+
+.pin-editor {
+  position: relative;
+  min-height: 380px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: crosshair;
+  background: #0f0c16;
+}
+
+.pin-editor img {
+  display: block;
+  width: 100%;
+  min-height: 380px;
+  object-fit: cover;
+}
+
+.pin-editor-dot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(227, 182, 95, 0.72);
+  border-radius: 999px;
+  color: #17100d;
+  background: linear-gradient(135deg, #f0ce7a, #c28a34);
+  padding: 7px 9px;
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .builder-hint {
@@ -359,6 +463,7 @@ textarea { min-height: 96px; resize: vertical; }
 
 .world-shell-card h3 {
   margin: 12px 0 8px;
+  font-family: var(--display);
   font-size: 1.3rem;
 }
 
@@ -640,10 +745,71 @@ textarea { min-height: 96px; resize: vertical; }
 
 .page-map-panel,
 .hierarchy-panel {
+  position: relative;
   padding: 18px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
+}
+
+.audit-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.audit-summary div {
+  display: grid;
+  gap: 4px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.audit-summary strong {
+  color: var(--gold);
+  font-size: 2rem;
+  font-family: var(--display);
+}
+
+.audit-summary span,
+.audit-item p {
+  color: var(--muted);
+}
+
+.audit-list,
+.guide-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.audit-item,
+.guide-grid article {
+  display: grid;
+  gap: 7px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.audit-item span {
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+.audit-item.error { border-color: rgba(255, 102, 102, 0.55); }
+.audit-item.warning { border-color: rgba(227, 182, 95, 0.55); }
+
+.guide-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.guide-grid h2 {
+  margin: 0;
+  font-family: var(--display);
+  color: var(--gold);
 }
 
 .panel-heading h2 {
@@ -786,4 +952,7 @@ textarea { min-height: 96px; resize: vertical; }
   .map-pin span { display: none; }
   .page-map-pin span { display: none; }
   .builder-section.two-col { grid-template-columns: 1fr; }
+  .map-upload-row,
+  .pin-tools,
+  .audit-summary { grid-template-columns: 1fr; }
 }

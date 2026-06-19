@@ -9,6 +9,7 @@ import { foundryRouter } from "./routes/foundry.js";
 import { healthRouter } from "./routes/health.js";
 import { pagesRouter } from "./routes/pages.js";
 import { searchRouter } from "./routes/search.js";
+import { toolsRouter } from "./routes/tools.js";
 import { startVaultWatcher } from "./services/fileWatchService.js";
 import { rebuildVaultIndex } from "./services/vaultService.js";
 
@@ -21,6 +22,7 @@ app.use("/api", pagesRouter);
 app.use("/api", categoriesRouter);
 app.use("/api", searchRouter);
 app.use("/api", foundryRouter);
+app.use("/api", toolsRouter);
 app.use("/api", assetsRouter);
 
 const webDist = path.join(config.rootDir, "apps", "web", "dist");

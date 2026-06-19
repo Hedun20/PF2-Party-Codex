@@ -7,6 +7,8 @@ import CategoryPage from "./pages/CategoryPage.jsx";
 import PageView from "./pages/PageView.jsx";
 import EditorPage from "./pages/EditorPage.jsx";
 import FoundryImportExportPage from "./pages/FoundryImportExportPage.jsx";
+import GuidePage from "./pages/GuidePage.jsx";
+import VaultHealthPage from "./pages/VaultHealthPage.jsx";
 
 export default function App() {
   const [mode, setMode] = useState(localStorage.getItem("codex-mode") || "player");
@@ -45,6 +47,8 @@ export default function App() {
         <Route path="/category/:category/*" element={<CategoryPage pages={pages} mode={mode} />} />
         <Route path="/page/:path" element={<PageView mode={mode} />} />
         <Route path="/editor" element={<EditorPage onSaved={refresh} />} />
+        <Route path="/health" element={<VaultHealthPage mode={mode} />} />
+        <Route path="/guide" element={<GuidePage />} />
         <Route path="/foundry" element={<FoundryImportExportPage mode={mode} />} />
       </Routes>
     </FantasyShell>

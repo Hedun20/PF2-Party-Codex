@@ -17,6 +17,9 @@ export const api = {
   preview: (path, mode) => request(`/preview?path=${encodeURIComponent(path)}&mode=${mode}`),
   createPage: (payload) => request("/page", { method: "POST", body: JSON.stringify(payload) }),
   savePage: (payload) => request("/page", { method: "PUT", body: JSON.stringify(payload) }),
+  metadata: (mode) => request(`/metadata?mode=${mode}`),
+  audit: (mode) => request(`/audit?mode=${mode}`),
+  uploadAsset: (formData) => request("/assets/upload", { method: "POST", body: formData }),
   foundryImportPreview: (formData) => request("/foundry/import", { method: "POST", body: formData }),
   foundryImportCommit: (items, conflictMode) => {
     const form = new FormData();
