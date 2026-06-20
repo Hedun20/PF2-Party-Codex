@@ -1,5 +1,6 @@
 import { useParams } from "react-router-dom";
 import EntityCard from "../components/EntityCard.jsx";
+import WorldAtlas from "../components/WorldAtlas.jsx";
 import { labelCategory } from "../utils/labels.js";
 
 export default function CategoryPage({ pages, mode }) {
@@ -7,6 +8,19 @@ export default function CategoryPage({ pages, mode }) {
   const category = `${params.category}${params["*"] ? `/${params["*"]}` : ""}`;
   const items = pages.filter((page) => page.category === category || page.category?.startsWith(`${category}/`));
   const title = labelCategory(category);
+
+  if (category === "worlds") {
+    return (
+      <div className="page-stack">
+        <header className="list-header worlds-header">
+          <span className="kicker">Раздел архива</span>
+          <h1>{title}</h1>
+          <p>Восемь главных миров и общий слой малых миров. Отсюда мастер проваливается в страны, города, NPC, врагов, квесты, локации и карты.</p>
+        </header>
+        <WorldAtlas pages={pages} />
+      </div>
+    );
+  }
 
   return (
     <div className="page-stack">
