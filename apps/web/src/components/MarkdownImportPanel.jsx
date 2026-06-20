@@ -2,9 +2,10 @@ import { useState } from "react";
 import { FileUp, Save, Wand2 } from "lucide-react";
 import { api } from "../api/client.js";
 import { labelCategory } from "../utils/labels.js";
+import { articleTypes, categoryByLoreSubtype, categoryForType, loreSubtypeOptions } from "./ArticleVisualEditor.jsx";
 
-const categories = ["worlds", "countries", "cities", "locations", "npcs", "enemies", "quests", "sessions", "lore"];
-const types = ["world", "country", "city", "location", "npc", "enemy", "quest", "session", "lore"];
+const categories = ["worlds", "countries", "cities", "locations", "npcs", "enemies", "quests", "sessions", "lore", ...Object.values(categoryByLoreSubtype)];
+const types = articleTypes.map(([value]) => value);
 
 export default function MarkdownImportPanel({ onImported, onUseAsDraft }) {
   const [preview, setPreview] = useState([]);
@@ -29,7 +30,19 @@ export default function MarkdownImportPanel({ onImported, onUseAsDraft }) {
   }
 
   function updateItem(id, key, value) {
-    setPreview((items) => items.map((item) => item.id === id ? { ...item, [key]: value } : item));
+    setPreview((items) => items.map((item) => {
+      if (item.id !== id) return item;
+      const next = { ...item, [key]: value };
+      if (key === "type") {
+        next.loreSubtype = value === "lore" ? (item.loreSubtype || "general") : undefined;
+        next.category = categoryForType(value, next.loreSubtype || "general");
+      }
+      if (key === "loreSubtype") {
+        next.type = "lore";
+        next.category = categoryByLoreSubtype[value] || "lore";
+      }
+      return next;
+    }));
   }
 
   async function commit() {
@@ -89,6 +102,13 @@ export default function MarkdownImportPanel({ onImported, onUseAsDraft }) {
                       {types.map((type) => <option key={type} value={type}>{type}</option>)}
                     </select>
                   </label>
+                  {item.type === "lore" && (
+                    <label>Подтип лора
+                      <select value={item.loreSubtype || "general"} onChange={(event) => updateItem(item.id, "loreSubtype", event.target.value)}>
+                        {loreSubtypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </select>
+                    </label>
+                  )}
                   <label>Категория
                     <select value={item.category} onChange={(event) => updateItem(item.id, "category", event.target.value)}>
                       {categories.map((category) => <option key={category} value={category}>{labelCategory(category)}</option>)}

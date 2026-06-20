@@ -2,7 +2,7 @@ import CommandSearch from "./CommandSearch.jsx";
 import ModeToggle from "./ModeToggle.jsx";
 import { Menu } from "lucide-react";
 
-export default function CodexTopbar({ mode, setMode, pages, query, setQuery, onSelectPage, sidebarOpen, setSidebarOpen }) {
+export default function CodexTopbar({ mode, setMode, session, pages, query, setQuery, onSelectPage, sidebarOpen, setSidebarOpen }) {
   const worldCount = pages.filter((page) => page.category === "worlds").length;
   const publicCount = pages.filter((page) => page.visibility === "public").length;
 
@@ -15,9 +15,9 @@ export default function CodexTopbar({ mode, setMode, pages, query, setQuery, onS
       <div className="top-info">
         <span><strong>{worldCount}</strong> миров</span>
         <span><strong>{publicCount}</strong> публично</span>
-        <span>{mode === "gm" ? "GM-архив" : "Игроки"}</span>
+        <span>{session?.canEdit ? (mode === "gm" ? "GM-архив" : "Player preview") : "LAN игрок"}</span>
       </div>
-      <ModeToggle mode={mode} setMode={setMode} />
+      <ModeToggle mode={mode} setMode={setMode} canEdit={Boolean(session?.canEdit)} />
     </header>
   );
 }

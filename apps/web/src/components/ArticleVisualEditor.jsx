@@ -29,7 +29,36 @@ export const categoryByType = {
   timelineEvent: "lore/timeline"
 };
 
-const categories = [...new Set(Object.values(categoryByType))];
+export const loreSubtypeOptions = [
+  ["general", "Общий лор"],
+  ["faction", "Фракция"],
+  ["cult", "Культ"],
+  ["god", "Бог / религия"],
+  ["artifact", "Артефакт"],
+  ["history", "История"],
+  ["prophecy", "Пророчество"],
+  ["plane", "План / измерение"],
+  ["magic", "Магия"]
+];
+
+export const categoryByLoreSubtype = {
+  general: "lore",
+  faction: "lore/factions",
+  cult: "lore/cults",
+  god: "lore/gods",
+  artifact: "lore/artifacts",
+  history: "lore/history",
+  prophecy: "lore/prophecies",
+  plane: "lore/planes",
+  magic: "lore/magic"
+};
+
+export function categoryForType(type, loreSubtype = "general") {
+  if (type === "lore") return categoryByLoreSubtype[loreSubtype] || "lore";
+  return categoryByType[type] || "lore";
+}
+
+const categories = [...new Set([...Object.values(categoryByType), ...Object.values(categoryByLoreSubtype)])];
 const visibilityOptions = [
   ["public", "public · видно игрокам"],
   ["gm", "gm · только мастеру"],
@@ -215,19 +244,35 @@ function SessionFields({ fm, set }) {
 }
 
 function LoreFields({ fm, set }) {
+  const subtype = fm.loreSubtype || fm.subtype || "general";
   return (
-    <Section title="Лор">
-      <Field label="Подтип">
-        <select value={fm.subtype || "general"} onChange={(event) => set("subtype", event.target.value)}>
-          {["general", "god", "faction", "cult", "artifact", "magic", "history", "prophecy", "plane"].map((item) => <option key={item} value={item}>{item}</option>)}
-        </select>
-      </Field>
-      <TextArea label="Легенда для игроков" value={fm.publicLegend} onChange={(value) => set("publicLegend", value)} />
-      <TextArea label="Правда GM" value={fm.gmTruth} onChange={(value) => set("gmTruth", value)} />
-      <TextField label="Timeline year" value={fm.timelineYear} onChange={(value) => set("timelineYear", value)} />
-    </Section>
+    <>
+      <Section title="Лор" hint="Лор должен быть типизирован: фракция, культ, бог, артефакт, история и т.д. Тогда импорт, фильтры и инфобоксы не смешивают всё в одну кашу.">
+        <Field label="Подтип лора">
+          <select value={subtype} onChange={(event) => {
+            const nextSubtype = event.target.value;
+            set({ loreSubtype: nextSubtype, category: categoryByLoreSubtype[nextSubtype] || "lore" });
+          }}>
+            {loreSubtypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </Field>
+        <TextArea label="Легенда для игроков" value={fm.publicLegend} onChange={(value) => set("publicLegend", value)} />
+        <TextArea label="Правда GM" value={fm.gmTruth} onChange={(value) => set("gmTruth", value)} />
+        <TextField label="Timeline year" value={fm.timelineYear} onChange={(value) => set("timelineYear", value)} />
+      </Section>
+      {subtype === "faction" && (
+        <Section title="Фракция" hint="Минимум полей, чтобы фракция сразу работала в игре.">
+          <TextField label="Лидер" value={fm.leader} onChange={(value) => set("leader", value)} />
+          <TextField label="Штаб / база" value={fm.headquarters} onChange={(value) => set("headquarters", value)} />
+          <TextField label="Отношение к партии" value={fm.attitude} onChange={(value) => set("attitude", value)} />
+          <TextArea label="Цели" value={fm.goals} onChange={(value) => set("goals", value)} />
+          <TextArea label="Ресурсы / влияние" value={fm.resources} onChange={(value) => set("resources", value)} />
+        </Section>
+      )}
+    </>
   );
 }
+
 
 function TimelineFields({ fm, set }) {
   return (
@@ -259,7 +304,8 @@ export function createFrontmatterDraft({ type = "lore", title = "" } = {}) {
     title,
     name: title,
     type,
-    category: categoryByType[type] || "lore",
+    loreSubtype: type === "lore" ? "general" : undefined,
+    category: categoryForType(type, "general"),
     visibility: "public",
     summary: "",
     tags: [],
@@ -285,9 +331,18 @@ export default function ArticleVisualEditor({
   const fm = frontmatter || createFrontmatterDraft();
   const typeLabel = useMemo(() => articleTypes.find(([value]) => value === fm.type)?.[1] || "Статья", [fm.type]);
 
-  const set = (key, value) => onFrontmatterChange?.({ ...fm, [key]: value });
+  const set = (key, value) => onFrontmatterChange?.(typeof key === "object" ? { ...fm, ...key } : { ...fm, [key]: value });
   const autoCategory = (type) => {
-    const next = { ...fm, type, category: categoryByType[type] || fm.category || "lore" };
+    const loreSubtype = type === "lore" ? (fm.loreSubtype || "general") : undefined;
+    const next = {
+      ...fm,
+      type,
+      loreSubtype,
+      category: categoryForType(type, loreSubtype || "general"),
+      ...(type === "world" ? { world: "", country: "", city: "" } : {}),
+      ...(type === "country" ? { country: "", city: "" } : {}),
+      ...(type === "city" ? { city: "" } : {})
+    };
     onFrontmatterChange?.(next);
   };
 
@@ -326,9 +381,9 @@ export default function ArticleVisualEditor({
                 {visibilityOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </Field>
-            <TextField label="Мир" value={fm.world} onChange={(value) => set("world", value)} />
-            <TextField label="Страна" value={fm.country} onChange={(value) => set("country", value)} />
-            <TextField label="Город" value={fm.city} onChange={(value) => set("city", value)} />
+            {fm.type !== "world" && <TextField label="Мир" value={fm.world} onChange={(value) => set("world", value)} />}
+            {!["world", "country"].includes(fm.type) && <TextField label="Страна" value={fm.country} onChange={(value) => set("country", value)} />}
+            {!["world", "country", "city"].includes(fm.type) && <TextField label="Город" value={fm.city} onChange={(value) => set("city", value)} />}
             <ListField label="Теги" value={fm.tags} onChange={(value) => set("tags", value)} />
             <ListField label="Связи" value={fm.related} onChange={(value) => set("related", value)} placeholder="Названия статей через запятую" />
             <TextArea label="Краткое описание" value={fm.summary} onChange={(value) => set("summary", value)} />
@@ -351,7 +406,7 @@ export default function ArticleVisualEditor({
           </Section>
 
           <div className="article-editor-save-row">
-            <button type="button" className="gold-button magic-liquid-button" onClick={onSaveStructured}><Save size={16} /> <span>Сохранить визуально</span></button>
+            <button type="button" className="gold-button" onClick={onSaveStructured}><Save size={16} /> <span>Сохранить визуально</span></button>
             {mode === "edit" && path && <span>{path}</span>}
           </div>
         </div>
@@ -361,7 +416,7 @@ export default function ArticleVisualEditor({
         <div className="raw-editor-panel">
           <textarea value={raw || ""} onChange={(event) => onRawChange?.(event.target.value)} spellCheck="false" aria-label="Markdown статьи" />
           <div className="article-editor-save-row">
-            <button type="button" className="gold-button magic-liquid-button" onClick={onSaveRaw}><Save size={16} /> <span>Сохранить Markdown</span></button>
+            <button type="button" className="gold-button" onClick={onSaveRaw}><Save size={16} /> <span>Сохранить Markdown</span></button>
             <span>Режим для ручной правки frontmatter, [[links]] и будущих [secret]-блоков.</span>
           </div>
         </div>

@@ -4,11 +4,12 @@ import { Router } from "express";
 import { buildFoundryExport } from "../services/foundryExportService.js";
 import { commitFoundryImport, previewFoundryImport } from "../services/foundryImportService.js";
 import { config } from "../config.js";
+import { requireGm } from "../services/sessionService.js";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 export const foundryRouter = Router();
 
-foundryRouter.post("/foundry/import", upload.array("files"), async (req, res, next) => {
+foundryRouter.post("/foundry/import", requireGm, upload.array("files"), async (req, res, next) => {
   try {
     if (req.body.preview === "false") {
       return res.json({ written: await commitFoundryImport(JSON.parse(req.body.items || "[]"), req.body.conflictMode || "skip") });
@@ -19,7 +20,7 @@ foundryRouter.post("/foundry/import", upload.array("files"), async (req, res, ne
   }
 });
 
-foundryRouter.post("/foundry/export", async (req, res, next) => {
+foundryRouter.post("/foundry/export", requireGm, async (req, res, next) => {
   try {
     res.json(await buildFoundryExport(req.body || {}));
   } catch (error) {

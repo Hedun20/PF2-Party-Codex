@@ -5,7 +5,7 @@ import MarkdownImportPanel from "./MarkdownImportPanel.jsx";
 import VoltageButton from "./VoltageButton.jsx";
 import { labelCategory } from "../utils/labels.js";
 import { colorMapObjectType, labelMapObjectType, mapObjectTypes, pageToMapObjectType } from "../utils/mapTypes.js";
-import { articleTypes as types, categoryByType } from "./ArticleVisualEditor.jsx";
+import { articleTypes as types, categoryByType, categoryByLoreSubtype, categoryForType, loreSubtypeOptions } from "./ArticleVisualEditor.jsx";
 
 const mediaSlots = [
   ["mapImage", "Карта / план", "Для областей, пинов, городов и локаций"],
@@ -43,6 +43,40 @@ function asArray(value) {
   if (Array.isArray(value)) return value;
   if (!value) return [];
   return String(value).split(/[;,\n]/).map((item) => item.trim()).filter(Boolean);
+}
+
+function inferLoreSubtypeFromText(text = "") {
+  const lower = text.toLowerCase();
+  if (/фракц|гильд|орден|клан|faction|guild|order/.test(lower)) return "faction";
+  if (/культ|cult/.test(lower)) return "cult";
+  if (/бог|богин|религ|god|deity/.test(lower)) return "god";
+  if (/артефакт|реликв|artifact/.test(lower)) return "artifact";
+  if (/пророч|prophecy/.test(lower)) return "prophecy";
+  if (/план|измерен|plane/.test(lower)) return "plane";
+  if (/магия|заклин|magic|spell/.test(lower)) return "magic";
+  if (/истор|эпох|война|битва|восстан|history|war|battle/.test(lower)) return "history";
+  return "general";
+}
+
+function normalizedTypePatch(type, loreSubtype = "general") {
+  const patch = { type, category: categoryForType(type, loreSubtype) };
+  if (type === "lore") patch.loreSubtype = loreSubtype;
+  if (type === "world") Object.assign(patch, { world: "", country: "", city: "" });
+  if (type === "country") Object.assign(patch, { country: "", city: "" });
+  if (type === "city") Object.assign(patch, { city: "" });
+  return patch;
+}
+
+function shouldShowWorld(type) {
+  return type !== "world";
+}
+
+function shouldShowCountry(type) {
+  return !["world", "country"].includes(type);
+}
+
+function shouldShowCity(type) {
+  return !["world", "country", "city"].includes(type);
 }
 
 export default function QuickEditor({ onSaved, initialTitle = "" }) {
@@ -111,8 +145,9 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
     setForm((current) => ({
       ...current,
       ...fm,
-      type: item.type || fm.type || current.type || "lore",
-      category: item.category || fm.category || categoryByType[item.type] || current.category,
+      ...normalizedTypePatch(item.type || fm.type || current.type || "lore", item.loreSubtype || fm.loreSubtype || inferLoreSubtypeFromText(`${item.title || ""} ${item.content || ""}`)),
+      category: item.category || fm.category || categoryForType(item.type || fm.type || current.type || "lore", item.loreSubtype || fm.loreSubtype || "general"),
+      loreSubtype: item.loreSubtype || fm.loreSubtype || current.loreSubtype,
       name: item.title || fm.name || fm.title || current.name,
       title: item.title || fm.title || fm.name || current.title,
       summary: item.summary || fm.summary || current.summary || "",
@@ -256,6 +291,7 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
     const title = rawTitle?.trim().slice(0, 90) || form.name || "Новая статья";
     const summary = rest.join(" — ").trim() || text;
     const type = inferTypeFromIdea(text);
+    const loreSubtype = type === "lore" ? inferLoreSubtypeFromText(text) : undefined;
     const detectedWorld = findMention(metadata.worlds, text);
     const detectedCountry = findMention(metadata.countries, text);
     const detectedCity = findMention(metadata.cities, text);
@@ -263,8 +299,7 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
 
     setForm((current) => ({
       ...current,
-      type,
-      category: categoryByType[type] || current.category,
+      ...normalizedTypePatch(type, loreSubtype || current.loreSubtype || "general"),
       name: current.name || title,
       title: current.title || title,
       summary: current.summary || summary,
@@ -279,7 +314,7 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
 
   async function submit(event) {
     event.preventDefault();
-    const category = form.category || categoryByType[form.type] || "lore";
+    const category = form.category || categoryForType(form.type, form.loreSubtype || "general");
     const page = await api.createPage({
       ...form,
       category,
@@ -302,7 +337,7 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
         </div>
         <div className="type-grid compact-type-grid">
           {types.map(([value, label]) => (
-            <button key={value} type="button" className={form.type === value ? "type-chip active" : "type-chip"} onClick={() => setForm((current) => ({ ...current, type: value, category: categoryByType[value] || current.category }))}>
+            <button key={value} type="button" className={form.type === value ? "type-chip active" : "type-chip"} onClick={() => setForm((current) => ({ ...current, ...normalizedTypePatch(value, current.loreSubtype || "general") }))}>
               {label}
             </button>
           ))}
@@ -323,19 +358,25 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
 
       <section className="builder-section quick-fields-grid">
         <label>Название<input value={form.name || ""} onChange={(event) => update("name", event.target.value)} placeholder="Например: Капитан Варос" /></label>
-        <label>Мир<select value={form.world || ""} onChange={(event) => { update("world", event.target.value); update("country", ""); update("city", ""); }}>
+        {shouldShowWorld(form.type) && <label>Мир<select value={form.world || ""} onChange={(event) => { update("world", event.target.value); update("country", ""); update("city", ""); }}>
           <option value="">Без привязки к миру</option>
           {metadata.worlds.map((page) => <option key={page.path} value={page.title}>{page.title}</option>)}
-        </select></label>
-        <label>Страна<select value={form.country || ""} onChange={(event) => { update("country", event.target.value); update("city", ""); }}>
+        </select></label>}
+        {shouldShowCountry(form.type) && <label>Страна<select value={form.country || ""} onChange={(event) => { update("country", event.target.value); update("city", ""); }}>
           <option value="">Без привязки к стране</option>
           {countries.map((page) => <option key={page.path} value={page.title}>{page.title}</option>)}
-        </select></label>
-        <label>Город<select value={form.city || ""} onChange={(event) => update("city", event.target.value)}>
+        </select></label>}
+        {shouldShowCity(form.type) && <label>Город<select value={form.city || ""} onChange={(event) => update("city", event.target.value)}>
           <option value="">Без привязки к городу</option>
           {cities.map((page) => <option key={page.path} value={page.title}>{page.title}</option>)}
-        </select></label>
-        <label>Краткое описание<textarea value={form.summary || ""} onChange={(event) => update("summary", event.target.value)} placeholder="1–3 строки: кто/что это и зачем мастеру помнить." /></label>
+        </select></label>}
+        {form.type === "lore" && <label>Подтип лора<select value={form.loreSubtype || "general"} onChange={(event) => {
+          const loreSubtype = event.target.value;
+          setForm((current) => ({ ...current, loreSubtype, category: categoryByLoreSubtype[loreSubtype] || "lore" }));
+        }}>
+          {loreSubtypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select></label>}
+                <label>Краткое описание<textarea value={form.summary || ""} onChange={(event) => update("summary", event.target.value)} placeholder="1–3 строки: кто/что это и зачем мастеру помнить." /></label>
         <label>Видимость<select value={form.visibility} onChange={(event) => update("visibility", event.target.value)}>
           <option value="public">public · видно игрокам</option>
           <option value="gm">gm · только мастеру</option>
@@ -353,7 +394,7 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
 
         <section className="builder-section two-col">
           <label>Категория<select value={form.category || categoryByType[form.type]} onChange={(event) => update("category", event.target.value)}>
-            {[...new Set(Object.values(categoryByType))].map((category) => <option key={category} value={category}>{labelCategory(category)}</option>)}
+            {[...new Set([...Object.values(categoryByType), ...Object.values(categoryByLoreSubtype)])].map((category) => <option key={category} value={category}>{labelCategory(category)}</option>)}
           </select></label>
           <div>
             <span className="field-title">Теги из vault</span>
@@ -492,7 +533,7 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
         </section>
       </details>
 
-      <VoltageButton type="submit" className="quick-submit" size="lg"><Sparkles size={17} /> <span>Создать Markdown-статью</span></VoltageButton>
+      <VoltageButton type="submit" className="quick-submit"><Sparkles size={17} /> <span>Создать Markdown-статью</span></VoltageButton>
       {message && <p className="save-message">{message}</p>}
     </form>
   );

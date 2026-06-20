@@ -11,6 +11,7 @@ import {
   savePage,
   saveRawPage
 } from "../services/vaultService.js";
+import { requireGm, resolveRequestMode } from "../services/sessionService.js";
 
 export const pagesRouter = Router();
 const mdUpload = multer({
@@ -23,22 +24,22 @@ const mdUpload = multer({
 });
 
 pagesRouter.get("/pages", (req, res) => {
-  res.json({ pages: listPages(req.query.mode || "gm") });
+  res.json({ pages: listPages(resolveRequestMode(req, req.query.mode)) });
 });
 
 pagesRouter.get("/missing-links", (req, res) => {
-  res.json({ missingLinks: listMissingLinks(req.query.mode || "gm") });
+  res.json({ missingLinks: listMissingLinks(resolveRequestMode(req, req.query.mode)) });
 });
 
 pagesRouter.get("/page", (req, res) => {
-  const page = getPage(req.query.path, req.query.mode || "gm");
+  const page = getPage(req.query.path, resolveRequestMode(req, req.query.mode));
   if (!page) return res.status(404).json({ error: "Page not found" });
   res.json({ page });
 });
 
 pagesRouter.get("/page/raw", async (req, res, next) => {
   try {
-    const data = await readRawPage(req.query.path, req.query.mode || "gm");
+    const data = await readRawPage(req.query.path, resolveRequestMode(req, req.query.mode));
     if (!data) return res.status(404).json({ error: "Page not found" });
     res.json(data);
   } catch (error) {
@@ -47,12 +48,12 @@ pagesRouter.get("/page/raw", async (req, res, next) => {
 });
 
 pagesRouter.get("/preview", (req, res) => {
-  const page = getPage(req.query.path, req.query.mode || "player");
+  const page = getPage(req.query.path, resolveRequestMode(req, req.query.mode || "player"));
   if (!page) return res.status(404).json({ error: "Page not found" });
   res.json({ preview: { title: page.title, summary: page.summary, tags: page.tags, category: page.category, links: page.links, modifiedAt: page.modifiedAt } });
 });
 
-pagesRouter.post("/page", async (req, res, next) => {
+pagesRouter.post("/page", requireGm, async (req, res, next) => {
   try {
     res.status(201).json({ page: await createPage(req.body) });
   } catch (error) {
@@ -60,7 +61,7 @@ pagesRouter.post("/page", async (req, res, next) => {
   }
 });
 
-pagesRouter.put("/page", async (req, res, next) => {
+pagesRouter.put("/page", requireGm, async (req, res, next) => {
   try {
     res.json({ page: await savePage(req.body) });
   } catch (error) {
@@ -68,7 +69,7 @@ pagesRouter.put("/page", async (req, res, next) => {
   }
 });
 
-pagesRouter.put("/page/raw", async (req, res, next) => {
+pagesRouter.put("/page/raw", requireGm, async (req, res, next) => {
   try {
     res.json({ page: await saveRawPage(req.body) });
   } catch (error) {
@@ -76,7 +77,7 @@ pagesRouter.put("/page/raw", async (req, res, next) => {
   }
 });
 
-pagesRouter.post("/markdown/import/preview", mdUpload.array("files", 200), (req, res, next) => {
+pagesRouter.post("/markdown/import/preview", requireGm, mdUpload.array("files", 200), (req, res, next) => {
   try {
     const files = (req.files || []).map((file, index) => ({
       id: `${Date.now()}-${index}-${file.originalname}`,
@@ -89,7 +90,7 @@ pagesRouter.post("/markdown/import/preview", mdUpload.array("files", 200), (req,
   }
 });
 
-pagesRouter.post("/markdown/import/commit", async (req, res, next) => {
+pagesRouter.post("/markdown/import/commit", requireGm, async (req, res, next) => {
   try {
     res.json(await commitMarkdownImports(req.body));
   } catch (error) {

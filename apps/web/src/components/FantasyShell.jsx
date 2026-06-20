@@ -8,7 +8,7 @@ export default function FantasyShell({ children, ...props }) {
   return (
     <div className={sidebarOpen ? "app-shell sidebar-open" : "app-shell sidebar-closed"}>
       <div className="ambient" />
-      <CodexSidebar categories={props.categories} onClose={() => setSidebarOpen(false)} />
+      <CodexSidebar categories={props.categories} canEdit={Boolean(props.session?.canEdit)} onClose={() => setSidebarOpen(false)} />
       <main className="main-stage">
         <CodexTopbar {...props} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
         <section className="content-stage">{children}</section>

@@ -12,7 +12,7 @@ const sections = [
   ["Локации", "locations", Map]
 ];
 
-export default function CodexSidebar({ onClose }) {
+export default function CodexSidebar({ onClose, canEdit = false }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-head">
@@ -44,10 +44,12 @@ export default function CodexSidebar({ onClose }) {
           </NavLink>
         ))}
         <LoreDropdown />
-        <NavLink to="/editor" className="nav-link primary-link" onClick={onClose}>
-          <Crosshair size={18} />
-          <span>Создать статью</span>
-        </NavLink>
+        {canEdit && (
+          <NavLink to="/editor" className="nav-link primary-link" onClick={onClose}>
+            <Crosshair size={18} />
+            <span>Создать статью</span>
+          </NavLink>
+        )}
         <NavLink to="/missing" className="nav-link" onClick={onClose}>
           <FileQuestion size={18} />
           <span>Ненаписанные статьи</span>

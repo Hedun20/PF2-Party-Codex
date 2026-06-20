@@ -62,7 +62,7 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
               <Clock3 size={28} />
               <strong>Событий пока нет</strong>
               <p>Создай статью типа “Событие timeline” или добавь `year` / `timelineYear` в frontmatter существующей статьи.</p>
-              {mode === "gm" && <Link className="gold-button magic-liquid-button" to="/editor"><span>Создать событие</span></Link>}
+              {mode === "gm" && <Link className="gold-button" to="/editor"><span>Создать событие</span></Link>}
             </div>
           )}
 
@@ -98,7 +98,7 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
             </div>
           </div>
           <div className="timeline-focus-links">
-            <Link className="gold-button magic-liquid-button" to={`/page/${encodeURIComponent(selected.path)}`}><Link2 size={16} /> <span>Открыть статью</span></Link>
+            <Link className="gold-button" to={`/page/${encodeURIComponent(selected.path)}`}><Link2 size={16} /> <span>Открыть статью</span></Link>
             {(selected.linkedPages || []).slice(0, 8).map((item) => <span key={item}>{item}</span>)}
           </div>
         </section>

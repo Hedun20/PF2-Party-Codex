@@ -10,6 +10,48 @@ import { filterByMode } from "./visibilityService.js";
 let pages = [];
 let pageByPath = new Map();
 
+const VAULT_FOLDERS = [
+  "worlds",
+  "countries",
+  "cities",
+  "locations",
+  "npcs",
+  "enemies",
+  "quests",
+  "sessions",
+  "lore",
+  "lore/gods",
+  "lore/factions",
+  "lore/history",
+  "lore/planes",
+  "lore/artifacts",
+  "lore/magic",
+  "lore/cults",
+  "lore/prophecies",
+  "lore/timeline",
+  "images",
+  "maps",
+  "handouts",
+  "templates"
+];
+
+async function ensureVaultStructure() {
+  await fs.mkdir(config.vaultDir, { recursive: true });
+  await Promise.all(VAULT_FOLDERS.map((folder) => fs.mkdir(path.join(config.vaultDir, folder), { recursive: true })));
+  const metaPath = path.join(config.vaultDir, ".pf2-codex.json");
+  try {
+    await fs.access(metaPath);
+  } catch {
+    const createdAt = new Date().toISOString();
+    await fs.writeFile(metaPath, JSON.stringify({
+      campaignName: "Новая кампания",
+      createdAt,
+      mode: "local-gm-lan-player",
+      note: "Этот vault хранит локальные данные мастера и не должен попадать в GitHub."
+    }, null, 2) + "\n", "utf8");
+  }
+}
+
 async function walk(dir) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   const nested = await Promise.all(entries.map(async (entry) => {
@@ -40,7 +82,7 @@ function summarize(content, frontmatter) {
 }
 
 export async function rebuildVaultIndex() {
-  await fs.mkdir(config.vaultDir, { recursive: true });
+  await ensureVaultStructure();
   const files = await walk(config.vaultDir);
   const nextPages = await Promise.all(files.map(async (file) => {
     const raw = await fs.readFile(file, "utf8");
@@ -53,6 +95,7 @@ export async function rebuildVaultIndex() {
       title,
       category: inferCategory(relativePath, frontmatter),
       type: frontmatter.type || inferCategory(relativePath, frontmatter),
+      loreSubtype: frontmatter.loreSubtype || inferLoreSubtypeFromCategory(inferCategory(relativePath, frontmatter)) || undefined,
       world: frontmatter.world || undefined,
       country: frontmatter.country || undefined,
       city: frontmatter.city || undefined,
@@ -127,6 +170,7 @@ function compactPage(page) {
     path: page.path,
     category: page.category,
     type: page.type,
+    loreSubtype: page.loreSubtype,
     summary: page.summary
   };
 }
@@ -237,9 +281,10 @@ export function previewMarkdownImports(files = []) {
     const type = obsidianInfo || safeFrontmatter.type === "link"
       ? inferredType
       : (safeFrontmatter.type || inferredType);
+    const loreSubtype = type === "lore" ? inferLoreSubtypeFromText(title, cleanContent, safeFrontmatter) : undefined;
     const category = obsidianInfo || safeFrontmatter.category === "link"
-      ? defaultCategory(type)
-      : (safeFrontmatter.category || defaultCategory(type));
+      ? defaultCategory(type, loreSubtype)
+      : (safeFrontmatter.category || defaultCategory(type, loreSubtype));
     const targetPath = `${category}/${slugify(title)}.md`;
     const existing = pageByPath.has(targetPath);
     const warnings = [];
@@ -255,6 +300,7 @@ export function previewMarkdownImports(files = []) {
       originalName: file.originalName,
       title,
       type,
+      loreSubtype,
       category,
       targetPath,
       summary: summarize(cleanContent, safeFrontmatter),
@@ -289,6 +335,7 @@ export async function commitMarkdownImports({ items = [], conflictMode = "skip" 
         title: item.title,
         name: item.title,
         type: item.type,
+        loreSubtype: item.loreSubtype,
         category: item.category,
         summary: item.summary,
         visibility: item.frontmatter?.visibility || "public"
@@ -308,7 +355,7 @@ export async function commitMarkdownImports({ items = [], conflictMode = "skip" 
 
 export async function createPage(payload) {
   const type = payload.type || "lore";
-  const category = payload.category || defaultCategory(type);
+  const category = payload.category || defaultCategory(type, payload.loreSubtype);
   const title = payload.title || payload.name || payload.mapObjects?.[0]?.label || payload.pins?.[0]?.label || draftTitle(type);
   const requestedPath = payload.path || `${category}/${slugify(title)}.md`;
   const content = [
@@ -450,7 +497,51 @@ async function nextCopyPath(safePath) {
   return `${base}-${index}${ext}`;
 }
 
-function defaultCategory(type) {
+const loreSubtypeByCategory = {
+  "lore/gods": "god",
+  "lore/factions": "faction",
+  "lore/history": "history",
+  "lore/planes": "plane",
+  "lore/artifacts": "artifact",
+  "lore/magic": "magic",
+  "lore/cults": "cult",
+  "lore/prophecies": "prophecy",
+  "lore/timeline": "timeline"
+};
+
+function inferLoreSubtypeFromCategory(category = "") {
+  return loreSubtypeByCategory[category] || undefined;
+}
+
+function inferLoreSubtypeFromText(title = "", content = "", frontmatter = {}) {
+  if (frontmatter.loreSubtype) return frontmatter.loreSubtype;
+  const categorySubtype = inferLoreSubtypeFromCategory(frontmatter.category);
+  if (categorySubtype) return categorySubtype;
+  const text = `${title}\n${content}`.toLowerCase();
+  if (/(фракц|faction|гильд|орден|дом |house |clan|клан)/i.test(text)) return "faction";
+  if (/(культ|cult)/i.test(text)) return "cult";
+  if (/(бог|богин|deity|god|goddess)/i.test(text)) return "god";
+  if (/(артефакт|artifact|реликв)/i.test(text)) return "artifact";
+  if (/(магия|заклин|magic|spell)/i.test(text)) return "magic";
+  if (/(пророч|prophecy|prophecies)/i.test(text)) return "prophecy";
+  if (/(план|plane|измерен)/i.test(text)) return "plane";
+  if (/(истор|эпох|восстан|война|battle|war|history|uprising)/i.test(text)) return "history";
+  return "general";
+}
+
+const categoryByLoreSubtype = {
+  god: "lore/gods",
+  faction: "lore/factions",
+  history: "lore/history",
+  plane: "lore/planes",
+  artifact: "lore/artifacts",
+  magic: "lore/magic",
+  cult: "lore/cults",
+  prophecy: "lore/prophecies",
+  timeline: "lore/timeline"
+};
+
+function defaultCategory(type, loreSubtype) {
   const categories = {
     world: "worlds",
     country: "countries",
@@ -462,6 +553,7 @@ function defaultCategory(type) {
     location: "locations",
     timelineEvent: "lore/timeline"
   };
+  if (type === "lore") return categoryByLoreSubtype[loreSubtype] || "lore";
   return categories[type] || "lore";
 }
 

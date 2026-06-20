@@ -15,31 +15,43 @@ import TimelinePage from "./pages/TimelinePage.jsx";
 import MapsPage from "./pages/MapsPage.jsx";
 
 export default function App() {
-  const [mode, setMode] = useState(localStorage.getItem("codex-mode") || "player");
+  const [mode, setMode] = useState("player");
+  const [session, setSession] = useState({ mode: "player", canEdit: false, access: "lan-player" });
   const [pages, setPages] = useState([]);
   const [categories, setCategories] = useState([]);
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
 
-  const refresh = async () => {
-    const [pageData, categoryData] = await Promise.all([api.pages(mode), api.categories(mode)]);
+  const refresh = async (nextMode = mode) => {
+    const [pageData, categoryData] = await Promise.all([api.pages(nextMode), api.categories(nextMode)]);
     setPages(pageData.pages);
     setCategories(categoryData.categories);
   };
 
   useEffect(() => {
-    localStorage.setItem("codex-mode", mode);
-    refresh();
-    const timer = setInterval(refresh, 10000);
+    api.session()
+      .then((data) => {
+        setSession(data);
+        const preferred = data.canEdit ? (localStorage.getItem("codex-mode") || "gm") : "player";
+        setMode(preferred === "gm" && !data.canEdit ? "player" : preferred);
+      })
+      .catch(() => setMode("player"));
+  }, []);
+
+  useEffect(() => {
+    if (session.canEdit) localStorage.setItem("codex-mode", mode);
+    refresh(mode);
+    const timer = setInterval(() => refresh(mode), 10000);
     return () => clearInterval(timer);
-  }, [mode]);
+  }, [mode, session.canEdit]);
 
   const dashboard = useMemo(() => pages.find((page) => page.path === "index.md"), [pages]);
 
   return (
     <FantasyShell
       mode={mode}
-      setMode={setMode}
+      setMode={(nextMode) => setMode(session.canEdit ? nextMode : "player")}
+      session={session}
       pages={pages}
       categories={categories}
       query={query}
@@ -47,16 +59,16 @@ export default function App() {
       onSelectPage={(path) => navigate(`/page/${encodeURIComponent(path)}`)}
     >
       <Routes>
-        <Route path="/" element={<DashboardPage pages={pages} dashboard={dashboard} mode={mode} />} />
+        <Route path="/" element={<DashboardPage pages={pages} dashboard={dashboard} mode={mode} session={session} />} />
         <Route path="/category/:category/*" element={<CategoryPage pages={pages} mode={mode} />} />
         <Route path="/page/:path" element={<PageView mode={mode} pages={pages} />} />
-        <Route path="/editor" element={<EditorPage onSaved={refresh} />} />
+        <Route path="/editor" element={<EditorPage mode={mode} session={session} onSaved={() => refresh(mode)} />} />
         <Route path="/edit/:path" element={<RawEditorPage mode={mode} onSaved={refresh} pages={pages} />} />
         <Route path="/missing" element={<MissingLinksPage mode={mode} />} />
         <Route path="/timeline" element={<TimelinePage pages={pages} mode={mode} />} />
         <Route path="/maps" element={<MapsPage pages={pages} mode={mode} />} />
         <Route path="/health" element={<VaultHealthPage mode={mode} />} />
-        <Route path="/guide" element={<GuidePage />} />
+        <Route path="/guide" element={<GuidePage session={session} />} />
         <Route path="/foundry" element={<FoundryImportExportPage mode={mode} />} />
       </Routes>
     </FantasyShell>

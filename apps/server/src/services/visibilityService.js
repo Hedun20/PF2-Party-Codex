@@ -1,5 +1,8 @@
+import { renderWikiMarkdown } from "./markdownService.js";
+
 const GM_HEADING = /^##\s+GM Secrets\s*$/gim;
 const NEXT_HEADING = /^##\s+/gm;
+const SECRET_BLOCK = /\[secret\]([\s\S]*?)\[\/secret\]/gim;
 
 export function isPublic(frontmatter = {}) {
   const visibility = String(frontmatter.visibility || "public").toLowerCase();
@@ -7,7 +10,7 @@ export function isPublic(frontmatter = {}) {
 }
 
 export function redactPlayerContent(content = "") {
-  let redacted = content.replace(/:::gm[\s\S]*?:::/gim, "");
+  let redacted = String(content || "").replace(/:::gm[\s\S]*?:::/gim, "").replace(SECRET_BLOCK, "");
   let match;
   while ((match = GM_HEADING.exec(redacted)) !== null) {
     const start = match.index;
@@ -20,16 +23,30 @@ export function redactPlayerContent(content = "") {
   return redacted.trim() + "\n";
 }
 
+function onlyPlayerVisibleObjects(items = []) {
+  if (!Array.isArray(items)) return [];
+  return items.filter((item) => String(item.visibility || "public").toLowerCase() === "public" && item.type !== "secret");
+}
+
 export function filterByMode(page, mode = "gm") {
   if (mode !== "player") return page;
   if (!isPublic(page.frontmatter)) return null;
   const content = redactPlayerContent(page.content);
+  const mapObjects = onlyPlayerVisibleObjects(page.mapObjects);
+  const pins = onlyPlayerVisibleObjects(page.pins);
   return {
     ...page,
     content,
     html: renderWikiMarkdown(content),
     links: page.links,
-    frontmatter: { ...page.frontmatter, gmNotes: undefined }
+    pins,
+    mapObjects,
+    frontmatter: {
+      ...page.frontmatter,
+      gmNotes: undefined,
+      gmSecrets: undefined,
+      pins,
+      mapObjects
+    }
   };
 }
-import { renderWikiMarkdown } from "./markdownService.js";

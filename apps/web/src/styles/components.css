@@ -2959,3 +2959,182 @@ textarea { min-height: 96px; resize: vertical; }
     min-width: 0;
   }
 }
+
+/* Local GM / LAN Player + UI repair patch */
+.gold-button,
+.download-link,
+.upload-button,
+.codex-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--gold);
+  background: rgba(227, 182, 95, 0.08);
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+
+.gold-button::before,
+.download-link::before,
+.upload-button::before,
+.codex-action-button::before,
+.magic-liquid-button::before,
+.magic-liquid-button::after {
+  display: none !important;
+  content: none !important;
+}
+
+.gold-button:hover,
+.download-link:hover,
+.upload-button:hover,
+.codex-action-button:hover {
+  transform: translateY(-1px);
+  color: #f7df9d;
+  border-color: rgba(227, 182, 95, 0.52);
+  background: rgba(227, 182, 95, 0.14);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+}
+
+.gold-button:active,
+.download-link:active,
+.upload-button:active,
+.codex-action-button:active {
+  transform: translateY(0);
+}
+
+.gold-button:disabled,
+.upload-button:disabled,
+.codex-action-button:disabled,
+.mode-toggle button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.quick-fields-grid {
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.quick-fields-grid label:nth-child(1),
+.quick-fields-grid label:nth-child(5) {
+  grid-column: auto;
+}
+
+.editor-form label,
+.tool-panel label,
+.visual-editor-section label {
+  align-content: start;
+  font-weight: 750;
+}
+
+.editor-form label input,
+.editor-form label textarea,
+.editor-form label select,
+.tool-panel label input,
+.tool-panel label textarea,
+.tool-panel label select,
+.visual-editor-section label input,
+.visual-editor-section label textarea,
+.visual-editor-section label select {
+  margin-top: 6px;
+}
+
+.maps-diagnostic-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  border-color: rgba(255, 209, 102, 0.34);
+  background:
+    radial-gradient(circle at 8% 20%, rgba(255, 209, 102, 0.14), transparent 26%),
+    rgba(20, 14, 26, 0.86);
+}
+
+.unlinked-assets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.unlinked-assets-row a,
+.map-file-warning {
+  display: inline-flex;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 209, 102, 0.28);
+  border-radius: 999px;
+  color: #ffe3a3;
+  background: rgba(255, 209, 102, 0.08);
+  font-size: 0.78rem;
+}
+
+.maps-hub-card.missing-map-file {
+  border-color: rgba(255, 103, 103, 0.45);
+}
+
+.map-file-warning {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  border-color: rgba(255, 103, 103, 0.38);
+  color: #ffc1c1;
+  background: rgba(80, 20, 24, 0.72);
+}
+
+.card-grid:has(.entity-card:hover) .entity-card:not(:hover) {
+  opacity: 0.42;
+  filter: saturate(0.78);
+}
+
+.entity-card {
+  overflow: hidden;
+  z-index: 0;
+}
+
+.entity-card:hover,
+.entity-card:focus-visible {
+  z-index: 5;
+  transform: translateY(-4px) scale(1.018);
+  border-color: rgba(227, 182, 95, 0.66);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.38), 0 0 34px rgba(168, 85, 247, 0.16);
+}
+
+.hover-card {
+  left: 12px;
+  right: 12px;
+  top: 12px;
+  bottom: 12px;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  padding: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px) scale(0.98);
+  transition: opacity 160ms ease, transform 160ms ease;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(227, 182, 95, 0.15), transparent 30%),
+    linear-gradient(145deg, rgba(18, 13, 31, 0.97), rgba(8, 7, 12, 0.98));
+  backdrop-filter: blur(6px);
+}
+
+.entity-card:hover .hover-card,
+.entity-card:focus-visible .hover-card {
+  display: grid;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+@media (max-width: 760px) {
+  .maps-diagnostic-panel { grid-template-columns: 1fr; }
+  .card-grid:has(.entity-card:hover) .entity-card:not(:hover) { opacity: 1; filter: none; }
+}

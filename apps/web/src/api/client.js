@@ -14,6 +14,7 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  session: () => request("/session"),
   pages: (mode) => request(`/pages?mode=${mode}`),
   missingLinks: (mode) => request(`/missing-links?mode=${mode}`),
   page: (path, mode) => request(`/page?path=${encodeURIComponent(path)}&mode=${mode}`),
@@ -29,6 +30,7 @@ export const api = {
   metadata: (mode) => request(`/metadata?mode=${mode}`),
   audit: (mode) => request(`/audit?mode=${mode}`),
   uploadAsset: (formData) => request("/assets/upload", { method: "POST", body: formData }),
+  assetsList: (mode) => request(`/assets/list?mode=${mode}`),
   foundryImportPreview: (formData) => request("/foundry/import", { method: "POST", body: formData }),
   foundryImportCommit: (items, conflictMode) => {
     const form = new FormData();

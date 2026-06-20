@@ -6,6 +6,7 @@ import { config } from "../config.js";
 import { auditVault } from "../services/auditService.js";
 import { listPages } from "../services/vaultService.js";
 import { slugify } from "../utils/slugify.js";
+import { requireGm, resolveRequestMode } from "../services/sessionService.js";
 
 const allowedExt = [".png", ".jpg", ".jpeg", ".webp"];
 
@@ -26,7 +27,7 @@ const upload = multer({
 export const toolsRouter = Router();
 
 toolsRouter.get("/metadata", (req, res) => {
-  const pages = listPages(req.query.mode || "gm");
+  const pages = listPages(resolveRequestMode(req, req.query.mode));
   const compact = pages.map((page) => ({
     title: page.title,
     path: page.path,
@@ -55,13 +56,13 @@ toolsRouter.get("/metadata", (req, res) => {
 
 toolsRouter.get("/audit", async (req, res, next) => {
   try {
-    res.json(await auditVault(req.query.mode || "gm"));
+    res.json(await auditVault(resolveRequestMode(req, req.query.mode)));
   } catch (error) {
     next(error);
   }
 });
 
-toolsRouter.post("/assets/upload", upload.single("file"), async (req, res, next) => {
+toolsRouter.post("/assets/upload", requireGm, upload.single("file"), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: "Файл карты не получен." });
     await fs.mkdir(config.imagesDir, { recursive: true });
