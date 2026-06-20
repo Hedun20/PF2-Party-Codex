@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getCategories } from "../services/vaultService.js";
-import { resolveRequestMode } from "../services/sessionService.js";
+import { requestMode } from "../middleware/sessionMode.js";
 
 export const categoriesRouter = Router();
-categoriesRouter.get("/categories", (req, res) => res.json({ categories: getCategories(resolveRequestMode(req, req.query.mode)) }));
+categoriesRouter.get("/categories", (req, res) => res.json({ categories: getCategories(requestMode(req, "gm")) }));

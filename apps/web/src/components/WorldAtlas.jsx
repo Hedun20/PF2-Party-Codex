@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Globe2, Network } from "lucide-react";
 import { minorWorldsCard, worldCards } from "../data/worlds.js";
+import CodexButton from "./ui/CodexButton.jsx";
 
 function toPage(path) {
   return `/page/${encodeURIComponent(path)}`;
@@ -94,7 +95,7 @@ export default function WorldAtlas({ pages = [] }) {
         <span className="kicker">Дополнительный слой</span>
         <h2>{minorWorldsCard.title}</h2>
         <p>{minorWorldsCard.summary}</p>
-        <Link className="gold-button" to={toPage(minorWorldsCard.path)}>Открыть малые миры</Link>
+        <CodexButton as={Link} to={toPage(minorWorldsCard.path)}>Открыть малые миры</CodexButton>
         <div className="world-notes">
           <strong>Рабочие инструменты</strong>
           <span>MD-импорт с проверкой раскладки</span>

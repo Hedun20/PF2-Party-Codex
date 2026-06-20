@@ -1,0 +1,123 @@
+:root {
+  --codex-radius-xs: 6px;
+  --codex-radius-sm: 8px;
+  --codex-radius-md: 12px;
+  --codex-radius-lg: 16px;
+  --codex-focus: rgba(227, 182, 95, 0.72);
+  --codex-card-bg: linear-gradient(145deg, rgba(24, 18, 36, 0.9), rgba(13, 10, 20, 0.94));
+}
+
+.codex-card,
+.entity-card,
+.workbench-action,
+.maps-hub-card,
+.related-grid a,
+.missing-card,
+.timeline-card,
+.timeline-hover-card,
+.guide-grid article,
+.guide-action-strip a {
+  position: relative;
+  border-radius: var(--codex-radius-sm);
+  transition: transform 170ms ease, border-color 170ms ease, box-shadow 170ms ease, opacity 170ms ease, filter 170ms ease;
+  will-change: transform;
+}
+
+.card-grid:has(.codex-card:hover) .codex-card:not(:hover),
+.card-grid:has(.entity-card:hover) .entity-card:not(:hover),
+.workbench-actions:has(.workbench-action:hover) .workbench-action:not(:hover),
+.maps-hub-grid:has(.maps-hub-card:hover) .maps-hub-card:not(:hover),
+.related-grid:has(a:hover) a:not(:hover),
+.missing-grid:has(.missing-card:hover) .missing-card:not(:hover) {
+  opacity: 0.42;
+  filter: saturate(0.7) blur(0.4px);
+}
+
+.codex-card:hover,
+.entity-card:hover,
+.workbench-action:hover,
+.maps-hub-card:hover,
+.related-grid a:hover,
+.missing-card:hover {
+  z-index: 12;
+  transform: translateY(-6px) scale(1.12);
+  border-color: rgba(227, 182, 95, 0.72) !important;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.34), 0 0 36px rgba(168, 85, 247, 0.16) !important;
+}
+
+.entity-card:hover .hover-card {
+  display: grid;
+  position: static;
+  margin-top: 12px;
+  inset: auto;
+  width: auto;
+  transform: none;
+  box-shadow: none;
+  background: rgba(8, 7, 13, 0.34);
+}
+
+.hover-card {
+  max-height: none;
+}
+
+.codex-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.codex-field-grid.codex-field-grid--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.codex-field,
+.codex-section-field {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+}
+
+.codex-field span,
+.codex-section-title {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.codex-field input,
+.codex-field textarea,
+.codex-field select,
+.codex-section-field input,
+.codex-section-field textarea,
+.codex-section-field select {
+  width: 100%;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.24);
+  border: 1px solid var(--line);
+  border-radius: var(--codex-radius-sm);
+  padding: 10px;
+}
+
+.codex-section-note {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+@media (max-width: 850px) {
+  .codex-field-grid,
+  .codex-field-grid.codex-field-grid--four { grid-template-columns: 1fr; }
+  .codex-card:hover,
+  .entity-card:hover,
+  .workbench-action:hover,
+  .maps-hub-card:hover,
+  .related-grid a:hover,
+  .missing-card:hover { transform: translateY(-4px) scale(1.03); }
+}
+
+.maps-orphan-assets h2 { margin: 6px 0 8px; color: var(--gold); font-family: var(--display); }
+.maps-orphan-assets p { color: var(--muted); line-height: 1.5; }
+.maps-orphan-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.maps-orphan-card { display: grid; gap: 8px; padding: 10px; border: 1px solid rgba(227, 182, 95, 0.18); border-radius: var(--codex-radius-sm); background: rgba(0,0,0,0.18); }
+.maps-orphan-card img { width: 100%; height: 110px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(227, 182, 95, 0.14); }
+.maps-orphan-card strong { color: var(--text); overflow-wrap: anywhere; }
+.maps-orphan-card code { color: #ffd98b; overflow-wrap: anywhere; }

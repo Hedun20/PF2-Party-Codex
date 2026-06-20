@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { api } from "../api/client.js";
 import ArticleVisualEditor from "../components/ArticleVisualEditor.jsx";
+import CodexButton from "../components/ui/CodexButton.jsx";
 
 export default function RawEditorPage({ mode, onSaved, pages = [] }) {
   const { path } = useParams();
@@ -82,9 +83,9 @@ export default function RawEditorPage({ mode, onSaved, pages = [] }) {
           <p>{decodedPath}</p>
         </div>
         <div className="editor-actions article-header-actions">
-          <Link className="upload-button" to={`/page/${encodeURIComponent(decodedPath)}`}>
+          <CodexButton as={Link} variant="secondary" to={`/page/${encodeURIComponent(decodedPath)}`}>
             <ArrowLeft size={16} /> Вернуться к статье
-          </Link>
+          </CodexButton>
         </div>
       </header>
 

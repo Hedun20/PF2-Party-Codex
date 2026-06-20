@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { FileUp, Save, Wand2 } from "lucide-react";
 import { api } from "../api/client.js";
+import CodexButton from "./ui/CodexButton.jsx";
 import { labelCategory } from "../utils/labels.js";
-import { articleTypes, categoryByLoreSubtype, categoryForType, loreSubtypeOptions } from "./ArticleVisualEditor.jsx";
 
-const categories = ["worlds", "countries", "cities", "locations", "npcs", "enemies", "quests", "sessions", "lore", ...Object.values(categoryByLoreSubtype)];
-const types = articleTypes.map(([value]) => value);
+const categories = ["worlds", "countries", "cities", "locations", "npcs", "enemies", "quests", "sessions", "lore", "lore/factions", "lore/cults", "lore/gods", "lore/artifacts", "lore/history", "lore/prophecies", "lore/planes", "lore/magic", "lore/timeline"];
+const types = ["world", "country", "city", "location", "npc", "enemy", "quest", "session", "lore", "timelineEvent"];
+const loreSubtypes = [["general", "Общий лор"], ["faction", "Фракция"], ["cult", "Культ"], ["god", "Бог / религия"], ["artifact", "Артефакт"], ["history", "История"], ["prophecy", "Пророчество"], ["plane", "План / измерение"], ["magic", "Магия"]];
 
 export default function MarkdownImportPanel({ onImported, onUseAsDraft }) {
   const [preview, setPreview] = useState([]);
@@ -33,16 +34,19 @@ export default function MarkdownImportPanel({ onImported, onUseAsDraft }) {
     setPreview((items) => items.map((item) => {
       if (item.id !== id) return item;
       const next = { ...item, [key]: value };
-      if (key === "type") {
-        next.loreSubtype = value === "lore" ? (item.loreSubtype || "general") : undefined;
-        next.category = categoryForType(value, next.loreSubtype || "general");
-      }
-      if (key === "loreSubtype") {
-        next.type = "lore";
-        next.category = categoryByLoreSubtype[value] || "lore";
+      if (key === "loreSubtype" && next.type === "lore") {
+        const map = { faction: "lore/factions", cult: "lore/cults", god: "lore/gods", artifact: "lore/artifacts", history: "lore/history", prophecy: "lore/prophecies", plane: "lore/planes", magic: "lore/magic", general: "lore" };
+        next.category = map[value] || "lore";
+        next.targetPath = `${next.category}/${(next.targetPath || `${next.title}.md`).split("/").pop()}`;
       }
       return next;
     }));
+  }
+
+  function splitItem(item) {
+    if (!item.splitCandidates?.length) return;
+    setPreview((items) => items.flatMap((current) => current.id === item.id ? item.splitCandidates : [current]));
+    setMessage(`Файл “${item.title}” разбит на ${item.splitCandidates.length} фракций. Проверь пути и нажми импорт.`);
   }
 
   async function commit() {
@@ -82,10 +86,10 @@ export default function MarkdownImportPanel({ onImported, onUseAsDraft }) {
                 <option value="overwrite">Перезаписать</option>
               </select>
             </label>
-            <button type="button" className="gold-button" onClick={commit}>
+            <CodexButton type="button" onClick={commit}>
               <Save size={16} />
               Импортировать в vault
-            </button>
+            </CodexButton>
           </div>
 
           <div className="md-import-list">
@@ -105,7 +109,7 @@ export default function MarkdownImportPanel({ onImported, onUseAsDraft }) {
                   {item.type === "lore" && (
                     <label>Подтип лора
                       <select value={item.loreSubtype || "general"} onChange={(event) => updateItem(item.id, "loreSubtype", event.target.value)}>
-                        {loreSubtypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                        {loreSubtypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                       </select>
                     </label>
                   )}
@@ -117,10 +121,15 @@ export default function MarkdownImportPanel({ onImported, onUseAsDraft }) {
                   <label>Путь
                     <input value={item.targetPath} onChange={(event) => updateItem(item.id, "targetPath", event.target.value)} />
                   </label>
+                  {item.splitCandidates?.length > 1 && (
+                    <CodexButton type="button" variant="secondary" size="sm" className="md-draft-button" onClick={() => splitItem(item)}>
+                      <Wand2 size={16} /> Разбить на {item.splitCandidates.length} фракций
+                    </CodexButton>
+                  )}
                   {onUseAsDraft && (
-                    <button type="button" className="upload-button md-draft-button" onClick={() => onUseAsDraft(item)}>
+                    <CodexButton type="button" variant="secondary" size="sm" className="md-draft-button" onClick={() => onUseAsDraft(item)}>
                       <Wand2 size={16} /> Заполнить форму
-                    </button>
+                    </CodexButton>
                   )}
                 </div>
                 {item.warnings.length > 0 && (

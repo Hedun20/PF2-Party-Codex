@@ -1,26 +1,7 @@
-// Compatibility wrapper. Earlier patches used animated VoltageButton, but the project now
-// standardizes every action on the calm "Вернуться к статье" button style.
-function classNames(...values) {
-  return values.filter(Boolean).join(" ");
-}
+import CodexButton from "./ui/CodexButton.jsx";
 
-export default function VoltageButton({
-  as: Component = "button",
-  children,
-  className = "",
-  innerClassName = "",
-  type = "button",
-  disabled = false,
-  ...props
-}) {
-  const isButton = Component === "button";
-  return (
-    <Component
-      {...props}
-      className={classNames("upload-button codex-action-button", className, innerClassName)}
-      {...(isButton ? { type, disabled } : { "aria-disabled": disabled || undefined })}
-    >
-      {children}
-    </Component>
-  );
+// Compatibility wrapper: old VoltageButton usages now render the unified Codex button.
+// Keep this file so older imports do not break while the UI is migrated.
+export default function VoltageButton({ variant = "primary", size = "md", className = "", innerClassName = "", ...props }) {
+  return <CodexButton variant={variant === "danger" ? "danger" : variant === "gm" ? "primary" : variant} size={size} className={[className, innerClassName].filter(Boolean).join(" ")} {...props} />;
 }

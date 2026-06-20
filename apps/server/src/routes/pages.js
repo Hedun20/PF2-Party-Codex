@@ -11,7 +11,8 @@ import {
   savePage,
   saveRawPage
 } from "../services/vaultService.js";
-import { requireGm, resolveRequestMode } from "../services/sessionService.js";
+import { decodeMarkdownBuffer, repairUploadedFilename } from "../utils/encoding.js";
+import { requestMode, requireGm } from "../middleware/sessionMode.js";
 
 export const pagesRouter = Router();
 const mdUpload = multer({
@@ -24,22 +25,22 @@ const mdUpload = multer({
 });
 
 pagesRouter.get("/pages", (req, res) => {
-  res.json({ pages: listPages(resolveRequestMode(req, req.query.mode)) });
+  res.json({ pages: listPages(requestMode(req, "gm")) });
 });
 
 pagesRouter.get("/missing-links", (req, res) => {
-  res.json({ missingLinks: listMissingLinks(resolveRequestMode(req, req.query.mode)) });
+  res.json({ missingLinks: listMissingLinks(requestMode(req, "gm")) });
 });
 
 pagesRouter.get("/page", (req, res) => {
-  const page = getPage(req.query.path, resolveRequestMode(req, req.query.mode));
+  const page = getPage(req.query.path, requestMode(req, "gm"));
   if (!page) return res.status(404).json({ error: "Page not found" });
   res.json({ page });
 });
 
 pagesRouter.get("/page/raw", async (req, res, next) => {
   try {
-    const data = await readRawPage(req.query.path, resolveRequestMode(req, req.query.mode));
+    const data = await readRawPage(req.query.path, requestMode(req, "gm"));
     if (!data) return res.status(404).json({ error: "Page not found" });
     res.json(data);
   } catch (error) {
@@ -48,7 +49,7 @@ pagesRouter.get("/page/raw", async (req, res, next) => {
 });
 
 pagesRouter.get("/preview", (req, res) => {
-  const page = getPage(req.query.path, resolveRequestMode(req, req.query.mode || "player"));
+  const page = getPage(req.query.path, req.query.mode || "player");
   if (!page) return res.status(404).json({ error: "Page not found" });
   res.json({ preview: { title: page.title, summary: page.summary, tags: page.tags, category: page.category, links: page.links, modifiedAt: page.modifiedAt } });
 });
@@ -80,9 +81,9 @@ pagesRouter.put("/page/raw", requireGm, async (req, res, next) => {
 pagesRouter.post("/markdown/import/preview", requireGm, mdUpload.array("files", 200), (req, res, next) => {
   try {
     const files = (req.files || []).map((file, index) => ({
-      id: `${Date.now()}-${index}-${file.originalname}`,
-      originalName: file.originalname,
-      content: file.buffer.toString("utf8")
+      id: `${Date.now()}-${index}-${repairUploadedFilename(file.originalname)}`,
+      originalName: repairUploadedFilename(file.originalname),
+      ...decodeMarkdownBuffer(file.buffer)
     }));
     res.json({ preview: previewMarkdownImports(files) });
   } catch (error) {

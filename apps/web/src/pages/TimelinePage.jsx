@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Clock3, Filter, Link2 } from "lucide-react";
+import CodexButton from "../components/ui/CodexButton.jsx";
 import { labelCategory } from "../utils/labels.js";
 
 function getYear(page) {
@@ -62,7 +63,7 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
               <Clock3 size={28} />
               <strong>Событий пока нет</strong>
               <p>Создай статью типа “Событие timeline” или добавь `year` / `timelineYear` в frontmatter существующей статьи.</p>
-              {mode === "gm" && <Link className="gold-button" to="/editor"><span>Создать событие</span></Link>}
+              {mode === "gm" && <CodexButton as={Link} to="/editor"><span>Создать событие</span></CodexButton>}
             </div>
           )}
 
@@ -98,7 +99,7 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
             </div>
           </div>
           <div className="timeline-focus-links">
-            <Link className="gold-button" to={`/page/${encodeURIComponent(selected.path)}`}><Link2 size={16} /> <span>Открыть статью</span></Link>
+            <CodexButton as={Link} to={`/page/${encodeURIComponent(selected.path)}`}><Link2 size={16} /> <span>Открыть статью</span></CodexButton>
             {(selected.linkedPages || []).slice(0, 8).map((item) => <span key={item}>{item}</span>)}
           </div>
         </section>

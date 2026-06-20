@@ -4,51 +4,35 @@ import { config } from "../config.js";
 import { parseMarkdown, stringifyMarkdown } from "../utils/frontmatter.js";
 import { ensureMarkdownPath, normalizeVaultPath, resolveInside } from "../utils/safePath.js";
 import { slugify, titleFromPath } from "../utils/slugify.js";
+import { repairMojibake, repairTextDeep, looksLikeMojibake } from "../utils/encoding.js";
 import { extractWikiLinks, renderWikiMarkdown } from "./markdownService.js";
 import { filterByMode } from "./visibilityService.js";
 
 let pages = [];
 let pageByPath = new Map();
 
-const VAULT_FOLDERS = [
-  "worlds",
-  "countries",
-  "cities",
-  "locations",
-  "npcs",
-  "enemies",
-  "quests",
-  "sessions",
-  "lore",
-  "lore/gods",
-  "lore/factions",
-  "lore/history",
-  "lore/planes",
-  "lore/artifacts",
-  "lore/magic",
-  "lore/cults",
-  "lore/prophecies",
-  "lore/timeline",
-  "images",
-  "maps",
-  "handouts",
-  "templates"
+const bootstrapDirs = [
+  "worlds", "countries", "cities", "locations", "npcs", "enemies", "quests", "sessions",
+  "lore", "lore/factions", "lore/gods", "lore/cults", "lore/history", "lore/planes",
+  "lore/artifacts", "lore/magic", "lore/prophecies", "lore/timeline",
+  "images", "maps", "handouts", "templates"
 ];
 
-async function ensureVaultStructure() {
+async function ensureVaultBootstrap() {
   await fs.mkdir(config.vaultDir, { recursive: true });
-  await Promise.all(VAULT_FOLDERS.map((folder) => fs.mkdir(path.join(config.vaultDir, folder), { recursive: true })));
-  const metaPath = path.join(config.vaultDir, ".pf2-codex.json");
+  await Promise.all(bootstrapDirs.map((dir) => fs.mkdir(path.join(config.vaultDir, dir), { recursive: true })));
+  const manifest = path.join(config.vaultDir, ".pf2-codex.json");
   try {
-    await fs.access(metaPath);
+    await fs.access(manifest);
   } catch {
-    const createdAt = new Date().toISOString();
-    await fs.writeFile(metaPath, JSON.stringify({
+    await fs.writeFile(manifest, `${JSON.stringify({
       campaignName: "Новая кампания",
-      createdAt,
-      mode: "local-gm-lan-player",
-      note: "Этот vault хранит локальные данные мастера и не должен попадать в GitHub."
-    }, null, 2) + "\n", "utf8");
+      createdAt: new Date().toISOString(),
+      storage: "local-markdown-vault",
+      gmMode: "localhost-only",
+      playerAccess: "lan-player"
+    }, null, 2)}
+`, "utf8");
   }
 }
 
@@ -71,7 +55,7 @@ function inferCategory(relativePath, frontmatter) {
 }
 
 function summarize(content, frontmatter) {
-  if (frontmatter.summary) return frontmatter.summary;
+  if (frontmatter.summary) return repairMojibake(frontmatter.summary);
   return content
     .replace(/^---[\s\S]*?---/, "")
     .replace(/[#>*_[\]()`]/g, "")
@@ -82,20 +66,21 @@ function summarize(content, frontmatter) {
 }
 
 export async function rebuildVaultIndex() {
-  await ensureVaultStructure();
+  await ensureVaultBootstrap();
   const files = await walk(config.vaultDir);
   const nextPages = await Promise.all(files.map(async (file) => {
     const raw = await fs.readFile(file, "utf8");
     const relativePath = normalizeVaultPath(path.relative(config.vaultDir, file));
     const stat = await fs.stat(file);
-    const { frontmatter, content } = parseMarkdown(raw);
-    const title = frontmatter.name || frontmatter.title || titleFromPath(relativePath);
+    const { frontmatter: parsedFrontmatter, content: parsedContent } = parseMarkdown(raw);
+    const frontmatter = repairTextDeep(parsedFrontmatter);
+    const content = repairMojibake(parsedContent);
+    const title = repairMojibake(frontmatter.name || frontmatter.title || titleFromPath(relativePath));
     return {
       path: relativePath,
       title,
       category: inferCategory(relativePath, frontmatter),
       type: frontmatter.type || inferCategory(relativePath, frontmatter),
-      loreSubtype: frontmatter.loreSubtype || inferLoreSubtypeFromCategory(inferCategory(relativePath, frontmatter)) || undefined,
       world: frontmatter.world || undefined,
       country: frontmatter.country || undefined,
       city: frontmatter.city || undefined,
@@ -170,7 +155,6 @@ function compactPage(page) {
     path: page.path,
     category: page.category,
     type: page.type,
-    loreSubtype: page.loreSubtype,
     summary: page.summary
   };
 }
@@ -268,24 +252,26 @@ export async function saveRawPage({ requestedPath, raw }) {
 
 export function previewMarkdownImports(files = []) {
   return files.map((file) => {
-    const raw = file.content || "";
-    const { frontmatter, content } = parseMarkdown(raw);
+    const raw = repairMojibake(file.content || "");
+    const { frontmatter: parsedFrontmatter, content: parsedContent } = parseMarkdown(raw);
+    const frontmatter = repairTextDeep(parsedFrontmatter);
+    const content = repairMojibake(parsedContent);
     const obsidianInfo = parseObsidianShortcut(raw) || parseObsidianShortcut(content);
     const cleanContent = obsidianInfo ? stripObsidianShortcutLines(content || raw) : content;
     const safeFrontmatter = obsidianInfo ? cleanObsidianShortcutFrontmatter(frontmatter) : frontmatter;
     const filenameTitle = titleFromImportedFilename(file.originalName);
-    const title = obsidianInfo
-      ? filenameTitle
-      : (safeFrontmatter.name || safeFrontmatter.title || firstHeading(cleanContent) || filenameTitle);
-    const inferredType = inferTypeFromText(title, cleanContent);
+    const cleanTitle = pickCleanTitle([safeFrontmatter.title, safeFrontmatter.name, firstHeading(cleanContent), filenameTitle]);
+    const title = obsidianInfo ? filenameTitle : cleanTitle;
+    const loreSubtype = inferLoreSubtype(title, cleanContent, safeFrontmatter);
+    const inferredType = inferTypeFromText(title, cleanContent, loreSubtype);
     const type = obsidianInfo || safeFrontmatter.type === "link"
       ? inferredType
       : (safeFrontmatter.type || inferredType);
-    const loreSubtype = type === "lore" ? inferLoreSubtypeFromText(title, cleanContent, safeFrontmatter) : undefined;
     const category = obsidianInfo || safeFrontmatter.category === "link"
       ? defaultCategory(type, loreSubtype)
-      : (safeFrontmatter.category || defaultCategory(type, loreSubtype));
+      : normalizeImportCategory(safeFrontmatter.category || defaultCategory(type, loreSubtype), type, loreSubtype);
     const targetPath = `${category}/${slugify(title)}.md`;
+    const splitCandidates = detectFactionSplitCandidates(cleanContent, file.id);
     const existing = pageByPath.has(targetPath);
     const warnings = [];
     if (existing) warnings.push("Файл с таким путём уже существует");
@@ -300,12 +286,13 @@ export function previewMarkdownImports(files = []) {
       originalName: file.originalName,
       title,
       type,
-      loreSubtype,
       category,
       targetPath,
       summary: summarize(cleanContent, safeFrontmatter),
-      frontmatter: safeFrontmatter,
+      frontmatter: { ...safeFrontmatter, loreSubtype: safeFrontmatter.loreSubtype || loreSubtype },
       content: cleanContent,
+      loreSubtype,
+      splitCandidates,
       encoding: file.encoding,
       obsidianInfo,
       warnings
@@ -335,12 +322,12 @@ export async function commitMarkdownImports({ items = [], conflictMode = "skip" 
         title: item.title,
         name: item.title,
         type: item.type,
+        category: normalizeImportCategory(item.category, item.type, item.loreSubtype),
         loreSubtype: item.loreSubtype,
-        category: item.category,
-        summary: item.summary,
+        summary: repairMojibake(item.summary),
         visibility: item.frontmatter?.visibility || "public"
       }),
-      item.content || ""
+      repairMojibake(item.content || "")
     );
 
     const target = resolveInside(config.vaultDir, finalPath);
@@ -355,8 +342,9 @@ export async function commitMarkdownImports({ items = [], conflictMode = "skip" 
 
 export async function createPage(payload) {
   const type = payload.type || "lore";
-  const category = payload.category || defaultCategory(type, payload.loreSubtype);
-  const title = payload.title || payload.name || payload.mapObjects?.[0]?.label || payload.pins?.[0]?.label || draftTitle(type);
+  const loreSubtype = payload.loreSubtype || inferLoreSubtype(payload.name || payload.title || "", payload.summary || payload.publicNotes || "", payload);
+  const category = normalizeImportCategory(payload.category || defaultCategory(type, loreSubtype), type, loreSubtype);
+  const title = repairMojibake(payload.title || payload.name || payload.mapObjects?.[0]?.label || payload.pins?.[0]?.label || draftTitle(type));
   const requestedPath = payload.path || `${category}/${slugify(title)}.md`;
   const content = [
     payload.summary || "",
@@ -377,10 +365,11 @@ export async function createPage(payload) {
     frontmatter: {
       ...structuredFields,
       title,
-      name: payload.name || title,
+      name: repairMojibake(payload.name || title),
       type,
       category,
-      summary: payload.summary || "",
+      loreSubtype: type === "lore" ? loreSubtype : undefined,
+      summary: repairMojibake(payload.summary || ""),
       tags: payload.tags || [],
       related: payload.related || [],
       pins: payload.pins || [],
@@ -428,7 +417,7 @@ function firstHeading(content = "") {
 }
 
 function titleFromImportedFilename(originalName = "") {
-  const base = String(originalName || "untitled.md")
+  const base = repairMojibake(String(originalName || "untitled.md"))
     .split(/[\\/]/)
     .pop()
     .replace(/\.md$/i, "")
@@ -497,51 +486,76 @@ async function nextCopyPath(safePath) {
   return `${base}-${index}${ext}`;
 }
 
-const loreSubtypeByCategory = {
-  "lore/gods": "god",
-  "lore/factions": "faction",
-  "lore/history": "history",
-  "lore/planes": "plane",
-  "lore/artifacts": "artifact",
-  "lore/magic": "magic",
-  "lore/cults": "cult",
-  "lore/prophecies": "prophecy",
-  "lore/timeline": "timeline"
-};
-
-function inferLoreSubtypeFromCategory(category = "") {
-  return loreSubtypeByCategory[category] || undefined;
+function pickCleanTitle(candidates = []) {
+  for (const candidate of candidates) {
+    const fixed = repairMojibake(candidate || "").trim();
+    if (!fixed || fixed.toLowerCase() === "link" || looksLikeMojibake(fixed)) continue;
+    return fixed;
+  }
+  return "Untitled";
 }
 
-function inferLoreSubtypeFromText(title = "", content = "", frontmatter = {}) {
-  if (frontmatter.loreSubtype) return frontmatter.loreSubtype;
-  const categorySubtype = inferLoreSubtypeFromCategory(frontmatter.category);
-  if (categorySubtype) return categorySubtype;
-  const text = `${title}\n${content}`.toLowerCase();
-  if (/(фракц|faction|гильд|орден|дом |house |clan|клан)/i.test(text)) return "faction";
+function inferLoreSubtype(title = "", content = "", frontmatter = {}) {
+  const existing = repairMojibake(frontmatter.loreSubtype || frontmatter.subtype || "").trim();
+  if (existing && existing !== "general") return existing;
+  const text = `${title}
+${content}`.toLowerCase();
+  if (/(фракц|гильд|синдикат|орден|легат|банд|guild|faction|syndicate|order)/i.test(text)) return "faction";
   if (/(культ|cult)/i.test(text)) return "cult";
-  if (/(бог|богин|deity|god|goddess)/i.test(text)) return "god";
-  if (/(артефакт|artifact|реликв)/i.test(text)) return "artifact";
-  if (/(магия|заклин|magic|spell)/i.test(text)) return "magic";
-  if (/(пророч|prophecy|prophecies)/i.test(text)) return "prophecy";
-  if (/(план|plane|измерен)/i.test(text)) return "plane";
-  if (/(истор|эпох|восстан|война|battle|war|history|uprising)/i.test(text)) return "history";
+  if (/(бог|бож|религ|церковь|god|deity|religion|church)/i.test(text)) return "god";
+  if (/(артефакт|реликв|artifact|relic)/i.test(text)) return "artifact";
+  if (/(истор|война|битва|эпох|history|war|battle|era)/i.test(text)) return "history";
+  if (/(пророч|prophecy|omen)/i.test(text)) return "prophecy";
+  if (/(маг|заклин|magic|arcane)/i.test(text)) return "magic";
+  if (/(план|измерен|plane|realm)/i.test(text)) return "plane";
   return "general";
 }
 
-const categoryByLoreSubtype = {
-  god: "lore/gods",
-  faction: "lore/factions",
-  history: "lore/history",
-  plane: "lore/planes",
-  artifact: "lore/artifacts",
-  magic: "lore/magic",
-  cult: "lore/cults",
-  prophecy: "lore/prophecies",
-  timeline: "lore/timeline"
-};
+function normalizeImportCategory(category, type = "lore", loreSubtype = "general") {
+  if (type !== "lore") return category || defaultCategory(type, loreSubtype);
+  if (category && category !== "lore") return category;
+  const subtypeCategories = {
+    faction: "lore/factions",
+    cult: "lore/cults",
+    god: "lore/gods",
+    artifact: "lore/artifacts",
+    history: "lore/history",
+    prophecy: "lore/prophecies",
+    magic: "lore/magic",
+    plane: "lore/planes"
+  };
+  return subtypeCategories[loreSubtype] || "lore";
+}
 
-function defaultCategory(type, loreSubtype) {
+function detectFactionSplitCandidates(content = "", sourceId = "import") {
+  const text = repairMojibake(content || "").trim();
+  const matches = [...text.matchAll(/^\s*(\d+)\.\s+(.+?)\s*$/gmu)];
+  if (matches.length < 2) return [];
+  return matches.map((match, index) => {
+    const title = repairMojibake(match[2]).replace(/[*_`]/g, "").replace(/[.。:：]+$/u, "").trim();
+    const start = match.index + match[0].length;
+    const end = matches[index + 1]?.index ?? text.length;
+    const body = text.slice(start, end).trim();
+    const summary = summarize(body, {});
+    return {
+      id: `${sourceId}-split-${index}`,
+      originalName: `${title}.md`,
+      title,
+      type: "lore",
+      category: "lore/factions",
+      loreSubtype: "faction",
+      targetPath: `lore/factions/${slugify(title)}.md`,
+      summary,
+      frontmatter: { type: "lore", category: "lore/factions", loreSubtype: "faction", visibility: "gm" },
+      content: body,
+      encoding: "split-from-md",
+      obsidianInfo: null,
+      warnings: ["Разбито из общего файла фракций"]
+    };
+  });
+}
+
+function defaultCategory(type, loreSubtype = "general") {
   const categories = {
     world: "worlds",
     country: "countries",
@@ -553,8 +567,7 @@ function defaultCategory(type, loreSubtype) {
     location: "locations",
     timelineEvent: "lore/timeline"
   };
-  if (type === "lore") return categoryByLoreSubtype[loreSubtype] || "lore";
-  return categories[type] || "lore";
+  return categories[type] || normalizeImportCategory("lore", "lore", loreSubtype);
 }
 
 export async function pageExists(relativePath) {

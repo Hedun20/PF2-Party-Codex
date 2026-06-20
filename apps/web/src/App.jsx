@@ -15,42 +15,41 @@ import TimelinePage from "./pages/TimelinePage.jsx";
 import MapsPage from "./pages/MapsPage.jsx";
 
 export default function App() {
-  const [mode, setMode] = useState("player");
-  const [session, setSession] = useState({ mode: "player", canEdit: false, access: "lan-player" });
+  const [session, setSession] = useState({ mode: "player", canEdit: false });
+  const [mode, setMode] = useState(localStorage.getItem("codex-mode") || "gm");
   const [pages, setPages] = useState([]);
   const [categories, setCategories] = useState([]);
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
 
-  const refresh = async (nextMode = mode) => {
-    const [pageData, categoryData] = await Promise.all([api.pages(nextMode), api.categories(nextMode)]);
+  const effectiveMode = session.canEdit ? mode : "player";
+
+  const refresh = async () => {
+    const [pageData, categoryData] = await Promise.all([api.pages(effectiveMode), api.categories(effectiveMode)]);
     setPages(pageData.pages);
     setCategories(categoryData.categories);
   };
 
   useEffect(() => {
-    api.session()
-      .then((data) => {
-        setSession(data);
-        const preferred = data.canEdit ? (localStorage.getItem("codex-mode") || "gm") : "player";
-        setMode(preferred === "gm" && !data.canEdit ? "player" : preferred);
-      })
-      .catch(() => setMode("player"));
+    api.session().then((data) => {
+      setSession(data);
+      if (!data.canEdit) setMode("player");
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
     if (session.canEdit) localStorage.setItem("codex-mode", mode);
-    refresh(mode);
-    const timer = setInterval(() => refresh(mode), 10000);
+    refresh();
+    const timer = setInterval(refresh, 10000);
     return () => clearInterval(timer);
-  }, [mode, session.canEdit]);
+  }, [effectiveMode, session.canEdit]);
 
   const dashboard = useMemo(() => pages.find((page) => page.path === "index.md"), [pages]);
 
   return (
     <FantasyShell
-      mode={mode}
-      setMode={(nextMode) => setMode(session.canEdit ? nextMode : "player")}
+      mode={effectiveMode}
+      setMode={session.canEdit ? setMode : () => {}}
       session={session}
       pages={pages}
       categories={categories}
@@ -59,17 +58,17 @@ export default function App() {
       onSelectPage={(path) => navigate(`/page/${encodeURIComponent(path)}`)}
     >
       <Routes>
-        <Route path="/" element={<DashboardPage pages={pages} dashboard={dashboard} mode={mode} session={session} />} />
-        <Route path="/category/:category/*" element={<CategoryPage pages={pages} mode={mode} />} />
-        <Route path="/page/:path" element={<PageView mode={mode} pages={pages} />} />
-        <Route path="/editor" element={<EditorPage mode={mode} session={session} onSaved={() => refresh(mode)} />} />
-        <Route path="/edit/:path" element={<RawEditorPage mode={mode} onSaved={refresh} pages={pages} />} />
-        <Route path="/missing" element={<MissingLinksPage mode={mode} />} />
-        <Route path="/timeline" element={<TimelinePage pages={pages} mode={mode} />} />
-        <Route path="/maps" element={<MapsPage pages={pages} mode={mode} />} />
-        <Route path="/health" element={<VaultHealthPage mode={mode} />} />
-        <Route path="/guide" element={<GuidePage session={session} />} />
-        <Route path="/foundry" element={<FoundryImportExportPage mode={mode} />} />
+        <Route path="/" element={<DashboardPage pages={pages} dashboard={dashboard} mode={effectiveMode} />} />
+        <Route path="/category/:category/*" element={<CategoryPage pages={pages} mode={effectiveMode} />} />
+        <Route path="/page/:path" element={<PageView mode={effectiveMode} pages={pages} />} />
+        <Route path="/editor" element={<EditorPage onSaved={refresh} session={session} />} />
+        <Route path="/edit/:path" element={<RawEditorPage mode={effectiveMode} onSaved={refresh} pages={pages} />} />
+        <Route path="/missing" element={<MissingLinksPage mode={effectiveMode} />} />
+        <Route path="/timeline" element={<TimelinePage pages={pages} mode={effectiveMode} />} />
+        <Route path="/maps" element={<MapsPage pages={pages} mode={effectiveMode} />} />
+        <Route path="/health" element={<VaultHealthPage mode={effectiveMode} />} />
+        <Route path="/guide" element={<GuidePage />} />
+        <Route path="/foundry" element={<FoundryImportExportPage mode={effectiveMode} />} />
       </Routes>
     </FantasyShell>
   );

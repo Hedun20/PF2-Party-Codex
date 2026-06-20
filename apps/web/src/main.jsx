@@ -5,6 +5,8 @@ import App from "./App.jsx";
 import "./styles/theme.css";
 import "./styles/fantasy.css";
 import "./styles/components.css";
+import "./styles/codex-design.css";
+import "./styles/codex-buttons.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

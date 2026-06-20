@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { PenLine } from "lucide-react";
 import { api } from "../api/client.js";
-import VoltageButton from "../components/VoltageButton.jsx";
+import ArticleFactsPanel from "../components/ArticleFactsPanel.jsx";
 import HierarchyPanel from "../components/HierarchyPanel.jsx";
 import MarkdownViewer from "../components/MarkdownViewer.jsx";
 import PageMap from "../components/PageMap.jsx";
-import ArticleFactsPanel from "../components/ArticleFactsPanel.jsx";
+import CodexButton from "../components/ui/CodexButton.jsx";
 import { labelCategory } from "../utils/labels.js";
 
 function LinkList({ title, items = [] }) {
@@ -49,7 +48,9 @@ export default function PageView({ mode, pages = [] }) {
           <span className="kicker">Фантомная ссылка</span>
           <h1>{error}</h1>
           <p>На эту статью уже есть ссылка, но сам Markdown-файл ещё не создан.</p>
-          <Link className="gold-button" to={`/missing?target=${encodeURIComponent(error)}`}>Открыть в ненаписанных статьях</Link>
+          <CodexButton as={Link} to={`/missing?target=${encodeURIComponent(error)}`}>
+            Открыть в ненаписанных статьях
+          </CodexButton>
         </header>
       </div>
     );
@@ -68,10 +69,10 @@ export default function PageView({ mode, pages = [] }) {
         </div>
         {mode === "gm" && (
           <div className="editor-actions article-header-actions">
-            <VoltageButton as={Link} to={`/edit/${encodeURIComponent(page.path)}`} size="sm" variant="gm">
+            <CodexButton as={Link} to={`/edit/${encodeURIComponent(page.path)}`} size="sm">
               <PenLine size={16} />
-              <span>Редактор</span>
-            </VoltageButton>
+              <span>Редактировать</span>
+            </CodexButton>
           </div>
         )}
       </header>

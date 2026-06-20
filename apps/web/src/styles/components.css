@@ -1647,7 +1647,7 @@ textarea { min-height: 96px; resize: vertical; }
   .audit-summary { grid-template-columns: 1fr; }
 }
 
-/* Maps 2.0 control polish. Main CTA liquid lives in .magic-liquid-button below. */
+/* Maps 2.0 control polish. Primary CTAs use CodexButton. */
 .download-link,
 .type-chip,
 .choice-pill,
@@ -2568,7 +2568,7 @@ textarea { min-height: 96px; resize: vertical; }
   background: rgba(0, 0, 0, 0.14);
 }
 
-/* Legacy liquid CTA styles removed. Primary animated CTAs now use VoltageButton + styles/voltage-button.css. */
+/* Legacy CTA styles are neutralized by codex-buttons.css. */
 
 @media (max-width: 1000px) {
   .quick-create-panel,

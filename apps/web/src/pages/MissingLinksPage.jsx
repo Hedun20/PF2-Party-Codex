@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { FileQuestion, PenLine, Sparkles } from "lucide-react";
 import { api } from "../api/client.js";
+import CodexButton from "../components/ui/CodexButton.jsx";
 import { labelCategory } from "../utils/labels.js";
 
 export default function MissingLinksPage({ mode }) {
@@ -40,10 +41,10 @@ export default function MissingLinksPage({ mode }) {
           <h2>Пиши сначала историю, а статьи создавай потом</h2>
           <p>В любой Markdown-статье можно написать `[[Восстание крестьян 1342]]`. Если такой статьи нет, ссылка станет фантомной и появится в этом списке.</p>
         </div>
-        <Link className="gold-button" to="/editor?title=Восстание крестьян 1342">
+        <CodexButton as={Link} to="/editor?title=Восстание крестьян 1342">
           <Sparkles size={16} />
           Попробовать пример
-        </Link>
+        </CodexButton>
       </section>
 
       <section className="missing-grid">
@@ -64,10 +65,10 @@ export default function MissingLinksPage({ mode }) {
                 </Link>
               ))}
             </div>
-            <Link className="gold-button" to={`/editor?title=${encodeURIComponent(item.title)}`}>
+            <CodexButton as={Link} to={`/editor?title=${encodeURIComponent(item.title)}`}>
               <PenLine size={16} />
               Создать статью
-            </Link>
+            </CodexButton>
           </article>
         ))}
       </section>

@@ -6,7 +6,8 @@ import { config } from "../config.js";
 import { auditVault } from "../services/auditService.js";
 import { listPages } from "../services/vaultService.js";
 import { slugify } from "../utils/slugify.js";
-import { requireGm, resolveRequestMode } from "../services/sessionService.js";
+import { requestMode, requireGm } from "../middleware/sessionMode.js";
+import { repairUploadedFilename } from "../utils/encoding.js";
 
 const allowedExt = [".png", ".jpg", ".jpeg", ".webp"];
 
@@ -27,7 +28,7 @@ const upload = multer({
 export const toolsRouter = Router();
 
 toolsRouter.get("/metadata", (req, res) => {
-  const pages = listPages(resolveRequestMode(req, req.query.mode));
+  const pages = listPages(requestMode(req, "gm"));
   const compact = pages.map((page) => ({
     title: page.title,
     path: page.path,
@@ -54,9 +55,29 @@ toolsRouter.get("/metadata", (req, res) => {
   });
 });
 
+
+toolsRouter.get("/assets/list", async (req, res, next) => {
+  try {
+    const visiblePages = listPages(requestMode(req, "gm"));
+    const used = new Set(visiblePages.flatMap((page) => [page.mapImage, page.avatarImage, page.tokenImage, page.handoutImage, page.image]).filter(Boolean).map((item) => String(item).replace(/^images\//, "")));
+    let files = [];
+    try {
+      files = await fs.readdir(config.imagesDir, { withFileTypes: true });
+    } catch {
+      files = [];
+    }
+    const assets = files
+      .filter((entry) => entry.isFile())
+      .map((entry) => ({ fileName: entry.name, path: entry.name, url: `/api/assets/${encodeURIComponent(entry.name)}`, used: used.has(entry.name) }));
+    res.json({ assets, unused: assets.filter((asset) => !asset.used) });
+  } catch (error) {
+    next(error);
+  }
+});
+
 toolsRouter.get("/audit", async (req, res, next) => {
   try {
-    res.json(await auditVault(resolveRequestMode(req, req.query.mode)));
+    res.json(await auditVault(requestMode(req, "gm")));
   } catch (error) {
     next(error);
   }
@@ -67,7 +88,8 @@ toolsRouter.post("/assets/upload", requireGm, upload.single("file"), async (req,
     if (!req.file) return res.status(400).json({ error: "Файл карты не получен." });
     await fs.mkdir(config.imagesDir, { recursive: true });
 
-    const rawExt = path.extname(req.file.originalname).toLowerCase();
+    const originalName = repairUploadedFilename(req.file.originalname);
+    const rawExt = path.extname(originalName).toLowerCase();
     const ext = allowedExt.includes(rawExt)
       ? rawExt
       : req.file.mimetype.includes("png")
@@ -76,7 +98,7 @@ toolsRouter.post("/assets/upload", requireGm, upload.single("file"), async (req,
           ? ".webp"
           : ".jpg";
 
-    const base = slugify(path.basename(req.file.originalname, rawExt || ext));
+    const base = slugify(path.basename(originalName, rawExt || ext));
     let fileName = `${base}${ext}`;
     let target = path.join(config.imagesDir, fileName);
     let copy = 2;

@@ -4,7 +4,7 @@ import { Router } from "express";
 import { buildFoundryExport } from "../services/foundryExportService.js";
 import { commitFoundryImport, previewFoundryImport } from "../services/foundryImportService.js";
 import { config } from "../config.js";
-import { requireGm } from "../services/sessionService.js";
+import { requireGm } from "../middleware/sessionMode.js";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 export const foundryRouter = Router();

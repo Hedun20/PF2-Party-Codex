@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { searchPages } from "../services/searchService.js";
-import { resolveRequestMode } from "../services/sessionService.js";
+import { requestMode } from "../middleware/sessionMode.js";
 
 export const searchRouter = Router();
-searchRouter.get("/search", (req, res) => res.json({ results: searchPages(req.query.q || "", resolveRequestMode(req, req.query.mode || "player")) }));
+searchRouter.get("/search", (req, res) => res.json({ results: searchPages(req.query.q || "", requestMode(req, "player")) }));

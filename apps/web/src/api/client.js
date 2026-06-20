@@ -30,7 +30,7 @@ export const api = {
   metadata: (mode) => request(`/metadata?mode=${mode}`),
   audit: (mode) => request(`/audit?mode=${mode}`),
   uploadAsset: (formData) => request("/assets/upload", { method: "POST", body: formData }),
-  assetsList: (mode) => request(`/assets/list?mode=${mode}`),
+  assetList: (mode) => request(`/assets/list?mode=${mode}`),
   foundryImportPreview: (formData) => request("/foundry/import", { method: "POST", body: formData }),
   foundryImportCommit: (items, conflictMode) => {
     const form = new FormData();
