@@ -12,15 +12,403 @@ let pages = [];
 let pageByPath = new Map();
 
 const bootstrapDirs = [
-  "worlds", "countries", "cities", "locations", "npcs", "enemies", "quests", "sessions",
+  "_guides", "_examples",
+  "worlds", "countries", "cities", "locations", "characters", "npcs", "enemies", "quests", "sessions",
   "lore", "lore/factions", "lore/gods", "lore/cults", "lore/history", "lore/planes",
   "lore/artifacts", "lore/magic", "lore/prophecies", "lore/timeline",
-  "images", "maps", "handouts", "templates"
+  "maps", "timeline", "assets", "images", "handouts", "templates"
 ];
 
+const starterFiles = {
+  "index.md": `---
+title: PF2 Party Codex
+category: dashboard
+type: dashboard
+visibility: public
+summary: Стартовая страница локального кодекса кампании.
+tags: [guide, start]
+---
+
+# PF2 Party Codex
+
+Это чистый vault для твоей кампании. Реальный канон лучше создавать в папках \`worlds/\`, \`cities/\`, \`npcs/\`, \`quests/\`, \`maps/\` и \`timeline/\`.
+
+## Быстрый старт
+
+- Открой [[Getting Started|гайд для старта]].
+- Посмотри примеры в \`_examples/\`.
+- Создай первый мир в \`worlds/\` или через редактор.
+- Добавляй связи через wiki-ссылки: \`[[Название статьи]]\`.
+
+## Важно
+
+Папки \`_guides/\` и \`_examples/\` — обучающие материалы. Это не канон твоей кампании, их можно удалить или переписать.
+`,
+  "_guides/getting-started.md": `---
+title: Getting Started
+category: _guides
+type: guide
+visibility: public
+summary: Как начать вести кампанию в PF2 Party Codex.
+tags: [guide, onboarding]
+---
+
+# Getting Started
+
+PF2 Party Codex хранит кампанию как обычные Markdown-файлы. Это значит: ты можешь редактировать статьи в приложении, в Obsidian, VS Code или любом текстовом редакторе.
+
+## Рекомендуемый порядок
+
+1. Создай первый мир в \`worlds/\`.
+2. Создай 1–2 города в \`cities/\`.
+3. Добавь важных NPC в \`npcs/\` или персонажей игроков в \`characters/\`.
+4. Подключи карту через \`mapImage\` или страницу типа \`map\`.
+5. Добавь события в \`timeline/\` или \`lore/timeline/\`.
+
+## Wiki-ссылки
+
+Пиши \`[[Название статьи]]\`, чтобы связать материалы между собой. Если статьи ещё нет, она появится в разделе missing links.
+
+## GM-секреты
+
+Игроки не должны видеть всё. Используй:
+
+\`\`\`md
+## GM Secrets
+То, что игрокам пока нельзя знать.
+\`\`\`
+
+Или целиком скрывай файл:
+
+\`\`\`yaml
+visibility: gm
+\`\`\`
+`,
+  "_guides/how-to-create-a-world.md": `---
+title: How to Create a World
+category: _guides
+type: guide
+visibility: public
+summary: Структура хорошей страницы мира.
+tags: [guide, world]
+---
+
+# How to Create a World
+
+Страница мира должна быстро отвечать на вопрос: почему игрокам и мастеру интересно здесь играть?
+
+## Пример frontmatter
+
+\`\`\`yaml
+---
+title: Пепельные Княжества
+category: worlds
+type: world
+visibility: public
+summary: Вулканические земли, где мёртвые рыцари охраняют границы старых клятв.
+tags: [fire, undead, kingdoms]
+theme: fire
+---
+\`\`\`
+
+## Хорошие секции
+
+- **Pitch:** одна сильная фраза о мире.
+- **Главный конфликт:** что двигает историю.
+- **Фракции:** кто борется за власть.
+- **Ключевые места:** города, храмы, руины, порталы.
+- **Что знают игроки:** player-safe описание.
+- **GM Secrets:** скрытая правда мира.
+`,
+  "_guides/how-to-create-a-city.md": `---
+title: How to Create a City
+category: _guides
+type: guide
+visibility: public
+summary: Как оформить город, чтобы он был полезен за столом.
+tags: [guide, city]
+---
+
+# How to Create a City
+
+Город — это не энциклопедия. Это игровой инструмент: куда идти, кого встретить, какие проблемы начнутся сегодня.
+
+## Пример frontmatter
+
+\`\`\`yaml
+---
+title: Черный Порт
+category: cities
+type: city
+world: Пепельные Княжества
+visibility: public
+summary: Порт на обсидиановой бухте, где контрабандисты торгуют реликвиями павших домов.
+tags: [port, crime, fire]
+---
+\`\`\`
+
+## Секции
+
+- Впечатление при входе
+- Районы
+- Важные NPC
+- Законы и опасности
+- Слухи
+- GM Secrets
+`,
+  "_guides/how-to-create-a-pc.md": `---
+title: How to Create a PC
+category: _guides
+type: guide
+visibility: public
+summary: Как вести персонажа игрока или важного союзника.
+tags: [guide, pc, character]
+---
+
+# How to Create a PC
+
+Для персонажей игроков лучше хранить не весь лист персонажа, а то, что помогает кампании: связи, цели, обещания, долги, личные арки.
+
+## Пример frontmatter
+
+\`\`\`yaml
+---
+title: Каэлин Рунный
+category: characters
+type: pc
+world: Пепельные Княжества
+visibility: public
+summary: Кинетик, который ищет источник голоса из вулканического разлома.
+tags: [pc, kineticist, fire]
+related: [Черный Порт]
+---
+\`\`\`
+
+## Секции
+
+- Концепт
+- Цели персонажа
+- Союзники и враги
+- Нерешённые крючки
+- Награды / долги / обещания
+`,
+  "_guides/how-to-create-a-map.md": `---
+title: How to Create a Map
+category: _guides
+type: guide
+visibility: public
+summary: Как подключать карты, пины и области.
+tags: [guide, map]
+---
+
+# How to Create a Map
+
+Карта может жить как отдельная статья или внутри страницы города/локации.
+
+## Пример frontmatter
+
+\`\`\`yaml
+---
+title: Карта Черного Порта
+category: maps
+type: map
+world: Пепельные Княжества
+mapImage: black-harbor.png
+visibility: public
+summary: Игровая карта обсидиановой бухты и портовых районов.
+pins:
+  - label: Старый маяк
+    x: 42
+    y: 31
+    target: Старый маяк
+---
+\`\`\`
+
+## Совет
+
+Храни картинки локально в \`vault/images\`. Игрокам показывай только player-safe слой, а секретные пины отмечай как GM-only.
+`,
+  "_guides/how-to-create-a-timeline.md": `---
+title: How to Create a Timeline
+category: _guides
+type: guide
+visibility: public
+summary: Как готовить события для Living Timeline Branch Explorer.
+tags: [guide, timeline]
+---
+
+# How to Create a Timeline
+
+Timeline работает лучше всего, когда каждое событие связано с миром, местом, NPC или фракцией. Тогда это не просто список дат, а живое древо истории.
+
+## Минимальный frontmatter
+
+\`\`\`yaml
+---
+title: Падение Красного Маяка
+category: timeline
+type: timelineEvent
+world: Пепельные Княжества
+era: Война Маяков
+year: 1666
+importance: major
+visibility: public
+summary: Ночь, когда маяк погас, а мёртвые рыцари впервые вышли из лавовых ворот.
+related: [Пепельные Княжества, Красный Маяк, Орден Пепла]
+---
+\`\`\`
+
+## Поля, которые усиливают branch timeline
+
+- \`year\` или \`timelineYear\` — положение на линии времени.
+- \`era\`, \`arc\` или \`chapter\` — крупная эпоха/ветка.
+- \`world\` — фильтр мира.
+- \`city\`, \`country\`, \`faction\` — быстрые связи.
+- \`related\` — список связанных статей.
+- Wiki-ссылки \`[[Название статьи]]\` внутри текста — тоже становятся связями.
+
+## Принцип
+
+Каждое событие должно отвечать не только “когда?”, но и “с чем оно связано?”. Тогда Timeline сможет подсвечивать NPC, города, фракции и соседние статьи при hover/focus.
+`,
+  "_examples/example-world.md": `---
+title: Example World — Ember Marches
+category: _examples
+type: example
+visibility: public
+summary: Учебный пример мира. Не является каноном кампании.
+tags: [example, world, fire]
+theme: fire
+---
+
+# Example World — Ember Marches
+
+Это пример, а не реальный мир кампании. Скопируй структуру, но создай собственную страницу в \`worlds/\`.
+
+## Pitch
+
+Королевства на лавовых плато живут на границе между торговлей, некромантией и старыми клятвами.
+
+## Player-safe truth
+
+Игроки знают, что дороги здесь строят из обсидиана, а ночами в горах слышны колокола мёртвых крепостей.
+
+## GM Secrets
+
+Настоящая причина пробуждения мёртвых — не проклятие, а древний договор с планом Огня.
+`,
+  "_examples/example-city.md": `---
+title: Example City — Black Harbor
+category: _examples
+type: example
+visibility: public
+summary: Учебный пример города с игровыми крючками.
+tags: [example, city, port]
+---
+
+# Example City — Black Harbor
+
+## Что видно игрокам
+
+Порт пахнет серой, мокрой древесиной и дорогими обещаниями. У каждого причала свой закон.
+
+## Быстрые крючки
+
+- Капитан исчез после сделки с храмом.
+- На маяке каждую ночь горит зелёный огонь.
+- Контрабандисты продают карту, которой ещё не должно существовать.
+`,
+  "_examples/example-pc.md": `---
+title: Example PC — Kaelin Runehand
+category: _examples
+type: example
+visibility: public
+summary: Учебный пример страницы персонажа игрока.
+tags: [example, pc]
+---
+
+# Example PC — Kaelin Runehand
+
+## Концепт
+
+Кинетик, который считает свой дар проклятием, но слишком часто спасает им чужие жизни.
+
+## Крючки для мастера
+
+- Кто оставил руну на его ладони?
+- Почему огонь не причиняет ему боли только рядом с древними маяками?
+`,
+  "_examples/example-map.md": `---
+title: Example Map — Black Harbor Districts
+category: _examples
+type: example
+visibility: public
+summary: Учебный пример описания карты и пинов.
+tags: [example, map]
+---
+
+# Example Map — Black Harbor Districts
+
+Карту можно добавить позже как файл в \`vault/images\`, а пока опиши районы текстом.
+
+## Районы
+
+- Старый маяк
+- Рыбный рынок
+- Обсидиановая пристань
+- Нижние склады
+`,
+  "_examples/example-timeline-event.md": `---
+title: Example Timeline Event — Fall of the Red Beacon
+category: _examples
+type: example
+visibility: public
+summary: Учебный пример события для timeline.
+tags: [example, timeline]
+year: 1666
+related: [Example World — Ember Marches, Example City — Black Harbor]
+---
+
+# Example Timeline Event — Fall of the Red Beacon
+
+В эту ночь погас главный маяк, а на рассвете караваны нашли ворота, которых вчера не было.
+
+## Как использовать
+
+Создай реальное событие в \`timeline/\` или \`lore/timeline/\`, добавь \`year\`, \`world\` и \`related\`.
+`
+};
+
+async function directoryHasUserContent(dir) {
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.name === ".pf2-codex.json") continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isFile()) return true;
+      if (entry.isDirectory() && await directoryHasUserContent(full)) return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+async function writeStarterFile(relativePath, content) {
+  const target = path.join(config.vaultDir, relativePath);
+  try {
+    await fs.access(target);
+  } catch {
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, content.endsWith("\n") ? content : `${content}\n`, "utf8");
+  }
+}
+
 async function ensureVaultBootstrap() {
+  const hadContent = await directoryHasUserContent(config.vaultDir);
   await fs.mkdir(config.vaultDir, { recursive: true });
   await Promise.all(bootstrapDirs.map((dir) => fs.mkdir(path.join(config.vaultDir, dir), { recursive: true })));
+
   const manifest = path.join(config.vaultDir, ".pf2-codex.json");
   try {
     await fs.access(manifest);
@@ -30,9 +418,14 @@ async function ensureVaultBootstrap() {
       createdAt: new Date().toISOString(),
       storage: "local-markdown-vault",
       gmMode: "localhost-only",
-      playerAccess: "lan-player"
+      playerAccess: "lan-player",
+      bootstrap: "empty-vault-with-guides-and-examples"
     }, null, 2)}
 `, "utf8");
+  }
+
+  if (!hadContent) {
+    await Promise.all(Object.entries(starterFiles).map(([relativePath, content]) => writeStarterFile(relativePath, content)));
   }
 }
 
@@ -40,7 +433,7 @@ async function walk(dir) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   const nested = await Promise.all(entries.map(async (entry) => {
     const full = path.join(dir, entry.name);
-    if (entry.isDirectory() && !entry.name.startsWith("_")) return walk(full);
+    if (entry.isDirectory()) return walk(full);
     if (entry.isFile() && entry.name.endsWith(".md")) return [full];
     return [];
   }));

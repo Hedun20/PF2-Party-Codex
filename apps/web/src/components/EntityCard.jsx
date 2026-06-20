@@ -12,6 +12,7 @@ export default function EntityCard({ page, mode }) {
       </div>
       <div className="codex-card__meta tag-row">
         {page.tags?.slice(0, 4).map((tag) => <span key={tag}>{tag}</span>)}
+        {!page.tags?.length && <span>draft</span>}
       </div>
       <HoverPreviewCard page={page} mode={mode} />
     </CodexCard>

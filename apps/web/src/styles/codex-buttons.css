@@ -206,3 +206,11 @@
   display: none !important;
   content: none !important;
 }
+
+.codex-file-button {
+  cursor: pointer;
+}
+
+.codex-file-button input[type="file"] {
+  display: none;
+}

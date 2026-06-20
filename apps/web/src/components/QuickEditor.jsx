@@ -468,11 +468,11 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
                   <p>{hint}</p>
                 </div>
                 {(localPreview[slot] || form[slot]) && <img src={localPreview[slot] || assetUrl(form[slot])} alt={label} />}
-                <label className="upload-button">
+                <CodexButton as="label" variant="secondary" className="codex-file-button">
                   <Upload size={18} />
                   <span>Загрузить</span>
                   <input type="file" accept="image/png,image/jpg,image/jpeg,image/pjpeg,image/webp,.png,.jpg,.jpeg,.webp" onChange={(event) => uploadMedia(slot, event)} />
-                </label>
+                </CodexButton>
                 <input value={form[slot] || ""} onChange={(event) => update(slot, event.target.value)} placeholder="Файл в vault/images" />
               </article>
             ))}

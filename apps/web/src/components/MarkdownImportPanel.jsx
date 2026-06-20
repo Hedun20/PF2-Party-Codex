@@ -4,8 +4,8 @@ import { api } from "../api/client.js";
 import CodexButton from "./ui/CodexButton.jsx";
 import { labelCategory } from "../utils/labels.js";
 
-const categories = ["worlds", "countries", "cities", "locations", "npcs", "enemies", "quests", "sessions", "lore", "lore/factions", "lore/cults", "lore/gods", "lore/artifacts", "lore/history", "lore/prophecies", "lore/planes", "lore/magic", "lore/timeline"];
-const types = ["world", "country", "city", "location", "npc", "enemy", "quest", "session", "lore", "timelineEvent"];
+const categories = ["worlds", "countries", "cities", "locations", "characters", "npcs", "enemies", "quests", "sessions", "maps", "timeline", "lore", "lore/factions", "lore/cults", "lore/gods", "lore/artifacts", "lore/history", "lore/prophecies", "lore/planes", "lore/magic", "lore/timeline"];
+const types = ["world", "country", "city", "location", "npc", "pc", "enemy", "quest", "session", "map", "lore", "timelineEvent"];
 const loreSubtypes = [["general", "Общий лор"], ["faction", "Фракция"], ["cult", "Культ"], ["god", "Бог / религия"], ["artifact", "Артефакт"], ["history", "История"], ["prophecy", "Пророчество"], ["plane", "План / измерение"], ["magic", "Магия"]];
 
 export default function MarkdownImportPanel({ onImported, onUseAsDraft }) {
@@ -69,11 +69,11 @@ export default function MarkdownImportPanel({ onImported, onUseAsDraft }) {
           <h2>Массовый MD-импорт</h2>
           <p className="builder-hint">Загрузи один или несколько `.md`, проверь раскладку и только потом запиши их в vault. Для создания одной статьи можно заполнить форму без записи в vault.</p>
         </div>
-        <label className="upload-button">
+        <CodexButton as="label" variant="secondary" className="codex-file-button">
           <FileUp size={18} />
           <span>Выбрать MD</span>
           <input type="file" accept=".md,text/markdown,text/plain" multiple onChange={chooseFiles} />
-        </label>
+        </CodexButton>
       </div>
 
       {preview.length > 0 && (

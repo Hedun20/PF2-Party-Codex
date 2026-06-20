@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { Save } from "lucide-react";
 import { api } from "../api/client.js";
+import CodexButton from "./ui/CodexButton.jsx";
 
 export default function FoundryImportPanel() {
   const [preview, setPreview] = useState([]);
@@ -34,7 +36,7 @@ export default function FoundryImportPanel() {
               </div>
             ))}
           </div>
-          <button className="gold-button" onClick={commit}>Записать Markdown-файлы</button>
+          <CodexButton type="button" onClick={commit}><Save size={16} /> Записать Markdown-файлы</CodexButton>
         </>
       )}
       {message && <p className="save-message">{message}</p>}

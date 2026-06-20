@@ -10,11 +10,13 @@ export const articleTypes = [
   ["city", "Город"],
   ["location", "Локация"],
   ["npc", "NPC"],
+  ["pc", "PC / персонаж игрока"],
   ["enemy", "Враг"],
   ["quest", "Квест"],
   ["session", "Сессия"],
   ["lore", "Лор"],
-  ["timelineEvent", "Событие timeline"]
+  ["timelineEvent", "Событие timeline"],
+  ["map", "Карта"]
 ];
 
 export const categoryByType = {
@@ -22,12 +24,14 @@ export const categoryByType = {
   country: "countries",
   city: "cities",
   npc: "npcs",
+  pc: "characters",
   enemy: "enemies",
   quest: "quests",
   session: "sessions",
   location: "locations",
   lore: "lore",
-  timelineEvent: "lore/timeline"
+  timelineEvent: "timeline",
+  map: "maps"
 };
 
 const categories = [...new Set(Object.values(categoryByType))];
