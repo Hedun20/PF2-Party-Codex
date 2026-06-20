@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useParams } from "react-router-dom";
+import { PenLine } from "lucide-react";
 import { api } from "../api/client.js";
 import HierarchyPanel from "../components/HierarchyPanel.jsx";
 import MarkdownViewer from "../components/MarkdownViewer.jsx";
@@ -61,6 +62,14 @@ export default function PageView({ mode, pages = [] }) {
         <h1>{page.title}</h1>
         <p>{page.summary}</p>
         <div className="tag-row">{page.tags?.map((tag) => <span key={tag}>{tag}</span>)}</div>
+        {mode === "gm" && (
+          <div className="editor-actions">
+            <Link className="gold-button" to={`/edit/${encodeURIComponent(page.path)}`}>
+              <PenLine size={16} />
+              Редактировать Markdown
+            </Link>
+          </div>
+        )}
       </header>
       <PageMap page={page} />
       <HierarchyPanel title="Внутренний слой статьи" items={page.children} />

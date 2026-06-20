@@ -199,6 +199,87 @@ export async function savePage({ requestedPath, frontmatter = {}, content = "" }
   return getPage(safe, "gm");
 }
 
+export async function readRawPage(requestedPath, mode = "gm") {
+  const page = getPage(requestedPath, mode);
+  if (!page) return null;
+  const safe = ensureMarkdownPath(page.path);
+  const raw = await fs.readFile(resolveInside(config.vaultDir, safe), "utf8");
+  const { frontmatter, content } = parseMarkdown(raw);
+  return { page: compactPage(page), raw, frontmatter, content };
+}
+
+export async function saveRawPage({ requestedPath, raw }) {
+  const safe = ensureMarkdownPath(requestedPath);
+  const target = resolveInside(config.vaultDir, safe);
+  parseMarkdown(raw || "");
+  await fs.writeFile(target, raw.endsWith("\n") ? raw : `${raw}\n`, "utf8");
+  await rebuildVaultIndex();
+  return getPage(safe, "gm");
+}
+
+export function previewMarkdownImports(files = []) {
+  return files.map((file) => {
+    const raw = file.content || "";
+    const { frontmatter, content } = parseMarkdown(raw);
+    const title = frontmatter.name || frontmatter.title || firstHeading(content) || titleFromPath(file.originalName);
+    const type = frontmatter.type || inferTypeFromText(title, content);
+    const category = frontmatter.category || defaultCategory(type);
+    const targetPath = `${category}/${slugify(title)}.md`;
+    const existing = pageByPath.has(targetPath);
+    return {
+      id: file.id,
+      originalName: file.originalName,
+      title,
+      type,
+      category,
+      targetPath,
+      summary: summarize(content, frontmatter),
+      frontmatter,
+      content,
+      warnings: existing ? ["Файл с таким путём уже существует"] : []
+    };
+  });
+}
+
+export async function commitMarkdownImports({ items = [], conflictMode = "skip" }) {
+  const written = [];
+  const skipped = [];
+
+  for (const item of items) {
+    const safe = ensureMarkdownPath(item.targetPath);
+    const exists = pageByPath.has(safe);
+    if (exists && conflictMode === "skip") {
+      skipped.push({ ...item, reason: "Конфликт: файл уже существует" });
+      continue;
+    }
+
+    const finalPath = exists && conflictMode === "copy"
+      ? await nextCopyPath(safe)
+      : safe;
+
+    const content = stringifyMarkdown(
+      cleanFrontmatter({
+        ...item.frontmatter,
+        title: item.title,
+        name: item.title,
+        type: item.type,
+        category: item.category,
+        summary: item.summary,
+        visibility: item.frontmatter?.visibility || "public"
+      }),
+      item.content || ""
+    );
+
+    const target = resolveInside(config.vaultDir, finalPath);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, content, "utf8");
+    written.push({ ...item, targetPath: finalPath });
+  }
+
+  await rebuildVaultIndex();
+  return { written, skipped };
+}
+
 export async function createPage(payload) {
   const type = payload.type || "lore";
   const category = payload.category || defaultCategory(type);
@@ -266,6 +347,32 @@ function draftTitle(type) {
     lore: "Новая статья"
   };
   return `${labels[type] || "Новая статья"} ${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}`;
+}
+
+function firstHeading(content = "") {
+  return content.match(/^#\s+(.+)$/m)?.[1]?.trim();
+}
+
+function inferTypeFromText(title = "", content = "") {
+  const text = `${title}\n${content}`.toLowerCase();
+  if (/(восстание|битва|война|эпоха|история|событие|revolt|uprising|battle|war|history|event)/i.test(text)) return "lore";
+  if (/(мир|план|plane|world)/i.test(text)) return "world";
+  if (/(страна|королевство|империя|country|kingdom|empire)/i.test(text)) return "country";
+  if (/(город|поселение|city|town)/i.test(text)) return "city";
+  if (/(npc|персонаж|капитан|магистр|торговец)/i.test(text)) return "npc";
+  if (/(враг|монстр|enemy|monster|creature)/i.test(text)) return "enemy";
+  if (/(квест|задание|quest)/i.test(text)) return "quest";
+  if (/(сессия|session|recap)/i.test(text)) return "session";
+  if (/(локация|таверна|башня|храм|location)/i.test(text)) return "location";
+  return "lore";
+}
+
+async function nextCopyPath(safePath) {
+  const ext = ".md";
+  const base = safePath.endsWith(ext) ? safePath.slice(0, -ext.length) : safePath;
+  let index = 2;
+  while (pageByPath.has(`${base}-${index}${ext}`)) index += 1;
+  return `${base}-${index}${ext}`;
 }
 
 function defaultCategory(type) {

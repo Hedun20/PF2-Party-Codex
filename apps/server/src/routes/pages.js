@@ -1,7 +1,26 @@
 import { Router } from "express";
-import { createPage, getPage, listMissingLinks, listPages, savePage } from "../services/vaultService.js";
+import multer from "multer";
+import {
+  commitMarkdownImports,
+  createPage,
+  getPage,
+  listMissingLinks,
+  listPages,
+  previewMarkdownImports,
+  readRawPage,
+  savePage,
+  saveRawPage
+} from "../services/vaultService.js";
 
 export const pagesRouter = Router();
+const mdUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 200 },
+  fileFilter: (_req, file, cb) => {
+    if (/\.md$/i.test(file.originalname) || file.mimetype === "text/markdown" || file.mimetype === "text/plain") cb(null, true);
+    else cb(new Error("Only .md files are supported"));
+  }
+});
 
 pagesRouter.get("/pages", (req, res) => {
   res.json({ pages: listPages(req.query.mode || "gm") });
@@ -15,6 +34,16 @@ pagesRouter.get("/page", (req, res) => {
   const page = getPage(req.query.path, req.query.mode || "gm");
   if (!page) return res.status(404).json({ error: "Page not found" });
   res.json({ page });
+});
+
+pagesRouter.get("/page/raw", async (req, res, next) => {
+  try {
+    const data = await readRawPage(req.query.path, req.query.mode || "gm");
+    if (!data) return res.status(404).json({ error: "Page not found" });
+    res.json(data);
+  } catch (error) {
+    next(error);
+  }
 });
 
 pagesRouter.get("/preview", (req, res) => {
@@ -34,6 +63,35 @@ pagesRouter.post("/page", async (req, res, next) => {
 pagesRouter.put("/page", async (req, res, next) => {
   try {
     res.json({ page: await savePage(req.body) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+pagesRouter.put("/page/raw", async (req, res, next) => {
+  try {
+    res.json({ page: await saveRawPage(req.body) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+pagesRouter.post("/markdown/import/preview", mdUpload.array("files", 200), (req, res, next) => {
+  try {
+    const files = (req.files || []).map((file, index) => ({
+      id: `${Date.now()}-${index}-${file.originalname}`,
+      originalName: file.originalname,
+      content: file.buffer.toString("utf8")
+    }));
+    res.json({ preview: previewMarkdownImports(files) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+pagesRouter.post("/markdown/import/commit", async (req, res, next) => {
+  try {
+    res.json(await commitMarkdownImports(req.body));
   } catch (error) {
     next(error);
   }

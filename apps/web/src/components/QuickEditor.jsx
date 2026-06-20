@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Crosshair, FileUp, Upload } from "lucide-react";
+import { Crosshair, Upload } from "lucide-react";
 import { api } from "../api/client.js";
+import MarkdownImportPanel from "./MarkdownImportPanel.jsx";
 import { labelCategory } from "../utils/labels.js";
 
 const types = [
@@ -120,17 +121,7 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
 
   return (
     <form className="editor-form builder-form" onSubmit={submit}>
-      <section className="builder-section md-import-teaser">
-        <div>
-          <span className="kicker">Импорт архива</span>
-          <h2>Массовый MD-импорт</h2>
-          <p className="builder-hint">Следующим шагом сюда добавим загрузку пачки `.md`, предпросмотр раскладки, автолинки и подтверждение перед записью в vault.</p>
-        </div>
-        <button type="button" className="upload-button" disabled>
-          <FileUp size={18} />
-          Скоро: загрузить MD
-        </button>
-      </section>
+      <MarkdownImportPanel onImported={onSaved} />
 
       <section className="builder-section">
         <div>

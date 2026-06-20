@@ -9,6 +9,7 @@ import EditorPage from "./pages/EditorPage.jsx";
 import FoundryImportExportPage from "./pages/FoundryImportExportPage.jsx";
 import GuidePage from "./pages/GuidePage.jsx";
 import MissingLinksPage from "./pages/MissingLinksPage.jsx";
+import RawEditorPage from "./pages/RawEditorPage.jsx";
 import VaultHealthPage from "./pages/VaultHealthPage.jsx";
 
 export default function App() {
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="/category/:category/*" element={<CategoryPage pages={pages} mode={mode} />} />
         <Route path="/page/:path" element={<PageView mode={mode} pages={pages} />} />
         <Route path="/editor" element={<EditorPage onSaved={refresh} />} />
+        <Route path="/edit/:path" element={<RawEditorPage mode={mode} onSaved={refresh} />} />
         <Route path="/missing" element={<MissingLinksPage mode={mode} />} />
         <Route path="/health" element={<VaultHealthPage mode={mode} />} />
         <Route path="/guide" element={<GuidePage />} />

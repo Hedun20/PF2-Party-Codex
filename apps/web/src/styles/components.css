@@ -501,6 +501,107 @@
   align-items: center;
 }
 
+.md-import-panel {
+  background:
+    radial-gradient(circle at 16% 12%, rgba(227, 182, 95, 0.12), transparent 26%),
+    var(--panel);
+}
+
+.md-import-head,
+.md-import-controls,
+.editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.md-import-head h2 {
+  margin: 6px 0 8px;
+}
+
+.md-import-controls {
+  padding: 12px;
+  border: 1px solid rgba(227, 182, 95, 0.14);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.md-import-controls label {
+  min-width: 240px;
+}
+
+.md-import-list {
+  display: grid;
+  gap: 12px;
+}
+
+.md-import-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.9fr);
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(227, 182, 95, 0.16);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.md-import-item.warning {
+  border-color: rgba(227, 182, 95, 0.58);
+  box-shadow: inset 0 0 34px rgba(227, 182, 95, 0.06);
+}
+
+.md-import-item h3 {
+  margin: 6px 0;
+  font-family: var(--display);
+}
+
+.md-import-item p,
+.md-import-item span {
+  color: var(--muted);
+}
+
+.md-import-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.md-import-warnings {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.md-import-warnings span {
+  padding: 6px 8px;
+  border: 1px solid rgba(227, 182, 95, 0.34);
+  border-radius: 8px;
+  color: var(--gold);
+  background: rgba(227, 182, 95, 0.08);
+}
+
+.raw-editor-panel {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(9, 8, 14, 0.86);
+}
+
+.raw-editor-panel textarea {
+  width: 100%;
+  min-height: 68vh;
+  padding: 16px;
+  border: 1px solid rgba(227, 182, 95, 0.16);
+  border-radius: 8px;
+  color: #f5edf7;
+  background: rgba(0, 0, 0, 0.28);
+  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  line-height: 1.55;
+  resize: vertical;
+}
+
 .editor-form label, .tool-panel label {
   display: grid;
   gap: 6px;
@@ -1536,6 +1637,7 @@ textarea { min-height: 96px; resize: vertical; }
   .workbench-actions { grid-template-columns: 1fr; }
   .missing-guide-panel,
   .empty-missing-state { align-items: flex-start; flex-direction: column; }
+  .md-import-item { grid-template-columns: 1fr; }
   .atlas-title-row { align-items: flex-start; flex-direction: column; }
   .map-pin span { display: none; }
   .page-map-pin span { display: none; }
