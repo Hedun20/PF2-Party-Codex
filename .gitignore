@@ -1,8 +1,25 @@
 node_modules/
 dist/
+build/
 .env
-.env.local
+.env.*
+.DS_Store
+
+# Local campaign data
+vault/
+!vault-example/
+!vault-example/**
+
+# Local screenshots / QA artifacts
+*-check.png
+dashboard-workbench-check.png
+editor-import-check.png
+missing-links-check.png
+worlds-atlas-check.png
+# Local server logs
 *.log
-foundry-export/
-apps/web/dist/
-apps/server/tmp/
+*.err.log
+server.log
+server.err.log
+server-check.log
+server-check.err.log
