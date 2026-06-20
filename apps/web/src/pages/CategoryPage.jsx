@@ -31,7 +31,7 @@ export default function CategoryPage({ pages, mode }) {
         <h1>{title}</h1>
         <p>{items.length} видимых записей в режиме {mode === "gm" ? "GM" : "игрока"}.</p>
       </header>
-      <div className="card-grid">{items.map((page) => <EntityCard key={page.path} page={page} mode={mode} />)}</div>
+      <div className="codex-card-grid card-grid">{items.map((page) => <EntityCard key={page.path} page={page} mode={mode} />)}</div>
     </div>
   );
 }

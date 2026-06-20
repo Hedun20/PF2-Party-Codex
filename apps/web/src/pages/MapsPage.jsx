@@ -64,16 +64,16 @@ export default function MapsPage({ pages = [], mode = "player" }) {
 
       <section className="maps-hub-grid">
         {maps.map((page) => (
-          <Link key={page.path} to={`/page/${encodeURIComponent(page.path)}`} className="maps-hub-card">
+          <Link key={page.path} to={`/page/${encodeURIComponent(page.path)}`} className="codex-card maps-hub-card">
             <div className="maps-hub-thumb">
               <img src={mediaUrl(page.mapImage)} alt={`Карта: ${page.title}`} />
               <span><MapPinned size={15} /> {page.objects.length}</span>
             </div>
-            <div className="maps-hub-copy">
-              <span>{labelCategory(page.category)}</span>
-              <h2>{page.title}</h2>
-              <p>{page.summary || "Карта без краткого описания."}</p>
-              <div className="maps-hub-stats">
+            <div className="maps-hub-copy codex-card__body">
+              <span className="codex-card__eyebrow">{labelCategory(page.category)}</span>
+              <h2 className="codex-card__title">{page.title}</h2>
+              <p className="codex-card__summary">{page.summary || "Карта без краткого описания."}</p>
+              <div className="maps-hub-stats codex-card__meta">
                 <em><Eye size={14} /> {page.player} player</em>
                 {mode === "gm" && <em><Gem size={14} /> {page.gm} GM</em>}
               </div>

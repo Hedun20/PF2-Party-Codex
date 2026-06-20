@@ -58,7 +58,7 @@ export default function App() {
       onSelectPage={(path) => navigate(`/page/${encodeURIComponent(path)}`)}
     >
       <Routes>
-        <Route path="/" element={<DashboardPage pages={pages} dashboard={dashboard} mode={effectiveMode} />} />
+        <Route path="/" element={<DashboardPage pages={pages} dashboard={dashboard} mode={effectiveMode} session={session} />} />
         <Route path="/category/:category/*" element={<CategoryPage pages={pages} mode={effectiveMode} />} />
         <Route path="/page/:path" element={<PageView mode={effectiveMode} pages={pages} />} />
         <Route path="/editor" element={<EditorPage onSaved={refresh} session={session} />} />

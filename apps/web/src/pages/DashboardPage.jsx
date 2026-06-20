@@ -26,30 +26,30 @@ function MasterWorkbench({ pages, canEdit = false }) {
       </div>
 
       <div className="workbench-actions">
-        <Link to="/missing" className="workbench-action">
+        <Link to="/missing" className="codex-card workbench-action">
           <FileQuestion size={20} />
           <strong>Ненаписанные статьи</strong>
           <span>Ссылки `[[...]]`, которые уже есть в лоре, но ещё не имеют файла.</span>
         </Link>
         {canEdit && (
-          <Link to="/editor" className="workbench-action">
+          <Link to="/editor" className="codex-card workbench-action">
             <PenLine size={20} />
             <strong>Создать статью</strong>
             <span>Умный конструктор мира, страны, города, NPC, квеста или локации.</span>
           </Link>
         )}
-        <Link to="/maps" className="workbench-action">
+        <Link to="/maps" className="codex-card workbench-action">
           <MapPinned size={20} />
           <strong>Карты 2.0</strong>
           <span>{mapCount} карт подключено. Пины, области, GM/player слой и быстрые переходы к статьям.</span>
         </Link>
-        <Link to="/timeline" className="workbench-action">
+        <Link to="/timeline" className="codex-card workbench-action">
           <Clock3 size={20} />
           <strong>Timeline</strong>
           <span>Линия событий с точками-ссылками на статьи и фильтром по миру.</span>
         </Link>
         {canEdit && (
-          <Link to="/editor" className="workbench-action muted-action">
+          <Link to="/editor" className="codex-card workbench-action muted-action">
             <FileUp size={20} />
             <strong>MD / Obsidian импорт</strong>
             <span>Можно заполнить форму из настоящего .md или массово импортировать архив.</span>
@@ -81,7 +81,7 @@ export default function DashboardPage({ pages, dashboard, mode, session }) {
         return (
           <section className="section-band" key={category}>
             <h2>{title}</h2>
-            <div className="card-grid">{items.map((page) => <EntityCard key={page.path} page={page} mode={mode} />)}</div>
+            <div className="codex-card-grid card-grid">{items.map((page) => <EntityCard key={page.path} page={page} mode={mode} />)}</div>
           </section>
         );
       })}

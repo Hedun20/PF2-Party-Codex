@@ -76,7 +76,7 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
               onClick={() => setSelectedPath(event.path)}
             >
               <span className="timeline-event-dot" />
-              <article className="timeline-hover-card">
+              <article className="codex-card timeline-hover-card">
                 <span>{event.year}</span>
                 <strong>{event.title}</strong>
                 <p>{compact(event.summary || event.content || "")}</p>
@@ -87,7 +87,7 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
       </section>
 
       {selected && (
-        <section className="timeline-focus-panel">
+        <section className="codex-card timeline-focus-panel">
           <div>
             <span className="kicker">Фокус события</span>
             <h2>{selected.title}</h2>

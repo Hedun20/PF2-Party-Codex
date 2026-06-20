@@ -411,6 +411,11 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
           </select></label>}
         </div>
         <label className="codex-field">Краткое описание<textarea value={form.summary || ""} onChange={(event) => update("summary", event.target.value)} placeholder="1–3 строки: кто/что это и зачем мастеру помнить." /></label>
+        <label className="codex-field gm-secret-field">
+          GM-секреты
+          <textarea value={form.gmSecrets || ""} onChange={(event) => update("gmSecrets", event.target.value)} placeholder="Секретная информация для мастера. Игроки не увидят этот блок в player mode." />
+          <span>Сохранится как раздел GM Secrets и будет скрыто от игроков.</span>
+        </label>
       </section>
 
       <details className="advanced-editor-details import-details">
@@ -555,7 +560,6 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
 
         <section className="builder-section">
           <label>Публичные заметки<textarea value={form.publicNotes || ""} onChange={(event) => update("publicNotes", event.target.value)} /></label>
-          <label>Секреты GM<textarea value={form.gmSecrets || ""} onChange={(event) => update("gmSecrets", event.target.value)} /></label>
         </section>
       </details>
 
