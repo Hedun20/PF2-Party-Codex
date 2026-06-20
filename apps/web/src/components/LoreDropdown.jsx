@@ -10,7 +10,8 @@ const lore = [
   ["artifacts", "Артефакты"],
   ["magic", "Магия"],
   ["cults", "Культы"],
-  ["prophecies", "Пророчества"]
+  ["prophecies", "Пророчества"],
+  ["timeline", "Timeline"]
 ];
 
 export default function LoreDropdown() {

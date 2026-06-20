@@ -1,44 +1,58 @@
 import { useEffect, useMemo, useState } from "react";
-import { Crosshair, Upload } from "lucide-react";
+import { Check, Crosshair, MapPin, Shapes, Sparkles, Trash2, Upload } from "lucide-react";
 import { api } from "../api/client.js";
 import MarkdownImportPanel from "./MarkdownImportPanel.jsx";
+import VoltageButton from "./VoltageButton.jsx";
 import { labelCategory } from "../utils/labels.js";
+import { colorMapObjectType, labelMapObjectType, mapObjectTypes, pageToMapObjectType } from "../utils/mapTypes.js";
+import { articleTypes as types, categoryByType } from "./ArticleVisualEditor.jsx";
 
-const types = [
-  ["world", "Мир"],
-  ["country", "Страна"],
-  ["city", "Город"],
-  ["location", "Локация"],
-  ["npc", "NPC"],
-  ["enemy", "Враг"],
-  ["quest", "Квест"],
-  ["session", "Сессия"],
-  ["lore", "Лор"]
+const mediaSlots = [
+  ["mapImage", "Карта / план", "Для областей, пинов, городов и локаций"],
+  ["avatarImage", "Аватар / портрет", "Для NPC, союзников, важных персонажей"],
+  ["tokenImage", "Token врага", "Для боевых NPC и монстров"],
+  ["handoutImage", "Handout", "Картинка-подсказка или иллюстрация для игроков"]
 ];
-
-const categoryByType = {
-  world: "worlds",
-  country: "countries",
-  city: "cities",
-  npc: "npcs",
-  enemy: "enemies",
-  quest: "quests",
-  session: "sessions",
-  location: "locations",
-  lore: "lore"
-};
 
 function optionLabel(page) {
   return `${page.title} · ${labelCategory(page.category)}`;
 }
 
+function assetUrl(path = "") {
+  if (!path) return "";
+  return path.startsWith("/api/assets/") ? path : `/api/assets/${path.replace(/^images\//, "")}`;
+}
+
+function createEmptyMapDraft() {
+  return {
+    shape: "pin",
+    type: "location",
+    visibility: "public",
+    label: "",
+    path: "",
+    summary: "",
+    points: []
+  };
+}
+
+function compactSummary(text = "") {
+  return text.length > 140 ? `${text.slice(0, 137)}...` : text;
+}
+
+function asArray(value) {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+  return String(value).split(/[;,\n]/).map((item) => item.trim()).filter(Boolean);
+}
+
 export default function QuickEditor({ onSaved, initialTitle = "" }) {
   const [metadata, setMetadata] = useState({ pages: [], tags: [], worlds: [], countries: [], cities: [] });
-  const [form, setForm] = useState({ type: "lore", visibility: "public", tags: [], related: [], pins: [], name: initialTitle });
-  const [pinDraft, setPinDraft] = useState({ label: "", path: "" });
+  const [form, setForm] = useState({ type: "lore", visibility: "public", tags: [], related: [], mapObjects: [], name: initialTitle });
+  const [mapDraft, setMapDraft] = useState(createEmptyMapDraft);
   const [tagDraft, setTagDraft] = useState("");
-  const [localMapPreview, setLocalMapPreview] = useState("");
+  const [localPreview, setLocalPreview] = useState({});
   const [message, setMessage] = useState("");
+  const [ideaText, setIdeaText] = useState("");
 
   useEffect(() => {
     api.metadata("gm").then(setMetadata).catch((error) => setMessage(error.message));
@@ -49,6 +63,7 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
   }, [initialTitle]);
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const updateDraft = (patch) => setMapDraft((current) => ({ ...current, ...patch }));
   const selectedTypeLabel = useMemo(() => types.find(([value]) => value === form.type)?.[1] || "Статья", [form.type]);
   const countries = metadata.countries.filter((page) => !form.world || page.world === form.world);
   const cities = metadata.cities.filter((page) => {
@@ -71,37 +86,195 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
     setTagDraft("");
   }
 
-  async function uploadMap(event) {
+  async function uploadMedia(slot, event) {
     const file = event.target.files?.[0];
     if (!file) return;
-    setMessage(`Загружаю карту: ${file.name}`);
+    setMessage(`Загружаю: ${file.name}`);
     const previewUrl = URL.createObjectURL(file);
-    setLocalMapPreview(previewUrl);
+    setLocalPreview((current) => ({ ...current, [slot]: previewUrl }));
     try {
       const data = new FormData();
       data.append("file", file);
       const uploaded = await api.uploadAsset(data);
-      update("mapImage", uploaded.path);
-      setLocalMapPreview("");
-      setMessage(`Карта загружена: ${uploaded.path}`);
+      update(slot, uploaded.path);
+      setLocalPreview((current) => ({ ...current, [slot]: "" }));
+      setMessage(`Файл загружен: ${uploaded.path}`);
     } catch (error) {
-      setMessage(`Не удалось загрузить карту: ${error.message}`);
+      setMessage(`Не удалось загрузить файл: ${error.message}`);
     } finally {
       event.target.value = "";
     }
   }
 
-  function addPin(event) {
-    if (!form.mapImage || !pinDraft.label || !pinDraft.path) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = Number((((event.clientX - rect.left) / rect.width) * 100).toFixed(2));
-    const y = Number((((event.clientY - rect.top) / rect.height) * 100).toFixed(2));
-    update("pins", [...(form.pins || []), { label: pinDraft.label, path: pinDraft.path, x, y }]);
-    setPinDraft({ label: "", path: pinDraft.path });
+  function applyImportedDraft(item) {
+    const fm = item.frontmatter || {};
+    setForm((current) => ({
+      ...current,
+      ...fm,
+      type: item.type || fm.type || current.type || "lore",
+      category: item.category || fm.category || categoryByType[item.type] || current.category,
+      name: item.title || fm.name || fm.title || current.name,
+      title: item.title || fm.title || fm.name || current.title,
+      summary: item.summary || fm.summary || current.summary || "",
+      visibility: fm.visibility || current.visibility || "public",
+      tags: asArray(fm.tags),
+      related: asArray(fm.related),
+      publicNotes: item.content || current.publicNotes || ""
+    }));
+    setMessage("Markdown загружен в форму. Проверь поля и нажми “Создать”. В vault он пока не записан.");
   }
 
-  function removePin(index) {
-    update("pins", form.pins.filter((_pin, pinIndex) => pinIndex !== index));
+  function syncDraftWithPage(path) {
+    const linked = metadata.pages.find((page) => page.path === path);
+    if (!linked) {
+      updateDraft({ path });
+      return;
+    }
+    const inferredType = pageToMapObjectType(linked);
+    setMapDraft((current) => ({
+      ...current,
+      path,
+      type: current.type === "location" ? inferredType : current.type,
+      label: current.label || linked.title,
+      summary: current.summary || compactSummary(linked.summary || ""),
+      visibility: linked.visibility === "gm" || current.type === "secret" ? "gm" : current.visibility
+    }));
+  }
+
+  function mapClickPosition(event) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return {
+      x: Number((((event.clientX - rect.left) / rect.width) * 100).toFixed(2)),
+      y: Number((((event.clientY - rect.top) / rect.height) * 100).toFixed(2))
+    };
+  }
+
+  function addMapPointOrPin(event) {
+    if (!form.mapImage) return;
+    const position = mapClickPosition(event);
+    if (mapDraft.shape === "area") {
+      setMapDraft((current) => ({ ...current, points: [...(current.points || []), position] }));
+      return;
+    }
+    if (!mapDraft.label.trim()) {
+      setMessage("Сначала выбери статью или введи название объекта карты.");
+      return;
+    }
+    const object = {
+      id: `map-${Date.now()}`,
+      shape: "pin",
+      type: mapDraft.type,
+      label: mapDraft.label.trim(),
+      path: mapDraft.path,
+      summary: mapDraft.summary,
+      visibility: mapDraft.type === "secret" ? "gm" : mapDraft.visibility,
+      x: position.x,
+      y: position.y,
+      color: colorMapObjectType(mapDraft.type)
+    };
+    update("mapObjects", [...(form.mapObjects || []), object]);
+    setMessage(`Пин добавлен: ${object.label}`);
+  }
+
+  function saveArea() {
+    if (!mapDraft.label.trim()) {
+      setMessage("Сначала выбери статью или введи название области.");
+      return;
+    }
+    if ((mapDraft.points || []).length < 3) {
+      setMessage("Для области нужно минимум 3 точки на карте.");
+      return;
+    }
+    const object = {
+      id: `area-${Date.now()}`,
+      shape: "area",
+      type: mapDraft.type,
+      label: mapDraft.label.trim(),
+      path: mapDraft.path,
+      summary: mapDraft.summary,
+      visibility: mapDraft.type === "secret" ? "gm" : mapDraft.visibility,
+      points: mapDraft.points,
+      color: colorMapObjectType(mapDraft.type)
+    };
+    update("mapObjects", [...(form.mapObjects || []), object]);
+    setMapDraft(createEmptyMapDraft());
+    setMessage(`Область добавлена: ${object.label}`);
+  }
+
+  function removeMapObject(id) {
+    update("mapObjects", (form.mapObjects || []).filter((object) => object.id !== id));
+  }
+
+  function setObjectType(type) {
+    updateDraft({ type, visibility: type === "secret" ? "gm" : mapDraft.visibility });
+  }
+
+
+  function inferTypeFromIdea(text) {
+    const lower = text.toLowerCase();
+    if (/\b(мир|план|измерение|realm|world)\b/.test(lower)) return "world";
+    if (/\b(страна|королевство|империя|республика|княжество)\b/.test(lower)) return "country";
+    if (/\b(город|порт|столица|деревня|поселение|крепость)\b/.test(lower)) return "city";
+    if (/\b(npc|нпс|персонаж|торговец|капитан|жрец|маг|страж|кузнец)\b/.test(lower)) return "npc";
+    if (/\b(враг|монстр|существо|нежить|босс|демон|дракон|гоблин)\b/.test(lower)) return "enemy";
+    if (/\b(квест|задание|поручение|цель|награда)\b/.test(lower)) return "quest";
+    if (/\b(сессия|session|recap|итоги)\b/.test(lower)) return "session";
+    if (/\b(локация|таверна|храм|башня|подземелье|лагерь|рынок)\b/.test(lower)) return "location";
+    if (/\b(год|эра|событие|timeline|таймлайн)\b/.test(lower)) return "timelineEvent";
+    return "lore";
+  }
+
+  function extractTagsFromIdea(text) {
+    const lower = text.toLowerCase();
+    const rules = [
+      ["культ", "культ"],
+      ["секрет", "секрет"],
+      ["страж", "стража"],
+      ["торгов", "торговля"],
+      ["порт", "порт"],
+      ["нежить", "нежить"],
+      ["маг", "магия"],
+      ["дракон", "драконы"],
+      ["опас", "опасность"],
+      ["пират", "пираты"]
+    ];
+    return rules.filter(([needle]) => lower.includes(needle)).map(([, tag]) => tag);
+  }
+
+  function findMention(collection, text) {
+    const lower = text.toLowerCase();
+    return collection.find((page) => page.title && lower.includes(page.title.toLowerCase()))?.title || "";
+  }
+
+  function applyIdeaDraft() {
+    const text = ideaText.trim();
+    if (!text) {
+      setMessage("Опиши идею одной строкой — система попробует заполнить основу статьи.");
+      return;
+    }
+    const [rawTitle, ...rest] = text.split(/\s+[—–-]\s+/);
+    const title = rawTitle?.trim().slice(0, 90) || form.name || "Новая статья";
+    const summary = rest.join(" — ").trim() || text;
+    const type = inferTypeFromIdea(text);
+    const detectedWorld = findMention(metadata.worlds, text);
+    const detectedCountry = findMention(metadata.countries, text);
+    const detectedCity = findMention(metadata.cities, text);
+    const tags = [...new Set([...(form.tags || []), ...extractTagsFromIdea(text)])];
+
+    setForm((current) => ({
+      ...current,
+      type,
+      category: categoryByType[type] || current.category,
+      name: current.name || title,
+      title: current.title || title,
+      summary: current.summary || summary,
+      publicNotes: current.publicNotes || summary,
+      world: current.world || detectedWorld,
+      country: current.country || detectedCountry,
+      city: current.city || detectedCity,
+      tags
+    }));
+    setMessage("Черновик заполнен из одной строки. Проверь название, тип и нажми “Создать” или открой “Дополнительно”.");
   }
 
   async function submit(event) {
@@ -112,7 +285,7 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
       category,
       tags: form.tags || [],
       related: form.related || [],
-      pins: form.pins || []
+      mapObjects: form.mapObjects || []
     });
     setMessage(`Сохранено: ${page.page.path}`);
     onSaved?.();
@@ -120,28 +293,36 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
   }
 
   return (
-    <form className="editor-form builder-form" onSubmit={submit}>
-      <MarkdownImportPanel onImported={onSaved} />
-
-      <section className="builder-section">
-        <div>
-          <span className="kicker">Что создаём</span>
+    <form className="editor-form builder-form quick-create-shell" onSubmit={submit}>
+      <section className="builder-section quick-create-panel">
+        <div className="quick-create-copy">
+          <span className="kicker">Быстрое создание</span>
           <h2>{selectedTypeLabel}</h2>
+          <p>Сначала только минимум: тип, название, место и краткое описание. Всё тяжёлое спрятано ниже, чтобы мастер не заполнял налоговую декларацию на каждого гоблина.</p>
         </div>
-        <div className="type-grid">
+        <div className="type-grid compact-type-grid">
           {types.map(([value, label]) => (
-            <button key={value} type="button" className={form.type === value ? "type-chip active" : "type-chip"} onClick={() => update("type", value)}>
+            <button key={value} type="button" className={form.type === value ? "type-chip active" : "type-chip"} onClick={() => setForm((current) => ({ ...current, type: value, category: categoryByType[value] || current.category }))}>
               {label}
             </button>
           ))}
         </div>
       </section>
 
-      <section className="builder-section two-col">
-        <label>Название<input value={form.name || ""} onChange={(event) => update("name", event.target.value)} placeholder="Можно оставить пустым: возьмём название первого пина или создадим черновик" /></label>
-        <label>Категория<select value={form.category || categoryByType[form.type]} onChange={(event) => update("category", event.target.value)}>
-          {Object.entries(categoryByType).map(([_type, category]) => <option key={category} value={category}>{labelCategory(category)}</option>)}
-        </select></label>
+      <section className="builder-section idea-capture-panel">
+        <div>
+          <span className="kicker">Авто-черновик</span>
+          <h2>Одна строка вместо десяти полей</h2>
+          <p>Напиши идею как мастеру удобно: “Капитан Варос — командир стражи, скрывает сделку с культом”. Система предложит тип, название, summary, теги и привязки к уже существующим мирам/городам.</p>
+        </div>
+        <div className="idea-capture-controls">
+          <textarea value={ideaText} onChange={(event) => setIdeaText(event.target.value)} placeholder="Например: Терен-Далерей — северный торговый порт, через который идут основные морские поставки" />
+          <button type="button" className="gold-button" onClick={applyIdeaDraft}><Sparkles size={16} /> Разобрать идею</button>
+        </div>
+      </section>
+
+      <section className="builder-section quick-fields-grid">
+        <label>Название<input value={form.name || ""} onChange={(event) => update("name", event.target.value)} placeholder="Например: Капитан Варос" /></label>
         <label>Мир<select value={form.world || ""} onChange={(event) => { update("world", event.target.value); update("country", ""); update("city", ""); }}>
           <option value="">Без привязки к миру</option>
           {metadata.worlds.map((page) => <option key={page.path} value={page.title}>{page.title}</option>)}
@@ -154,6 +335,7 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
           <option value="">Без привязки к городу</option>
           {cities.map((page) => <option key={page.path} value={page.title}>{page.title}</option>)}
         </select></label>
+        <label>Краткое описание<textarea value={form.summary || ""} onChange={(event) => update("summary", event.target.value)} placeholder="1–3 строки: кто/что это и зачем мастеру помнить." /></label>
         <label>Видимость<select value={form.visibility} onChange={(event) => update("visibility", event.target.value)}>
           <option value="public">public · видно игрокам</option>
           <option value="gm">gm · только мастеру</option>
@@ -161,78 +343,156 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
         </select></label>
       </section>
 
-      <section className="builder-section">
-        <label>Краткое описание<textarea value={form.summary || ""} onChange={(event) => update("summary", event.target.value)} /></label>
-        <div>
-          <span className="field-title">Теги из vault</span>
-          <div className="choice-row">
-            {metadata.tags.map((tag) => (
-              <button key={tag} type="button" className={form.tags?.includes(tag) ? "choice-pill active" : "choice-pill"} onClick={() => toggleArray("tags", tag)}>
-                {tag}
-              </button>
-            ))}
-          </div>
-          <div className="inline-add">
-            <input value={tagDraft} onChange={(event) => setTagDraft(event.target.value)} placeholder="Добавить новый тег" />
-            <button type="button" className="type-chip" onClick={addTag}>Добавить тег</button>
-          </div>
-        </div>
-        <div>
-          <span className="field-title">Связанные статьи</span>
-          <select value="" onChange={(event) => event.target.value && toggleArray("related", event.target.value)}>
-            <option value="">Добавить связь</option>
-            {metadata.pages.map((page) => <option key={page.path} value={page.title}>{optionLabel(page)}</option>)}
-          </select>
-          <div className="choice-row">
-            {(form.related || []).map((title) => <button key={title} type="button" className="choice-pill active" onClick={() => toggleArray("related", title)}>{title}</button>)}
-          </div>
-        </div>
-      </section>
+      <details className="advanced-editor-details import-details">
+        <summary><Sparkles size={16} /> Импортировать MD / Obsidian</summary>
+        <MarkdownImportPanel onImported={onSaved} onUseAsDraft={applyImportedDraft} />
+      </details>
 
-      <section className="builder-section">
-        <div className="map-upload-row">
-          <div>
-            <span className="kicker">Карта и пины</span>
-            <h2>PNG/JPG редактор</h2>
-          </div>
-          <label className="upload-button">
-            <Upload size={18} />
-            <span>Загрузить карту</span>
-            <input type="file" accept="image/png,image/jpg,image/jpeg,image/pjpeg,image/webp,.png,.jpg,.jpeg,.webp" onChange={uploadMap} />
-          </label>
-        </div>
-        <label>Файл карты<input value={form.mapImage || ""} onChange={(event) => update("mapImage", event.target.value)} placeholder="arka-nochi-map.png" /></label>
-        <div className="pin-tools">
-          <label>Название пина<input value={pinDraft.label} onChange={(event) => setPinDraft((current) => ({ ...current, label: event.target.value }))} placeholder="Башня Памяти" /></label>
-          <label>Куда ведёт<select value={pinDraft.path} onChange={(event) => setPinDraft((current) => ({ ...current, path: event.target.value }))}>
-            <option value="">Выбрать статью</option>
-            {metadata.pages.map((page) => <option key={page.path} value={page.path}>{optionLabel(page)}</option>)}
+      <details className="advanced-editor-details">
+        <summary>Дополнительно: теги, связи, медиа, карты, GM-секреты</summary>
+
+        <section className="builder-section two-col">
+          <label>Категория<select value={form.category || categoryByType[form.type]} onChange={(event) => update("category", event.target.value)}>
+            {[...new Set(Object.values(categoryByType))].map((category) => <option key={category} value={category}>{labelCategory(category)}</option>)}
           </select></label>
-        </div>
-        {(form.mapImage || localMapPreview) && (
-          <div className="pin-editor" onClick={addPin}>
-            <img
-              src={localMapPreview || `/api/assets/${form.mapImage.replace(/^images\//, "")}`}
-              alt="Карта для расстановки пинов"
-              onError={() => setMessage("Карта загружена в поле, но браузер не смог открыть файл. Проверь расширение PNG/JPG/WebP и путь в vault/images.")}
-            />
-            {(form.pins || []).map((pin, index) => (
-              <button key={`${pin.label}-${index}`} type="button" className="pin-editor-dot" style={{ left: `${pin.x}%`, top: `${pin.y}%` }} onClick={(event) => { event.stopPropagation(); removePin(index); }} title="Удалить пин">
-                <Crosshair size={14} />
-                <span>{pin.label}</span>
-              </button>
+          <div>
+            <span className="field-title">Теги из vault</span>
+            <div className="choice-row">
+              {metadata.tags.map((tag) => (
+                <button key={tag} type="button" className={form.tags?.includes(tag) ? "choice-pill active" : "choice-pill"} onClick={() => toggleArray("tags", tag)}>
+                  {tag}
+                </button>
+              ))}
+            </div>
+            <div className="inline-add">
+              <input value={tagDraft} onChange={(event) => setTagDraft(event.target.value)} placeholder="Добавить новый тег" />
+              <button type="button" className="type-chip" onClick={addTag}>Добавить тег</button>
+            </div>
+          </div>
+          <div>
+            <span className="field-title">Связанные статьи</span>
+            <select value="" onChange={(event) => event.target.value && toggleArray("related", event.target.value)}>
+              <option value="">Добавить связь</option>
+              {metadata.pages.map((page) => <option key={page.path} value={page.title}>{optionLabel(page)}</option>)}
+            </select>
+            <div className="choice-row">
+              {(form.related || []).map((title) => <button key={title} type="button" className="choice-pill active" onClick={() => toggleArray("related", title)}>{title}</button>)}
+            </div>
+          </div>
+        </section>
+
+        <section className="builder-section">
+          <div className="map-upload-row">
+            <div>
+              <span className="kicker">Медиа</span>
+              <h2>Карта, портрет, token, handout</h2>
+            </div>
+          </div>
+          <div className="media-slot-grid">
+            {mediaSlots.map(([slot, label, hint]) => (
+              <article key={slot} className="media-slot-card">
+                <div>
+                  <strong>{label}</strong>
+                  <p>{hint}</p>
+                </div>
+                {(localPreview[slot] || form[slot]) && <img src={localPreview[slot] || assetUrl(form[slot])} alt={label} />}
+                <label className="upload-button">
+                  <Upload size={18} />
+                  <span>Загрузить</span>
+                  <input type="file" accept="image/png,image/jpg,image/jpeg,image/pjpeg,image/webp,.png,.jpg,.jpeg,.webp" onChange={(event) => uploadMedia(slot, event)} />
+                </label>
+                <input value={form[slot] || ""} onChange={(event) => update(slot, event.target.value)} placeholder="Файл в vault/images" />
+              </article>
             ))}
           </div>
+        </section>
+
+        {form.mapImage && (
+          <section className="builder-section map2-editor-section">
+            <div className="map-upload-row">
+              <div>
+                <span className="kicker">Maps 2.0</span>
+                <h2>Пины и области</h2>
+              </div>
+              <div className="map-editor-mode-row">
+                <button type="button" className={mapDraft.shape === "pin" ? "type-chip active" : "type-chip"} onClick={() => updateDraft({ shape: "pin", points: [] })}>
+                  <MapPin size={16} /> Пин
+                </button>
+                <button type="button" className={mapDraft.shape === "area" ? "type-chip active" : "type-chip"} onClick={() => updateDraft({ shape: "area", points: [] })}>
+                  <Shapes size={16} /> Область
+                </button>
+              </div>
+            </div>
+
+            <div className="pin-tools map2-draft-grid">
+              <label>Связанная статья<select value={mapDraft.path} onChange={(event) => syncDraftWithPage(event.target.value)}>
+                <option value="">Без ссылки / выбрать статью</option>
+                {metadata.pages.map((page) => <option key={page.path} value={page.path}>{optionLabel(page)}</option>)}
+              </select></label>
+              <label>Название объекта<input value={mapDraft.label} onChange={(event) => updateDraft({ label: event.target.value })} placeholder="Автоматически из статьи или вручную" /></label>
+              <label>Тип объекта<select value={mapDraft.type} onChange={(event) => setObjectType(event.target.value)}>
+                {mapObjectTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select></label>
+              <label>Слой<select value={mapDraft.type === "secret" ? "gm" : mapDraft.visibility} onChange={(event) => updateDraft({ visibility: event.target.value })} disabled={mapDraft.type === "secret"}>
+                <option value="public">player-visible</option>
+                <option value="gm">GM-only</option>
+              </select></label>
+            </div>
+            <label>Hover-описание<textarea value={mapDraft.summary} onChange={(event) => updateDraft({ summary: event.target.value })} placeholder="Короткая подсказка на hover. Если выбрана статья, подтянется автоматически." /></label>
+
+            <div className="pin-editor map2-create-stage" onClick={addMapPointOrPin}>
+              <img
+                src={assetUrl(form.mapImage)}
+                alt="Карта для расстановки пинов и областей"
+                onError={() => setMessage("Карта указана, но браузер не смог открыть файл. Проверь PNG/JPG/WebP и путь в vault/images.")}
+              />
+              <svg className="map2-editor-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+                {(form.mapObjects || []).filter((object) => object.shape === "area").map((object) => (
+                  <polygon key={object.id} points={(object.points || []).map((point) => `${point.x},${point.y}`).join(" ")} style={{ "--object-color": object.color || colorMapObjectType(object.type) }} />
+                ))}
+                {mapDraft.shape === "area" && mapDraft.points.length > 0 && (
+                  <polyline points={mapDraft.points.map((point) => `${point.x},${point.y}`).join(" ")} />
+                )}
+                {mapDraft.points.map((point, index) => <circle key={`${point.x}-${point.y}-${index}`} cx={point.x} cy={point.y} r="0.8" />)}
+              </svg>
+              {(form.mapObjects || []).filter((object) => object.shape !== "area").map((object) => (
+                <button key={object.id} type="button" className="pin-editor-dot map2-editor-dot" style={{ left: `${object.x}%`, top: `${object.y}%`, "--object-color": object.color || colorMapObjectType(object.type) }} onClick={(event) => { event.stopPropagation(); removeMapObject(object.id); }} title="Удалить объект">
+                  <Crosshair size={14} />
+                  <span>{object.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="map2-editor-actions">
+              {mapDraft.shape === "area" && <button type="button" className="gold-button" onClick={saveArea}><Check size={16} /> Сохранить область</button>}
+              {mapDraft.shape === "area" && <button type="button" className="type-chip" onClick={() => updateDraft({ points: [] })}>Сбросить точки</button>}
+              <p className="builder-hint">
+                Пин: выбери статью и кликни по карте. Область: выбери статью, поставь минимум 3 точки и нажми “Сохранить область”.
+              </p>
+            </div>
+
+            {(form.mapObjects || []).length > 0 && (
+              <div className="map2-editor-list">
+                {(form.mapObjects || []).map((object) => (
+                  <article key={object.id} style={{ "--object-color": object.color || colorMapObjectType(object.type) }}>
+                    <span>{labelMapObjectType(object.type)} · {object.shape === "area" ? "область" : "пин"} · {object.visibility === "gm" ? "GM" : "player"}</span>
+                    <strong>{object.label}</strong>
+                    <em>{object.path || "без статьи"}</em>
+                    <button type="button" className="type-chip" onClick={() => removeMapObject(object.id)}><Trash2 size={15} /> Удалить</button>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
         )}
-        <p className="builder-hint">Заполни название и связанную статью, затем кликни по карте. Повторный клик по пину удаляет его.</p>
-      </section>
 
-      <section className="builder-section">
-        <label>Публичные заметки<textarea value={form.publicNotes || ""} onChange={(event) => update("publicNotes", event.target.value)} /></label>
-        <label>Секреты GM<textarea value={form.gmSecrets || ""} onChange={(event) => update("gmSecrets", event.target.value)} /></label>
-      </section>
+        <section className="builder-section">
+          <label>Публичные заметки<textarea value={form.publicNotes || ""} onChange={(event) => update("publicNotes", event.target.value)} /></label>
+          <label>Секреты GM<textarea value={form.gmSecrets || ""} onChange={(event) => update("gmSecrets", event.target.value)} /></label>
+        </section>
+      </details>
 
-      <button className="gold-button" type="submit">Создать Markdown-статью</button>
+      <VoltageButton type="submit" className="quick-submit" size="lg"><Sparkles size={17} /> <span>Создать Markdown-статью</span></VoltageButton>
       {message && <p className="save-message">{message}</p>}
     </form>
   );

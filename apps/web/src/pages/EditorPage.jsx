@@ -8,9 +8,9 @@ export default function EditorPage({ onSaved }) {
   return (
     <div className="page-stack">
       <header className="list-header">
-        <span className="kicker">Markdown-first конструктор</span>
+        <span className="kicker">Quick Create</span>
         <h1>Создать статью</h1>
-        <p>Быстро создавай миры, страны, города, NPC, врагов, квесты и локации. Прямое редактирование `.md` остаётся главным способом работы.</p>
+        <p>Минимум полей сверху, детали и Maps 2.0 спрятаны в “Дополнительно”. Markdown-импорт может заполнить форму без немедленной записи в vault.</p>
       </header>
       <QuickEditor onSaved={onSaved} initialTitle={initialTitle} />
     </div>

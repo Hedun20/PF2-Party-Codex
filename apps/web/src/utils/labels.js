@@ -16,7 +16,8 @@ export const categoryLabels = {
   "lore/artifacts": "Артефакты",
   "lore/magic": "Магия",
   "lore/cults": "Культы",
-  "lore/prophecies": "Пророчества"
+  "lore/prophecies": "Пророчества",
+  "lore/timeline": "Timeline"
 };
 
 export function labelCategory(category = "") {

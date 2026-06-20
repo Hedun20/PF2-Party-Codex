@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { FileUp, Save } from "lucide-react";
+import { FileUp, Save, Wand2 } from "lucide-react";
 import { api } from "../api/client.js";
 import { labelCategory } from "../utils/labels.js";
 
 const categories = ["worlds", "countries", "cities", "locations", "npcs", "enemies", "quests", "sessions", "lore"];
 const types = ["world", "country", "city", "location", "npc", "enemy", "quest", "session", "lore"];
 
-export default function MarkdownImportPanel({ onImported }) {
+export default function MarkdownImportPanel({ onImported, onUseAsDraft }) {
   const [preview, setPreview] = useState([]);
   const [conflictMode, setConflictMode] = useState("skip");
   const [message, setMessage] = useState("");
@@ -50,7 +50,7 @@ export default function MarkdownImportPanel({ onImported }) {
         <div>
           <span className="kicker">Импорт архива</span>
           <h2>Массовый MD-импорт</h2>
-          <p className="builder-hint">Загрузи один или несколько `.md`, проверь раскладку и только потом запиши их в vault.</p>
+          <p className="builder-hint">Загрузи один или несколько `.md`, проверь раскладку и только потом запиши их в vault. Для создания одной статьи можно заполнить форму без записи в vault.</p>
         </div>
         <label className="upload-button">
           <FileUp size={18} />
@@ -97,10 +97,20 @@ export default function MarkdownImportPanel({ onImported }) {
                   <label>Путь
                     <input value={item.targetPath} onChange={(event) => updateItem(item.id, "targetPath", event.target.value)} />
                   </label>
+                  {onUseAsDraft && (
+                    <button type="button" className="upload-button md-draft-button" onClick={() => onUseAsDraft(item)}>
+                      <Wand2 size={16} /> Заполнить форму
+                    </button>
+                  )}
                 </div>
                 {item.warnings.length > 0 && (
                   <div className="md-import-warnings">
                     {item.warnings.map((warning) => <span key={warning}>{warning}</span>)}
+                    {item.warnings.some((warning) => warning.toLowerCase().includes("obsidian")) && (
+                      <p className="obsidian-help">
+                        Это похоже на Obsidian-ссылку, а не на сам текст статьи. Открой Obsidian → правый клик по заметке → Show in system explorer / Показать в папке → выбери настоящий .md файл.
+                      </p>
+                    )}
                   </div>
                 )}
               </article>

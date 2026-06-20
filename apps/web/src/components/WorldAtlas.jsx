@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Globe2, MapPin, Network, Sparkles } from "lucide-react";
+import { Globe2, Network } from "lucide-react";
 import { minorWorldsCard, worldCards } from "../data/worlds.js";
 
 function toPage(path) {
@@ -66,7 +66,7 @@ function WorldCard({ world, pages }) {
 
 export default function WorldAtlas({ pages = [] }) {
   return (
-    <section className="atlas-layout" aria-label="Атлас миров">
+    <section className="atlas-layout worlds-only-layout" aria-label="Миры кампании">
       <div className="worlds-panel">
         <span className="cosmic-line line-one" aria-hidden="true" />
         <span className="cosmic-line line-two" aria-hidden="true" />
@@ -91,45 +91,17 @@ export default function WorldAtlas({ pages = [] }) {
 
       <aside className="minor-worlds-panel">
         <span className="minor-orbit" aria-hidden="true" />
-        <span className="kicker">Общий слой</span>
+        <span className="kicker">Дополнительный слой</span>
         <h2>{minorWorldsCard.title}</h2>
         <p>{minorWorldsCard.summary}</p>
         <Link className="gold-button" to={toPage(minorWorldsCard.path)}>Открыть малые миры</Link>
         <div className="world-notes">
-          <strong>Следующие инструменты</strong>
+          <strong>Рабочие инструменты</strong>
           <span>MD-импорт с проверкой раскладки</span>
           <span>Фантомные ссылки на будущие статьи</span>
-          <span>Пины, области и типы слоев на PNG/JPG-картах</span>
+          <span>Карты 2.0 живут внутри конкретных статей</span>
         </div>
       </aside>
-
-      <div className="map-panel">
-        <div className="map-copy">
-          <span className="kicker">Общая карта</span>
-          <h2>8 миров как входные точки</h2>
-          <p>Каждый мир ведет в свой слой стран, городов, NPC, врагов, квестов и карт. Дальше карты станут редактором пинов, областей и ссылок на Markdown-статьи.</p>
-          <div className="map-feature-row">
-            <span><Sparkles size={14} /> пины</span>
-            <span>области</span>
-            <span>типы слоев</span>
-          </div>
-        </div>
-        <div className="map-stage">
-          <img src="/api/assets/world-map.png" alt="Карта миров кампании" />
-          {[...worldCards, minorWorldsCard].map((world) => (
-            <Link
-              key={world.path}
-              className="map-pin"
-              style={{ left: `${world.pin.x}%`, top: `${world.pin.y}%` }}
-              to={toPage(world.path)}
-              title={world.title}
-            >
-              <MapPin size={15} />
-              <span>{world.title}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
     </section>
   );
 }

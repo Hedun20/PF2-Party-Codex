@@ -1,30 +1,59 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Save } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { api } from "../api/client.js";
+import ArticleVisualEditor from "../components/ArticleVisualEditor.jsx";
 
-export default function RawEditorPage({ mode, onSaved }) {
+export default function RawEditorPage({ mode, onSaved, pages = [] }) {
   const { path } = useParams();
   const decodedPath = decodeURIComponent(path);
   const navigate = useNavigate();
   const [raw, setRaw] = useState("");
+  const [frontmatter, setFrontmatter] = useState(null);
+  const [content, setContent] = useState("");
   const [page, setPage] = useState(null);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     if (mode !== "gm") return;
+    setMessage("");
     api.rawPage(decodedPath, mode)
       .then((data) => {
-        setRaw(data.raw);
+        setRaw(data.raw || "");
         setPage(data.page);
+        setFrontmatter(data.frontmatter || {});
+        setContent(data.content || "");
       })
       .catch((error) => setMessage(error.message));
   }, [decodedPath, mode]);
 
-  async function save() {
+  async function saveRaw() {
     try {
       const data = await api.saveRawPage({ requestedPath: decodedPath, raw });
-      setMessage(`Сохранено: ${data.page.path}`);
+      setMessage(`Markdown сохранён: ${data.page.path}`);
+      onSaved?.();
+      navigate(`/page/${encodeURIComponent(data.page.path)}`);
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+  async function saveStructured() {
+    try {
+      const title = frontmatter.name || frontmatter.title || page?.title || "Без названия";
+      const data = await api.savePage({
+        requestedPath: decodedPath,
+        frontmatter: {
+          ...(frontmatter || {}),
+          title,
+          name: title,
+          type: frontmatter?.type || "lore",
+          category: frontmatter?.category || page?.category || "lore",
+          visibility: frontmatter?.visibility || "public"
+        },
+        content
+      });
+      setMessage(`Статья сохранена: ${data.page.path}`);
       onSaved?.();
       navigate(`/page/${encodeURIComponent(data.page.path)}`);
     } catch (error) {
@@ -46,29 +75,33 @@ export default function RawEditorPage({ mode, onSaved }) {
 
   return (
     <div className="page-stack">
-      <header className="list-header editor-hero">
-        <span className="kicker">Редактор Markdown</span>
-        <h1>{page?.title || "Загрузка статьи"}</h1>
-        <p>{decodedPath}</p>
-        <div className="editor-actions">
-          <button className="gold-button" type="button" onClick={save}>
-            <Save size={16} />
-            Сохранить
-          </button>
-          <Link className="upload-button" to={`/page/${encodeURIComponent(decodedPath)}`}>Вернуться к статье</Link>
+      <header className="list-header editor-hero article-page-header">
+        <div>
+          <span className="kicker">Редактор статьи</span>
+          <h1>{page?.title || "Загрузка статьи"}</h1>
+          <p>{decodedPath}</p>
+        </div>
+        <div className="editor-actions article-header-actions">
+          <Link className="upload-button" to={`/page/${encodeURIComponent(decodedPath)}`}>
+            <ArrowLeft size={16} /> Вернуться к статье
+          </Link>
         </div>
       </header>
 
-      <section className="raw-editor-panel">
-        <textarea
-          value={raw}
-          onChange={(event) => setRaw(event.target.value)}
-          spellCheck="false"
-          aria-label="Markdown статьи"
-        />
-      </section>
-
-      {message && <p className="save-message">{message}</p>}
+      <ArticleVisualEditor
+        frontmatter={frontmatter}
+        content={content}
+        raw={raw}
+        pages={pages}
+        mode="edit"
+        path={decodedPath}
+        onFrontmatterChange={setFrontmatter}
+        onContentChange={setContent}
+        onRawChange={setRaw}
+        onSaveStructured={saveStructured}
+        onSaveRaw={saveRaw}
+        message={message}
+      />
     </div>
   );
 }

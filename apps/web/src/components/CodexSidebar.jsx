@@ -1,9 +1,8 @@
 import { Link, NavLink } from "react-router-dom";
-import { BookOpen, Castle, Crosshair, FileQuestion, Globe2, Map, ScrollText, ShieldCheck, Swords, UsersRound, X } from "lucide-react";
+import { BookOpen, Castle, Clock3, Crosshair, FileQuestion, Globe2, Map, MapPinned, ScrollText, ShieldCheck, Swords, UsersRound, X } from "lucide-react";
 import LoreDropdown from "./LoreDropdown.jsx";
 
 const sections = [
-  ["Миры", "worlds", Globe2],
   ["Страны", "countries", Map],
   ["Города", "cities", Castle],
   ["NPC", "npcs", UsersRound],
@@ -26,6 +25,18 @@ export default function CodexSidebar({ onClose }) {
         </button>
       </div>
       <nav className="nav-stack">
+        <NavLink to="/category/worlds" className="nav-link" onClick={onClose}>
+          <Globe2 size={18} />
+          <span>Миры</span>
+        </NavLink>
+        <NavLink to="/timeline" className="nav-link" onClick={onClose}>
+          <Clock3 size={18} />
+          <span>Timeline</span>
+        </NavLink>
+        <NavLink to="/maps" className="nav-link" onClick={onClose}>
+          <MapPinned size={18} />
+          <span>Карты</span>
+        </NavLink>
         {sections.map(([label, path, Icon]) => (
           <NavLink key={path} to={`/category/${path}`} className="nav-link" onClick={onClose}>
             <Icon size={18} />

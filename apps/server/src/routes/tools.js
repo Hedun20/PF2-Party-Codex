@@ -36,7 +36,8 @@ toolsRouter.get("/metadata", (req, res) => {
     country: page.country,
     city: page.city,
     tags: page.tags,
-    summary: page.summary
+    summary: page.summary,
+    visibility: page.visibility
   }));
   const tags = [...new Set(pages.flatMap((page) => page.tags || []))].sort((a, b) => a.localeCompare(b));
   res.json({

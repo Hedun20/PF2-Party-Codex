@@ -58,7 +58,12 @@ export async function rebuildVaultIndex() {
       city: frontmatter.city || undefined,
       parent: frontmatter.parent || undefined,
       mapImage: frontmatter.mapImage || undefined,
+      avatarImage: frontmatter.avatarImage || undefined,
+      tokenImage: frontmatter.tokenImage || undefined,
+      handoutImage: frontmatter.handoutImage || undefined,
+      image: frontmatter.image || undefined,
       pins: Array.isArray(frontmatter.pins) ? frontmatter.pins : [],
+      mapObjects: Array.isArray(frontmatter.mapObjects) ? frontmatter.mapObjects : [],
       summary: summarize(content, frontmatter),
       tags: Array.isArray(frontmatter.tags) ? frontmatter.tags : [],
       visibility: frontmatter.visibility || "public",
@@ -221,11 +226,30 @@ export function previewMarkdownImports(files = []) {
   return files.map((file) => {
     const raw = file.content || "";
     const { frontmatter, content } = parseMarkdown(raw);
-    const title = frontmatter.name || frontmatter.title || firstHeading(content) || titleFromPath(file.originalName);
-    const type = frontmatter.type || inferTypeFromText(title, content);
-    const category = frontmatter.category || defaultCategory(type);
+    const obsidianInfo = parseObsidianShortcut(raw) || parseObsidianShortcut(content);
+    const cleanContent = obsidianInfo ? stripObsidianShortcutLines(content || raw) : content;
+    const safeFrontmatter = obsidianInfo ? cleanObsidianShortcutFrontmatter(frontmatter) : frontmatter;
+    const filenameTitle = titleFromImportedFilename(file.originalName);
+    const title = obsidianInfo
+      ? filenameTitle
+      : (safeFrontmatter.name || safeFrontmatter.title || firstHeading(cleanContent) || filenameTitle);
+    const inferredType = inferTypeFromText(title, cleanContent);
+    const type = obsidianInfo || safeFrontmatter.type === "link"
+      ? inferredType
+      : (safeFrontmatter.type || inferredType);
+    const category = obsidianInfo || safeFrontmatter.category === "link"
+      ? defaultCategory(type)
+      : (safeFrontmatter.category || defaultCategory(type));
     const targetPath = `${category}/${slugify(title)}.md`;
     const existing = pageByPath.has(targetPath);
+    const warnings = [];
+    if (existing) warnings.push("Файл с таким путём уже существует");
+    if (obsidianInfo) {
+      warnings.push("Похоже, это Obsidian-ссылка/ярлык. Название взято из имени загруженного файла, а служебные строки Obsidian будут очищены.");
+      if (obsidianInfo.file) warnings.push(`Obsidian path: ${obsidianInfo.file}`);
+      if (obsidianInfo.vault) warnings.push(`Obsidian vault: ${obsidianInfo.vault}`);
+    }
+    if (file.encoding && file.encoding !== "utf-8") warnings.push(`Кодировка распознана как ${file.encoding}`);
     return {
       id: file.id,
       originalName: file.originalName,
@@ -233,10 +257,12 @@ export function previewMarkdownImports(files = []) {
       type,
       category,
       targetPath,
-      summary: summarize(content, frontmatter),
-      frontmatter,
-      content,
-      warnings: existing ? ["Файл с таким путём уже существует"] : []
+      summary: summarize(cleanContent, safeFrontmatter),
+      frontmatter: safeFrontmatter,
+      content: cleanContent,
+      encoding: file.encoding,
+      obsidianInfo,
+      warnings
     };
   });
 }
@@ -283,7 +309,7 @@ export async function commitMarkdownImports({ items = [], conflictMode = "skip" 
 export async function createPage(payload) {
   const type = payload.type || "lore";
   const category = payload.category || defaultCategory(type);
-  const title = payload.title || payload.name || payload.pins?.[0]?.label || draftTitle(type);
+  const title = payload.title || payload.name || payload.mapObjects?.[0]?.label || payload.pins?.[0]?.label || draftTitle(type);
   const requestedPath = payload.path || `${category}/${slugify(title)}.md`;
   const content = [
     payload.summary || "",
@@ -293,26 +319,26 @@ export async function createPage(payload) {
     "",
     payload.gmSecrets ? `## GM Secrets\n${payload.gmSecrets}` : ""
   ].join("\n").trim();
+
+  const excluded = new Set(["path", "requestedPath", "content", "publicNotes", "gmSecrets"]);
+  const structuredFields = Object.fromEntries(
+    Object.entries(payload).filter(([key]) => !excluded.has(key))
+  );
+
   return savePage({
     requestedPath,
     frontmatter: {
+      ...structuredFields,
       title,
       name: payload.name || title,
       type,
       category,
-      subtype: payload.subtype || undefined,
-      world: payload.world || undefined,
-      country: payload.country || undefined,
-      city: payload.city || undefined,
-      parent: payload.parent || undefined,
-      mapImage: payload.mapImage || undefined,
-      pins: payload.pins || [],
       summary: payload.summary || "",
       tags: payload.tags || [],
       related: payload.related || [],
-      image: payload.image || undefined,
-      visibility: payload.visibility || "public",
-      status: payload.status || undefined
+      pins: payload.pins || [],
+      mapObjects: payload.mapObjects || [],
+      visibility: payload.visibility || "public"
     },
     content
   });
@@ -344,6 +370,7 @@ function draftTitle(type) {
     quest: "Новый квест",
     session: "Новая сессия",
     location: "Новая локация",
+    timelineEvent: "Новое событие",
     lore: "Новая статья"
   };
   return `${labels[type] || "Новая статья"} ${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}`;
@@ -351,6 +378,54 @@ function draftTitle(type) {
 
 function firstHeading(content = "") {
   return content.match(/^#\s+(.+)$/m)?.[1]?.trim();
+}
+
+function titleFromImportedFilename(originalName = "") {
+  const base = String(originalName || "untitled.md")
+    .split(/[\\/]/)
+    .pop()
+    .replace(/\.md$/i, "")
+    .trim();
+  if (!base) return "Untitled";
+  if (/[\p{L}]/u.test(base) && /\s/.test(base)) {
+    return base.replace(/\s+-\s+/g, " — ").replace(/[_]+/g, " ").replace(/\s{2,}/g, " ").trim();
+  }
+  return titleFromPath(base);
+}
+
+function cleanObsidianShortcutFrontmatter(frontmatter = {}) {
+  const cleaned = { ...frontmatter };
+  if (String(cleaned.type || "").toLowerCase() === "link") delete cleaned.type;
+  if (String(cleaned.category || "").toLowerCase() === "link") delete cleaned.category;
+  if (cleaned.action && String(cleaned.action).includes("obsidian://")) delete cleaned.action;
+  if (cleaned.url && String(cleaned.url).includes("obsidian://")) delete cleaned.url;
+  if (cleaned.name && String(cleaned.name).trim().toLowerCase() === "фракции") delete cleaned.name;
+  return cleaned;
+}
+
+function stripObsidianShortcutLines(value = "") {
+  const lines = String(value || "").split(/\r?\n/);
+  const cleaned = lines.filter((line, index) => {
+    const trimmed = line.trim();
+    if (!trimmed) return true;
+    if (/^action\s+obsidian:\/\/open\?/i.test(trimmed)) return false;
+    if (/^action:\s*obsidian:\/\/open\?/i.test(trimmed)) return false;
+    if (/^type\s*:?\s*link\s*$/i.test(trimmed)) return false;
+    if (/^url:\s*obsidian:\/\/open\?/i.test(trimmed)) return false;
+    if (index < 8 && /^name\s+/i.test(trimmed)) return false;
+    return true;
+  });
+  return cleaned.join("\n").replace(/^\n+/, "").trim();
+}
+
+function parseObsidianShortcut(raw = "") {
+  const match = raw.match(/obsidian:\/\/open\?([^\s]+)/i);
+  if (!match) return null;
+  const params = new URLSearchParams(match[1]);
+  const file = params.get("file") ? decodeURIComponent(params.get("file")) : "";
+  const vault = params.get("vault") ? decodeURIComponent(params.get("vault")) : "";
+  const title = file ? titleFromPath(file.replace(/\\/g, "/").replace(/\.md$/i, "")) : "Obsidian shortcut";
+  return { file, vault, title };
 }
 
 function inferTypeFromText(title = "", content = "") {
@@ -384,7 +459,8 @@ function defaultCategory(type) {
     enemy: "enemies",
     quest: "quests",
     session: "sessions",
-    location: "locations"
+    location: "locations",
+    timelineEvent: "lore/timeline"
   };
   return categories[type] || "lore";
 }

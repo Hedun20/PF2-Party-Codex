@@ -11,6 +11,8 @@ import GuidePage from "./pages/GuidePage.jsx";
 import MissingLinksPage from "./pages/MissingLinksPage.jsx";
 import RawEditorPage from "./pages/RawEditorPage.jsx";
 import VaultHealthPage from "./pages/VaultHealthPage.jsx";
+import TimelinePage from "./pages/TimelinePage.jsx";
+import MapsPage from "./pages/MapsPage.jsx";
 
 export default function App() {
   const [mode, setMode] = useState(localStorage.getItem("codex-mode") || "player");
@@ -28,7 +30,7 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("codex-mode", mode);
     refresh();
-    const timer = setInterval(refresh, 2500);
+    const timer = setInterval(refresh, 10000);
     return () => clearInterval(timer);
   }, [mode]);
 
@@ -49,8 +51,10 @@ export default function App() {
         <Route path="/category/:category/*" element={<CategoryPage pages={pages} mode={mode} />} />
         <Route path="/page/:path" element={<PageView mode={mode} pages={pages} />} />
         <Route path="/editor" element={<EditorPage onSaved={refresh} />} />
-        <Route path="/edit/:path" element={<RawEditorPage mode={mode} onSaved={refresh} />} />
+        <Route path="/edit/:path" element={<RawEditorPage mode={mode} onSaved={refresh} pages={pages} />} />
         <Route path="/missing" element={<MissingLinksPage mode={mode} />} />
+        <Route path="/timeline" element={<TimelinePage pages={pages} mode={mode} />} />
+        <Route path="/maps" element={<MapsPage pages={pages} mode={mode} />} />
         <Route path="/health" element={<VaultHealthPage mode={mode} />} />
         <Route path="/guide" element={<GuidePage />} />
         <Route path="/foundry" element={<FoundryImportExportPage mode={mode} />} />
