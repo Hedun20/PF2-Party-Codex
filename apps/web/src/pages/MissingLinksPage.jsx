@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { FileQuestion, PenLine } from "lucide-react";
+import { FileQuestion, PenLine, Sparkles } from "lucide-react";
 import { api } from "../api/client.js";
 import { labelCategory } from "../utils/labels.js";
 
@@ -26,13 +26,25 @@ export default function MissingLinksPage({ mode }) {
 
   return (
     <div className="page-stack">
-      <header className="list-header">
+      <header className="list-header missing-hero">
         <span className="kicker">План работ по лору</span>
         <h1>Ненаписанные статьи</h1>
-        <p>Здесь собраны wiki-ссылки из Markdown, на которые уже ссылается лор, но отдельной статьи ещё нет.</p>
+        <p>Сюда попадают wiki-ссылки из Markdown, на которые уже ссылается лор, но отдельной статьи ещё нет.</p>
       </header>
 
       {message && <p className="save-message">{message}</p>}
+
+      <section className="missing-guide-panel">
+        <div>
+          <span className="kicker">Как это работает</span>
+          <h2>Пиши сначала историю, а статьи создавай потом</h2>
+          <p>В любой Markdown-статье можно написать `[[Восстание крестьян 1342]]`. Если такой статьи нет, ссылка станет фантомной и появится в этом списке.</p>
+        </div>
+        <Link className="gold-button" to="/editor?title=Восстание крестьян 1342">
+          <Sparkles size={16} />
+          Попробовать пример
+        </Link>
+      </section>
 
       <section className="missing-grid">
         {items.map((item) => (
@@ -61,9 +73,12 @@ export default function MissingLinksPage({ mode }) {
       </section>
 
       {!items.length && (
-        <section className="tool-panel">
-          <h2>Фантомных ссылок нет</h2>
-          <p className="builder-hint">Можно писать новые будущие статьи прямо в Markdown через формат `[[Название будущей статьи]]`.</p>
+        <section className="empty-missing-state">
+          <FileQuestion size={34} />
+          <div>
+            <h2>Фантомных ссылок пока нет</h2>
+            <p>Это хороший знак: текущий vault не содержит ссылок на несуществующие статьи. Чтобы проверить механику, добавь в любую статью ссылку формата `[[Название будущей статьи]]`.</p>
+          </div>
         </section>
       )}
     </div>

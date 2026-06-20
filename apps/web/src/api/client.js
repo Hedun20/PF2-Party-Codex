@@ -5,6 +5,10 @@ async function request(path, options = {}) {
     headers: options.body instanceof FormData ? undefined : { "Content-Type": "application/json" },
     ...options
   });
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error("Сервер ещё не обновлён. Перезапусти локалку, чтобы новые API-ручки стали доступны.");
+  }
   if (!response.ok) throw new Error((await response.json()).error || "Request failed");
   return response.json();
 }
