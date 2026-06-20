@@ -20,7 +20,7 @@ export default function DashboardPage({ pages, dashboard, mode }) {
         <p>{dashboard?.summary || "Локальный архив Pathfinder 2e для миров, лора, сессий, секретов GM и Foundry-журналов."}</p>
       </section>
       <WorldAtlas pages={pages} />
-      {dashboard && <MarkdownViewer content={dashboard.content} />}
+      {dashboard && <MarkdownViewer content={dashboard.content} pages={pages} />}
       {blocks.map(([title, category]) => {
         const items = pages.filter((page) => page.category === category || page.category?.startsWith(`${category}/`)).slice(0, 4);
         return (

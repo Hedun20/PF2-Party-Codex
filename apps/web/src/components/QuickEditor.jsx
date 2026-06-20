@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Crosshair, Upload } from "lucide-react";
+import { Crosshair, FileUp, Upload } from "lucide-react";
 import { api } from "../api/client.js";
 import { labelCategory } from "../utils/labels.js";
 
@@ -31,9 +31,9 @@ function optionLabel(page) {
   return `${page.title} · ${labelCategory(page.category)}`;
 }
 
-export default function QuickEditor({ onSaved }) {
+export default function QuickEditor({ onSaved, initialTitle = "" }) {
   const [metadata, setMetadata] = useState({ pages: [], tags: [], worlds: [], countries: [], cities: [] });
-  const [form, setForm] = useState({ type: "world", visibility: "public", tags: [], related: [], pins: [] });
+  const [form, setForm] = useState({ type: "lore", visibility: "public", tags: [], related: [], pins: [], name: initialTitle });
   const [pinDraft, setPinDraft] = useState({ label: "", path: "" });
   const [tagDraft, setTagDraft] = useState("");
   const [localMapPreview, setLocalMapPreview] = useState("");
@@ -42,6 +42,10 @@ export default function QuickEditor({ onSaved }) {
   useEffect(() => {
     api.metadata("gm").then(setMetadata).catch((error) => setMessage(error.message));
   }, []);
+
+  useEffect(() => {
+    if (initialTitle) setForm((current) => ({ ...current, name: initialTitle }));
+  }, [initialTitle]);
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
   const selectedTypeLabel = useMemo(() => types.find(([value]) => value === form.type)?.[1] || "Статья", [form.type]);
@@ -116,6 +120,18 @@ export default function QuickEditor({ onSaved }) {
 
   return (
     <form className="editor-form builder-form" onSubmit={submit}>
+      <section className="builder-section md-import-teaser">
+        <div>
+          <span className="kicker">Импорт архива</span>
+          <h2>Массовый MD-импорт</h2>
+          <p className="builder-hint">Следующим шагом сюда добавим загрузку пачки `.md`, предпросмотр раскладки, автолинки и подтверждение перед записью в vault.</p>
+        </div>
+        <button type="button" className="upload-button" disabled>
+          <FileUp size={18} />
+          Скоро: загрузить MD
+        </button>
+      </section>
+
       <section className="builder-section">
         <div>
           <span className="kicker">Что создаём</span>

@@ -11,6 +11,7 @@ async function request(path, options = {}) {
 
 export const api = {
   pages: (mode) => request(`/pages?mode=${mode}`),
+  missingLinks: (mode) => request(`/missing-links?mode=${mode}`),
   page: (path, mode) => request(`/page?path=${encodeURIComponent(path)}&mode=${mode}`),
   categories: (mode) => request(`/categories?mode=${mode}`),
   search: (query, mode) => request(`/search?q=${encodeURIComponent(query)}&mode=${mode}`),

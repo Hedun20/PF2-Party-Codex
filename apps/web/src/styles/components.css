@@ -227,6 +227,11 @@
 
 .markdown-view h1, .markdown-view h2, .markdown-view h3 { color: var(--text); line-height: 1.15; }
 .markdown-view a { color: var(--gold); border-bottom: 1px solid rgba(227, 182, 95, 0.4); }
+.markdown-view a.phantom-link {
+  color: #c7a8ff;
+  border-bottom: 1px dashed rgba(199, 168, 255, 0.72);
+  text-shadow: 0 0 14px rgba(168, 85, 247, 0.2);
+}
 .markdown-view code { color: #ffd98b; }
 
 .editor-form, .tool-panel {
@@ -339,6 +344,11 @@
   cursor: pointer;
 }
 
+.upload-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
 .upload-button input {
   display: none;
 }
@@ -378,6 +388,11 @@
 .builder-hint {
   margin: 0;
   color: var(--muted);
+}
+
+.md-import-teaser {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
 }
 
 .editor-form label, .tool-panel label {
@@ -1280,6 +1295,82 @@ textarea { min-height: 96px; resize: vertical; }
 .related-grid p {
   margin: 0;
   color: var(--muted);
+}
+
+.missing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.missing-card {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(227, 182, 95, 0.18);
+  border-radius: 8px;
+  background:
+    linear-gradient(155deg, rgba(168, 85, 247, 0.12), transparent 42%),
+    rgba(18, 15, 28, 0.82);
+  overflow: hidden;
+}
+
+.missing-card.active,
+.missing-card:hover {
+  border-color: rgba(227, 182, 95, 0.58);
+  box-shadow: 0 18px 48px rgba(168, 85, 247, 0.16);
+}
+
+.missing-card::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(227, 182, 95, 0.08);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.missing-card-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  color: var(--gold);
+}
+
+.missing-card-head h2 {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-family: var(--display);
+}
+
+.missing-card-head span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.missing-sources {
+  display: grid;
+  gap: 8px;
+}
+
+.missing-sources a {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid rgba(227, 182, 95, 0.14);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.missing-sources a:hover {
+  border-color: rgba(227, 182, 95, 0.42);
+}
+
+.missing-sources span {
+  color: var(--gold);
+  font-size: 0.76rem;
+  text-transform: uppercase;
 }
 
 @media (max-width: 700px) {

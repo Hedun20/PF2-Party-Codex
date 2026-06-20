@@ -79,6 +79,31 @@ export function listPages(mode = "gm") {
   return visiblePages.map((page) => withBacklinks(page, visiblePages));
 }
 
+export function listMissingLinks(mode = "gm") {
+  const visiblePages = pages.map((page) => filterByMode(page, mode)).filter(Boolean);
+  const missing = new Map();
+
+  for (const page of visiblePages) {
+    for (const link of page.links || []) {
+      if (findLinkedPage(link.target, visiblePages)) continue;
+      const key = slugify(link.target);
+      const entry = missing.get(key) || {
+        title: link.target,
+        slug: key,
+        count: 0,
+        sources: []
+      };
+      entry.count += 1;
+      if (!entry.sources.some((source) => source.path === page.path)) {
+        entry.sources.push(compactPage(page));
+      }
+      missing.set(key, entry);
+    }
+  }
+
+  return [...missing.values()].sort((a, b) => b.count - a.count || a.title.localeCompare(b.title));
+}
+
 export function getPage(requestedPath, mode = "gm") {
   const normalized = normalizeVaultPath(requestedPath);
   const direct = pageByPath.get(normalized);
@@ -104,6 +129,15 @@ function compactPage(page) {
 function linkMatchesPage(link, page) {
   const target = slugify(link.target || "");
   return target === slugify(page.title) || target === slugify(page.path.replace(/\.md$/i, ""));
+}
+
+function findLinkedPage(target, visiblePages) {
+  const normalized = slugify(target || "");
+  return visiblePages.find((page) => (
+    normalized === slugify(page.title)
+    || normalized === slugify(page.path)
+    || normalized === slugify(page.path.replace(/\.md$/i, ""))
+  ));
 }
 
 function relatedMatchesPage(related, page) {
@@ -139,7 +173,11 @@ function withBacklinks(page, visiblePages) {
     })
     .map(compactPage);
 
-  return { ...page, backlinks, relatedPages: related, children };
+  const missingLinks = (page.links || [])
+    .filter((link) => !findLinkedPage(link.target, visiblePages))
+    .map((link) => ({ title: link.target, label: link.label, slug: slugify(link.target) }));
+
+  return { ...page, backlinks, relatedPages: related, children, missingLinks };
 }
 
 export function getCategories(mode = "gm") {

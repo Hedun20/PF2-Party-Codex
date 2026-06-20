@@ -25,14 +25,32 @@ function LinkList({ title, items = [] }) {
   );
 }
 
-export default function PageView({ mode }) {
+export default function PageView({ mode, pages = [] }) {
   const { path } = useParams();
   const decodedPath = decodeURIComponent(path);
   const [page, setPage] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api.page(decodedPath, mode).then((data) => setPage(data.page));
+    setError("");
+    setPage(null);
+    api.page(decodedPath, mode)
+      .then((data) => setPage(data.page))
+      .catch(() => setError(decodedPath));
   }, [decodedPath, mode]);
+
+  if (error) {
+    return (
+      <div className="page-stack">
+        <header className="list-header">
+          <span className="kicker">Фантомная ссылка</span>
+          <h1>{error}</h1>
+          <p>На эту статью уже есть ссылка, но сам Markdown-файл ещё не создан.</p>
+          <Link className="gold-button" to={`/missing?target=${encodeURIComponent(error)}`}>Открыть в ненаписанных статьях</Link>
+        </header>
+      </div>
+    );
+  }
 
   if (!page) return <div className="list-header"><h1>Загрузка статьи</h1></div>;
 
@@ -46,7 +64,7 @@ export default function PageView({ mode }) {
       </header>
       <PageMap page={page} />
       <HierarchyPanel title="Внутренний слой статьи" items={page.children} />
-      <MarkdownViewer content={page.content} />
+      <MarkdownViewer content={page.content} pages={pages} />
       <LinkList title="Связанные статьи" items={page.relatedPages} />
       <LinkList title="Обратные ссылки" items={page.backlinks} />
     </div>

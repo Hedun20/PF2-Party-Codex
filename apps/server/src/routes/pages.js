@@ -1,10 +1,14 @@
 import { Router } from "express";
-import { createPage, getPage, listPages, savePage } from "../services/vaultService.js";
+import { createPage, getPage, listMissingLinks, listPages, savePage } from "../services/vaultService.js";
 
 export const pagesRouter = Router();
 
 pagesRouter.get("/pages", (req, res) => {
   res.json({ pages: listPages(req.query.mode || "gm") });
+});
+
+pagesRouter.get("/missing-links", (req, res) => {
+  res.json({ missingLinks: listMissingLinks(req.query.mode || "gm") });
 });
 
 pagesRouter.get("/page", (req, res) => {

@@ -1,5 +1,5 @@
 import { Link, NavLink } from "react-router-dom";
-import { BookOpen, Castle, Crosshair, Globe2, Map, ScrollText, ShieldCheck, Swords, UsersRound, X } from "lucide-react";
+import { BookOpen, Castle, Crosshair, FileQuestion, Globe2, Map, ScrollText, ShieldCheck, Swords, UsersRound, X } from "lucide-react";
 import LoreDropdown from "./LoreDropdown.jsx";
 
 const sections = [
@@ -36,6 +36,10 @@ export default function CodexSidebar({ onClose }) {
         <NavLink to="/editor" className="nav-link primary-link" onClick={onClose}>
           <Crosshair size={18} />
           <span>Создать статью</span>
+        </NavLink>
+        <NavLink to="/missing" className="nav-link" onClick={onClose}>
+          <FileQuestion size={18} />
+          <span>Ненаписанные статьи</span>
         </NavLink>
         <NavLink to="/health" className="nav-link" onClick={onClose}>
           <ShieldCheck size={18} />

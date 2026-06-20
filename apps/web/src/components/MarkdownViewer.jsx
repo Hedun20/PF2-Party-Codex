@@ -7,16 +7,26 @@ function renderWikiLinks(text) {
   return text.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, target, label) => `[${label || target}](/page/${encodeURIComponent(target)})`);
 }
 
-export default function MarkdownViewer({ content }) {
+function pageMatchesTarget(page, target) {
+  const normalize = (value = "") => value.toLowerCase().replace(/\.md$/i, "").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
+  return normalize(page.title) === normalize(target) || normalize(page.path) === normalize(target);
+}
+
+export default function MarkdownViewer({ content, pages = [] }) {
   return (
     <article className="markdown-view">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSanitize]}
         components={{
-          a: ({ href, children }) => href?.startsWith("/page/")
-            ? <Link to={href}>{children}</Link>
-            : <a href={href} target="_blank" rel="noreferrer">{children}</a>
+          a: ({ href, children }) => {
+            if (!href?.startsWith("/page/")) return <a href={href} target="_blank" rel="noreferrer">{children}</a>;
+            const target = decodeURIComponent(href.replace("/page/", ""));
+            const exists = pages.some((page) => pageMatchesTarget(page, target));
+            return exists
+              ? <Link to={href}>{children}</Link>
+              : <Link className="phantom-link" to={`/missing?target=${encodeURIComponent(target)}`}>{children}</Link>;
+          }
         }}
       >
         {renderWikiLinks(content || "")}
