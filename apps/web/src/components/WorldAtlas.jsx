@@ -1,10 +1,7 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, BookOpen, Flame, Globe2, MapPinned, Network, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, Flame, Globe2, Network, Sparkles } from "lucide-react";
 import CodexButton from "./ui/CodexButton.jsx";
-
-function toPage(path) {
-  return `/page/${encodeURIComponent(path)}`;
-}
+import { worldRoute } from "../utils/worldContext.js";
 
 function normalizeTags(tags = []) {
   return tags.map((tag) => String(tag).toLowerCase());
@@ -72,8 +69,8 @@ function WorldCard({ world, pages }) {
       </div>
 
       <div className="world-card-actions">
-        <CodexButton as={Link} to={toPage(world.path)} size="md" className="world-open-button">
-          <span>Открыть мир</span>
+        <CodexButton as={Link} to={worldRoute(world)} size="md" className="world-open-button">
+          <span>Войти в мир</span>
           <ArrowRight size={16} />
         </CodexButton>
       </div>

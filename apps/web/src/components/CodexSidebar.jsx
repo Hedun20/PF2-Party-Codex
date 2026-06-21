@@ -1,6 +1,7 @@
 import { Link, NavLink } from "react-router-dom";
-import { BookOpen, Castle, Clock3, Crosshair, FileQuestion, Globe2, Map, MapPinned, ScrollText, ShieldCheck, Swords, UsersRound, X } from "lucide-react";
+import { BookOpen, Castle, Clock3, Crosshair, FileQuestion, Globe2, Home, Map, MapPinned, ScrollText, ShieldCheck, Swords, UsersRound, X } from "lucide-react";
 import LoreDropdown from "./LoreDropdown.jsx";
+import { worldRoute } from "../utils/worldContext.js";
 
 const sections = [
   ["Страны", "countries", Map],
@@ -12,42 +13,54 @@ const sections = [
   ["Локации", "locations", Map]
 ];
 
-export default function CodexSidebar({ onClose, canEdit = false }) {
+function scopedPath(activeWorld, path) {
+  return activeWorld ? `${worldRoute(activeWorld)}/${path.replace(/^\//, "")}` : path;
+}
+
+export default function CodexSidebar({ onClose, canEdit = false, activeWorld = null }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-head">
-        <Link to="/" className="brand" onClick={onClose}>
+        <Link to={activeWorld ? worldRoute(activeWorld) : "/"} className="brand" onClick={onClose}>
           <Castle />
-          <span>PF2 Party Codex</span>
+          <span>{activeWorld ? activeWorld.title : "PF2 Party Codex"}</span>
         </Link>
         <button className="sidebar-close" onClick={onClose} title="Закрыть навигацию">
           <X size={18} />
         </button>
       </div>
+      {activeWorld && (
+        <div className="sidebar-world-card">
+          <span className="kicker">Активный мир</span>
+          <strong>{activeWorld.title}</strong>
+          <p>{activeWorld.summary || "Фильтр мира включён. Навигация ниже показывает материалы этого мира."}</p>
+          <Link to="/" onClick={onClose}><Home size={15} /> В общий Архив</Link>
+        </div>
+      )}
       <nav className="nav-stack">
         <NavLink to="/category/worlds" className="nav-link" onClick={onClose}>
           <Globe2 size={18} />
           <span>Миры</span>
         </NavLink>
-        <NavLink to="/timeline" className="nav-link" onClick={onClose}>
+        <NavLink to={scopedPath(activeWorld, "/timeline")} className="nav-link" onClick={onClose}>
           <Clock3 size={18} />
-          <span>Timeline</span>
+          <span>{activeWorld ? "Timeline мира" : "Timeline"}</span>
         </NavLink>
-        <NavLink to="/maps" className="nav-link" onClick={onClose}>
+        <NavLink to={scopedPath(activeWorld, "/maps")} className="nav-link" onClick={onClose}>
           <MapPinned size={18} />
-          <span>Карты</span>
+          <span>{activeWorld ? "Карты мира" : "Карты"}</span>
         </NavLink>
         {sections.map(([label, path, Icon]) => (
-          <NavLink key={path} to={`/category/${path}`} className="nav-link" onClick={onClose}>
+          <NavLink key={path} to={scopedPath(activeWorld, `/category/${path}`)} className="nav-link" onClick={onClose}>
             <Icon size={18} />
             <span>{label}</span>
           </NavLink>
         ))}
-        <LoreDropdown />
+        {!activeWorld && <LoreDropdown />}
         {canEdit && (
-          <NavLink to="/editor" className="nav-link primary-link" onClick={onClose}>
+          <NavLink to={activeWorld ? `/editor?world=${encodeURIComponent(activeWorld.title)}` : "/editor"} className="nav-link primary-link" onClick={onClose}>
             <Crosshair size={18} />
-            <span>Создать статью</span>
+            <span>{activeWorld ? "Создать в мире" : "Создать статью"}</span>
           </NavLink>
         )}
         <NavLink to="/missing" className="nav-link" onClick={onClose}>

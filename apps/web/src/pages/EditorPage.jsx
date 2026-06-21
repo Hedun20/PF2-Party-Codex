@@ -5,6 +5,7 @@ import CodexButton from "../components/ui/CodexButton.jsx";
 export default function EditorPage({ onSaved, session }) {
   const [searchParams] = useSearchParams();
   const initialTitle = searchParams.get("title") || "";
+  const initialWorld = searchParams.get("world") || "";
 
   if (!session?.canEdit) {
     return (
@@ -23,10 +24,10 @@ export default function EditorPage({ onSaved, session }) {
     <div className="page-stack">
       <header className="list-header">
         <span className="kicker">Quick Create</span>
-        <h1>Создать статью</h1>
-        <p>Сначала минимум полей. Подтип лора, привязки, медиа и Maps 2.0 раскрываются только когда они нужны.</p>
+        <h1>{initialWorld ? `Создать в мире: ${initialWorld}` : "Создать статью"}</h1>
+        <p>{initialWorld ? "Новая статья автоматически получит привязку к выбранному миру. Это можно изменить вручную." : "Сначала минимум полей. Подтип лора, привязки, медиа и Maps 2.0 раскрываются только когда они нужны."}</p>
       </header>
-      <QuickEditor onSaved={onSaved} initialTitle={initialTitle} />
+      <QuickEditor onSaved={onSaved} initialTitle={initialTitle} initialWorld={initialWorld} />
     </div>
   );
 }

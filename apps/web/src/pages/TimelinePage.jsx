@@ -119,7 +119,7 @@ function categoryMatchesType(typeKey, filter) {
   return typeKey === filter;
 }
 
-export default function TimelinePage({ pages = [], mode = "player", embedded = false }) {
+export default function TimelinePage({ pages = [], mode = "player", embedded = false, activeWorld = null }) {
   const worlds = useMemo(() => [...new Set(pages.map((page) => page.world || page.frontmatter?.world).filter(Boolean))].sort(), [pages]);
   const [world, setWorld] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -185,9 +185,9 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
     <div className={embedded ? "page-stack timeline-embedded" : "page-stack timeline-branch-page"}>
       <header className="list-header timeline-branch-hero article-page-header">
         <div>
-          <span className="kicker">Living Timeline</span>
-          <h1>{embedded ? "Timeline мира и кампании" : "Древо событий"}</h1>
-          <p>Вертикальный ствол истории: события, сессии, города и персонажи цепляются к одной линии, а hover подсвечивает связи между статьями.</p>
+          <span className="kicker">{activeWorld ? `Мир: ${activeWorld.title}` : "Living Timeline"}</span>
+          <h1>{activeWorld ? `Timeline: ${activeWorld.title}` : (embedded ? "Timeline мира и кампании" : "Древо событий")}</h1>
+          <p>{activeWorld ? "События и сессии текущего мира без смешивания со всем Архивом." : "Вертикальный ствол истории: события, сессии, города и персонажи цепляются к одной линии, а hover подсвечивает связи между статьями."}</p>
         </div>
         <div className="timeline-stat-grid" aria-label="Timeline stats">
           <span><strong>{stats.events}</strong> событий</span>
@@ -202,13 +202,15 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
           <Search size={16} />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по событиям, NPC, городам..." />
         </label>
-        <label className="timeline-control">
-          <Filter size={16} />
-          <select value={world} onChange={(event) => setWorld(event.target.value)}>
-            <option value="">Все миры</option>
-            {worlds.map((item) => <option key={item} value={item}>{item}</option>)}
-          </select>
-        </label>
+        {!activeWorld && (
+          <label className="timeline-control">
+            <Filter size={16} />
+            <select value={world} onChange={(event) => setWorld(event.target.value)}>
+              <option value="">Все миры</option>
+              {worlds.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </label>
+        )}
         <label className="timeline-control">
           <GitBranch size={16} />
           <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>

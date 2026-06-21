@@ -19,7 +19,7 @@ function normalizeObjects(page) {
   ].filter((item) => item?.label);
 }
 
-export default function MapsPage({ pages = [], mode = "player" }) {
+export default function MapsPage({ pages = [], mode = "player", activeWorld = null }) {
   const [query, setQuery] = useState("");
   const [layer, setLayer] = useState("all");
   const [unusedAssets, setUnusedAssets] = useState([]);
@@ -49,8 +49,8 @@ export default function MapsPage({ pages = [], mode = "player" }) {
       <header className="list-header maps-hub-hero article-page-header">
         <div>
           <span className="kicker">Maps 2.0</span>
-          <h1>Карты кампании</h1>
-          <p>Все статьи с картами в одном месте: быстро открой карту, проверь GM/player слой и количество объектов. Сами пины и области редактируются внутри статьи.</p>
+          <h1>{activeWorld ? `Карты: ${activeWorld.title}` : "Карты кампании"}</h1>
+          <p>{activeWorld ? "Карты текущего мира: быстрый вход, GM/player слой и количество объектов." : "Все статьи с картами в одном месте: быстро открой карту, проверь GM/player слой и количество объектов. Сами пины и области редактируются внутри статьи."}</p>
         </div>
         <div className="maps-hub-tools">
           <label className="maps-hub-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти карту, город, мир..." /></label>

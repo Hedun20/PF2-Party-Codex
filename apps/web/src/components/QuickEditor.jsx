@@ -91,9 +91,9 @@ function asArray(value) {
   return String(value).split(/[;,\n]/).map((item) => item.trim()).filter(Boolean);
 }
 
-export default function QuickEditor({ onSaved, initialTitle = "" }) {
+export default function QuickEditor({ onSaved, initialTitle = "", initialWorld = "" }) {
   const [metadata, setMetadata] = useState({ pages: [], tags: [], worlds: [], countries: [], cities: [] });
-  const [form, setForm] = useState({ type: "lore", loreSubtype: "general", visibility: "public", tags: [], related: [], mapObjects: [], name: initialTitle });
+  const [form, setForm] = useState({ type: "lore", loreSubtype: "general", visibility: "public", tags: [], related: [], mapObjects: [], name: initialTitle, world: initialWorld });
   const [mapDraft, setMapDraft] = useState(createEmptyMapDraft);
   const [tagDraft, setTagDraft] = useState("");
   const [localPreview, setLocalPreview] = useState({});
@@ -107,6 +107,10 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
   useEffect(() => {
     if (initialTitle) setForm((current) => ({ ...current, name: initialTitle }));
   }, [initialTitle]);
+
+  useEffect(() => {
+    if (initialWorld) setForm((current) => ({ ...current, world: current.world || initialWorld }));
+  }, [initialWorld]);
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
   const updateDraft = (patch) => setMapDraft((current) => ({ ...current, ...patch }));
@@ -346,7 +350,7 @@ export default function QuickEditor({ onSaved, initialTitle = "" }) {
     <form className="editor-form builder-form quick-create-shell" onSubmit={submit}>
       <section className="builder-section quick-create-panel">
         <div className="quick-create-copy">
-          <span className="kicker">Быстрое создание</span>
+          <span className="kicker">{initialWorld ? `Мир: ${initialWorld}` : "Быстрое создание"}</span>
           <h2>{selectedTypeLabel}</h2>
           <p>Сначала только минимум: тип, название, место и краткое описание. Всё тяжёлое спрятано ниже, чтобы мастер не заполнял налоговую декларацию на каждого гоблина.</p>
         </div>
