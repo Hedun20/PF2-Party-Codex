@@ -105,6 +105,38 @@ const BUILTIN_WORLD_THEMES = {
   }
 };
 
+const THEME_KEYWORDS = [
+  ["infernal", /(ад|адск|бездна|демон|infernal|hell|abyss|devil|demon|doom)/i],
+  ["fire", /(огонь|огнен|пепел|лава|вулкан|кузн|дракон|fire|flame|ember|ash|lava|volcano)/i],
+  ["frost", /(л[её]д|ледян|север|метель|снег|frost|ice|snow|glacier|winter)/i],
+  ["arcane", /(маг|астрал|руна|портал|aether|arcane|magic|rune|astral|wizard)/i],
+  ["celestial", /(рай|небес|свет|божеств|ангел|celestial|heaven|paradise|angel|divine)/i],
+  ["death", /(смерт|мертв|некро|душ|могил|туман|death|dead|undead|necro|grave|soul|ghost)/i],
+  ["midgard", /(лес|королев|город|земл|равнин|midgard|forest|kingdom|realm|earth|green)/i]
+];
+
+function textFromWorld(world = null) {
+  if (!world) return "";
+  const fm = world.frontmatter || {};
+  return [
+    world.title,
+    world.summary,
+    world.content,
+    fm.title,
+    fm.name,
+    fm.summary,
+    fm.tone,
+    fm.cosmology,
+    Array.isArray(fm.tags) ? fm.tags.join(" ") : fm.tags
+  ].filter(Boolean).join(" ");
+}
+
+export function inferThemeKeyFromWorld(world = null) {
+  const text = textFromWorld(world);
+  if (!text.trim()) return "midgard";
+  return THEME_KEYWORDS.find(([, pattern]) => pattern.test(text))?.[0] || "midgard";
+}
+
 export const WORLD_THEME_KEYS = Object.keys(BUILTIN_WORLD_THEMES);
 export const WORLD_THEME_OPTIONS = WORLD_THEME_KEYS.map((key) => ({
   value: key,
@@ -129,7 +161,8 @@ function normalizeMediaPath(value = "") {
 }
 
 export function getWorldTheme(world = null) {
-  const selectedKey = world ? normalizeThemeKey(valueFromWorld(world, "theme") || "midgard") : "archive";
+  const explicitTheme = valueFromWorld(world, "theme");
+  const selectedKey = world ? normalizeThemeKey(explicitTheme || inferThemeKeyFromWorld(world)) : "archive";
   const base = BUILTIN_WORLD_THEMES[selectedKey] || BUILTIN_WORLD_THEMES.midgard;
   const backgroundVideo = normalizeMediaPath(valueFromWorld(world, "backgroundVideo") || valueFromWorld(world, "cinematicVideo") || "");
   const backgroundPoster = normalizeMediaPath(valueFromWorld(world, "backgroundPoster") || valueFromWorld(world, "cinematicPoster") || "");
@@ -139,6 +172,7 @@ export function getWorldTheme(world = null) {
 
   return {
     ...base,
+    inferred: Boolean(world && !explicitTheme),
     accent: customAccent || base.accent,
     backgroundVideo,
     backgroundPoster,

@@ -14,11 +14,21 @@ import RawEditorPage from "./pages/RawEditorPage.jsx";
 import VaultHealthPage from "./pages/VaultHealthPage.jsx";
 import TimelinePage from "./pages/TimelinePage.jsx";
 import MapsPage from "./pages/MapsPage.jsx";
-import { getWorldOwnedPages, getWorldSearchPages, resolveWorldBySlug } from "./utils/worldContext.js";
+import { getWorldOwnedPages, getWorldSearchPages, resolveWorldBySlug, resolveWorldForPage } from "./utils/worldContext.js";
 
 function worldSlugFromPath(pathname = "") {
   const match = pathname.match(/^\/world\/([^/]+)/);
   return match ? match[1] : "";
+}
+
+function pagePathFromRoute(pathname = "") {
+  const match = pathname.match(/^\/(?:page|edit)\/([^/]+)/);
+  if (!match) return "";
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
 }
 
 export default function App() {
@@ -54,7 +64,10 @@ export default function App() {
 
   const dashboard = useMemo(() => pages.find((page) => page.path === "index.md"), [pages]);
   const activeWorldSlug = worldSlugFromPath(location.pathname);
-  const activeWorld = useMemo(() => resolveWorldBySlug(pages, activeWorldSlug), [pages, activeWorldSlug]);
+  const routeWorld = useMemo(() => resolveWorldBySlug(pages, activeWorldSlug), [pages, activeWorldSlug]);
+  const activePagePath = pagePathFromRoute(location.pathname);
+  const pageWorld = useMemo(() => (!routeWorld && activePagePath ? resolveWorldForPage(pages, activePagePath) : null), [pages, routeWorld, activePagePath]);
+  const activeWorld = routeWorld || pageWorld;
   const worldPages = useMemo(() => activeWorld ? getWorldOwnedPages(pages, activeWorld) : pages, [pages, activeWorld]);
   const shellPages = useMemo(() => activeWorld ? getWorldSearchPages(pages, activeWorld) : pages, [pages, activeWorld]);
 

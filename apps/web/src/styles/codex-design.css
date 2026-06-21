@@ -1291,3 +1291,66 @@
   width: min(260px, 30vw);
   font-weight: 850;
 }
+
+
+/* Patch 3.1: keep the top world switcher as one clean control, not a select inside a second framed select. */
+.world-context-switcher {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(var(--world-accent-rgb, 227, 182, 95), 0.36) !important;
+  background: linear-gradient(135deg, rgba(var(--world-accent-rgb, 227, 182, 95), 0.13), rgba(14, 12, 22, 0.78)) !important;
+}
+
+.world-context-switcher:focus-within {
+  border-color: rgba(var(--world-accent-rgb, 227, 182, 95), 0.64) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 3px rgba(var(--world-accent-rgb, 227, 182, 95), 0.14),
+    0 0 28px rgba(var(--world-accent-rgb, 227, 182, 95), 0.14) !important;
+}
+
+.world-context-switcher select {
+  min-height: 40px !important;
+  width: min(260px, 30vw);
+  padding: 8px 34px 8px 4px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: 0 !important;
+  color: #fff6df !important;
+  background-color: transparent !important;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--world-accent, #e3b65f) 50%),
+    linear-gradient(135deg, var(--world-accent, #e3b65f) 50%, transparent 50%) !important;
+  background-position:
+    calc(100% - 17px) 52%,
+    calc(100% - 11px) 52% !important;
+  background-size: 6px 6px, 6px 6px !important;
+  background-repeat: no-repeat !important;
+  box-shadow: none !important;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.36);
+}
+
+.world-context-switcher select:hover,
+.world-context-switcher select:focus {
+  border: 0 !important;
+  outline: 0 !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.world-context-switcher select option,
+.world-context-switcher select optgroup {
+  color: #fff6df !important;
+  background: #15111d !important;
+}
+
+.world-context-switcher select option:checked {
+  color: #120f18 !important;
+  background: var(--world-accent, #e3b65f) !important;
+}
+
+@media (max-width: 760px) {
+  .world-context-switcher select {
+    width: 100%;
+  }
+}

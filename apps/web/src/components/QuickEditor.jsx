@@ -375,6 +375,7 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
     const page = await api.createPage({
       ...form,
       category,
+      ...(form.type === "world" ? { theme: form.theme || "midgard" } : {}),
       tags: form.tags || [],
       related: form.related || [],
       mapObjects: form.mapObjects || []
@@ -394,7 +395,7 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
         </div>
         <div className="type-grid compact-type-grid">
           {types.map(([value, label]) => (
-            <button key={value} type="button" className={form.type === value ? "type-chip active" : "type-chip"} onClick={() => setForm((current) => ({ ...current, type: value, loreSubtype: value === "lore" ? (current.loreSubtype || "general") : "general", category: value === "lore" ? loreCategoryBySubtype[current.loreSubtype || "general"] : (categoryByType[value] || current.category), world: value === "world" ? "" : current.world, country: ["world", "country"].includes(value) ? "" : current.country, city: ["world", "country", "city"].includes(value) ? "" : current.city }))}>
+            <button key={value} type="button" className={form.type === value ? "type-chip active" : "type-chip"} onClick={() => setForm((current) => ({ ...current, type: value, loreSubtype: value === "lore" ? (current.loreSubtype || "general") : "general", category: value === "lore" ? loreCategoryBySubtype[current.loreSubtype || "general"] : (categoryByType[value] || current.category), world: value === "world" ? "" : current.world, country: ["world", "country"].includes(value) ? "" : current.country, city: ["world", "country", "city"].includes(value) ? "" : current.city, theme: value === "world" ? (current.theme || "midgard") : current.theme }))}>
               {label}
             </button>
           ))}

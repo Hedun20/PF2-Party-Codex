@@ -66,7 +66,8 @@ export default function RawEditorPage({ mode, onSaved, pages = [] }) {
           name: title,
           type: frontmatter?.type || "lore",
           category: frontmatter?.category || page?.category || "lore",
-          visibility: frontmatter?.visibility || "public"
+          visibility: frontmatter?.visibility || "public",
+          ...(frontmatter?.type === "world" || page?.type === "world" ? { theme: frontmatter?.theme || "midgard" } : {})
         },
         content
       });

@@ -291,6 +291,7 @@ export function createFrontmatterDraft({ type = "lore", title = "" } = {}) {
     category: categoryByType[type] || "lore",
     visibility: "public",
     summary: "",
+    ...(type === "world" ? { theme: "midgard" } : {}),
     tags: [],
     related: []
   };
@@ -335,7 +336,7 @@ export default function ArticleVisualEditor({
   const updateCountry = (value) => setMany({ country: value, city: "" });
   const changeType = (type) => {
     const patch = { type, category: categoryByType[type] || fm.category || "lore" };
-    if (type === "world") { patch.world = ""; patch.country = ""; patch.city = ""; }
+    if (type === "world") { patch.world = ""; patch.country = ""; patch.city = ""; patch.theme = fm.theme || "midgard"; }
     if (type === "country") { patch.country = ""; patch.city = ""; }
     if (type === "city") patch.city = "";
     onFrontmatterChange?.({ ...fm, ...patch });

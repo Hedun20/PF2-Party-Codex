@@ -229,6 +229,20 @@ export function getSharedArchivePages(pages = []) {
   return pages.filter(isSharedArchivePage);
 }
 
+
+export function resolveWorldForPage(pages = [], pathOrPage = "") {
+  if (!Array.isArray(pages) || !pathOrPage) return null;
+
+  const page = typeof pathOrPage === "string"
+    ? pages.find((item) => item.path === pathOrPage || item.title === pathOrPage || slugifyWorld(item.path) === slugifyWorld(pathOrPage) || slugifyWorld(item.title) === slugifyWorld(pathOrPage))
+    : pathOrPage;
+
+  if (!page) return null;
+  if (isWorldPage(page)) return page;
+
+  return getWorlds(pages).find((world) => getWorldOwnedPages(pages, world).some((owned) => owned.path === page.path)) || null;
+}
+
 export function getWorldSearchPages(pages = [], world) {
   if (!world) return pages;
   const owned = getWorldOwnedPages(pages, world);
