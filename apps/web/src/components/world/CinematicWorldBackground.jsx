@@ -22,8 +22,11 @@ function clampPercent(value, fallback) {
 export default function CinematicWorldBackground({ theme }) {
   const reducedMotion = useReducedMotion();
   const [videoFailed, setVideoFailed] = useState(false);
-  const videoSrc = theme?.backgroundVideo || "";
+  const backgroundMode = theme?.backgroundMode || "theme";
+  const videoSrc = backgroundMode === "video" ? (theme?.backgroundVideo || "") : "";
+  const imageSrc = backgroundMode === "image" ? (theme?.backgroundImage || theme?.backgroundPoster || "") : "";
   const canPlayVideo = Boolean(videoSrc && !reducedMotion && !videoFailed);
+  const canShowImage = Boolean(imageSrc);
   const backgroundStyle = useMemo(() => ({
     "--cinematic-media-opacity": clampPercent(theme?.backgroundOpacity, 0.46),
     "--cinematic-media-blur": `${Math.max(0, Math.min(12, Number(theme?.backgroundBlur) || 0))}px`,
@@ -32,7 +35,7 @@ export default function CinematicWorldBackground({ theme }) {
 
   useEffect(() => {
     setVideoFailed(false);
-  }, [videoSrc]);
+  }, [videoSrc, backgroundMode]);
 
   return (
     <div className={`cinematic-world-bg ${theme?.backgroundClass || "world-bg-archive"}`} style={backgroundStyle} aria-hidden="true">
@@ -50,7 +53,8 @@ export default function CinematicWorldBackground({ theme }) {
           onError={() => setVideoFailed(true)}
         />
       )}
-      {(!canPlayVideo && theme?.backgroundPoster) && <img className="cinematic-world-bg__poster" src={theme.backgroundPoster} alt="" />}
+      {(!canPlayVideo && canShowImage) && <img className="cinematic-world-bg__poster" src={imageSrc} alt="" />}
+      {(!canPlayVideo && !canShowImage && backgroundMode === "video" && theme?.backgroundPoster) && <img className="cinematic-world-bg__poster" src={theme.backgroundPoster} alt="" />}
       <div className="cinematic-world-bg__gradient" />
       <div className="cinematic-world-bg__particles" />
       <div className="cinematic-world-bg__vignette" />

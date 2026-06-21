@@ -173,15 +173,24 @@ function WorldFields({ fm, set }) {
         <TextArea label="Главные конфликты" value={fm.conflicts} onChange={(value) => set("conflicts", value)} />
       </Section>
 
-      <Section title="Кинематографичный фон, звук и музыка" hint="Локальные WebM/MP4/MP3 храним в apps/web/public/world-themes/<theme>/. YouTube / YouTube Music используем только как официальный встроенный плеер по ссылке, не как скрытый mp3-файл.">
-        <TextField label="Фон WebM/MP4" value={fm.backgroundVideo} onChange={(value) => set("backgroundVideo", value)} placeholder="fire/fire-loop.webm" />
+      <Section title="Фон мира" hint="Это именно визуальный фон. Source/credits ниже — только заметка об источнике, она не включает картинку сама по себе.">
+        <Field label="Тип фона">
+          <select value={fm.backgroundMode || "theme"} onChange={(event) => set("backgroundMode", event.target.value)}>
+            <option value="theme">шаблон темы · без своего файла</option>
+            <option value="image">картинка / wallpaper</option>
+            <option value="video">видео WebM/MP4 loop</option>
+          </select>
+        </Field>
+        <TextField label="Картинка / wallpaper" value={fm.backgroundImage} onChange={(value) => set("backgroundImage", value)} placeholder="fire/fire-wallpaper.jpg или https://...jpg" />
+        <TextField label="Видео WebM/MP4" value={fm.backgroundVideo} onChange={(value) => set("backgroundVideo", value)} placeholder="fire/fire-loop.webm" />
         <TextField label="Poster / fallback image" value={fm.backgroundPoster} onChange={(value) => set("backgroundPoster", value)} placeholder="fire/fire-poster.jpg" />
-        <NumberField label="Яркость видео 0–1" value={fm.backgroundOpacity} onChange={(value) => set("backgroundOpacity", value)} placeholder="0.42" />
+        <NumberField label="Яркость фона 0–1" value={fm.backgroundOpacity} onChange={(value) => set("backgroundOpacity", value)} placeholder="0.42" />
         <NumberField label="Затемнение 0–1" value={fm.backgroundDim} onChange={(value) => set("backgroundDim", value)} placeholder="0.58" />
         <NumberField label="Blur px" value={fm.backgroundBlur} onChange={(value) => set("backgroundBlur", value)} placeholder="0" />
-        <TextField label="Источник/credit фона" value={fm.backgroundCredits} onChange={(value) => set("backgroundCredits", value)} placeholder="Pixabay / Mixkit / свой файл" />
-        <TextField label="URL источника фона" value={fm.backgroundSourceUrl} onChange={(value) => set("backgroundSourceUrl", value)} placeholder="https://..." />
-        <Field label="Режим звука">
+      </Section>
+
+      <Section title="Атмосфера мира" hint="Ambient — это тихий фон мира: огонь, ветер, лес, туман. Для автозапуска сначала один раз нажми включение звука в topbar.">
+        <Field label="Тип атмосферы">
           <select value={fm.ambienceMode || "auto"} onChange={(event) => set("ambienceMode", event.target.value)}>
             <option value="auto">auto · MP3 если есть, иначе мягкий preview</option>
             <option value="file">только MP3/OGG файл</option>
@@ -189,19 +198,53 @@ function WorldFields({ fm, set }) {
             <option value="off">выключить для этого мира</option>
           </select>
         </Field>
-        <TextField label="Звук MP3/OGG" value={fm.ambienceAudio} onChange={(value) => set("ambienceAudio", value)} placeholder="fire/fire-ambience.mp3" />
-        <TextField label="Название звука" value={fm.ambienceLabel} onChange={(value) => set("ambienceLabel", value)} placeholder="Костёр и далёкий ветер" />
-        <TextField label="Источник/credit звука" value={fm.ambienceCredits} onChange={(value) => set("ambienceCredits", value)} placeholder="Freesound CC0 / Pixabay / свой файл" />
-        <TextField label="URL источника звука" value={fm.ambienceSourceUrl} onChange={(value) => set("ambienceSourceUrl", value)} placeholder="https://..." />
-        <Field label="Музыка YouTube">
+        <TextField label="Файл атмосферы MP3/OGG" value={fm.ambienceAudio} onChange={(value) => set("ambienceAudio", value)} placeholder="fire/fire-ambience.mp3" />
+        <TextField label="Название атмосферы" value={fm.ambienceLabel} onChange={(value) => set("ambienceLabel", value)} placeholder="Костёр и далёкий ветер" />
+        <Field label="Автовключение атмосферы">
+          <select value={String(fm.ambienceAutoplay ?? false)} onChange={(event) => set("ambienceAutoplay", event.target.value === "true")}>
+            <option value="false">нет · включать вручную</option>
+            <option value="true">да · после первого разрешения звука</option>
+          </select>
+        </Field>
+      </Section>
+
+      <Section title="Музыка мира" hint="YouTube показывается компактно: без огромной превью-картинки, mini-player открывается только по кнопке. Для настоящего audio-only лучше использовать local MP3/OGG.">
+        <Field label="Тип музыки">
           <select value={fm.musicSource || "off"} onChange={(event) => set("musicSource", event.target.value)}>
             <option value="off">выключено</option>
             <option value="youtube">YouTube / YouTube Music link</option>
+            <option value="local">local MP3/OGG</option>
           </select>
         </Field>
         <TextField label="YouTube / YouTube Music URL" value={fm.musicUrl} onChange={(value) => set("musicUrl", value)} placeholder="https://music.youtube.com/watch?v=..." />
+        <TextField label="Local music MP3/OGG" value={fm.musicAudio} onChange={(value) => set("musicAudio", value)} placeholder="fire/fire-theme.mp3" />
         <TextField label="Название музыки" value={fm.musicLabel} onChange={(value) => set("musicLabel", value)} placeholder="Музыка Эльдрана" />
-        <TextField label="Credit музыки" value={fm.musicCredits} onChange={(value) => set("musicCredits", value)} placeholder="YouTube / YouTube Audio Library / автор" />
+        <Field label="Вид YouTube-панели">
+          <select value={fm.musicDisplay || "compact"} onChange={(event) => set("musicDisplay", event.target.value)}>
+            <option value="compact">compact · только текст и кнопки</option>
+            <option value="mini">mini-player по кнопке</option>
+          </select>
+        </Field>
+        <Field label="Автовключение local music">
+          <select value={String(fm.musicAutoplay ?? false)} onChange={(event) => set("musicAutoplay", event.target.value === "true")}>
+            <option value="false">нет · вручную</option>
+            <option value="true">да · после первого разрешения звука</option>
+          </select>
+        </Field>
+        <Field label="Loop local music">
+          <select value={String(fm.musicLoop ?? true)} onChange={(event) => set("musicLoop", event.target.value === "true")}>
+            <option value="true">да · зациклить</option>
+            <option value="false">нет · один раз</option>
+          </select>
+        </Field>
+      </Section>
+
+      <Section title="Credits / источники" hint="Эти поля только хранят источник и лицензию. Они не включают фон или музыку сами по себе.">
+        <TextField label="Источник/credit фона" value={fm.backgroundCredits} onChange={(value) => set("backgroundCredits", value)} placeholder="Pixabay / Mixkit / iStock licensed / свой файл" />
+        <TextField label="URL источника фона" value={fm.backgroundSourceUrl} onChange={(value) => set("backgroundSourceUrl", value)} placeholder="https://..." />
+        <TextField label="Источник/credit атмосферы" value={fm.ambienceCredits} onChange={(value) => set("ambienceCredits", value)} placeholder="Freesound CC0 / Pixabay / свой файл" />
+        <TextField label="URL источника атмосферы" value={fm.ambienceSourceUrl} onChange={(value) => set("ambienceSourceUrl", value)} placeholder="https://..." />
+        <TextField label="Credit музыки" value={fm.musicCredits} onChange={(value) => set("musicCredits", value)} placeholder="YouTube / YouTube Audio Library / автор / свой файл" />
       </Section>
     </>
   );
@@ -320,7 +363,7 @@ export function createFrontmatterDraft({ type = "lore", title = "" } = {}) {
     category: categoryByType[type] || "lore",
     visibility: "public",
     summary: "",
-    ...(type === "world" ? { theme: "midgard", ambienceMode: "auto", musicSource: "off" } : {}),
+    ...(type === "world" ? { theme: "midgard", backgroundMode: "theme", ambienceMode: "auto", ambienceAutoplay: false, musicSource: "off", musicDisplay: "compact", musicAutoplay: false, musicLoop: true } : {}),
     tags: [],
     related: []
   };
@@ -365,7 +408,7 @@ export default function ArticleVisualEditor({
   const updateCountry = (value) => setMany({ country: value, city: "" });
   const changeType = (type) => {
     const patch = { type, category: categoryByType[type] || fm.category || "lore" };
-    if (type === "world") { patch.world = ""; patch.country = ""; patch.city = ""; patch.theme = fm.theme || "midgard"; patch.ambienceMode = fm.ambienceMode || "auto"; patch.musicSource = fm.musicSource || "off"; }
+    if (type === "world") { patch.world = ""; patch.country = ""; patch.city = ""; patch.theme = fm.theme || "midgard"; patch.backgroundMode = fm.backgroundMode || "theme"; patch.ambienceMode = fm.ambienceMode || "auto"; patch.ambienceAutoplay = fm.ambienceAutoplay ?? false; patch.musicSource = fm.musicSource || "off"; patch.musicDisplay = fm.musicDisplay || "compact"; patch.musicAutoplay = fm.musicAutoplay ?? false; patch.musicLoop = fm.musicLoop ?? true; }
     if (type === "country") { patch.country = ""; patch.city = ""; }
     if (type === "city") patch.city = "";
     onFrontmatterChange?.({ ...fm, ...patch });

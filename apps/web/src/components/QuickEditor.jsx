@@ -375,7 +375,16 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
     const page = await api.createPage({
       ...form,
       category,
-      ...(form.type === "world" ? { theme: form.theme || "midgard", musicSource: form.musicSource || "off" } : {}),
+      ...(form.type === "world" ? {
+        theme: form.theme || "midgard",
+        backgroundMode: form.backgroundMode || "theme",
+        ambienceMode: form.ambienceMode || "auto",
+        ambienceAutoplay: form.ambienceAutoplay ?? false,
+        musicSource: form.musicSource || "off",
+        musicDisplay: form.musicDisplay || "compact",
+        musicAutoplay: form.musicAutoplay ?? false,
+        musicLoop: form.musicLoop ?? true
+      } : {}),
       tags: form.tags || [],
       related: form.related || [],
       mapObjects: form.mapObjects || []
@@ -395,7 +404,7 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
         </div>
         <div className="type-grid compact-type-grid">
           {types.map(([value, label]) => (
-            <button key={value} type="button" className={form.type === value ? "type-chip active" : "type-chip"} onClick={() => setForm((current) => ({ ...current, type: value, loreSubtype: value === "lore" ? (current.loreSubtype || "general") : "general", category: value === "lore" ? loreCategoryBySubtype[current.loreSubtype || "general"] : (categoryByType[value] || current.category), world: value === "world" ? "" : current.world, country: ["world", "country"].includes(value) ? "" : current.country, city: ["world", "country", "city"].includes(value) ? "" : current.city, theme: value === "world" ? (current.theme || "midgard") : current.theme, ambienceMode: value === "world" ? (current.ambienceMode || "auto") : current.ambienceMode, musicSource: value === "world" ? (current.musicSource || "off") : current.musicSource }))}>
+            <button key={value} type="button" className={form.type === value ? "type-chip active" : "type-chip"} onClick={() => setForm((current) => ({ ...current, type: value, loreSubtype: value === "lore" ? (current.loreSubtype || "general") : "general", category: value === "lore" ? loreCategoryBySubtype[current.loreSubtype || "general"] : (categoryByType[value] || current.category), world: value === "world" ? "" : current.world, country: ["world", "country"].includes(value) ? "" : current.country, city: ["world", "country", "city"].includes(value) ? "" : current.city, theme: value === "world" ? (current.theme || "midgard") : current.theme, backgroundMode: value === "world" ? (current.backgroundMode || "theme") : current.backgroundMode, ambienceMode: value === "world" ? (current.ambienceMode || "auto") : current.ambienceMode, ambienceAutoplay: value === "world" ? (current.ambienceAutoplay ?? false) : current.ambienceAutoplay, musicSource: value === "world" ? (current.musicSource || "off") : current.musicSource, musicDisplay: value === "world" ? (current.musicDisplay || "compact") : current.musicDisplay, musicAutoplay: value === "world" ? (current.musicAutoplay ?? false) : current.musicAutoplay, musicLoop: value === "world" ? (current.musicLoop ?? true) : current.musicLoop }))}>
               {label}
             </button>
           ))}
@@ -454,32 +463,82 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
           </select></label>}
         </div>
         {form.type === "world" && (
-          <div className="world-media-editor">
-            <div className="codex-field-grid codex-field-grid--four world-theme-editor-row">
-              <label className="codex-field">Шаблон мира<select value={form.theme || "midgard"} onChange={(event) => update("theme", event.target.value)}>
-                {WORLD_THEME_OPTIONS.filter((theme) => theme.value !== "archive").map((theme) => <option key={theme.value} value={theme.value}>{theme.label}</option>)}
-              </select></label>
-              <label className="codex-field">Кинематографичный фон<input value={form.backgroundVideo || ""} onChange={(event) => update("backgroundVideo", event.target.value)} placeholder="fire/fire-loop.webm" /></label>
-              <label className="codex-field">Poster / fallback<input value={form.backgroundPoster || ""} onChange={(event) => update("backgroundPoster", event.target.value)} placeholder="fire/fire-poster.jpg" /></label>
-              <label className="codex-field">Режим звука<select value={form.ambienceMode || "auto"} onChange={(event) => update("ambienceMode", event.target.value)}>
-                <option value="auto">auto · файл или мягкий preview</option>
-                <option value="file">только MP3/OGG</option>
-                <option value="synthetic">только мягкий preview</option>
-                <option value="off">выключить</option>
-              </select></label>
-              <label className="codex-field">Звук атмосферы<input value={form.ambienceAudio || ""} onChange={(event) => update("ambienceAudio", event.target.value)} placeholder="fire/fire-ambience.mp3" /></label>
-              <label className="codex-field">Название звука<input value={form.ambienceLabel || ""} onChange={(event) => update("ambienceLabel", event.target.value)} placeholder="Костёр и далёкий ветер" /></label>
-              <label className="codex-field">Credit звука<input value={form.ambienceCredits || ""} onChange={(event) => update("ambienceCredits", event.target.value)} placeholder="Freesound CC0 / Pixabay / свой файл" /></label>
-              <label className="codex-field">Credit фона<input value={form.backgroundCredits || ""} onChange={(event) => update("backgroundCredits", event.target.value)} placeholder="Mixkit / Pixabay / свой файл" /></label>
-              <label className="codex-field">URL источника фона<input value={form.backgroundSourceUrl || ""} onChange={(event) => update("backgroundSourceUrl", event.target.value)} placeholder="https://www.istockphoto.com/..." /></label>
-              <label className="codex-field">Музыка YouTube<select value={form.musicSource || "off"} onChange={(event) => update("musicSource", event.target.value)}>
-                <option value="off">выключено</option>
-                <option value="youtube">YouTube / YouTube Music</option>
-              </select></label>
-              <label className="codex-field">YouTube URL<input value={form.musicUrl || ""} onChange={(event) => update("musicUrl", event.target.value)} placeholder="https://music.youtube.com/watch?v=..." /></label>
-              <label className="codex-field">Название музыки<input value={form.musicLabel || ""} onChange={(event) => update("musicLabel", event.target.value)} placeholder="Музыка Эльдрана" /></label>
+          <div className="world-media-editor world-media-editor--simple">
+            <div className="world-media-group">
+              <div className="world-media-group-head"><strong>Фон мира</strong><span>Шаблон, картинка или WebM/MP4 loop.</span></div>
+              <div className="codex-field-grid codex-field-grid--four world-theme-editor-row">
+                <label className="codex-field">Шаблон мира<select value={form.theme || "midgard"} onChange={(event) => update("theme", event.target.value)}>
+                  {WORLD_THEME_OPTIONS.filter((theme) => theme.value !== "archive").map((theme) => <option key={theme.value} value={theme.value}>{theme.label}</option>)}
+                </select></label>
+                <label className="codex-field">Тип фона<select value={form.backgroundMode || "theme"} onChange={(event) => update("backgroundMode", event.target.value)}>
+                  <option value="theme">шаблон темы</option>
+                  <option value="image">картинка / wallpaper</option>
+                  <option value="video">видео WebM/MP4</option>
+                </select></label>
+                <label className="codex-field">Картинка / wallpaper<input value={form.backgroundImage || ""} onChange={(event) => update("backgroundImage", event.target.value)} placeholder="fire/fire-wallpaper.jpg или https://...jpg" /></label>
+                <label className="codex-field">Видео WebM/MP4<input value={form.backgroundVideo || ""} onChange={(event) => update("backgroundVideo", event.target.value)} placeholder="fire/fire-loop.webm" /></label>
+                <label className="codex-field">Poster / fallback<input value={form.backgroundPoster || ""} onChange={(event) => update("backgroundPoster", event.target.value)} placeholder="fire/fire-poster.jpg" /></label>
+                <label className="codex-field">Яркость 0–1<input type="number" value={form.backgroundOpacity ?? ""} onChange={(event) => update("backgroundOpacity", event.target.value)} placeholder="0.42" /></label>
+                <label className="codex-field">Затемнение 0–1<input type="number" value={form.backgroundDim ?? ""} onChange={(event) => update("backgroundDim", event.target.value)} placeholder="0.58" /></label>
+                <label className="codex-field">Blur px<input type="number" value={form.backgroundBlur ?? ""} onChange={(event) => update("backgroundBlur", event.target.value)} placeholder="0" /></label>
+              </div>
             </div>
-            <p className="builder-hint world-media-hint">Медиа-файлы храним локально в <code>apps/web/public/world-themes/&lt;theme&gt;/</code>. YouTube / YouTube Music открывается официальным встроенным плеером по ссылке; iStock/Pexels/Mixkit ссылки храним как source/credit, а фон играет только из локального лицензированного файла.</p>
+
+            <div className="world-media-group">
+              <div className="world-media-group-head"><strong>Атмосфера мира</strong><span>Тихий loop: огонь, ветер, лес, туман.</span></div>
+              <div className="codex-field-grid codex-field-grid--four world-theme-editor-row">
+                <label className="codex-field">Тип атмосферы<select value={form.ambienceMode || "auto"} onChange={(event) => update("ambienceMode", event.target.value)}>
+                  <option value="auto">auto · файл или мягкий preview</option>
+                  <option value="file">только MP3/OGG</option>
+                  <option value="synthetic">только мягкий preview</option>
+                  <option value="off">выключить</option>
+                </select></label>
+                <label className="codex-field">Файл атмосферы<input value={form.ambienceAudio || ""} onChange={(event) => update("ambienceAudio", event.target.value)} placeholder="fire/fire-ambience.mp3" /></label>
+                <label className="codex-field">Название атмосферы<input value={form.ambienceLabel || ""} onChange={(event) => update("ambienceLabel", event.target.value)} placeholder="Костёр и далёкий ветер" /></label>
+                <label className="codex-field">Автовключение<select value={String(form.ambienceAutoplay ?? false)} onChange={(event) => update("ambienceAutoplay", event.target.value === "true")}>
+                  <option value="false">нет · вручную</option>
+                  <option value="true">да · после разрешения звука</option>
+                </select></label>
+              </div>
+            </div>
+
+            <div className="world-media-group">
+              <div className="world-media-group-head"><strong>Музыка мира</strong><span>YouTube compact или local MP3/OGG без видео.</span></div>
+              <div className="codex-field-grid codex-field-grid--four world-theme-editor-row">
+                <label className="codex-field">Тип музыки<select value={form.musicSource || "off"} onChange={(event) => update("musicSource", event.target.value)}>
+                  <option value="off">выключено</option>
+                  <option value="youtube">YouTube / YouTube Music</option>
+                  <option value="local">local MP3/OGG</option>
+                </select></label>
+                <label className="codex-field">YouTube URL<input value={form.musicUrl || ""} onChange={(event) => update("musicUrl", event.target.value)} placeholder="https://music.youtube.com/watch?v=..." /></label>
+                <label className="codex-field">Local music MP3/OGG<input value={form.musicAudio || ""} onChange={(event) => update("musicAudio", event.target.value)} placeholder="fire/fire-theme.mp3" /></label>
+                <label className="codex-field">Название музыки<input value={form.musicLabel || ""} onChange={(event) => update("musicLabel", event.target.value)} placeholder="Музыка Эльдрана" /></label>
+                <label className="codex-field">Вид YouTube<select value={form.musicDisplay || "compact"} onChange={(event) => update("musicDisplay", event.target.value)}>
+                  <option value="compact">compact · без превью</option>
+                  <option value="mini">mini-player по кнопке</option>
+                </select></label>
+                <label className="codex-field">Автовключение local<select value={String(form.musicAutoplay ?? false)} onChange={(event) => update("musicAutoplay", event.target.value === "true")}>
+                  <option value="false">нет</option>
+                  <option value="true">да · после разрешения звука</option>
+                </select></label>
+                <label className="codex-field">Loop local<select value={String(form.musicLoop ?? true)} onChange={(event) => update("musicLoop", event.target.value === "true")}>
+                  <option value="true">да</option>
+                  <option value="false">нет</option>
+                </select></label>
+              </div>
+            </div>
+
+            <div className="world-media-group">
+              <div className="world-media-group-head"><strong>Credits / источники</strong><span>Только память об источнике. Эти поля сами не включают фон.</span></div>
+              <div className="codex-field-grid codex-field-grid--four world-theme-editor-row">
+                <label className="codex-field">Credit фона<input value={form.backgroundCredits || ""} onChange={(event) => update("backgroundCredits", event.target.value)} placeholder="Mixkit / Pixabay / iStock licensed" /></label>
+                <label className="codex-field">URL источника фона<input value={form.backgroundSourceUrl || ""} onChange={(event) => update("backgroundSourceUrl", event.target.value)} placeholder="https://..." /></label>
+                <label className="codex-field">Credit атмосферы<input value={form.ambienceCredits || ""} onChange={(event) => update("ambienceCredits", event.target.value)} placeholder="Freesound CC0 / свой файл" /></label>
+                <label className="codex-field">URL источника атмосферы<input value={form.ambienceSourceUrl || ""} onChange={(event) => update("ambienceSourceUrl", event.target.value)} placeholder="https://..." /></label>
+                <label className="codex-field">Credit музыки<input value={form.musicCredits || ""} onChange={(event) => update("musicCredits", event.target.value)} placeholder="YouTube / автор / свой файл" /></label>
+              </div>
+            </div>
+            <p className="builder-hint world-media-hint">Реальный фон задают поля <code>Картинка</code> или <code>Видео</code>. Source/Credit — это только заметка, чтобы не забыть лицензию и ссылку.</p>
           </div>
         )}
         <label className="codex-field">Краткое описание<textarea value={form.summary || ""} onChange={(event) => update("summary", event.target.value)} placeholder="1–3 строки: кто/что это и зачем мастеру помнить." /></label>

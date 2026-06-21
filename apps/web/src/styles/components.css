@@ -3646,3 +3646,133 @@ textarea { min-height: 96px; resize: vertical; }
     width: auto;
   }
 }
+
+/* Patch 4.2: simple media setup + compact music */
+.world-audio-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.local-music-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.local-music-toggle,
+.youtube-music-mini-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid rgba(var(--world-accent-rgb), 0.2);
+  border-radius: 8px;
+  color: var(--world-accent);
+  background: linear-gradient(135deg, rgba(var(--world-accent-rgb), 0.1), rgba(8, 7, 13, 0.58));
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.local-music-control--on .local-music-toggle,
+.local-music-toggle:hover,
+.youtube-music-mini-button:hover {
+  border-color: rgba(var(--world-accent-rgb), 0.42);
+  background: linear-gradient(135deg, rgba(var(--world-accent-rgb), 0.18), rgba(8, 7, 13, 0.72));
+  box-shadow: 0 0 20px rgba(var(--world-accent-rgb), 0.12);
+}
+
+.world-audio-permission {
+  color: var(--muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.youtube-music-popover--compact {
+  width: min(360px, 92vw);
+}
+
+.youtube-music-popover--compact iframe {
+  margin-top: 10px;
+  aspect-ratio: 16 / 6.5;
+}
+
+.youtube-music-copy {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.youtube-music-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.youtube-music-actions .youtube-music-open-link {
+  margin-top: 0;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid rgba(var(--world-accent-rgb), 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  text-decoration: none;
+}
+
+.world-media-editor--simple {
+  gap: 14px;
+}
+
+.world-media-group {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(var(--world-accent-rgb), 0.14);
+  border-radius: 16px;
+  background: rgba(8, 7, 13, 0.24);
+}
+
+.world-media-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px;
+}
+
+.world-media-group-head strong {
+  color: #fff7df;
+}
+
+.world-media-group-head span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-align: right;
+}
+
+@media (max-width: 720px) {
+  .world-audio-control,
+  .local-music-control {
+    width: 100%;
+  }
+
+  .local-music-toggle,
+  .youtube-music-mini-button,
+  .youtube-music-actions .youtube-music-open-link {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .world-media-group-head {
+    display: grid;
+    gap: 4px;
+  }
+
+  .world-media-group-head span {
+    text-align: left;
+  }
+}

@@ -156,8 +156,22 @@ function valueFromWorld(world, key) {
 
 function normalizeMusicSource(value = "") {
   const source = String(value || "").trim().toLowerCase();
-  if (["youtube", "off"].includes(source)) return source;
+  if (["youtube", "local", "off"].includes(source)) return source;
   return "off";
+}
+
+function normalizeBackgroundMode(value = "") {
+  const mode = String(value || "").trim().toLowerCase();
+  if (["theme", "image", "video"].includes(mode)) return mode;
+  return "theme";
+}
+
+function normalizeBoolean(value, fallback = false) {
+  if (typeof value === "boolean") return value;
+  const text = String(value ?? "").trim().toLowerCase();
+  if (["true", "1", "yes", "да", "on"].includes(text)) return true;
+  if (["false", "0", "no", "нет", "off"].includes(text)) return false;
+  return fallback;
 }
 
 function normalizeMediaPath(value = "") {
@@ -171,14 +185,22 @@ export function getWorldTheme(world = null) {
   const explicitTheme = valueFromWorld(world, "theme");
   const selectedKey = world ? normalizeThemeKey(explicitTheme || inferThemeKeyFromWorld(world)) : "archive";
   const base = BUILTIN_WORLD_THEMES[selectedKey] || BUILTIN_WORLD_THEMES.midgard;
+  const backgroundMode = normalizeBackgroundMode(valueFromWorld(world, "backgroundMode"));
   const backgroundVideo = normalizeMediaPath(valueFromWorld(world, "backgroundVideo") || valueFromWorld(world, "cinematicVideo") || "");
+  const backgroundImage = normalizeMediaPath(valueFromWorld(world, "backgroundImage") || "");
   const backgroundPoster = normalizeMediaPath(valueFromWorld(world, "backgroundPoster") || valueFromWorld(world, "cinematicPoster") || "");
   const ambienceAudio = normalizeMediaPath(valueFromWorld(world, "ambienceAudio") || valueFromWorld(world, "soundscape") || "");
   const ambienceLabel = valueFromWorld(world, "ambienceLabel") || base.ambience.label;
   const ambienceMode = String(valueFromWorld(world, "ambienceMode") || "auto").trim().toLowerCase();
-  const musicSource = normalizeMusicSource(valueFromWorld(world, "musicSource") || (valueFromWorld(world, "musicUrl") ? "youtube" : "off"));
+  const ambienceAutoplay = normalizeBoolean(valueFromWorld(world, "ambienceAutoplay"), false);
+  const rawMusicSource = valueFromWorld(world, "musicSource") || (valueFromWorld(world, "musicUrl") ? "youtube" : (valueFromWorld(world, "musicAudio") ? "local" : "off"));
+  const musicSource = normalizeMusicSource(rawMusicSource);
   const musicUrl = valueFromWorld(world, "musicUrl") || valueFromWorld(world, "youtubeMusicUrl") || valueFromWorld(world, "youtubeUrl") || "";
+  const musicAudio = normalizeMediaPath(valueFromWorld(world, "musicAudio") || valueFromWorld(world, "musicFile") || "");
   const musicLabel = valueFromWorld(world, "musicLabel") || valueFromWorld(world, "youtubeMusicLabel") || "Музыка мира";
+  const musicDisplay = String(valueFromWorld(world, "musicDisplay") || "compact").trim().toLowerCase();
+  const musicAutoplay = normalizeBoolean(valueFromWorld(world, "musicAutoplay"), false);
+  const musicLoop = normalizeBoolean(valueFromWorld(world, "musicLoop"), true);
   const customAccent = valueFromWorld(world, "accent");
   const backgroundOpacity = Number(valueFromWorld(world, "backgroundOpacity"));
   const backgroundBlur = Number(valueFromWorld(world, "backgroundBlur"));
@@ -190,7 +212,8 @@ export function getWorldTheme(world = null) {
     label: ambienceLabel || base.ambience.label,
     mode: ["auto", "file", "synthetic", "off"].includes(ambienceMode) ? ambienceMode : "auto",
     sourceUrl: valueFromWorld(world, "ambienceSourceUrl") || "",
-    credits: valueFromWorld(world, "ambienceCredits") || ""
+    credits: valueFromWorld(world, "ambienceCredits") || "",
+    autoplay: ambienceAutoplay
   };
   if (ambience.mode === "off") {
     ambience.kind = "none";
@@ -204,7 +227,9 @@ export function getWorldTheme(world = null) {
     ...base,
     inferred: Boolean(world && !explicitTheme),
     accent: customAccent || base.accent,
+    backgroundMode,
     backgroundVideo,
+    backgroundImage,
     backgroundPoster,
     backgroundOpacity: Number.isFinite(backgroundOpacity) ? backgroundOpacity : undefined,
     backgroundBlur: Number.isFinite(backgroundBlur) ? backgroundBlur : undefined,
@@ -215,7 +240,11 @@ export function getWorldTheme(world = null) {
     music: {
       source: musicSource,
       url: musicSource === "youtube" ? String(musicUrl || "").trim() : "",
+      audio: musicSource === "local" ? musicAudio : "",
       label: musicLabel || "Музыка мира",
+      display: ["compact", "mini"].includes(musicDisplay) ? musicDisplay : "compact",
+      autoplay: musicAutoplay,
+      loop: musicLoop,
       credits: valueFromWorld(world, "musicCredits") || "",
       sourceUrl: valueFromWorld(world, "musicSourceUrl") || musicUrl || ""
     }
