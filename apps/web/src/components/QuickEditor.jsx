@@ -6,6 +6,7 @@ import CodexButton from "./ui/CodexButton.jsx";
 import { labelCategory } from "../utils/labels.js";
 import { colorMapObjectType, labelMapObjectType, mapObjectTypes, pageToMapObjectType } from "../utils/mapTypes.js";
 import { articleTypes as types, categoryByType } from "./ArticleVisualEditor.jsx";
+import { citiesForContext, countriesForWorld, relationOptionsFromPages, tagOptionsFromPages, uniqueValues } from "../utils/controlledMetadata.js";
 
 
 const loreSubtypes = [
@@ -95,7 +96,7 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
   const [metadata, setMetadata] = useState({ pages: [], tags: [], worlds: [], countries: [], cities: [] });
   const [form, setForm] = useState({ type: "lore", loreSubtype: "general", visibility: "public", tags: [], related: [], mapObjects: [], name: initialTitle, world: initialWorld });
   const [mapDraft, setMapDraft] = useState(createEmptyMapDraft);
-  const [tagDraft, setTagDraft] = useState("");
+  const [relatedDraft, setRelatedDraft] = useState({ type: "npc", title: "" });
   const [localPreview, setLocalPreview] = useState({});
   const [message, setMessage] = useState("");
   const [ideaText, setIdeaText] = useState("");
@@ -115,12 +116,12 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
   const updateDraft = (patch) => setMapDraft((current) => ({ ...current, ...patch }));
   const selectedTypeLabel = useMemo(() => types.find(([value]) => value === form.type)?.[1] || "Статья", [form.type]);
-  const countries = metadata.countries.filter((page) => !form.world || page.world === form.world);
-  const cities = metadata.cities.filter((page) => {
-    const worldOk = !form.world || page.world === form.world;
-    const countryOk = !form.country || page.country === form.country;
-    return worldOk && countryOk;
-  });
+  const allMetadataPages = metadata.pages || [];
+  const worlds = metadata.worlds || [];
+  const countries = countriesForWorld(allMetadataPages, form.world);
+  const cities = citiesForContext(allMetadataPages, { world: form.world, country: form.country });
+  const tagOptions = tagOptionsFromPages(allMetadataPages, form.tags || metadata.tags || []);
+  const relationOptions = relationOptionsFromPages(allMetadataPages);
 
   function toggleArray(key, value) {
     setForm((current) => {
@@ -129,12 +130,48 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
     });
   }
 
-  function addTag() {
-    const tag = tagDraft.trim();
-    if (!tag) return;
-    if (!form.tags?.includes(tag)) update("tags", [...(form.tags || []), tag]);
-    setTagDraft("");
+  function updateWorld(value) {
+    setForm((current) => ({ ...current, world: value, country: "", city: "" }));
   }
+
+  function updateCountry(value) {
+    setForm((current) => ({ ...current, country: value, city: "" }));
+  }
+
+  async function createRelatedDraft() {
+    const title = relatedDraft.title.trim();
+    if (!title) {
+      setMessage("Введи название связанной статьи, которую нужно создать.");
+      return;
+    }
+
+    try {
+      const payload = {
+        type: relatedDraft.type || "lore",
+        name: title,
+        title,
+        visibility: form.visibility || "public",
+        world: form.type === "world" ? (form.name || form.title || "") : form.world,
+        country: ["world", "country"].includes(relatedDraft.type) ? "" : form.country,
+        city: ["world", "country", "city"].includes(relatedDraft.type) ? "" : form.city,
+        summary: `Заготовка, созданная из редактора: ${form.name || form.title || "новая статья"}.`,
+        related: uniqueValues([form.name || form.title].filter(Boolean))
+      };
+      const data = await api.createPage(payload);
+      const createdTitle = data.page?.title || title;
+      setForm((current) => ({
+        ...current,
+        related: uniqueValues([...(current.related || []), createdTitle])
+      }));
+      setRelatedDraft({ type: relatedDraft.type || "npc", title: "" });
+      setMessage(`Создана связанная статья: ${createdTitle}`);
+      onSaved?.();
+      api.metadata("gm").then(setMetadata).catch(() => {});
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
 
   async function uploadMedia(slot, event) {
     const file = event.target.files?.[0];
@@ -396,16 +433,16 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
             <option value="gm">gm · только мастеру</option>
             <option value="draft">draft · черновик</option>
           </select></label>
-          <label className="codex-field">Категория<select value={form.category || (form.type === "lore" ? loreCategoryBySubtype[form.loreSubtype || "general"] : categoryByType[form.type])} onChange={(event) => update("category", event.target.value)}>
+          <label className="codex-field">Системная категория<select value={form.category || (form.type === "lore" ? loreCategoryBySubtype[form.loreSubtype || "general"] : categoryByType[form.type])} disabled>
             {[...new Set([...Object.values(categoryByType), ...Object.values(loreCategoryBySubtype)])].map((category) => <option key={category} value={category}>{labelCategory(category)}</option>)}
           </select></label>
         </div>
         <div className="codex-field-grid codex-field-grid--four">
-          {visibleLocationFields(form.type).world && <label className="codex-field">Мир<select value={form.world || ""} onChange={(event) => { update("world", event.target.value); update("country", ""); update("city", ""); }}>
+          {visibleLocationFields(form.type).world && <label className="codex-field">Мир<select value={form.world || ""} onChange={(event) => updateWorld(event.target.value)}>
             <option value="">Без привязки к миру</option>
-            {metadata.worlds.map((page) => <option key={page.path} value={page.title}>{page.title}</option>)}
+            {worlds.map((page) => <option key={page.path} value={page.title}>{page.title}</option>)}
           </select></label>}
-          {visibleLocationFields(form.type).country && <label className="codex-field">Страна<select value={form.country || ""} onChange={(event) => { update("country", event.target.value); update("city", ""); }}>
+          {visibleLocationFields(form.type).country && <label className="codex-field">Страна<select value={form.country || ""} onChange={(event) => updateCountry(event.target.value)}>
             <option value="">Без привязки к стране</option>
             {countries.map((page) => <option key={page.path} value={page.title}>{page.title}</option>)}
           </select></label>}
@@ -433,26 +470,31 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
         <section className="builder-section two-col">
           <div>
             <span className="field-title">Теги из vault</span>
+            <p className="builder-hint">Теги больше не вводятся руками: выбирай только существующие, чтобы не плодить дубликаты.</p>
             <div className="choice-row">
-              {metadata.tags.map((tag) => (
+              {tagOptions.length === 0 && <span className="empty-inline-hint">В vault пока нет тегов.</span>}
+              {tagOptions.map((tag) => (
                 <button key={tag} type="button" className={form.tags?.includes(tag) ? "choice-pill active" : "choice-pill"} onClick={() => toggleArray("tags", tag)}>
                   {tag}
                 </button>
               ))}
             </div>
-            <div className="inline-add">
-              <input value={tagDraft} onChange={(event) => setTagDraft(event.target.value)} placeholder="Добавить новый тег" />
-              <button type="button" className="type-chip" onClick={addTag}>Добавить тег</button>
-            </div>
           </div>
           <div>
             <span className="field-title">Связанные статьи</span>
             <select value="" onChange={(event) => event.target.value && toggleArray("related", event.target.value)}>
-              <option value="">Добавить связь</option>
-              {metadata.pages.map((page) => <option key={page.path} value={page.title}>{optionLabel(page)}</option>)}
+              <option value="">Добавить существующую связь</option>
+              {relationOptions.map((page) => <option key={page.path} value={page.title}>{optionLabel(page)}</option>)}
             </select>
             <div className="choice-row">
               {(form.related || []).map((title) => <button key={title} type="button" className="choice-pill active" onClick={() => toggleArray("related", title)}>{title}</button>)}
+            </div>
+            <div className="inline-add controlled-create-row">
+              <select value={relatedDraft.type} onChange={(event) => setRelatedDraft((current) => ({ ...current, type: event.target.value }))}>
+                {types.filter(([value]) => value !== "world").map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+              <input value={relatedDraft.title} onChange={(event) => setRelatedDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Создать новую связанную статью" />
+              <button type="button" className="type-chip" onClick={createRelatedDraft}>Создать и связать</button>
             </div>
           </div>
         </section>

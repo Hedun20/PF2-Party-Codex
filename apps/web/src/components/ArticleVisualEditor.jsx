@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { Eye, FileCode2, Save, Sparkles, Wand2 } from "lucide-react";
 import MarkdownViewer from "./MarkdownViewer.jsx";
 import CodexButton from "./ui/CodexButton.jsx";
+import { api } from "../api/client.js";
 import { labelCategory } from "../utils/labels.js";
+import { asArray, citiesForContext, countriesForWorld, getWorldPages, relationOptionsFromPages, tagOptionsFromPages, uniqueValues } from "../utils/controlledMetadata.js";
 
 export const articleTypes = [
   ["world", "Мир"],
@@ -40,6 +42,18 @@ const visibilityOptions = [
   ["gm", "gm · только мастеру"],
   ["draft", "draft · черновик"]
 ];
+
+function visibleLocationFields(type) {
+  return {
+    world: type !== "world",
+    country: !["world", "country"].includes(type),
+    city: !["world", "country", "city"].includes(type)
+  };
+}
+
+function optionLabel(page) {
+  return `${page.title} · ${labelCategory(page.category)}`;
+}
 
 function splitList(value) {
   if (Array.isArray(value)) return value.join(", ");
@@ -284,17 +298,68 @@ export default function ArticleVisualEditor({
   onRawChange,
   onSaveStructured,
   onSaveRaw,
+  onLinkedPageCreated,
   message = ""
 }) {
   const [tab, setTab] = useState("visual");
+  const [linkedDraft, setLinkedDraft] = useState({ type: "npc", title: "" });
+  const [localMessage, setLocalMessage] = useState("");
   const fm = frontmatter || createFrontmatterDraft();
-  const typeLabel = useMemo(() => articleTypes.find(([value]) => value === fm.type)?.[1] || "Статья", [fm.type]);
+  const currentType = fm.type || "lore";
+  const typeLabel = useMemo(() => articleTypes.find(([value]) => value === currentType)?.[1] || "Статья", [currentType]);
+  const locationVisibility = visibleLocationFields(currentType);
+  const worlds = getWorldPages(pages);
+  const countries = countriesForWorld(pages, fm.world);
+  const cities = citiesForContext(pages, { world: fm.world, country: fm.country });
+  const tagOptions = tagOptionsFromPages(pages, fm.tags || []);
+  const relationOptions = relationOptionsFromPages(pages, path);
 
   const set = (key, value) => onFrontmatterChange?.({ ...fm, [key]: value });
-  const autoCategory = (type) => {
-    const next = { ...fm, type, category: categoryByType[type] || fm.category || "lore" };
-    onFrontmatterChange?.(next);
+  const setMany = (patch) => onFrontmatterChange?.({ ...fm, ...patch });
+  const toggleArrayValue = (key, value) => {
+    const list = asArray(fm[key]);
+    const next = list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
+    set(key, next);
   };
+  const updateWorld = (value) => setMany({ world: value, country: "", city: "" });
+  const updateCountry = (value) => setMany({ country: value, city: "" });
+  const changeType = (type) => {
+    const patch = { type, category: categoryByType[type] || fm.category || "lore" };
+    if (type === "world") { patch.world = ""; patch.country = ""; patch.city = ""; }
+    if (type === "country") { patch.country = ""; patch.city = ""; }
+    if (type === "city") patch.city = "";
+    onFrontmatterChange?.({ ...fm, ...patch });
+  };
+
+  async function createLinkedPage() {
+    const title = linkedDraft.title.trim();
+    if (!title) {
+      setLocalMessage("Введи название новой связанной статьи.");
+      return;
+    }
+
+    try {
+      const payload = {
+        type: linkedDraft.type || "lore",
+        name: title,
+        title,
+        visibility: fm.visibility || "public",
+        world: currentType === "world" ? (fm.title || fm.name || "") : fm.world,
+        country: ["world", "country"].includes(linkedDraft.type) ? "" : fm.country,
+        city: ["world", "country", "city"].includes(linkedDraft.type) ? "" : fm.city,
+        summary: `Заготовка, созданная из редактора: ${fm.title || fm.name || "статья"}.`,
+        related: uniqueValues([fm.title || fm.name].filter(Boolean))
+      };
+      const data = await api.createPage(payload);
+      const createdTitle = data.page?.title || title;
+      set("related", uniqueValues([...asArray(fm.related), createdTitle]));
+      setLinkedDraft({ type: linkedDraft.type || "npc", title: "" });
+      setLocalMessage(`Создана связанная статья: ${createdTitle}`);
+      onLinkedPageCreated?.();
+    } catch (error) {
+      setLocalMessage(error.message);
+    }
+  }
 
   return (
     <section className="article-editor-shell">
@@ -316,12 +381,12 @@ export default function ArticleVisualEditor({
 
           <Section title={`База: ${typeLabel}`} hint="Минимум полей сверху, детали ниже. Не заполняй лишнее, если оно не помогает игре.">
             <Field label="Тип статьи">
-              <select value={fm.type || "lore"} onChange={(event) => autoCategory(event.target.value)}>
+              <select value={currentType} onChange={(event) => changeType(event.target.value)}>
                 {articleTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </Field>
-            <Field label="Категория">
-              <select value={fm.category || categoryByType[fm.type] || "lore"} onChange={(event) => set("category", event.target.value)}>
+            <Field label="Системная категория">
+              <select value={fm.category || categoryByType[currentType] || "lore"} disabled>
                 {categories.map((category) => <option key={category} value={category}>{labelCategory(category)}</option>)}
               </select>
             </Field>
@@ -331,11 +396,59 @@ export default function ArticleVisualEditor({
                 {visibilityOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </Field>
-            <TextField label="Мир" value={fm.world} onChange={(value) => set("world", value)} />
-            <TextField label="Страна" value={fm.country} onChange={(value) => set("country", value)} />
-            <TextField label="Город" value={fm.city} onChange={(value) => set("city", value)} />
-            <ListField label="Теги" value={fm.tags} onChange={(value) => set("tags", value)} />
-            <ListField label="Связи" value={fm.related} onChange={(value) => set("related", value)} placeholder="Названия статей через запятую" />
+            {locationVisibility.world && (
+              <Field label="Мир">
+                <select value={fm.world || ""} onChange={(event) => updateWorld(event.target.value)}>
+                  <option value="">Без привязки к миру</option>
+                  {worlds.map((page) => <option key={page.path} value={page.title}>{page.title}</option>)}
+                </select>
+              </Field>
+            )}
+            {locationVisibility.country && (
+              <Field label="Страна">
+                <select value={fm.country || ""} onChange={(event) => updateCountry(event.target.value)}>
+                  <option value="">Без привязки к стране</option>
+                  {countries.map((page) => <option key={page.path} value={page.title}>{page.title}</option>)}
+                </select>
+              </Field>
+            )}
+            {locationVisibility.city && (
+              <Field label="Город">
+                <select value={fm.city || ""} onChange={(event) => set("city", event.target.value)}>
+                  <option value="">Без привязки к городу</option>
+                  {cities.map((page) => <option key={page.path} value={page.title}>{page.title}</option>)}
+                </select>
+              </Field>
+            )}
+            <div className="controlled-picker">
+              <span className="field-title">Теги из vault</span>
+              <p className="builder-hint">Без свободного ввода: выбирай существующие теги, чтобы не плодить дубликаты.</p>
+              <div className="choice-row">
+                {tagOptions.length === 0 && <span className="empty-inline-hint">В vault пока нет тегов.</span>}
+                {tagOptions.map((tag) => (
+                  <button key={tag} type="button" className={asArray(fm.tags).includes(tag) ? "choice-pill active" : "choice-pill"} onClick={() => toggleArrayValue("tags", tag)}>
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="controlled-picker controlled-picker--wide">
+              <span className="field-title">Связанные статьи</span>
+              <select value="" onChange={(event) => event.target.value && toggleArrayValue("related", event.target.value)}>
+                <option value="">Добавить существующую связь</option>
+                {relationOptions.map((page) => <option key={page.path} value={page.title}>{optionLabel(page)}</option>)}
+              </select>
+              <div className="choice-row">
+                {asArray(fm.related).map((title) => <button key={title} type="button" className="choice-pill active" onClick={() => toggleArrayValue("related", title)}>{title}</button>)}
+              </div>
+              <div className="inline-add controlled-create-row">
+                <select value={linkedDraft.type} onChange={(event) => setLinkedDraft((current) => ({ ...current, type: event.target.value }))}>
+                  {articleTypes.filter(([value]) => value !== "world").map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+                <input value={linkedDraft.title} onChange={(event) => setLinkedDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Создать новую связанную статью" />
+                <button type="button" className="type-chip" onClick={createLinkedPage}>Создать и связать</button>
+              </div>
+            </div>
             <TextArea label="Краткое описание" value={fm.summary} onChange={(value) => set("summary", value)} />
           </Section>
 
@@ -384,7 +497,7 @@ export default function ArticleVisualEditor({
         </section>
       )}
 
-      {message && <p className="save-message">{message}</p>}
+      {(message || localMessage) && <p className="save-message">{message || localMessage}</p>}
     </section>
   );
 }

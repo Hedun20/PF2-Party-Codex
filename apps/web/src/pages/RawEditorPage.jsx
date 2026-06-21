@@ -120,6 +120,7 @@ export default function RawEditorPage({ mode, onSaved, pages = [] }) {
         onRawChange={setRaw}
         onSaveStructured={saveStructured}
         onSaveRaw={saveRaw}
+        onLinkedPageCreated={onSaved}
         message={message}
       />
     </div>
