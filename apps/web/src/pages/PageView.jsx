@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { PenLine } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { PenLine, Trash2 } from "lucide-react";
 import { api } from "../api/client.js";
 import ArticleFactsPanel from "../components/ArticleFactsPanel.jsx";
 import HierarchyPanel from "../components/HierarchyPanel.jsx";
@@ -27,11 +27,14 @@ function LinkList({ title, items = [] }) {
   );
 }
 
-export default function PageView({ mode, pages = [] }) {
+export default function PageView({ mode, pages = [], onChanged }) {
   const { path } = useParams();
   const decodedPath = decodeURIComponent(path);
+  const navigate = useNavigate();
   const [page, setPage] = useState(null);
   const [error, setError] = useState("");
+  const [deleteMessage, setDeleteMessage] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     setError("");
@@ -40,6 +43,30 @@ export default function PageView({ mode, pages = [] }) {
       .then((data) => setPage(data.page))
       .catch(() => setError(decodedPath));
   }, [decodedPath, mode]);
+
+
+  async function deleteCurrentPage() {
+    if (!page || isDeleting) return;
+    const backlinkCount = page.backlinks?.length || 0;
+    const warning = backlinkCount
+      ? `\n\nНа статью есть обратные ссылки: ${backlinkCount}. Ссылки останутся как фантомные/ненаписанные, сам файл уйдёт в корзину.`
+      : "";
+    const confirmed = window.confirm(`Удалить статью «${page.title}»?${warning}\n\nФайл будет перемещён в _trash, не уничтожен навсегда.`);
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    setDeleteMessage("");
+    try {
+      const data = await api.deletePage(page.path);
+      await onChanged?.();
+      navigate(page.category ? `/category/${page.category}` : "/", { replace: true });
+      setDeleteMessage(`Статья перемещена в корзину: ${data.deleted.trashPath}`);
+    } catch (deleteError) {
+      setDeleteMessage(deleteError.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  }
 
   if (error) {
     return (
@@ -73,9 +100,14 @@ export default function PageView({ mode, pages = [] }) {
               <PenLine size={16} />
               <span>Редактировать</span>
             </CodexButton>
+            <CodexButton type="button" variant="danger" size="sm" onClick={deleteCurrentPage} disabled={isDeleting}>
+              <Trash2 size={16} />
+              <span>{isDeleting ? "Удаляю…" : "Удалить"}</span>
+            </CodexButton>
           </div>
         )}
       </header>
+      {deleteMessage && <div className="status-message danger-message">{deleteMessage}</div>}
       <PageMap page={page} mode={mode} />
       <div className="article-main-layout">
         <div className="article-main-content">

@@ -8,6 +8,7 @@ import {
   listPages,
   previewMarkdownImports,
   readRawPage,
+  deletePage,
   savePage,
   saveRawPage
 } from "../services/vaultService.js";
@@ -73,6 +74,16 @@ pagesRouter.put("/page", requireGm, async (req, res, next) => {
 pagesRouter.put("/page/raw", requireGm, async (req, res, next) => {
   try {
     res.json({ page: await saveRawPage(req.body) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+pagesRouter.delete("/page", requireGm, async (req, res, next) => {
+  try {
+    const deleted = await deletePage(req.query.path || req.body?.path);
+    if (!deleted) return res.status(404).json({ error: "Page not found" });
+    res.json({ deleted });
   } catch (error) {
     next(error);
   }

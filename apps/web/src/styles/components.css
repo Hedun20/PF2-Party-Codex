@@ -3138,3 +3138,17 @@ textarea { min-height: 96px; resize: vertical; }
   .maps-diagnostic-panel { grid-template-columns: 1fr; }
   .card-grid:has(.entity-card:hover) .entity-card:not(:hover) { opacity: 1; filter: none; }
 }
+
+.status-message {
+  padding: 12px 14px;
+  border: 1px solid rgba(227, 182, 95, 0.24);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgba(24, 18, 36, 0.74);
+}
+
+.danger-message {
+  border-color: rgba(255, 193, 171, 0.42);
+  color: #ffd8ca;
+  background: rgba(90, 20, 14, 0.34);
+}

@@ -16,7 +16,7 @@ const bootstrapDirs = [
   "worlds", "countries", "cities", "locations", "characters", "npcs", "enemies", "quests", "sessions",
   "lore", "lore/factions", "lore/gods", "lore/cults", "lore/history", "lore/planes",
   "lore/artifacts", "lore/magic", "lore/prophecies", "lore/timeline",
-  "maps", "timeline", "assets", "images", "handouts", "templates"
+  "maps", "timeline", "assets", "images", "handouts", "templates", "_trash"
 ];
 
 const starterFiles = {
@@ -432,6 +432,7 @@ async function ensureVaultBootstrap() {
 async function walk(dir) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   const nested = await Promise.all(entries.map(async (entry) => {
+    if (entry.name === "_trash") return [];
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) return walk(full);
     if (entry.isFile() && entry.name.endsWith(".md")) return [full];
@@ -641,6 +642,36 @@ export async function saveRawPage({ requestedPath, raw }) {
   await fs.writeFile(target, raw.endsWith("\n") ? raw : `${raw}\n`, "utf8");
   await rebuildVaultIndex();
   return getPage(safe, "gm");
+}
+
+function timestampForTrash(date = new Date()) {
+  return date.toISOString().replace(/[-:]/g, "").replace(/\..+$/, "Z");
+}
+
+export async function deletePage(requestedPath) {
+  const page = getPage(requestedPath, "gm");
+  if (!page) return null;
+
+  const safe = ensureMarkdownPath(page.path);
+  if (safe.startsWith("_trash/")) {
+    throw new Error("Статья уже находится в корзине");
+  }
+
+  const source = resolveInside(config.vaultDir, safe);
+  const trashPath = normalizeVaultPath(path.join("_trash", `deleted-${timestampForTrash()}`, safe));
+  const target = resolveInside(config.vaultDir, trashPath);
+
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.rename(source, target);
+  await rebuildVaultIndex();
+
+  return {
+    title: page.title,
+    originalPath: safe,
+    trashPath,
+    backlinkCount: page.backlinks?.length || 0,
+    backlinks: page.backlinks || []
+  };
 }
 
 export function previewMarkdownImports(files = []) {

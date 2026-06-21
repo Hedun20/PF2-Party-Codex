@@ -25,6 +25,7 @@ export const api = {
   createPage: (payload) => request("/page", { method: "POST", body: JSON.stringify(payload) }),
   savePage: (payload) => request("/page", { method: "PUT", body: JSON.stringify(payload) }),
   saveRawPage: (payload) => request("/page/raw", { method: "PUT", body: JSON.stringify(payload) }),
+  deletePage: (path) => request(`/page?path=${encodeURIComponent(path)}`, { method: "DELETE" }),
   markdownImportPreview: (formData) => request("/markdown/import/preview", { method: "POST", body: formData }),
   markdownImportCommit: (payload) => request("/markdown/import/commit", { method: "POST", body: JSON.stringify(payload) }),
   metadata: (mode) => request(`/metadata?mode=${mode}`),

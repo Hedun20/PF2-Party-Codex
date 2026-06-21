@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 import { api } from "../api/client.js";
 import ArticleVisualEditor from "../components/ArticleVisualEditor.jsx";
 import CodexButton from "../components/ui/CodexButton.jsx";
@@ -34,6 +34,22 @@ export default function RawEditorPage({ mode, onSaved, pages = [] }) {
       setMessage(`Markdown сохранён: ${data.page.path}`);
       onSaved?.();
       navigate(`/page/${encodeURIComponent(data.page.path)}`);
+    } catch (error) {
+      setMessage(error.message);
+    }
+  }
+
+
+  async function deleteCurrentPage() {
+    if (!page) return;
+    const confirmed = window.confirm(`Удалить статью «${page.title}»?\n\nФайл будет перемещён в _trash, не уничтожен навсегда.`);
+    if (!confirmed) return;
+
+    try {
+      const data = await api.deletePage(page.path);
+      setMessage(`Статья перемещена в корзину: ${data.deleted.trashPath}`);
+      onSaved?.();
+      navigate(page.category ? `/category/${page.category}` : "/", { replace: true });
     } catch (error) {
       setMessage(error.message);
     }
@@ -85,6 +101,9 @@ export default function RawEditorPage({ mode, onSaved, pages = [] }) {
         <div className="editor-actions article-header-actions">
           <CodexButton as={Link} variant="secondary" to={`/page/${encodeURIComponent(decodedPath)}`}>
             <ArrowLeft size={16} /> Вернуться к статье
+          </CodexButton>
+          <CodexButton type="button" variant="danger" onClick={deleteCurrentPage}>
+            <Trash2 size={16} /> Удалить
           </CodexButton>
         </div>
       </header>

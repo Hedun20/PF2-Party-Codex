@@ -160,3 +160,27 @@
   .sidebar { min-height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
   .content-stage { width: min(100% - 28px, 1180px); }
 }
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  border: 0;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.42);
+  cursor: pointer;
+}
+
+.sidebar-open::after {
+  content: none;
+}
+
+.sidebar-head {
+  position: sticky;
+  top: -24px;
+  z-index: 3;
+  padding: 24px 0 16px;
+  margin-top: -24px;
+  background: linear-gradient(180deg, rgba(8, 7, 13, 0.98), rgba(8, 7, 13, 0.9));
+  backdrop-filter: blur(18px);
+}

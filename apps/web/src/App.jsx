@@ -60,7 +60,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<DashboardPage pages={pages} dashboard={dashboard} mode={effectiveMode} session={session} />} />
         <Route path="/category/:category/*" element={<CategoryPage pages={pages} mode={effectiveMode} />} />
-        <Route path="/page/:path" element={<PageView mode={effectiveMode} pages={pages} />} />
+        <Route path="/page/:path" element={<PageView mode={effectiveMode} pages={pages} onChanged={refresh} />} />
         <Route path="/editor" element={<EditorPage onSaved={refresh} session={session} />} />
         <Route path="/edit/:path" element={<RawEditorPage mode={effectiveMode} onSaved={refresh} pages={pages} />} />
         <Route path="/missing" element={<MissingLinksPage mode={effectiveMode} />} />
