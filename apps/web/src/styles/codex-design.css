@@ -1155,3 +1155,139 @@
     justify-content: flex-start;
   }
 }
+
+/* Patch 2.3: readable native select controls for controlled metadata editors */
+:where(
+  .codex-field,
+  .codex-section-field,
+  .editor-form label,
+  .tool-panel label,
+  .visual-editor-section label,
+  .controlled-picker,
+  .timeline-control,
+  .timeline-filter-box,
+  .world-context-switcher
+) select {
+  min-height: 42px;
+  padding: 10px 38px 10px 12px;
+  border: 1px solid rgba(240, 206, 122, 0.32);
+  border-radius: 10px;
+  color: #fff6df;
+  background-color: #18111f;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(240, 206, 122, 0.98) 50%),
+    linear-gradient(135deg, rgba(240, 206, 122, 0.98) 50%, transparent 50%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.018));
+  background-position:
+    calc(100% - 18px) 52%,
+    calc(100% - 12px) 52%,
+    0 0;
+  background-size: 6px 6px, 6px 6px, 100% 100%;
+  background-repeat: no-repeat;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 0 0 1px rgba(0, 0, 0, 0.16);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  text-shadow: none;
+}
+
+:where(
+  .codex-field,
+  .codex-section-field,
+  .editor-form label,
+  .tool-panel label,
+  .visual-editor-section label,
+  .controlled-picker,
+  .timeline-control,
+  .timeline-filter-box,
+  .world-context-switcher
+) select:hover {
+  border-color: rgba(240, 206, 122, 0.48);
+  background-color: #21172b;
+}
+
+:where(
+  .codex-field,
+  .codex-section-field,
+  .editor-form label,
+  .tool-panel label,
+  .visual-editor-section label,
+  .controlled-picker,
+  .timeline-control,
+  .timeline-filter-box,
+  .world-context-switcher
+) select:focus {
+  outline: 2px solid rgba(240, 206, 122, 0.28);
+  outline-offset: 2px;
+  border-color: rgba(240, 206, 122, 0.7);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 4px rgba(240, 206, 122, 0.1),
+    0 16px 32px rgba(0, 0, 0, 0.2);
+}
+
+:where(
+  .codex-field,
+  .codex-section-field,
+  .editor-form label,
+  .tool-panel label,
+  .visual-editor-section label,
+  .controlled-picker,
+  .timeline-control,
+  .timeline-filter-box,
+  .world-context-switcher
+) select:disabled {
+  color: rgba(229, 213, 183, 0.74);
+  border-color: rgba(227, 182, 95, 0.14);
+  background-color: rgba(24, 17, 31, 0.58);
+  cursor: not-allowed;
+  opacity: 0.82;
+}
+
+:where(
+  .codex-field,
+  .codex-section-field,
+  .editor-form label,
+  .tool-panel label,
+  .visual-editor-section label,
+  .controlled-picker,
+  .timeline-control,
+  .timeline-filter-box,
+  .world-context-switcher
+) select option,
+:where(
+  .codex-field,
+  .codex-section-field,
+  .editor-form label,
+  .tool-panel label,
+  .visual-editor-section label,
+  .controlled-picker,
+  .timeline-control,
+  .timeline-filter-box,
+  .world-context-switcher
+) select optgroup {
+  color: #fff6df;
+  background: #17111f;
+}
+
+:where(
+  .codex-field,
+  .codex-section-field,
+  .editor-form label,
+  .tool-panel label,
+  .visual-editor-section label,
+  .controlled-picker,
+  .timeline-control,
+  .timeline-filter-box,
+  .world-context-switcher
+) select option:checked {
+  color: #130e17;
+  background: #f0ce7a;
+}
+
+.world-context-switcher select {
+  width: min(260px, 30vw);
+  font-weight: 850;
+}
