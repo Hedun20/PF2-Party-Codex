@@ -3488,3 +3488,161 @@ textarea { min-height: 96px; resize: vertical; }
     width: 100%;
   }
 }
+
+/* Patch 4: media polish controls */
+.ambience-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid rgba(var(--world-accent-rgb), 0.18);
+  border-radius: 8px;
+  color: var(--world-accent);
+  background: rgba(8, 7, 13, 0.5);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ambience-source:hover {
+  background: rgba(var(--world-accent-rgb), 0.12);
+}
+
+.ambience-error {
+  font-size: 0.72rem;
+  color: #fbbf24;
+  white-space: nowrap;
+}
+
+.world-media-editor {
+  display: grid;
+  gap: 8px;
+}
+
+.world-media-hint {
+  margin: 0;
+  padding: 0 4px;
+}
+
+.world-media-hint code {
+  color: var(--world-accent);
+  background: rgba(var(--world-accent-rgb), 0.08);
+  border: 1px solid rgba(var(--world-accent-rgb), 0.16);
+  border-radius: 6px;
+  padding: 1px 5px;
+}
+
+@media (max-width: 720px) {
+  .ambience-source,
+  .ambience-error {
+    flex: 1 1 100%;
+  }
+}
+
+/* Patch 4.1: YouTube / YouTube Music embed player */
+.youtube-music-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.youtube-music-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  max-width: 220px;
+  padding: 7px 10px;
+  border: 1px solid rgba(var(--world-accent-rgb), 0.2);
+  border-radius: 8px;
+  color: var(--world-accent);
+  background: linear-gradient(135deg, rgba(var(--world-accent-rgb), 0.1), rgba(8, 7, 13, 0.58));
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.youtube-music-toggle span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.youtube-music-toggle:hover,
+.youtube-music-toggle.active {
+  border-color: rgba(var(--world-accent-rgb), 0.42);
+  background: linear-gradient(135deg, rgba(var(--world-accent-rgb), 0.18), rgba(8, 7, 13, 0.72));
+  box-shadow: 0 0 20px rgba(var(--world-accent-rgb), 0.12);
+}
+
+.youtube-music-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 80;
+  width: min(420px, 92vw);
+  padding: 10px;
+  border: 1px solid rgba(var(--world-accent-rgb), 0.28);
+  border-radius: 16px;
+  background: rgba(11, 9, 17, 0.96);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42), 0 0 34px rgba(var(--world-accent-rgb), 0.12);
+  backdrop-filter: blur(18px);
+}
+
+.youtube-music-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  color: #fff7df;
+  font-size: 0.88rem;
+}
+
+.youtube-music-popover-head button {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+
+.youtube-music-popover iframe {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 12px;
+  background: #000;
+}
+
+.youtube-music-open-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--world-accent);
+  font-size: 0.82rem;
+  text-decoration: none;
+}
+
+.youtube-music-open-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 720px) {
+  .youtube-music-control,
+  .youtube-music-toggle {
+    width: 100%;
+  }
+
+  .youtube-music-popover {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    top: 74px;
+    width: auto;
+  }
+}

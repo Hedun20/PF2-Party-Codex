@@ -23,7 +23,7 @@ const BUILTIN_WORLD_THEMES = {
     backgroundClass: "world-bg-fire",
     icon: "flame",
     particles: "embers",
-    ambience: { kind: "fire", label: "Треск огня", defaultVolume: 0.18 }
+    ambience: { kind: "fire", label: "Мягкий огонь", defaultVolume: 0.08 }
   },
   frost: {
     key: "frost",
@@ -36,7 +36,7 @@ const BUILTIN_WORLD_THEMES = {
     backgroundClass: "world-bg-frost",
     icon: "snowflake",
     particles: "snow",
-    ambience: { kind: "wind", label: "Ледяной ветер", defaultVolume: 0.14 }
+    ambience: { kind: "wind", label: "Мягкий ледяной ветер", defaultVolume: 0.07 }
   },
   arcane: {
     key: "arcane",
@@ -49,7 +49,7 @@ const BUILTIN_WORLD_THEMES = {
     backgroundClass: "world-bg-arcane",
     icon: "sparkles",
     particles: "runes",
-    ambience: { kind: "arcane", label: "Астральный гул", defaultVolume: 0.12 }
+    ambience: { kind: "arcane", label: "Мягкий астральный фон", defaultVolume: 0.065 }
   },
   celestial: {
     key: "celestial",
@@ -62,7 +62,7 @@ const BUILTIN_WORLD_THEMES = {
     backgroundClass: "world-bg-celestial",
     icon: "sun",
     particles: "motes",
-    ambience: { kind: "celestial", label: "Небесный резонанс", defaultVolume: 0.1 }
+    ambience: { kind: "celestial", label: "Небесный фон", defaultVolume: 0.055 }
   },
   infernal: {
     key: "infernal",
@@ -75,7 +75,7 @@ const BUILTIN_WORLD_THEMES = {
     backgroundClass: "world-bg-infernal",
     icon: "skull",
     particles: "ash",
-    ambience: { kind: "infernal", label: "Пепельный гул", defaultVolume: 0.12 }
+    ambience: { kind: "infernal", label: "Низкий адский фон", defaultVolume: 0.06 }
   },
   midgard: {
     key: "midgard",
@@ -88,7 +88,7 @@ const BUILTIN_WORLD_THEMES = {
     backgroundClass: "world-bg-midgard",
     icon: "leaf",
     particles: "leaves",
-    ambience: { kind: "forest", label: "Лесной ветер", defaultVolume: 0.14 }
+    ambience: { kind: "forest", label: "Лесной фон", defaultVolume: 0.07 }
   },
   death: {
     key: "death",
@@ -101,7 +101,7 @@ const BUILTIN_WORLD_THEMES = {
     backgroundClass: "world-bg-death",
     icon: "ghost",
     particles: "souls",
-    ambience: { kind: "death", label: "Туман и далёкие души", defaultVolume: 0.11 }
+    ambience: { kind: "death", label: "Тихий туман", defaultVolume: 0.055 }
   }
 };
 
@@ -153,6 +153,13 @@ function valueFromWorld(world, key) {
   return world?.[key] ?? world?.frontmatter?.[key] ?? "";
 }
 
+
+function normalizeMusicSource(value = "") {
+  const source = String(value || "").trim().toLowerCase();
+  if (["youtube", "off"].includes(source)) return source;
+  return "off";
+}
+
 function normalizeMediaPath(value = "") {
   const path = String(value || "").trim();
   if (!path) return "";
@@ -168,7 +175,30 @@ export function getWorldTheme(world = null) {
   const backgroundPoster = normalizeMediaPath(valueFromWorld(world, "backgroundPoster") || valueFromWorld(world, "cinematicPoster") || "");
   const ambienceAudio = normalizeMediaPath(valueFromWorld(world, "ambienceAudio") || valueFromWorld(world, "soundscape") || "");
   const ambienceLabel = valueFromWorld(world, "ambienceLabel") || base.ambience.label;
+  const ambienceMode = String(valueFromWorld(world, "ambienceMode") || "auto").trim().toLowerCase();
+  const musicSource = normalizeMusicSource(valueFromWorld(world, "musicSource") || (valueFromWorld(world, "musicUrl") ? "youtube" : "off"));
+  const musicUrl = valueFromWorld(world, "musicUrl") || valueFromWorld(world, "youtubeMusicUrl") || valueFromWorld(world, "youtubeUrl") || "";
+  const musicLabel = valueFromWorld(world, "musicLabel") || valueFromWorld(world, "youtubeMusicLabel") || "Музыка мира";
   const customAccent = valueFromWorld(world, "accent");
+  const backgroundOpacity = Number(valueFromWorld(world, "backgroundOpacity"));
+  const backgroundBlur = Number(valueFromWorld(world, "backgroundBlur"));
+  const backgroundDim = Number(valueFromWorld(world, "backgroundDim"));
+
+  const ambience = {
+    ...base.ambience,
+    src: ambienceAudio,
+    label: ambienceLabel || base.ambience.label,
+    mode: ["auto", "file", "synthetic", "off"].includes(ambienceMode) ? ambienceMode : "auto",
+    sourceUrl: valueFromWorld(world, "ambienceSourceUrl") || "",
+    credits: valueFromWorld(world, "ambienceCredits") || ""
+  };
+  if (ambience.mode === "off") {
+    ambience.kind = "none";
+    ambience.src = "";
+  }
+  if (ambience.mode === "file" && !ambience.src) {
+    ambience.kind = "none";
+  }
 
   return {
     ...base,
@@ -176,10 +206,18 @@ export function getWorldTheme(world = null) {
     accent: customAccent || base.accent,
     backgroundVideo,
     backgroundPoster,
-    ambience: {
-      ...base.ambience,
-      src: ambienceAudio,
-      label: ambienceLabel || base.ambience.label
+    backgroundOpacity: Number.isFinite(backgroundOpacity) ? backgroundOpacity : undefined,
+    backgroundBlur: Number.isFinite(backgroundBlur) ? backgroundBlur : undefined,
+    backgroundDim: Number.isFinite(backgroundDim) ? backgroundDim : undefined,
+    backgroundSourceUrl: valueFromWorld(world, "backgroundSourceUrl") || "",
+    backgroundCredits: valueFromWorld(world, "backgroundCredits") || "",
+    ambience,
+    music: {
+      source: musicSource,
+      url: musicSource === "youtube" ? String(musicUrl || "").trim() : "",
+      label: musicLabel || "Музыка мира",
+      credits: valueFromWorld(world, "musicCredits") || "",
+      sourceUrl: valueFromWorld(world, "musicSourceUrl") || musicUrl || ""
     }
   };
 }

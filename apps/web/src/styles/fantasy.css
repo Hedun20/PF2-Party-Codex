@@ -359,3 +359,16 @@
 .app-shell .primary-link {
   color: var(--world-accent);
 }
+
+/* Patch 4: media opacity/blur/dim tuning */
+.cinematic-world-bg__video,
+.cinematic-world-bg__poster {
+  opacity: var(--cinematic-media-opacity, 0.46);
+  filter: saturate(1.12) contrast(1.05) brightness(0.72) blur(var(--cinematic-media-blur, 0px));
+}
+
+.cinematic-world-bg__vignette {
+  background:
+    radial-gradient(circle at 50% 36%, transparent 0 38%, rgba(0, 0, 0, calc(var(--cinematic-dim, 0.58) * 0.45)) 68%, rgba(0, 0, 0, calc(var(--cinematic-dim, 0.58) + 0.14)) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, calc(var(--cinematic-dim, 0.58) * 0.58)), rgba(0, 0, 0, 0.16) 42%, rgba(0, 0, 0, var(--cinematic-dim, 0.58)));
+}

@@ -222,6 +222,7 @@ function normalizeFrontmatter(entry, maps) {
     set("country", "");
     set("city", "");
     set("theme", fm.theme || inferTheme(entry));
+    set("ambienceMode", fm.ambienceMode || "auto");
     return { frontmatter: fm, changes };
   }
 
