@@ -1,10 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import CommandSearch from "./CommandSearch.jsx";
 import ModeToggle from "./ModeToggle.jsx";
+import WorldAmbienceControl from "./world/WorldAmbienceControl.jsx";
 import { Archive, Menu } from "lucide-react";
 import { getWorlds, worldRoute, worldSlug } from "../utils/worldContext.js";
 
-export default function CodexTopbar({ mode, setMode, session, pages, allPages, query, setQuery, onSelectPage, sidebarOpen, setSidebarOpen, activeWorld }) {
+export default function CodexTopbar({ mode, setMode, session, pages, allPages, query, setQuery, onSelectPage, sidebarOpen, setSidebarOpen, activeWorld, worldTheme }) {
   const navigate = useNavigate();
   const sourcePages = allPages || pages;
   const worlds = getWorlds(sourcePages);
@@ -34,6 +35,7 @@ export default function CodexTopbar({ mode, setMode, session, pages, allPages, q
       </div>
       <CommandSearch pages={pages} query={query} setQuery={setQuery} onSelectPage={onSelectPage} />
       <div className="top-info">
+        <WorldAmbienceControl theme={worldTheme} />
         <span><strong>{worldCount}</strong> миров</span>
         <span><strong>{publicCount}</strong> публично</span>
         <span>{activeWorld ? `Мир: ${activeWorld.title}` : "Общий Архив"}</span>

@@ -5,6 +5,7 @@ import CodexButton from "./ui/CodexButton.jsx";
 import { api } from "../api/client.js";
 import { labelCategory } from "../utils/labels.js";
 import { asArray, citiesForContext, countriesForWorld, getWorldPages, relationOptionsFromPages, tagOptionsFromPages, uniqueValues } from "../utils/controlledMetadata.js";
+import { WORLD_THEME_OPTIONS } from "../theme/worldThemes.js";
 
 export const articleTypes = [
   ["world", "Мир"],
@@ -159,8 +160,17 @@ function EnemyFields({ fm, set }) {
 
 function WorldFields({ fm, set }) {
   return (
-    <Section title="Мир" hint="Мир должен задавать тон и правила, а не быть просто папкой.">
+    <Section title="Мир" hint="Мир должен задавать тон, правила и визуальную атмосферу.">
+      <Field label="Шаблон мира">
+        <select value={fm.theme || "midgard"} onChange={(event) => set("theme", event.target.value)}>
+          {WORLD_THEME_OPTIONS.filter((theme) => theme.value !== "archive").map((theme) => <option key={theme.value} value={theme.value}>{theme.label}</option>)}
+        </select>
+      </Field>
       <TextField label="Жанр / тон" value={fm.tone} onChange={(value) => set("tone", value)} placeholder="dark fantasy, planar, морское приключение" />
+      <TextField label="Кинематографичный фон WebM/MP4" value={fm.backgroundVideo} onChange={(value) => set("backgroundVideo", value)} placeholder="fire/fire-loop.webm или /world-themes/fire/fire-loop.webm" />
+      <TextField label="Poster / fallback image" value={fm.backgroundPoster} onChange={(value) => set("backgroundPoster", value)} placeholder="fire/fire-poster.jpg" />
+      <TextField label="Звук атмосферы MP3/OGG" value={fm.ambienceAudio} onChange={(value) => set("ambienceAudio", value)} placeholder="fire/fire-ambience.mp3" />
+      <TextField label="Название звука" value={fm.ambienceLabel} onChange={(value) => set("ambienceLabel", value)} placeholder="Треск огня и лава" />
       <TextArea label="Космология / план" value={fm.cosmology} onChange={(value) => set("cosmology", value)} />
       <TextArea label="Магические правила" value={fm.magicRules} onChange={(value) => set("magicRules", value)} />
       <TextArea label="Главные конфликты" value={fm.conflicts} onChange={(value) => set("conflicts", value)} />

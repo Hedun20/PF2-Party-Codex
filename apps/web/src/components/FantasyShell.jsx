@@ -1,13 +1,21 @@
 import { useState } from "react";
 import CodexSidebar from "./CodexSidebar.jsx";
 import CodexTopbar from "./CodexTopbar.jsx";
+import CinematicWorldBackground from "./world/CinematicWorldBackground.jsx";
+import { getThemeStyle, getWorldTheme } from "../theme/worldThemes.js";
 
 export default function FantasyShell({ children, ...props }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const worldTheme = getWorldTheme(props.activeWorld);
+  const shellClassName = [
+    "app-shell",
+    sidebarOpen ? "sidebar-open" : "sidebar-closed",
+    `world-theme-${worldTheme.key}`
+  ].join(" ");
 
   return (
-    <div className={sidebarOpen ? "app-shell sidebar-open" : "app-shell sidebar-closed"}>
-      <div className="ambient" />
+    <div className={shellClassName} data-world-theme={worldTheme.key} style={getThemeStyle(worldTheme)}>
+      <CinematicWorldBackground theme={worldTheme} />
       {sidebarOpen && (
         <button
           type="button"
@@ -18,7 +26,7 @@ export default function FantasyShell({ children, ...props }) {
       )}
       <CodexSidebar categories={props.categories} canEdit={Boolean(props.session?.canEdit)} activeWorld={props.activeWorld} onClose={() => setSidebarOpen(false)} />
       <main className="main-stage">
-        <CodexTopbar {...props} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+        <CodexTopbar {...props} worldTheme={worldTheme} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
         <section className="content-stage">{children}</section>
       </main>
     </div>

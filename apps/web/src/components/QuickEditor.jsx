@@ -7,6 +7,7 @@ import { labelCategory } from "../utils/labels.js";
 import { colorMapObjectType, labelMapObjectType, mapObjectTypes, pageToMapObjectType } from "../utils/mapTypes.js";
 import { articleTypes as types, categoryByType } from "./ArticleVisualEditor.jsx";
 import { citiesForContext, countriesForWorld, relationOptionsFromPages, tagOptionsFromPages, uniqueValues } from "../utils/controlledMetadata.js";
+import { WORLD_THEME_OPTIONS } from "../theme/worldThemes.js";
 
 
 const loreSubtypes = [
@@ -451,6 +452,16 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
             {cities.map((page) => <option key={page.path} value={page.title}>{page.title}</option>)}
           </select></label>}
         </div>
+        {form.type === "world" && (
+          <div className="codex-field-grid codex-field-grid--four world-theme-editor-row">
+            <label className="codex-field">Шаблон мира<select value={form.theme || "midgard"} onChange={(event) => update("theme", event.target.value)}>
+              {WORLD_THEME_OPTIONS.filter((theme) => theme.value !== "archive").map((theme) => <option key={theme.value} value={theme.value}>{theme.label}</option>)}
+            </select></label>
+            <label className="codex-field">Кинематографичный фон<input value={form.backgroundVideo || ""} onChange={(event) => update("backgroundVideo", event.target.value)} placeholder="fire/fire-loop.webm" /></label>
+            <label className="codex-field">Poster / fallback<input value={form.backgroundPoster || ""} onChange={(event) => update("backgroundPoster", event.target.value)} placeholder="fire/fire-poster.jpg" /></label>
+            <label className="codex-field">Звук атмосферы<input value={form.ambienceAudio || ""} onChange={(event) => update("ambienceAudio", event.target.value)} placeholder="fire/fire-ambience.mp3" /></label>
+          </div>
+        )}
         <label className="codex-field">Краткое описание<textarea value={form.summary || ""} onChange={(event) => update("summary", event.target.value)} placeholder="1–3 строки: кто/что это и зачем мастеру помнить." /></label>
         <label className="codex-field gm-secret-field">
           GM-секреты

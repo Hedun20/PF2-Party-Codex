@@ -184,3 +184,178 @@
   background: linear-gradient(180deg, rgba(8, 7, 13, 0.98), rgba(8, 7, 13, 0.9));
   backdrop-filter: blur(18px);
 }
+
+/* Patch 3: cinematic world themes */
+.cinematic-world-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  background: #08070d;
+  isolation: isolate;
+}
+
+.cinematic-world-bg__video,
+.cinematic-world-bg__poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.46;
+  filter: saturate(1.12) contrast(1.05) brightness(0.72);
+  transform: scale(1.02);
+}
+
+.cinematic-world-bg__gradient,
+.cinematic-world-bg__particles,
+.cinematic-world-bg__vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cinematic-world-bg__gradient {
+  background:
+    repeating-linear-gradient(90deg, rgba(var(--world-accent-rgb), 0.035) 0 1px, transparent 1px 92px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 92px),
+    radial-gradient(circle at 22% 18%, rgba(var(--world-accent-rgb), 0.23), transparent 34%),
+    radial-gradient(circle at 84% 8%, rgba(168, 85, 247, 0.13), transparent 28%),
+    linear-gradient(135deg, var(--world-shadow), rgba(8, 7, 13, 0.92) 48%, rgba(3, 2, 8, 0.95));
+  animation: cinematic-breathe 18s ease-in-out infinite alternate;
+}
+
+.cinematic-world-bg__particles {
+  opacity: 0.68;
+  background-image:
+    radial-gradient(circle, rgba(var(--world-accent-rgb), 0.64) 0 1px, transparent 2px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.22) 0 1px, transparent 2px);
+  background-size: 92px 92px, 156px 156px;
+  background-position: 0 0, 48px 72px;
+  animation: cinematic-drift 32s linear infinite;
+  mix-blend-mode: screen;
+}
+
+.cinematic-world-bg__vignette {
+  background:
+    radial-gradient(circle at 50% 36%, transparent 0 38%, rgba(0, 0, 0, 0.26) 68%, rgba(0, 0, 0, 0.72) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.16) 42%, rgba(0, 0, 0, 0.58));
+}
+
+.world-bg-archive .cinematic-world-bg__gradient {
+  background:
+    repeating-linear-gradient(90deg, rgba(227, 182, 95, 0.035) 0 1px, transparent 1px 88px),
+    repeating-linear-gradient(0deg, rgba(168, 85, 247, 0.028) 0 1px, transparent 1px 88px),
+    radial-gradient(circle at 22% 18%, rgba(143, 73, 221, 0.2), transparent 32%),
+    radial-gradient(circle at 82% 8%, rgba(229, 75, 180, 0.13), transparent 28%),
+    linear-gradient(135deg, #08070d 0%, #12101c 48%, #09080f 100%);
+}
+
+.world-bg-fire .cinematic-world-bg__gradient {
+  background:
+    radial-gradient(circle at 18% 72%, rgba(255, 104, 25, 0.3), transparent 27%),
+    radial-gradient(circle at 78% 18%, rgba(252, 59, 25, 0.22), transparent 28%),
+    linear-gradient(145deg, rgba(35, 6, 2, 0.96), rgba(18, 9, 5, 0.9) 42%, rgba(5, 3, 2, 0.96));
+}
+
+.world-bg-frost .cinematic-world-bg__gradient {
+  background:
+    radial-gradient(circle at 20% 15%, rgba(125, 211, 252, 0.32), transparent 34%),
+    radial-gradient(circle at 82% 70%, rgba(59, 130, 246, 0.22), transparent 30%),
+    linear-gradient(145deg, rgba(2, 12, 28, 0.96), rgba(8, 23, 42, 0.9) 48%, rgba(1, 5, 14, 0.98));
+}
+
+.world-bg-arcane .cinematic-world-bg__gradient {
+  background:
+    radial-gradient(circle at 28% 22%, rgba(167, 139, 250, 0.32), transparent 30%),
+    radial-gradient(circle at 78% 64%, rgba(34, 211, 238, 0.16), transparent 26%),
+    linear-gradient(145deg, rgba(13, 8, 35, 0.96), rgba(22, 12, 54, 0.9) 42%, rgba(5, 3, 18, 0.96));
+}
+
+.world-bg-celestial .cinematic-world-bg__gradient {
+  background:
+    radial-gradient(circle at 50% 10%, rgba(253, 230, 138, 0.34), transparent 32%),
+    radial-gradient(circle at 20% 70%, rgba(255, 255, 255, 0.14), transparent 30%),
+    linear-gradient(145deg, rgba(48, 34, 7, 0.9), rgba(27, 23, 10, 0.86) 48%, rgba(9, 8, 5, 0.96));
+}
+
+.world-bg-infernal .cinematic-world-bg__gradient {
+  background:
+    radial-gradient(circle at 18% 70%, rgba(239, 68, 68, 0.34), transparent 28%),
+    radial-gradient(circle at 86% 20%, rgba(153, 27, 27, 0.34), transparent 30%),
+    linear-gradient(145deg, rgba(25, 2, 2, 0.98), rgba(43, 6, 6, 0.88) 48%, rgba(4, 1, 1, 0.98));
+}
+
+.world-bg-midgard .cinematic-world-bg__gradient {
+  background:
+    radial-gradient(circle at 18% 22%, rgba(134, 239, 172, 0.24), transparent 32%),
+    radial-gradient(circle at 78% 76%, rgba(202, 138, 4, 0.13), transparent 28%),
+    linear-gradient(145deg, rgba(3, 18, 10, 0.96), rgba(7, 23, 16, 0.9) 46%, rgba(3, 7, 5, 0.97));
+}
+
+.world-bg-death .cinematic-world-bg__gradient {
+  background:
+    radial-gradient(circle at 28% 18%, rgba(110, 231, 183, 0.2), transparent 32%),
+    radial-gradient(circle at 80% 68%, rgba(22, 163, 74, 0.16), transparent 28%),
+    linear-gradient(145deg, rgba(2, 14, 12, 0.98), rgba(7, 18, 16, 0.9) 44%, rgba(1, 5, 5, 0.98));
+}
+
+.world-bg-fire .cinematic-world-bg__particles,
+.world-bg-infernal .cinematic-world-bg__particles {
+  background-size: 66px 92px, 118px 140px;
+  animation-name: cinematic-rise;
+}
+
+.world-bg-frost .cinematic-world-bg__particles {
+  background-size: 42px 72px, 88px 118px;
+  opacity: 0.45;
+  animation-name: cinematic-snow;
+}
+
+.world-bg-arcane .cinematic-world-bg__particles {
+  background-image:
+    radial-gradient(circle, rgba(var(--world-accent-rgb), 0.72) 0 1px, transparent 2px),
+    linear-gradient(45deg, transparent 44%, rgba(var(--world-accent-rgb), 0.22) 45% 55%, transparent 56%);
+  background-size: 120px 120px, 180px 180px;
+}
+
+.world-bg-death .cinematic-world-bg__particles {
+  filter: blur(0.4px);
+  opacity: 0.42;
+}
+
+@keyframes cinematic-breathe {
+  from { filter: saturate(0.9) brightness(0.86); transform: scale(1); }
+  to { filter: saturate(1.15) brightness(1); transform: scale(1.035); }
+}
+
+@keyframes cinematic-drift {
+  to { background-position: 220px 160px, -180px 220px; }
+}
+
+@keyframes cinematic-rise {
+  to { background-position: 0 -360px, 120px -520px; }
+}
+
+@keyframes cinematic-snow {
+  to { background-position: -120px 360px, 160px 520px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cinematic-world-bg__gradient,
+  .cinematic-world-bg__particles {
+    animation: none !important;
+  }
+}
+
+.app-shell .sidebar,
+.app-shell .topbar {
+  border-color: rgba(var(--world-accent-rgb), 0.18);
+}
+
+.app-shell .kicker,
+.app-shell .brand,
+.app-shell .top-info strong,
+.app-shell .primary-link {
+  color: var(--world-accent);
+}
