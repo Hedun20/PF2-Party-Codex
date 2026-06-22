@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, Music2, Play, Pause, Volume2, VolumeX, X } from "lucide-react";
+import { ExternalLink, Music2, Pause, Play, Settings2, Volume2, VolumeX, X } from "lucide-react";
 
 const STORAGE_AUDIO_ALLOWED = "codex-world-audio-allowed";
-const STORAGE_ENABLED = "codex-ambience-enabled";
-const STORAGE_VOLUME = "codex-ambience-volume";
-const STORAGE_SOURCE = "codex-ambience-source";
-const STORAGE_MUSIC_ENABLED = "codex-world-music-enabled";
-const STORAGE_MUSIC_VOLUME = "codex-world-music-volume";
+const STORAGE_SOUND_ENABLED = "codex-world-sound-enabled";
+const STORAGE_SOUND_VOLUME = "codex-world-sound-volume";
 
 function clamp(value, min = 0, max = 1) {
   return Math.max(min, Math.min(max, value));
@@ -53,6 +50,14 @@ function ambienceProfile(kind = "arcane") {
       return { noiseGain: 0.085, filterType: "lowpass", filterFrequency: 430, q: 0.45, lfoRate: 0.045, lfoDepth: 0.025, tones: [] };
     case "forest":
       return { noiseGain: 0.07, filterType: "lowpass", filterFrequency: 780, q: 0.45, lfoRate: 0.035, lfoDepth: 0.015, tones: [{ frequency: 146.83, gain: 0.008, type: "sine" }] };
+    case "desert":
+      return { noiseGain: 0.062, filterType: "bandpass", filterFrequency: 520, q: 0.52, lfoRate: 0.035, lfoDepth: 0.018, tones: [{ frequency: 92.5, gain: 0.006, type: "sine" }] };
+    case "dungeon":
+      return { noiseGain: 0.044, filterType: "lowpass", filterFrequency: 240, q: 0.72, lfoRate: 0.028, lfoDepth: 0.012, tones: [{ frequency: 49, gain: 0.009, type: "sine" }] };
+    case "storm":
+      return { noiseGain: 0.092, filterType: "lowpass", filterFrequency: 360, q: 0.5, lfoRate: 0.055, lfoDepth: 0.024, tones: [{ frequency: 73.42, gain: 0.007, type: "triangle" }] };
+    case "city":
+      return { noiseGain: 0.048, filterType: "bandpass", filterFrequency: 680, q: 0.5, lfoRate: 0.032, lfoDepth: 0.012, tones: [{ frequency: 130.81, gain: 0.005, type: "sine" }] };
     case "infernal":
       return { noiseGain: 0.055, filterType: "lowpass", filterFrequency: 260, q: 0.7, lfoRate: 0.04, lfoDepth: 0.016, tones: [{ frequency: 55, gain: 0.011, type: "sine" }, { frequency: 82.41, gain: 0.006, type: "sine" }] };
     case "celestial":
@@ -121,11 +126,11 @@ function startSyntheticAmbience(theme, volume) {
   }, 1400 + Math.random() * 500) : null;
 
   context.resume?.();
-  master.gain.setTargetAtTime(clamp(volume, 0, 0.3), context.currentTime + 0.02, 0.35);
+  master.gain.setTargetAtTime(clamp(volume, 0, 0.45), context.currentTime + 0.02, 0.35);
 
   return {
     setVolume(nextVolume) {
-      master.gain.setTargetAtTime(clamp(nextVolume, 0, 0.3), context.currentTime, 0.18);
+      master.gain.setTargetAtTime(clamp(nextVolume, 0, 0.45), context.currentTime, 0.18);
     },
     stop() {
       if (emberTimer) window.clearInterval(emberTimer);
@@ -140,7 +145,7 @@ function startSyntheticAmbience(theme, volume) {
   };
 }
 
-function createFilePlayer(src, volume, onError, { loop = true, maxVolume = 0.3 } = {}) {
+function createFilePlayer(src, volume, onError, { loop = true, maxVolume = 0.45 } = {}) {
   const audio = new Audio(src);
   audio.loop = loop;
   audio.volume = 0;
@@ -199,11 +204,26 @@ function readBool(key, fallback = false) {
   return value === "true";
 }
 
-function readVolume(key, fallback, maxVolume = 0.3) {
+function readVolume(key, fallback, maxVolume = 0.45) {
   if (typeof window === "undefined") return fallback;
   const stored = Number(window.localStorage.getItem(key));
   if (Number.isFinite(stored) && stored >= 0) return clamp(stored, 0, maxVolume);
   return fallback;
+}
+
+function safeOrigin() {
+  if (typeof window === "undefined") return "";
+  return window.location.origin;
+}
+
+function withYouTubeApiParams(embedUrl = "") {
+  if (!embedUrl) return "";
+  const url = new URL(embedUrl);
+  url.searchParams.set("enablejsapi", "1");
+  url.searchParams.set("origin", safeOrigin());
+  url.searchParams.set("playsinline", "1");
+  url.searchParams.set("controls", "0");
+  return url.toString();
 }
 
 function parseYouTubeUrl(rawUrl = "") {
@@ -242,199 +262,251 @@ function parseYouTubeUrl(rawUrl = "") {
       embedUrl = `https://www.youtube-nocookie.com/embed/videoseries?${params.toString()}`;
     }
 
-    return { embedUrl, videoId: safeId, listId: safeList, originalUrl: value };
+    return { embedUrl: withYouTubeApiParams(embedUrl), videoId: safeId, listId: safeList, originalUrl: value };
   } catch {
     return null;
   }
 }
 
-function readInitialSource() {
-  if (typeof window === "undefined") return "auto";
-  return window.localStorage.getItem(STORAGE_SOURCE) || "auto";
+function parseExternalProvider(rawUrl = "", source = "embed") {
+  const value = String(rawUrl || "").trim();
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    const host = url.hostname.replace(/^www\./, "").toLowerCase();
+    if (source === "soundcloud" || host === "soundcloud.com") {
+      return {
+        type: "embed",
+        provider: "SoundCloud",
+        label: "SoundCloud",
+        originalUrl: value,
+        embedUrl: `https://w.soundcloud.com/player/?url=${encodeURIComponent(value)}&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&visual=false`
+      };
+    }
+    if (host === "music.yandex.ru" && url.pathname.startsWith("/iframe/")) {
+      return { type: "embed", provider: "Yandex Music", label: "Yandex Music", originalUrl: value, embedUrl: value };
+    }
+    return { type: "external", provider: "External", label: "Внешний источник", originalUrl: value, embedUrl: "" };
+  } catch {
+    return null;
+  }
+}
+
+function postYouTubeCommand(iframe, func, args = []) {
+  const contentWindow = iframe?.contentWindow;
+  if (!contentWindow) return;
+  contentWindow.postMessage(JSON.stringify({ event: "command", func, args }), "*");
+}
+
+function resolveSoundSource(theme) {
+  const music = theme?.music || {};
+  const ambience = theme?.ambience || {};
+  const source = music.source || "off";
+
+  if (source === "youtube") {
+    const youtube = parseYouTubeUrl(music.url);
+    if (youtube) return { type: "youtube", label: music.label || "World Sound", provider: "YouTube", ...youtube };
+  }
+
+  if (source === "soundcloud" || source === "embed") {
+    const provider = parseExternalProvider(music.url, source);
+    if (provider) return { ...provider, label: music.label || provider.label || "World Sound" };
+  }
+
+  if (source === "local" && music.audio) {
+    return { type: "local", label: music.label || "Музыка мира", src: music.audio, loop: music.loop !== false, provider: "Local audio", maxVolume: 0.45 };
+  }
+
+  if (ambience.mode !== "off" && ambience.src) {
+    return { type: "local", label: ambience.label || "Атмосфера мира", src: ambience.src, loop: true, provider: "Local ambience", maxVolume: 0.34 };
+  }
+
+  if (ambience.mode !== "off" && ambience.kind && ambience.kind !== "none") {
+    return { type: "synthetic", label: ambience.label || "Атмосфера мира", provider: "Soft preview", maxVolume: 0.34 };
+  }
+
+  return null;
 }
 
 export default function WorldAmbienceControl({ theme }) {
-  const hasFile = Boolean(theme?.ambience?.src);
-  const hasSynthetic = Boolean(theme?.ambience?.kind && theme.ambience.kind !== "none");
-  const youtube = useMemo(() => parseYouTubeUrl(theme?.music?.url), [theme?.music?.url]);
-  const hasYouTube = Boolean(theme?.music?.source === "youtube" && youtube);
-  const hasLocalMusic = Boolean(theme?.music?.source === "local" && theme?.music?.audio);
-  const playable = hasFile || hasSynthetic;
+  const soundSource = useMemo(() => resolveSoundSource(theme), [theme]);
   const [audioAllowed, setAudioAllowed] = useState(() => readBool(STORAGE_AUDIO_ALLOWED, false));
-  const [enabled, setEnabled] = useState(() => readBool(STORAGE_ENABLED, false));
-  const [volume, setVolume] = useState(() => readVolume(STORAGE_VOLUME, theme?.ambience?.defaultVolume ?? 0.08, 0.3));
-  const [sourceMode, setSourceMode] = useState(readInitialSource);
+  const [enabled, setEnabled] = useState(() => readBool(STORAGE_SOUND_ENABLED, false));
+  const [volume, setVolume] = useState(() => readVolume(STORAGE_SOUND_VOLUME, theme?.ambience?.defaultVolume ?? 0.16, 0.45));
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [providerOpen, setProviderOpen] = useState(false);
+  const [providerMounted, setProviderMounted] = useState(false);
   const [mediaError, setMediaError] = useState(false);
-  const [musicEnabled, setMusicEnabled] = useState(() => readBool(STORAGE_MUSIC_ENABLED, false));
-  const [musicVolume, setMusicVolume] = useState(() => readVolume(STORAGE_MUSIC_VOLUME, 0.16, 0.45));
-  const [musicError, setMusicError] = useState(false);
-  const [youtubeOpen, setYoutubeOpen] = useState(false);
-  const [youtubeMiniOpen, setYoutubeMiniOpen] = useState(false);
-  const ambiencePlayerRef = useRef(null);
-  const musicPlayerRef = useRef(null);
-  const themeKey = theme?.key || "archive";
-  const label = useMemo(() => theme?.ambience?.label || "Атмосфера", [theme]);
-  const musicLabel = useMemo(() => theme?.music?.label || "Музыка мира", [theme?.music?.label]);
-  const effectiveMode = sourceMode === "file" && !hasFile ? "auto" : sourceMode;
-  const shouldUseFile = hasFile && effectiveMode !== "synthetic";
-  const shouldUseSynthetic = hasSynthetic && (!hasFile || effectiveMode === "synthetic" || mediaError);
+  const localPlayerRef = useRef(null);
+  const iframeRef = useRef(null);
+  const sourceKey = `${theme?.key || "archive"}:${soundSource?.type || "none"}:${soundSource?.src || soundSource?.embedUrl || soundSource?.originalUrl || ""}`;
+  const canControlPlayback = soundSource && ["youtube", "local", "synthetic"].includes(soundSource.type);
 
   function allowWorldAudio() {
     window.localStorage.setItem(STORAGE_AUDIO_ALLOWED, "true");
     setAudioAllowed(true);
   }
 
-  function toggleAmbience() {
-    if (!enabled) allowWorldAudio();
-    setEnabled((current) => !current);
+  function sendYouTubePlayback(play) {
+    if (!soundSource || soundSource.type !== "youtube") return;
+    setProviderMounted(true);
+    const run = () => {
+      postYouTubeCommand(iframeRef.current, "setVolume", [Math.round(clamp(volume, 0, 0.45) * 220)]);
+      postYouTubeCommand(iframeRef.current, play ? "playVideo" : "pauseVideo");
+    };
+    run();
+    window.setTimeout(run, 320);
+    window.setTimeout(run, 900);
   }
 
-  function toggleLocalMusic() {
-    if (!musicEnabled) allowWorldAudio();
-    setMusicEnabled((current) => !current);
+  function toggleSound() {
+    if (!soundSource) return;
+    if (!audioAllowed) allowWorldAudio();
+
+    if (soundSource.type === "external" || soundSource.type === "embed") {
+      setProviderMounted(true);
+      setProviderOpen(true);
+      setSettingsOpen(true);
+      setEnabled(true);
+      return;
+    }
+
+    setEnabled((current) => {
+      const next = !current;
+      if (soundSource.type === "youtube") sendYouTubePlayback(next);
+      return next;
+    });
   }
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_ENABLED, String(enabled));
+    window.localStorage.setItem(STORAGE_SOUND_ENABLED, String(enabled));
   }, [enabled]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_SOURCE, sourceMode);
-  }, [sourceMode]);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_MUSIC_ENABLED, String(musicEnabled));
-  }, [musicEnabled]);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_VOLUME, String(volume));
-    ambiencePlayerRef.current?.setVolume?.(volume);
-  }, [volume]);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_MUSIC_VOLUME, String(musicVolume));
-    musicPlayerRef.current?.setVolume?.(musicVolume);
-  }, [musicVolume]);
+    window.localStorage.setItem(STORAGE_SOUND_VOLUME, String(volume));
+    localPlayerRef.current?.setVolume?.(volume);
+    if (soundSource?.type === "youtube") {
+      postYouTubeCommand(iframeRef.current, "setVolume", [Math.round(clamp(volume, 0, 0.45) * 220)]);
+    }
+  }, [volume, soundSource?.type]);
 
   useEffect(() => {
     setMediaError(false);
-    setMusicError(false);
-    setYoutubeOpen(false);
-    setYoutubeMiniOpen(false);
-  }, [themeKey, theme?.ambience?.src, theme?.music?.url, theme?.music?.audio]);
+    setSettingsOpen(false);
+    setProviderOpen(false);
+    setProviderMounted(false);
+    localPlayerRef.current?.stop?.();
+    localPlayerRef.current = null;
+  }, [sourceKey]);
 
   useEffect(() => {
-    if (!audioAllowed) return;
-    if (theme?.ambience?.autoplay && playable) setEnabled(true);
-    if (theme?.music?.autoplay && hasLocalMusic) setMusicEnabled(true);
-  }, [audioAllowed, themeKey, theme?.ambience?.autoplay, theme?.music?.autoplay, playable, hasLocalMusic]);
+    if (!audioAllowed || !soundSource) return;
+    if (theme?.music?.autoplay && ["local", "youtube"].includes(soundSource.type)) setEnabled(true);
+    if (!theme?.music?.source || theme?.music?.source === "off") {
+      if (theme?.ambience?.autoplay && ["local", "synthetic"].includes(soundSource.type)) setEnabled(true);
+    }
+  }, [audioAllowed, sourceKey, theme?.music?.autoplay, theme?.music?.source, theme?.ambience?.autoplay]);
 
   useEffect(() => {
-    if (!enabled || !playable) return undefined;
+    if (!enabled || !soundSource || !["local", "synthetic"].includes(soundSource.type)) return undefined;
 
     const handleMediaError = () => setMediaError(true);
-    let player = null;
-    if (shouldUseFile && theme?.ambience?.src) {
-      player = createFilePlayer(theme.ambience.src, volume, handleMediaError, { loop: true, maxVolume: 0.3 });
-    } else if (shouldUseSynthetic) {
-      player = startSyntheticAmbience(theme, volume);
-    }
-    ambiencePlayerRef.current = player;
+    const player = soundSource.type === "local"
+      ? createFilePlayer(soundSource.src, volume, handleMediaError, { loop: soundSource.loop !== false, maxVolume: soundSource.maxVolume || 0.45 })
+      : startSyntheticAmbience(theme, volume);
+
+    localPlayerRef.current = player;
     return () => {
       player?.stop?.();
-      if (ambiencePlayerRef.current === player) ambiencePlayerRef.current = null;
+      if (localPlayerRef.current === player) localPlayerRef.current = null;
     };
-  }, [enabled, playable, themeKey, theme?.ambience?.src, shouldUseFile, shouldUseSynthetic]);
+  }, [enabled, sourceKey]);
 
   useEffect(() => {
-    if (!musicEnabled || !hasLocalMusic) return undefined;
-    const handleMusicError = () => setMusicError(true);
-    const player = createFilePlayer(theme.music.audio, musicVolume, handleMusicError, { loop: theme.music.loop !== false, maxVolume: 0.45 });
-    musicPlayerRef.current = player;
-    return () => {
-      player?.stop?.();
-      if (musicPlayerRef.current === player) musicPlayerRef.current = null;
-    };
-  }, [musicEnabled, hasLocalMusic, themeKey, theme?.music?.audio, theme?.music?.loop]);
+    if (!soundSource || soundSource.type !== "youtube") return;
+    if (enabled) {
+      setProviderMounted(true);
+      sendYouTubePlayback(true);
+    } else {
+      sendYouTubePlayback(false);
+    }
+  }, [enabled, sourceKey]);
 
-  if (!playable && !hasYouTube && !hasLocalMusic) {
-    return <span className="ambience-static-label">Атмосфера: Архив</span>;
+  if (!soundSource) {
+    return <span className="world-sound-static-label">World Sound: нет источника</span>;
   }
 
+  const buttonTitle = enabled ? `Выключить: ${soundSource.label}` : `Включить: ${soundSource.label}`;
+  const hasProviderFrame = ["youtube", "embed"].includes(soundSource.type) && soundSource.embedUrl;
+  const shouldRenderProvider = hasProviderFrame && (providerMounted || providerOpen || settingsOpen);
+
   return (
-    <div className="world-audio-control">
-      {playable && (
-        <div className={enabled ? "ambience-control ambience-control--on" : "ambience-control"} title={enabled ? label : "Включить атмосферу мира"}>
-          <button type="button" className="ambience-toggle" onClick={toggleAmbience}>
-            {enabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-            <span>{enabled ? label : "Атмосфера"}</span>
-          </button>
-          {enabled && (
-            <>
-              <label className="ambience-volume" aria-label="Громкость атмосферы">
-                <input type="range" min="0" max="0.3" step="0.01" value={volume} onChange={(event) => setVolume(Number(event.target.value))} />
-              </label>
-              {hasFile && hasSynthetic && (
-                <button type="button" className="ambience-source" onClick={() => setSourceMode((current) => (current === "synthetic" ? "auto" : "synthetic"))}>
-                  <Music2 size={14} />
-                  <span>{effectiveMode === "synthetic" ? "мягкий preview" : "MP3"}</span>
-                </button>
-              )}
-              {mediaError && <span className="ambience-error">файл не найден · включён preview</span>}
-            </>
-          )}
+    <div className={enabled ? "world-sound-control world-sound-control--on" : "world-sound-control"}>
+      <button type="button" className="world-sound-main" onClick={toggleSound} title={buttonTitle}>
+        {enabled ? <Pause size={15} /> : <Play size={15} />}
+        <span>{soundSource.label || "World Sound"}</span>
+      </button>
+
+      {canControlPlayback && (
+        <label className="world-sound-volume" title="Громкость World Sound">
+          {volume > 0 ? <Volume2 size={14} /> : <VolumeX size={14} />}
+          <input type="range" min="0" max="0.45" step="0.01" value={volume} onChange={(event) => setVolume(Number(event.target.value))} />
+        </label>
+      )}
+
+      <button type="button" className="world-sound-settings" onClick={() => setSettingsOpen((current) => !current)} title="Настройки World Sound">
+        <Settings2 size={14} />
+      </button>
+
+      {settingsOpen && (
+        <div className="world-sound-popover">
+          <div className="world-sound-popover-head">
+            <div>
+              <strong>{soundSource.label || "World Sound"}</strong>
+              <span>{soundSource.provider || soundSource.type}</span>
+            </div>
+            <button type="button" onClick={() => setSettingsOpen(false)} aria-label="Закрыть музыку"><X size={14} /></button>
+          </div>
+          <p className="world-sound-copy">
+            Один мир — один звук. Если задан YouTube, local music или embed, тихая ambient-атмосфера не запускается отдельно и не спорит с музыкой.
+          </p>
+          <div className="world-sound-actions">
+            {hasProviderFrame && (
+              <button type="button" className="world-sound-provider-toggle" onClick={() => {
+                setProviderMounted(true);
+                setProviderOpen((current) => !current);
+              }}>
+                {providerOpen ? "Свернуть источник" : "Открыть источник"}
+              </button>
+            )}
+            {soundSource.originalUrl && (
+              <a href={soundSource.originalUrl} target="_blank" rel="noreferrer" className="world-sound-open-link">
+                <ExternalLink size={13} /> Открыть снаружи
+              </a>
+            )}
+          </div>
+          {mediaError && <span className="world-sound-error">Источник не загрузился. Проверь путь/URL.</span>}
+          {!audioAllowed && <span className="world-sound-note">Первый запуск звука требует клика в браузере.</span>}
         </div>
       )}
 
-      {hasLocalMusic && (
-        <div className={musicEnabled ? "local-music-control local-music-control--on" : "local-music-control"}>
-          <button type="button" className="local-music-toggle" onClick={toggleLocalMusic}>
-            {musicEnabled ? <Pause size={14} /> : <Play size={14} />}
-            <span>{musicLabel}</span>
-          </button>
-          {musicEnabled && (
-            <label className="ambience-volume" aria-label="Громкость музыки">
-              <input type="range" min="0" max="0.45" step="0.01" value={musicVolume} onChange={(event) => setMusicVolume(Number(event.target.value))} />
-            </label>
-          )}
-          {musicError && <span className="ambience-error">музыка не найдена</span>}
-        </div>
-      )}
-
-      {hasYouTube && (
-        <div className="youtube-music-control">
-          <button type="button" className={youtubeOpen ? "youtube-music-toggle active" : "youtube-music-toggle"} onClick={() => setYoutubeOpen((current) => !current)}>
-            <Music2 size={14} />
-            <span>{musicLabel}</span>
-          </button>
-          {youtubeOpen && (
-            <div className="youtube-music-popover youtube-music-popover--compact">
-              <div className="youtube-music-popover-head">
-                <strong>{musicLabel}</strong>
-                <button type="button" onClick={() => setYoutubeOpen(false)} aria-label="Закрыть музыку"><X size={14} /></button>
-              </div>
-              <p className="youtube-music-copy">YouTube / YouTube Music подключён как компактная внешняя музыка. Видео не показывается, пока ты сам не откроешь mini-player.</p>
-              <div className="youtube-music-actions">
-                <button type="button" className="youtube-music-mini-button" onClick={() => setYoutubeMiniOpen((current) => !current)}>
-                  {youtubeMiniOpen ? "Скрыть mini-player" : "Показать mini-player"}
-                </button>
-                <a href={youtube.originalUrl} target="_blank" rel="noreferrer" className="youtube-music-open-link">
-                  <ExternalLink size={13} /> YouTube
-                </a>
-              </div>
-              {youtubeMiniOpen && (
-                <iframe
-                  title={musicLabel}
-                  src={youtube.embedUrl}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                />
-              )}
+      {shouldRenderProvider && (
+        <div className={providerOpen ? "world-sound-provider" : "world-sound-provider world-sound-provider--collapsed"}>
+          {providerOpen && (
+            <div className="world-sound-provider-head">
+              <span>{soundSource.provider || "Источник"}</span>
+              <button type="button" onClick={() => setProviderOpen(false)} aria-label="Свернуть источник"><X size={13} /></button>
             </div>
           )}
+          <iframe
+            ref={iframeRef}
+            title={soundSource.label || "World Sound source"}
+            src={soundSource.embedUrl}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
         </div>
       )}
-      {!audioAllowed && (playable || hasLocalMusic) && <span className="world-audio-permission">первый запуск звука требует клика</span>}
     </div>
   );
 }

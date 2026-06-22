@@ -372,3 +372,69 @@
     radial-gradient(circle at 50% 36%, transparent 0 38%, rgba(0, 0, 0, calc(var(--cinematic-dim, 0.58) * 0.45)) 68%, rgba(0, 0, 0, calc(var(--cinematic-dim, 0.58) + 0.14)) 100%),
     linear-gradient(180deg, rgba(0, 0, 0, calc(var(--cinematic-dim, 0.58) * 0.58)), rgba(0, 0, 0, 0.16) 42%, rgba(0, 0, 0, var(--cinematic-dim, 0.58)));
 }
+
+/* Patch 4.3: frozen media background + extra living-world presets */
+.world-bg-desert .cinematic-world-bg__gradient {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(245, 158, 11, 0.32), transparent 31%),
+    radial-gradient(circle at 82% 76%, rgba(251, 191, 36, 0.18), transparent 34%),
+    linear-gradient(145deg, rgba(31, 19, 5, 0.96), rgba(57, 35, 12, 0.88) 46%, rgba(8, 6, 3, 0.98));
+}
+
+.world-bg-dungeon .cinematic-world-bg__gradient {
+  background:
+    radial-gradient(circle at 16% 74%, rgba(251, 146, 60, 0.16), transparent 20%),
+    radial-gradient(circle at 78% 20%, rgba(148, 163, 184, 0.14), transparent 30%),
+    linear-gradient(145deg, rgba(5, 6, 10, 0.98), rgba(20, 21, 25, 0.9) 44%, rgba(2, 2, 5, 0.98));
+}
+
+.world-bg-storm .cinematic-world-bg__gradient {
+  background:
+    radial-gradient(circle at 72% 14%, rgba(56, 189, 248, 0.28), transparent 30%),
+    radial-gradient(circle at 18% 72%, rgba(99, 102, 241, 0.2), transparent 32%),
+    linear-gradient(145deg, rgba(2, 8, 23, 0.98), rgba(10, 24, 44, 0.9) 48%, rgba(1, 4, 12, 0.98));
+}
+
+.world-bg-city .cinematic-world-bg__gradient {
+  background:
+    radial-gradient(circle at 18% 22%, rgba(250, 204, 21, 0.22), transparent 30%),
+    radial-gradient(circle at 82% 70%, rgba(168, 85, 247, 0.13), transparent 28%),
+    linear-gradient(145deg, rgba(25, 18, 8, 0.96), rgba(37, 29, 18, 0.88) 48%, rgba(7, 6, 4, 0.98));
+}
+
+.world-bg-desert .cinematic-world-bg__particles {
+  opacity: 0.36;
+  background-size: 54px 54px, 130px 130px;
+  animation-name: cinematic-sand;
+}
+
+.world-bg-dungeon .cinematic-world-bg__particles {
+  opacity: 0.24;
+  filter: blur(0.5px);
+  background-size: 72px 96px, 160px 180px;
+}
+
+.world-bg-storm .cinematic-world-bg__particles {
+  opacity: 0.52;
+  background-image:
+    linear-gradient(110deg, transparent 0 46%, rgba(var(--world-accent-rgb), 0.38) 47% 48%, transparent 49% 100%),
+    radial-gradient(circle, rgba(255, 255, 255, 0.2) 0 1px, transparent 2px);
+  background-size: 180px 180px, 84px 118px;
+  animation-name: cinematic-rain;
+}
+
+.world-bg-city .cinematic-world-bg__particles {
+  opacity: 0.38;
+  background-image:
+    radial-gradient(circle, rgba(250, 204, 21, 0.42) 0 1px, transparent 2px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.16) 0 1px, transparent 2px);
+  background-size: 110px 110px, 190px 190px;
+}
+
+@keyframes cinematic-sand {
+  to { background-position: 260px 80px, -220px 140px; }
+}
+
+@keyframes cinematic-rain {
+  to { background-position: -160px 360px, 70px 460px; }
+}

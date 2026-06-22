@@ -90,6 +90,58 @@ const BUILTIN_WORLD_THEMES = {
     particles: "leaves",
     ambience: { kind: "forest", label: "Лесной фон", defaultVolume: 0.07 }
   },
+  desert: {
+    key: "desert",
+    label: "Пустынный мир",
+    description: "Песок, жара, древние руины, караваны и миражи.",
+    accent: "#f59e0b",
+    accentRgb: "245, 158, 11",
+    glow: "rgba(245, 158, 11, 0.3)",
+    shadow: "rgba(30, 18, 4, 0.9)",
+    backgroundClass: "world-bg-desert",
+    icon: "sun",
+    particles: "sand",
+    ambience: { kind: "desert", label: "Сухой ветер", defaultVolume: 0.06 }
+  },
+  dungeon: {
+    key: "dungeon",
+    label: "Подземелье",
+    description: "Камень, факелы, сырость, тени, руины и опасные коридоры.",
+    accent: "#a3a3a3",
+    accentRgb: "163, 163, 163",
+    glow: "rgba(163, 163, 163, 0.22)",
+    shadow: "rgba(4, 5, 8, 0.94)",
+    backgroundClass: "world-bg-dungeon",
+    icon: "castle",
+    particles: "dust",
+    ambience: { kind: "dungeon", label: "Каменные залы", defaultVolume: 0.052 }
+  },
+  storm: {
+    key: "storm",
+    label: "Штормовой мир",
+    description: "Молнии, дождь, бурное море, небесные разломы и гроза.",
+    accent: "#38bdf8",
+    accentRgb: "56, 189, 248",
+    glow: "rgba(56, 189, 248, 0.3)",
+    shadow: "rgba(2, 10, 22, 0.92)",
+    backgroundClass: "world-bg-storm",
+    icon: "cloud-lightning",
+    particles: "rain",
+    ambience: { kind: "storm", label: "Гроза вдали", defaultVolume: 0.065 }
+  },
+  city: {
+    key: "city",
+    label: "Город / империя",
+    description: "Каменные улицы, рынки, дворцы, гильдии, интриги и власть.",
+    accent: "#facc15",
+    accentRgb: "250, 204, 21",
+    glow: "rgba(250, 204, 21, 0.24)",
+    shadow: "rgba(23, 17, 7, 0.88)",
+    backgroundClass: "world-bg-city",
+    icon: "landmark",
+    particles: "lamps",
+    ambience: { kind: "city", label: "Городской гул", defaultVolume: 0.055 }
+  },
   death: {
     key: "death",
     label: "Мир смерти",
@@ -109,6 +161,10 @@ const THEME_KEYWORDS = [
   ["infernal", /(ад|адск|бездна|демон|infernal|hell|abyss|devil|demon|doom)/i],
   ["fire", /(огонь|огнен|пепел|лава|вулкан|кузн|дракон|fire|flame|ember|ash|lava|volcano)/i],
   ["frost", /(л[её]д|ледян|север|метель|снег|frost|ice|snow|glacier|winter)/i],
+  ["storm", /(шторм|гроза|молни|буря|дождь|storm|thunder|lightning|tempest|rain)/i],
+  ["desert", /(пустын|песок|жара|караван|мираж|desert|sand|dune|oasis|caravan)/i],
+  ["dungeon", /(подзем|руин|темниц|катакомб|пещер|dungeon|ruin|catacomb|cave|crypt)/i],
+  ["city", /(город|импер|дворец|гильд|рынок|city|empire|guild|market|palace|urban)/i],
   ["arcane", /(маг|астрал|руна|портал|aether|arcane|magic|rune|astral|wizard)/i],
   ["celestial", /(рай|небес|свет|божеств|ангел|celestial|heaven|paradise|angel|divine)/i],
   ["death", /(смерт|мертв|некро|душ|могил|туман|death|dead|undead|necro|grave|soul|ghost)/i],
@@ -156,12 +212,14 @@ function valueFromWorld(world, key) {
 
 function normalizeMusicSource(value = "") {
   const source = String(value || "").trim().toLowerCase();
-  if (["youtube", "local", "off"].includes(source)) return source;
+  if (["youtube", "local", "soundcloud", "embed", "off"].includes(source)) return source;
   return "off";
 }
 
 function normalizeBackgroundMode(value = "") {
   const mode = String(value || "").trim().toLowerCase();
+  // Video/GIF background is intentionally frozen for now. Existing old worlds keep
+  // backgroundMode=video only to allow poster fallback, but no video is rendered.
   if (["theme", "image", "video"].includes(mode)) return mode;
   return "theme";
 }
@@ -195,7 +253,7 @@ export function getWorldTheme(world = null) {
   const ambienceAutoplay = normalizeBoolean(valueFromWorld(world, "ambienceAutoplay"), false);
   const rawMusicSource = valueFromWorld(world, "musicSource") || (valueFromWorld(world, "musicUrl") ? "youtube" : (valueFromWorld(world, "musicAudio") ? "local" : "off"));
   const musicSource = normalizeMusicSource(rawMusicSource);
-  const musicUrl = valueFromWorld(world, "musicUrl") || valueFromWorld(world, "youtubeMusicUrl") || valueFromWorld(world, "youtubeUrl") || "";
+  const musicUrl = valueFromWorld(world, "musicUrl") || valueFromWorld(world, "youtubeMusicUrl") || valueFromWorld(world, "youtubeUrl") || valueFromWorld(world, "soundcloudUrl") || valueFromWorld(world, "embedUrl") || "";
   const musicAudio = normalizeMediaPath(valueFromWorld(world, "musicAudio") || valueFromWorld(world, "musicFile") || "");
   const musicLabel = valueFromWorld(world, "musicLabel") || valueFromWorld(world, "youtubeMusicLabel") || "Музыка мира";
   const musicDisplay = String(valueFromWorld(world, "musicDisplay") || "compact").trim().toLowerCase();
@@ -239,7 +297,7 @@ export function getWorldTheme(world = null) {
     ambience,
     music: {
       source: musicSource,
-      url: musicSource === "youtube" ? String(musicUrl || "").trim() : "",
+      url: ["youtube", "soundcloud", "embed"].includes(musicSource) ? String(musicUrl || "").trim() : "",
       audio: musicSource === "local" ? musicAudio : "",
       label: musicLabel || "Музыка мира",
       display: ["compact", "mini"].includes(musicDisplay) ? musicDisplay : "compact",

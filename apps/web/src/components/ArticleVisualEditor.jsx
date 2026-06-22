@@ -173,23 +173,21 @@ function WorldFields({ fm, set }) {
         <TextArea label="Главные конфликты" value={fm.conflicts} onChange={(value) => set("conflicts", value)} />
       </Section>
 
-      <Section title="Фон мира" hint="Это именно визуальный фон. Source/credits ниже — только заметка об источнике, она не включает картинку сама по себе.">
+      <Section title="Живая визуальная атмосфера" hint="Видео/GIF фон пока заморожен. Сейчас мир меняет шаблон, акцент, частицы, затемнение и optional wallpaper.">
         <Field label="Тип фона">
           <select value={fm.backgroundMode || "theme"} onChange={(event) => set("backgroundMode", event.target.value)}>
             <option value="theme">шаблон темы · без своего файла</option>
             <option value="image">картинка / wallpaper</option>
-            <option value="video">видео WebM/MP4 loop</option>
           </select>
         </Field>
         <TextField label="Картинка / wallpaper" value={fm.backgroundImage} onChange={(value) => set("backgroundImage", value)} placeholder="fire/fire-wallpaper.jpg или https://...jpg" />
-        <TextField label="Видео WebM/MP4" value={fm.backgroundVideo} onChange={(value) => set("backgroundVideo", value)} placeholder="fire/fire-loop.webm" />
         <TextField label="Poster / fallback image" value={fm.backgroundPoster} onChange={(value) => set("backgroundPoster", value)} placeholder="fire/fire-poster.jpg" />
         <NumberField label="Яркость фона 0–1" value={fm.backgroundOpacity} onChange={(value) => set("backgroundOpacity", value)} placeholder="0.42" />
         <NumberField label="Затемнение 0–1" value={fm.backgroundDim} onChange={(value) => set("backgroundDim", value)} placeholder="0.58" />
         <NumberField label="Blur px" value={fm.backgroundBlur} onChange={(value) => set("backgroundBlur", value)} placeholder="0" />
       </Section>
 
-      <Section title="Атмосфера мира" hint="Ambient — это тихий фон мира: огонь, ветер, лес, туман. Для автозапуска сначала один раз нажми включение звука в topbar.">
+      <Section title="Fallback атмосфера" hint="Это запасной тихий фон, если World Sound не задан как YouTube/local/embed. В topbar всё равно будет один общий звук мира.">
         <Field label="Тип атмосферы">
           <select value={fm.ambienceMode || "auto"} onChange={(event) => set("ambienceMode", event.target.value)}>
             <option value="auto">auto · MP3 если есть, иначе мягкий preview</option>
@@ -208,23 +206,19 @@ function WorldFields({ fm, set }) {
         </Field>
       </Section>
 
-      <Section title="Музыка мира" hint="YouTube показывается компактно: без огромной превью-картинки, mini-player открывается только по кнопке. Для настоящего audio-only лучше использовать local MP3/OGG.">
+      <Section title="World Sound" hint="Один звук мира. YouTube — основной сценарий, local MP3/OGG — лучший audio-only, SoundCloud/external embed — экспериментальные источники.">
         <Field label="Тип музыки">
           <select value={fm.musicSource || "off"} onChange={(event) => set("musicSource", event.target.value)}>
-            <option value="off">выключено</option>
+            <option value="off">fallback ambience / выключено</option>
             <option value="youtube">YouTube / YouTube Music link</option>
             <option value="local">local MP3/OGG</option>
+            <option value="soundcloud">SoundCloud</option>
+            <option value="embed">External embed URL</option>
           </select>
         </Field>
-        <TextField label="YouTube / YouTube Music URL" value={fm.musicUrl} onChange={(value) => set("musicUrl", value)} placeholder="https://music.youtube.com/watch?v=..." />
+        <TextField label="Music URL" value={fm.musicUrl} onChange={(value) => set("musicUrl", value)} placeholder="YouTube / SoundCloud / Yandex iframe URL" />
         <TextField label="Local music MP3/OGG" value={fm.musicAudio} onChange={(value) => set("musicAudio", value)} placeholder="fire/fire-theme.mp3" />
         <TextField label="Название музыки" value={fm.musicLabel} onChange={(value) => set("musicLabel", value)} placeholder="Музыка Эльдрана" />
-        <Field label="Вид YouTube-панели">
-          <select value={fm.musicDisplay || "compact"} onChange={(event) => set("musicDisplay", event.target.value)}>
-            <option value="compact">compact · только текст и кнопки</option>
-            <option value="mini">mini-player по кнопке</option>
-          </select>
-        </Field>
         <Field label="Автовключение local music">
           <select value={String(fm.musicAutoplay ?? false)} onChange={(event) => set("musicAutoplay", event.target.value === "true")}>
             <option value="false">нет · вручную</option>
