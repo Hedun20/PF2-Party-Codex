@@ -1,8 +1,29 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, CalendarDays, Clock3, Filter, GitBranch, Link2, MapPin, Search, Sparkles, UserRound } from "lucide-react";
+import {
+  AlertTriangle,
+  BookOpen,
+  CalendarDays,
+  Clock3,
+  Eye,
+  EyeOff,
+  Filter,
+  GitBranch,
+  Link2,
+  MapPin,
+  MonitorPlay,
+  Plus,
+  RadioTower,
+  Search,
+  Send,
+  ShieldAlert,
+  Sparkles,
+  UserRound
+} from "lucide-react";
+import { api } from "../api/client.js";
 import CodexButton from "../components/ui/CodexButton.jsx";
 import { labelCategory } from "../utils/labels.js";
+import { worldRoute } from "../utils/worldContext.js";
 
 const TYPE_CONFIG = {
   timelineEvent: { label: "Event", icon: Sparkles, className: "event" },
@@ -67,9 +88,23 @@ function slug(value = "") {
   return String(value).toLowerCase().replace(/\.md$/i, "").replace(/[^a-zа-яё0-9]+/gi, "-").replace(/^-+|-+$/g, "");
 }
 
+function getVisibility(page) {
+  return String(page.visibility || page.frontmatter?.visibility || "public").toLowerCase();
+}
+
+function isPlayerVisible(page) {
+  return getVisibility(page) === "public" && page.type !== "secret";
+}
+
+function hasSecretText(page) {
+  const content = `${page.content || ""}\n${page.frontmatter?.gmSecrets || ""}`;
+  return /\[secret\]/i.test(content) || /##\s*GM\s*Secrets/i.test(content) || getVisibility(page) === "gm";
+}
+
 function resolveRelatedPages(page, pages) {
   const rawRelated = [
     ...arrayValue(page.frontmatter?.related),
+    ...arrayValue(page.frontmatter?.relatedPages),
     ...arrayValue(page.frontmatter?.linkedPages),
     ...arrayValue(page.frontmatter?.city),
     ...arrayValue(page.frontmatter?.country),
@@ -119,8 +154,22 @@ function categoryMatchesType(typeKey, filter) {
   return typeKey === filter;
 }
 
-function editorPathForWorld(activeWorld) {
-  return activeWorld?.title ? `/editor?world=${encodeURIComponent(activeWorld.title)}` : "/editor";
+function editorPathForWorld(activeWorld, type = "timelineEvent") {
+  const params = new URLSearchParams();
+  if (activeWorld?.title) params.set("world", activeWorld.title);
+  if (type) params.set("type", type);
+  const query = params.toString();
+  return query ? `/editor?${query}` : "/editor";
+}
+
+function getTimelineWorld(activeWorld, active) {
+  return activeWorld?.title || active?.world || active?.frontmatter?.world || "";
+}
+
+function playerUrlForWorld(activeWorld, active) {
+  if (activeWorld) return `${worldRoute(activeWorld)}/player`;
+  const worldName = active?.world || active?.frontmatter?.world;
+  return worldName ? `/world/${encodeURIComponent(slug(worldName) || worldName)}/player` : "/";
 }
 
 export default function TimelinePage({ pages = [], mode = "player", embedded = false, activeWorld = null }) {
@@ -130,13 +179,20 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
   const [query, setQuery] = useState("");
   const [selectedPath, setSelectedPath] = useState("");
   const [hoveredPath, setHoveredPath] = useState("");
+  const [playerPreview, setPlayerPreview] = useState(false);
+  const [revealBusy, setRevealBusy] = useState(false);
+  const [revealMessage, setRevealMessage] = useState("");
 
-  const timelineItems = useMemo(() => pages
+  const canUseGmTools = mode === "gm";
+  const effectivePlayerView = mode !== "gm" || playerPreview;
+
+  const allTimelineItems = useMemo(() => pages
     .filter(isTimelineCandidate)
     .filter((page) => !world || page.world === world || page.frontmatter?.world === world)
     .map((page) => {
       const typeKey = normalizeType(page);
       const relatedPages = resolveRelatedPages(page, pages);
+      const visibility = getVisibility(page);
       return {
         ...page,
         typeKey,
@@ -144,7 +200,10 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
         year: getYear(page),
         era: getEra(page),
         importance: page.frontmatter?.importance || (page.category === "sessions" ? "session" : "event"),
-        relatedPages
+        relatedPages,
+        visibility,
+        playerVisible: isPlayerVisible(page),
+        hasSecrets: hasSecretText(page)
       };
     })
     .filter((page) => categoryMatchesType(page.typeKey, typeFilter))
@@ -157,12 +216,16 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
         page.world,
         page.category,
         page.importance,
+        page.visibility,
         ...(page.tags || []),
         ...page.relatedPages.map((item) => item.title)
       ].filter(Boolean).join(" ").toLowerCase().includes(needle);
     })
-    .sort(sortTimeline)
-    .slice(0, 60), [pages, world, typeFilter, query]);
+    .sort(sortTimeline), [pages, world, typeFilter, query]);
+
+  const timelineItems = useMemo(() => allTimelineItems
+    .filter((page) => !effectivePlayerView || page.playerVisible)
+    .slice(0, 80), [allTimelineItems, effectivePlayerView]);
 
   const activePath = hoveredPath || selectedPath || timelineItems[0]?.path || "";
   const active = timelineItems.find((event) => event.path === activePath) || timelineItems[0];
@@ -182,16 +245,48 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
     events: timelineItems.filter((item) => ["timelineEvent", "event", "session"].includes(item.typeKey)).length,
     places: timelineItems.filter((item) => ["city", "location", "world"].includes(item.typeKey)).length,
     people: timelineItems.filter((item) => ["npc", "character", "pc"].includes(item.typeKey)).length,
-    linked: timelineItems.reduce((sum, item) => sum + item.relatedPages.filter((link) => link.path).length, 0)
-  }), [timelineItems]);
+    linked: timelineItems.reduce((sum, item) => sum + item.relatedPages.filter((link) => link.path).length, 0),
+    player: allTimelineItems.filter((item) => item.playerVisible).length,
+    gm: allTimelineItems.filter((item) => !item.playerVisible).length,
+    secrets: allTimelineItems.filter((item) => item.hasSecrets).length
+  }), [timelineItems, allTimelineItems]);
+
+  const readiness = useMemo(() => {
+    if (timelineItems.length === 0) return { tone: "empty", title: "Timeline пустой", text: "Создай первое событие или session recap в текущем мире." };
+    if (effectivePlayerView && timelineItems.length === 0) return { tone: "warning", title: "Игрокам нечего показать", text: "Нет player-visible событий." };
+    if (stats.gm > 0 && !effectivePlayerView) return { tone: "mixed", title: "Смешанная ветка", text: `${stats.gm} GM-only событий скрываются от игроков. Проверь Preview as Player перед reveal.` };
+    return { tone: "safe", title: "Player-safe timeline готов", text: "В player-preview остаются только публичные события и сессии." };
+  }, [timelineItems.length, effectivePlayerView, stats.gm]);
+
+  async function revealActiveEvent() {
+    if (!active || !active.playerVisible) {
+      setRevealMessage("Это событие нельзя показать игрокам: оно GM-only или secret.");
+      return;
+    }
+    const worldName = getTimelineWorld(activeWorld, active);
+    if (!worldName) {
+      setRevealMessage("Не могу определить мир для reveal. Открой timeline из конкретного мира.");
+      return;
+    }
+    setRevealBusy(true);
+    setRevealMessage("");
+    try {
+      await api.revealSet({ world: worldName, path: active.path, note: `Timeline reveal: ${active.title}` });
+      setRevealMessage(`Показываю игрокам: ${active.title}`);
+    } catch (error) {
+      setRevealMessage(error.message || "Reveal не сработал. Перезапусти локальный сервер и попробуй снова.");
+    } finally {
+      setRevealBusy(false);
+    }
+  }
 
   return (
-    <div className={embedded ? "page-stack timeline-embedded" : "page-stack timeline-branch-page"}>
-      <header className="list-header timeline-branch-hero article-page-header">
+    <div className={embedded ? "page-stack timeline-embedded" : "page-stack timeline-branch-page timeline2-page"}>
+      <header className="list-header timeline-branch-hero article-page-header timeline2-hero">
         <div>
           <span className="kicker">{activeWorld ? `Мир: ${activeWorld.title}` : "Living Timeline"}</span>
           <h1>{activeWorld ? `Timeline: ${activeWorld.title}` : (embedded ? "Timeline мира и кампании" : "Древо событий")}</h1>
-          <p>{activeWorld ? "События и сессии текущего мира без смешивания со всем Архивом." : "Вертикальный ствол истории: события, сессии, города и персонажи цепляются к одной линии, а hover подсвечивает связи между статьями."}</p>
+          <p>{activeWorld ? "События, сессии, NPC и локации текущего мира без смешивания со всем Архивом." : "Вертикальный ствол истории: события, сессии, города и персонажи цепляются к одной линии, а hover подсвечивает связи между статьями."}</p>
         </div>
         <div className="timeline-stat-grid" aria-label="Timeline stats">
           <span><strong>{stats.events}</strong> событий</span>
@@ -201,7 +296,49 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
         </div>
       </header>
 
-      <section className="timeline-command-panel" aria-label="Timeline filters">
+      {canUseGmTools && (
+        <section className="timeline2-gm-toolbar codex-card">
+          <div>
+            <span className="kicker">GM timeline tools</span>
+            <strong>История мира как рабочий слой мастера</strong>
+            <p>Создавай события, проверяй player-safe ветку и показывай выбранный момент игрокам без риска утечки секретов.</p>
+          </div>
+          <div className="timeline2-toolbar-actions">
+            <CodexButton as={Link} to={editorPathForWorld(activeWorld, "timelineEvent")}>
+              <Plus size={16} /> <span>Новое событие</span>
+            </CodexButton>
+            <button type="button" className={`timeline2-toggle ${playerPreview ? "active" : ""}`} onClick={() => setPlayerPreview((value) => !value)}>
+              {playerPreview ? <Eye size={16} /> : <EyeOff size={16} />}
+              {playerPreview ? "GM view" : "Preview as Player"}
+            </button>
+            <button type="button" className="timeline2-toggle" onClick={revealActiveEvent} disabled={!active || revealBusy || !active.playerVisible}>
+              <Send size={16} /> {revealBusy ? "Показываю..." : "Reveal event"}
+            </button>
+            {(activeWorld || active) && (
+              <Link className="timeline2-toggle timeline2-link-button" to={playerUrlForWorld(activeWorld, active)}>
+                <MonitorPlay size={16} /> Player view
+              </Link>
+            )}
+          </div>
+        </section>
+      )}
+
+      <section className={`timeline2-readiness ${readiness.tone}`}>
+        <div>
+          {readiness.tone === "safe" ? <Eye size={18} /> : <ShieldAlert size={18} />}
+          <strong>{readiness.title}</strong>
+          <p>{readiness.text}</p>
+        </div>
+        <div className="timeline2-readiness-stats">
+          <span><Eye size={14} /> {stats.player} player-visible</span>
+          <span><EyeOff size={14} /> {stats.gm} GM-only</span>
+          <span><AlertTriangle size={14} /> {stats.secrets} с secret-блоками</span>
+        </div>
+      </section>
+
+      {revealMessage && <div className={`status-message ${revealMessage.includes("нельзя") || revealMessage.includes("Не могу") ? "danger-message" : ""}`}>{revealMessage}</div>}
+
+      <section className="timeline-command-panel timeline2-command-panel" aria-label="Timeline filters">
         <label className="timeline-control timeline-control--search">
           <Search size={16} />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по событиям, NPC, городам..." />
@@ -227,20 +364,34 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
         </label>
       </section>
 
-      <section className="timeline-branch-layout">
-        <div className="timeline-branch-explorer" style={{ "--timeline-items": Math.max(timelineItems.length, 1) }}>
+      <section className="timeline2-branch-tabs" aria-label="Timeline branch shortcuts">
+        {[
+          ["", "Все ветви"],
+          ["event", "События"],
+          ["people", "Люди"],
+          ["places", "Места"],
+          ["faction", "Фракции"]
+        ].map(([value, label]) => (
+          <button key={value || "all"} type="button" className={typeFilter === value ? "active" : ""} onClick={() => setTypeFilter(value)}>
+            {label}
+          </button>
+        ))}
+      </section>
+
+      <section className="timeline-branch-layout timeline2-layout">
+        <div className={`timeline-branch-explorer timeline2-explorer ${effectivePlayerView ? "player-preview" : "gm-preview"}`} style={{ "--timeline-items": Math.max(timelineItems.length, 1) }}>
           {timelineItems.length === 0 && (
             <div className="timeline-empty-state timeline-branch-empty">
               <Clock3 size={30} />
-              <strong>Timeline пока пустой</strong>
-              <p>Создай статью типа “Событие timeline” или добавь `year`, `timelineYear`, `related`, `world` в frontmatter существующей статьи.</p>
-              {mode === "gm" && <CodexButton as={Link} to={editorPathForWorld(activeWorld)}><span>{activeWorld ? "Создать событие в мире" : "Создать событие"}</span></CodexButton>}
+              <strong>{effectivePlayerView ? "Player timeline пустой" : "Timeline пока пустой"}</strong>
+              <p>{effectivePlayerView ? "Нет публичных событий. Переключись в GM view или сделай важные события visibility: public." : "Создай статью типа “Событие timeline” или добавь `year`, `timelineYear`, `related`, `world` в frontmatter существующей статьи."}</p>
+              {canUseGmTools && <CodexButton as={Link} to={editorPathForWorld(activeWorld, "timelineEvent")}><span>{activeWorld ? "Создать событие в мире" : "Создать событие"}</span></CodexButton>}
             </div>
           )}
 
           {groupedEvents.map((group) => (
-            <div key={group.era} className="timeline-era-group">
-              <div className="timeline-era-marker">
+            <div key={group.era} className="timeline-era-group timeline2-era-group">
+              <div className="timeline-era-marker timeline2-era-marker">
                 <CalendarDays size={16} />
                 <span>{group.era}</span>
               </div>
@@ -252,14 +403,18 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
                 return (
                   <article
                     key={event.path}
-                    className={`timeline-branch-row ${side} ${isActive ? "active" : ""} ${isConnected ? "connected" : ""} timeline-kind-${event.typeConfig.className}`}
+                    className={`timeline-branch-row ${side} ${isActive ? "active" : ""} ${isConnected ? "connected" : ""} ${event.playerVisible ? "player-visible" : "gm-only"} timeline-kind-${event.typeConfig.className}`}
                     onMouseEnter={() => setHoveredPath(event.path)}
                     onMouseLeave={() => setHoveredPath("")}
                   >
-                    <div className="timeline-branch-card codex-card">
+                    <div className="timeline-branch-card codex-card timeline2-card">
                       <div className="timeline-branch-card-head">
                         <span className="timeline-branch-year">{event.year}</span>
                         <span className="timeline-kind-pill"><Icon size={14} /> {event.typeConfig.label}</span>
+                        <span className={`timeline2-visibility-pill ${event.playerVisible ? "public" : "gm"}`}>
+                          {event.playerVisible ? <Eye size={13} /> : <EyeOff size={13} />}
+                          {event.playerVisible ? "Player" : "GM"}
+                        </span>
                       </div>
                       <h2>{event.title}</h2>
                       <p>{compact(event.summary || event.content || "")}</p>
@@ -267,6 +422,7 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
                         <span>{labelCategory(event.category)}</span>
                         <span>{event.importance}</span>
                         {event.world && <span>{event.world}</span>}
+                        {event.relatedPages?.length > 0 && <span>{event.relatedPages.length} связей</span>}
                       </div>
                       <div className="timeline-branch-actions">
                         <button type="button" onClick={() => setSelectedPath(event.path)} className="timeline-focus-button">
@@ -293,12 +449,16 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
           ))}
         </div>
 
-        <aside className="timeline-focus-dossier codex-card">
+        <aside className="timeline-focus-dossier codex-card timeline2-dossier">
           {active ? (
             <>
               <span className="kicker">Фокус ветви</span>
               <h2>{active.title}</h2>
               <p>{compact(active.summary || active.content || "", 260)}</p>
+              <div className="timeline2-dossier-status">
+                <span className={active.playerVisible ? "public" : "gm"}>{active.playerVisible ? <Eye size={14} /> : <EyeOff size={14} />}{active.playerVisible ? "Можно игрокам" : "GM-only"}</span>
+                {active.hasSecrets && <span className="secret"><ShieldAlert size={14} /> есть секреты</span>}
+              </div>
               <div className="timeline-dossier-facts">
                 <span><strong>Дата</strong>{active.year}</span>
                 <span><strong>Тип</strong>{active.typeConfig.label}</span>
@@ -322,11 +482,15 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
                       <strong>{item.title}</strong>
                     </span>
                   )
-                )) : <p className="timeline-muted-note">Нет связей. Добавь `related: [...]` или wiki-ссылки в markdown.</p>}
+                )) : <p className="timeline-muted-note">Нет связей. Добавь связанные статьи через Structured Article Editor.</p>}
               </div>
-              <CodexButton as={Link} to={`/page/${encodeURIComponent(active.path)}`}>
-                <BookOpen size={16} /> <span>Открыть статью</span>
-              </CodexButton>
+              <div className="timeline2-dossier-actions">
+                <CodexButton as={Link} to={`/page/${encodeURIComponent(active.path)}`}>
+                  <BookOpen size={16} /> <span>Открыть статью</span>
+                </CodexButton>
+                {canUseGmTools && <CodexButton as={Link} to={`/edit/${encodeURIComponent(active.path)}`} variant="ghost"><span>Редактировать</span></CodexButton>}
+                {canUseGmTools && <button type="button" className="timeline2-toggle" onClick={revealActiveEvent} disabled={!active.playerVisible || revealBusy}><RadioTower size={15} /> Reveal</button>}
+              </div>
             </>
           ) : (
             <div className="timeline-muted-note">Выбери событие, чтобы увидеть dossier.</div>

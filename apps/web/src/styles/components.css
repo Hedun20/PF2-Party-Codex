@@ -5628,3 +5628,254 @@ textarea { min-height: 96px; resize: vertical; }
     grid-column: auto;
   }
 }
+
+/* Timeline 2.0: GM workbench, player-safe preview, reveal readiness */
+.timeline2-gm-toolbar,
+.timeline2-readiness {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  border-radius: 22px;
+}
+
+.timeline2-gm-toolbar {
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  background:
+    radial-gradient(circle at 3% 0%, rgba(125, 211, 252, 0.14), transparent 32%),
+    radial-gradient(circle at 98% 18%, rgba(168, 85, 247, 0.12), transparent 30%),
+    rgba(6, 10, 22, 0.7);
+}
+
+.timeline2-gm-toolbar strong {
+  display: block;
+  color: var(--text);
+  margin: 3px 0 6px;
+  font-family: var(--display);
+  font-size: 1.05rem;
+}
+
+.timeline2-gm-toolbar p,
+.timeline2-readiness p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.timeline2-toolbar-actions,
+.timeline2-dossier-actions,
+.timeline2-readiness-stats,
+.timeline2-branch-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.timeline2-toolbar-actions {
+  justify-content: flex-end;
+}
+
+.timeline2-toggle,
+.timeline2-link-button,
+.timeline2-branch-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 999px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.055);
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.timeline2-toggle:hover:not(:disabled),
+.timeline2-link-button:hover,
+.timeline2-branch-tabs button:hover,
+.timeline2-toggle.active,
+.timeline2-branch-tabs button.active {
+  border-color: rgba(125, 211, 252, 0.46);
+  background: linear-gradient(135deg, rgba(125, 211, 252, 0.17), rgba(168, 85, 247, 0.12));
+  box-shadow: 0 14px 34px rgba(14, 165, 233, 0.14);
+}
+
+.timeline2-toggle:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+.timeline2-readiness {
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background: rgba(3, 7, 18, 0.56);
+}
+
+.timeline2-readiness > div:first-child {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.timeline2-readiness strong {
+  display: block;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.timeline2-readiness.safe {
+  border-color: rgba(52, 211, 153, 0.25);
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.11), rgba(3, 7, 18, 0.56));
+}
+
+.timeline2-readiness.mixed,
+.timeline2-readiness.warning {
+  border-color: rgba(251, 191, 36, 0.3);
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.11), rgba(3, 7, 18, 0.56));
+}
+
+.timeline2-readiness.empty {
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+.timeline2-readiness-stats {
+  justify-content: flex-end;
+}
+
+.timeline2-readiness-stats span,
+.timeline2-visibility-pill,
+.timeline2-dossier-status span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(0, 0, 0, 0.18);
+  font-size: 0.8rem;
+}
+
+.timeline2-branch-tabs {
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.12);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.timeline2-branch-tabs button {
+  min-height: 34px;
+  padding: 7px 12px;
+  color: var(--muted);
+}
+
+.timeline2-branch-tabs button.active {
+  color: var(--text);
+}
+
+.timeline2-command-panel {
+  align-items: stretch;
+}
+
+.timeline2-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.timeline2-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.045), transparent);
+  opacity: 0;
+  transform: translateX(-40%);
+  transition: opacity 160ms ease, transform 220ms ease;
+}
+
+.timeline-branch-row:hover .timeline2-card::before,
+.timeline-branch-row.active .timeline2-card::before {
+  opacity: 1;
+  transform: translateX(40%);
+}
+
+.timeline2-visibility-pill.public,
+.timeline2-dossier-status .public {
+  color: #bbf7d0;
+  border-color: rgba(52, 211, 153, 0.32);
+  background: rgba(20, 83, 45, 0.16);
+}
+
+.timeline2-visibility-pill.gm,
+.timeline2-dossier-status .gm,
+.timeline2-dossier-status .secret {
+  color: #fed7aa;
+  border-color: rgba(251, 146, 60, 0.3);
+  background: rgba(124, 45, 18, 0.18);
+}
+
+.timeline-branch-row.gm-only .timeline-branch-card {
+  border-color: rgba(251, 146, 60, 0.2);
+  box-shadow: inset 3px 0 0 rgba(251, 146, 60, 0.45);
+}
+
+.timeline-branch-row.player-visible .timeline-branch-card {
+  box-shadow: inset 3px 0 0 rgba(52, 211, 153, 0.36);
+}
+
+.timeline2-dossier {
+  display: grid;
+  gap: 13px;
+}
+
+.timeline2-dossier-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.timeline2-dossier-actions {
+  margin-top: 4px;
+}
+
+.timeline2-dossier-actions .timeline2-toggle {
+  min-height: 40px;
+}
+
+.timeline2-explorer.player-preview .gm-only {
+  display: none;
+}
+
+.timeline2-explorer.player-preview .timeline-branch-card {
+  border-color: rgba(52, 211, 153, 0.18);
+}
+
+@media (max-width: 980px) {
+  .timeline2-gm-toolbar,
+  .timeline2-readiness {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline2-toolbar-actions,
+  .timeline2-readiness-stats {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .timeline2-branch-tabs {
+    border-radius: 18px;
+  }
+
+  .timeline2-branch-tabs button,
+  .timeline2-toggle,
+  .timeline2-link-button {
+    width: 100%;
+  }
+}
