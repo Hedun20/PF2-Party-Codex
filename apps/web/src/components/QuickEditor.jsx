@@ -392,6 +392,37 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
     setMessage("Черновик заполнен из одной строки. Проверь название, тип и нажми “Создать” или открой “Дополнительно”.");
   }
 
+  function appendToDraft(key, text) {
+    setForm((current) => {
+      const currentText = String(current[key] || "").trimEnd();
+      const separator = currentText ? "\n\n" : "";
+      return { ...current, [key]: `${currentText}${separator}${text}` };
+    });
+  }
+
+  function addPublicSection() {
+    appendToDraft("publicNotes", "## Новый раздел\n\nОпиши здесь то, что можно показать игрокам.");
+  }
+
+  function addSecretBlock() {
+    appendToDraft("gmSecrets", "- Секрет GM: кто знает правду, что скрыто и когда это раскрыть игрокам.");
+  }
+
+  function addGmSecretNote() {
+    appendToDraft("gmSecrets", "- Секрет GM: скрытый мотив, ловушка, истинная история или будущий reveal.");
+  }
+
+  function relatedPageByTitle(title) {
+    return relationOptions.find((page) => page.title === title);
+  }
+
+  function removeRelated(title) {
+    setForm((current) => ({
+      ...current,
+      related: (current.related || []).filter((item) => item !== title)
+    }));
+  }
+
   async function submit(event) {
     event.preventDefault();
     const category = form.category || (form.type === "lore" ? loreCategoryBySubtype[form.loreSubtype || "general"] : categoryByType[form.type]) || "lore";
@@ -561,11 +592,91 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
           </div>
         )}
         <label className="codex-field">Краткое описание<textarea value={form.summary || ""} onChange={(event) => update("summary", event.target.value)} placeholder="1–3 строки: кто/что это и зачем мастеру помнить." /></label>
-        <label className="codex-field gm-secret-field">
-          GM-секреты
-          <textarea value={form.gmSecrets || ""} onChange={(event) => update("gmSecrets", event.target.value)} placeholder="Секретная информация для мастера. Игроки не увидят этот блок в player mode." />
-          <span>Сохранится как раздел GM Secrets и будет скрыто от игроков.</span>
-        </label>
+      </section>
+
+      <section className="builder-section article-writing-workspace quick-article-workspace structured-article-builder">
+        <div className="visual-editor-section-head">
+          <span className="kicker">Структура статьи</span>
+          <h2>Public · Secrets · Links</h2>
+          <p>Статья теперь собирается как рабочая карточка мастера: отдельно то, что видят игроки, отдельно правда GM, отдельно умные связи с другими статьями.</p>
+        </div>
+
+        <div className="structured-story-grid">
+          <label className="codex-field story-main-field structured-public-field">
+            Публичные заметки / что видят игроки
+            <textarea
+              className="story-textarea structured-textarea"
+              rows={18}
+              value={form.publicNotes || ""}
+              onChange={(event) => update("publicNotes", event.target.value)}
+              placeholder="Описание, слухи, внешний вид, публичная история, handout-текст. Это можно безопасно показывать игрокам."
+            />
+            <span>Этот текст попадёт в player-safe view и handout. Сюда не кладём тайные мотивы, ловушки и будущие раскрытия.</span>
+          </label>
+
+          <label className="codex-field gm-secret-field story-gm-field structured-secret-field">
+            GM секреты / правда мастера
+            <textarea
+              className="story-textarea structured-textarea structured-secret-textarea"
+              rows={14}
+              value={form.gmSecrets || ""}
+              onChange={(event) => update("gmSecrets", event.target.value)}
+              placeholder="Скрытая правда, мотивы NPC, ловушки, тайные фракции, условия reveal. Игрокам не показывается."
+            />
+            <span>Сохранится как раздел ## GM Secrets и будет автоматически скрываться от игроков.</span>
+          </label>
+        </div>
+
+        <section className="related-articles-workbench">
+          <div className="related-articles-head">
+            <div>
+              <span className="kicker">Связанные статьи</span>
+              <h3>Умные связи архива</h3>
+              <p>Выбирай несколько статей через dropdown. Каждая связь станет чипом, который можно удалить крестиком.</p>
+            </div>
+            <select value="" onChange={(event) => event.target.value && toggleArray("related", event.target.value)}>
+              <option value="">Добавить существующую связь</option>
+              {relationOptions.map((page) => <option key={page.path} value={page.title}>{optionLabel(page)}</option>)}
+            </select>
+          </div>
+
+          <div className="related-chip-cloud">
+            {(form.related || []).length === 0 && <span className="empty-inline-hint">Связей пока нет. Добавь NPC, город, квест, карту или событие, чтобы статья стала частью живого архива.</span>}
+            {(form.related || []).map((title) => {
+              const page = relatedPageByTitle(title);
+              return (
+                <button key={title} type="button" className="related-chip" onClick={() => removeRelated(title)} title="Удалить связь">
+                  <span>{page ? labelCategory(page.category) : "Связь"}</span>
+                  <strong>{title}</strong>
+                  <em aria-hidden="true">×</em>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="inline-add controlled-create-row related-create-row">
+            <select value={relatedDraft.type} onChange={(event) => setRelatedDraft((current) => ({ ...current, type: event.target.value }))}>
+              {types.filter(([value]) => value !== "world").map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+            <input value={relatedDraft.title} onChange={(event) => setRelatedDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Создать новую связанную статью" />
+            <button type="button" className="type-chip" onClick={createRelatedDraft}>Создать и связать</button>
+          </div>
+        </section>
+
+        <aside className="story-helper-panel structured-story-helper">
+          <strong>Быстрые блоки</strong>
+          <p>Public — для игроков. GM Secrets — для мастера. Related Articles — для карты связей, timeline, backlinks и будущего импорта.</p>
+          <div className="story-helper-actions">
+            <button type="button" className="type-chip" onClick={addPublicSection}>+ Публичный раздел</button>
+            <button type="button" className="type-chip" onClick={addSecretBlock}>+ GM секрет</button>
+            <button type="button" className="type-chip" onClick={addGmSecretNote}>+ Reveal заметка</button>
+          </div>
+          <div className="story-safe-rules">
+            <span>Игрокам видно: публичные заметки.</span>
+            <span>Игрокам скрыто: GM Secrets.</span>
+            <span>Связи сохраняются структурно в frontmatter.related.</span>
+          </div>
+        </aside>
       </section>
 
       <details className="advanced-editor-details import-details">
@@ -576,10 +687,10 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
       <details className="advanced-editor-details">
         <summary>Дополнительно: теги, связи, медиа, карты, GM-секреты</summary>
 
-        <section className="builder-section two-col">
+        <section className="builder-section">
           <div>
             <span className="field-title">Теги из vault</span>
-            <p className="builder-hint">Теги больше не вводятся руками: выбирай только существующие, чтобы не плодить дубликаты.</p>
+            <p className="builder-hint">Теги больше не вводятся руками: выбирай только существующие, чтобы не плодить дубликаты. Связи вынесены выше в основной блок статьи.</p>
             <div className="choice-row">
               {tagOptions.length === 0 && <span className="empty-inline-hint">В vault пока нет тегов.</span>}
               {tagOptions.map((tag) => (
@@ -587,23 +698,6 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
                   {tag}
                 </button>
               ))}
-            </div>
-          </div>
-          <div>
-            <span className="field-title">Связанные статьи</span>
-            <select value="" onChange={(event) => event.target.value && toggleArray("related", event.target.value)}>
-              <option value="">Добавить существующую связь</option>
-              {relationOptions.map((page) => <option key={page.path} value={page.title}>{optionLabel(page)}</option>)}
-            </select>
-            <div className="choice-row">
-              {(form.related || []).map((title) => <button key={title} type="button" className="choice-pill active" onClick={() => toggleArray("related", title)}>{title}</button>)}
-            </div>
-            <div className="inline-add controlled-create-row">
-              <select value={relatedDraft.type} onChange={(event) => setRelatedDraft((current) => ({ ...current, type: event.target.value }))}>
-                {types.filter(([value]) => value !== "world").map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
-              <input value={relatedDraft.title} onChange={(event) => setRelatedDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Создать новую связанную статью" />
-              <button type="button" className="type-chip" onClick={createRelatedDraft}>Создать и связать</button>
             </div>
           </div>
         </section>
@@ -713,8 +807,9 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
           </section>
         )}
 
-        <section className="builder-section">
-          <label>Публичные заметки<textarea value={form.publicNotes || ""} onChange={(event) => update("publicNotes", event.target.value)} /></label>
+        <section className="builder-section compact-editor-note">
+          <strong>Текст статьи вынесен выше</strong>
+          <p>Большое поле “Текст статьи” теперь находится перед дополнительными настройками, чтобы мастер не писал основную статью в маленьком нижнем textarea.</p>
         </section>
       </details>
 

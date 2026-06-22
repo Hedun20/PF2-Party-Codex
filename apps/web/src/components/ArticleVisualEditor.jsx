@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Eye, FileCode2, Save, Sparkles, Wand2 } from "lucide-react";
+import { BookOpenText, Eye, FileCode2, Save, Sparkles, Wand2 } from "lucide-react";
 import MarkdownViewer from "./MarkdownViewer.jsx";
 import CodexButton from "./ui/CodexButton.jsx";
 import { api } from "../api/client.js";
@@ -98,6 +98,39 @@ function Section({ title, hint, children }) {
       <div className="visual-editor-grid">{children}</div>
     </section>
   );
+}
+
+const GM_SECTION_PATTERN = /^##\s+GM Secrets\s*$/gim;
+const NEXT_H2_PATTERN = /^##\s+/gm;
+
+function splitStructuredContent(content = "") {
+  let text = String(content || "").trim();
+  if (!text) return { publicNotes: "", gmSecrets: "" };
+
+  GM_SECTION_PATTERN.lastIndex = 0;
+  const match = GM_SECTION_PATTERN.exec(text);
+  if (!match) return { publicNotes: text, gmSecrets: "" };
+
+  const sectionStart = match.index;
+  const bodyStart = match.index + match[0].length;
+  NEXT_H2_PATTERN.lastIndex = bodyStart;
+  const next = NEXT_H2_PATTERN.exec(text);
+  const sectionEnd = next ? next.index : text.length;
+
+  const before = text.slice(0, sectionStart).trimEnd();
+  const gmSecrets = text.slice(bodyStart, sectionEnd).trim();
+  const after = text.slice(sectionEnd).trimStart();
+  const publicNotes = [before, after].filter(Boolean).join("\n\n").trim();
+  return { publicNotes, gmSecrets };
+}
+
+function buildStructuredContent({ publicNotes = "", gmSecrets = "" } = {}) {
+  const publicText = String(publicNotes || "").trim();
+  const secretText = String(gmSecrets || "").trim();
+  return [
+    publicText,
+    secretText ? `## GM Secrets\n${secretText}` : ""
+  ].filter(Boolean).join("\n\n").trim() + "\n";
 }
 
 function NpcFields({ fm, set }) {
@@ -408,6 +441,34 @@ export default function ArticleVisualEditor({
     onFrontmatterChange?.({ ...fm, ...patch });
   };
 
+  function appendContentBlock(text) {
+    const currentText = String(content || "").trimEnd();
+    const separator = currentText ? "\n\n" : "";
+    onContentChange?.(`${currentText}${separator}${text}`);
+    setTab("text");
+  }
+
+  const structuredStory = useMemo(() => splitStructuredContent(content), [content]);
+
+  function updateStructuredStory(patch) {
+    onContentChange?.(buildStructuredContent({ ...structuredStory, ...patch }));
+  }
+
+  function appendGmSecretsBlock() {
+    const currentSecrets = String(structuredStory.gmSecrets || "").trimEnd();
+    const separator = currentSecrets ? "\n" : "";
+    updateStructuredStory({ gmSecrets: `${currentSecrets}${separator}- Секрет GM: что скрыто, кто знает правду и когда это раскрыть.` });
+    setTab("text");
+  }
+
+  function relatedPageByTitle(title) {
+    return relationOptions.find((page) => page.title === title);
+  }
+
+  function removeRelated(title) {
+    set("related", asArray(fm.related).filter((item) => item !== title));
+  }
+
   async function createLinkedPage() {
     const title = linkedDraft.title.trim();
     if (!title) {
@@ -441,7 +502,8 @@ export default function ArticleVisualEditor({
   return (
     <section className="article-editor-shell">
       <div className="article-editor-tabs" role="tablist">
-        <button type="button" className={tab === "visual" ? "active" : ""} onClick={() => setTab("visual")}><Wand2 size={16} /> Визуально</button>
+        <button type="button" className={tab === "visual" ? "active" : ""} onClick={() => setTab("visual")}><Wand2 size={16} /> Поля</button>
+        <button type="button" className={tab === "text" ? "active" : ""} onClick={() => setTab("text")}><BookOpenText size={16} /> Текст статьи</button>
         <button type="button" className={tab === "markdown" ? "active" : ""} onClick={() => setTab("markdown")}><FileCode2 size={16} /> Markdown</button>
         <button type="button" className={tab === "preview" ? "active" : ""} onClick={() => setTab("preview")}><Eye size={16} /> Preview</button>
       </div>
@@ -509,22 +571,10 @@ export default function ArticleVisualEditor({
                 ))}
               </div>
             </div>
-            <div className="controlled-picker controlled-picker--wide">
+            <div className="controlled-picker controlled-picker--wide compact-editor-note">
               <span className="field-title">Связанные статьи</span>
-              <select value="" onChange={(event) => event.target.value && toggleArrayValue("related", event.target.value)}>
-                <option value="">Добавить существующую связь</option>
-                {relationOptions.map((page) => <option key={page.path} value={page.title}>{optionLabel(page)}</option>)}
-              </select>
-              <div className="choice-row">
-                {asArray(fm.related).map((title) => <button key={title} type="button" className="choice-pill active" onClick={() => toggleArrayValue("related", title)}>{title}</button>)}
-              </div>
-              <div className="inline-add controlled-create-row">
-                <select value={linkedDraft.type} onChange={(event) => setLinkedDraft((current) => ({ ...current, type: event.target.value }))}>
-                  {articleTypes.filter(([value]) => value !== "world").map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                </select>
-                <input value={linkedDraft.title} onChange={(event) => setLinkedDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Создать новую связанную статью" />
-                <button type="button" className="type-chip" onClick={createLinkedPage}>Создать и связать</button>
-              </div>
+              <p className="builder-hint">Связи вынесены во вкладку “Текст статьи”, рядом с public/GM блоками. Там они отображаются чипами с удалением.</p>
+              <button type="button" className="type-chip" onClick={() => setTab("text")}>Открыть связи</button>
             </div>
             <TextArea label="Краткое описание" value={fm.summary} onChange={(value) => set("summary", value)} />
           </Section>
@@ -541,12 +591,114 @@ export default function ArticleVisualEditor({
             </Section>
           </details>
 
-          <Section title="Текст статьи" hint="Это тело Markdown без frontmatter. Можно писать обычный текст и [[ссылки]].">
-            <TextArea label="Основной текст" value={content} onChange={onContentChange} />
+          <Section title="Текст статьи" hint="Основной текст вынесен в отдельную вкладку, чтобы не писать большой лор в маленьком textarea.">
+            <div className="story-tab-callout">
+              <BookOpenText size={22} />
+              <div>
+                <strong>Открой вкладку “Текст статьи”</strong>
+                <p>Там большой редактор, быстрые публичные/секретные блоки и подсказки для безопасного player view.</p>
+              </div>
+              <button type="button" className="type-chip" onClick={() => setTab("text")}>Открыть текст</button>
+            </div>
           </Section>
 
           <div className="article-editor-save-row">
             <CodexButton type="button" onClick={onSaveStructured}><Save size={16} /> <span>Сохранить визуально</span></CodexButton>
+            {mode === "edit" && path && <span>{path}</span>}
+          </div>
+        </div>
+      )}
+
+      {tab === "text" && (
+        <div className="article-writing-workspace structured-text-workspace structured-article-builder">
+          <div className="visual-editor-section-head">
+            <span className="kicker">Структура статьи</span>
+            <h2>Public · Secrets · Links</h2>
+            <p>Не один огромный placeholder, а три рабочих зоны: что увидят игроки, что знает только GM, и с какими статьями этот материал связан.</p>
+          </div>
+
+          <div className="structured-story-grid">
+            <label className="codex-field story-main-field structured-public-field">
+              Публичные заметки / что видят игроки
+              <textarea
+                className="story-textarea structured-textarea"
+                rows={18}
+                value={structuredStory.publicNotes}
+                onChange={(event) => updateStructuredStory({ publicNotes: event.target.value })}
+                spellCheck="true"
+                placeholder="Описание сцены, NPC, места или мира. Это player-safe текст для handout и player view."
+              />
+              <span>Этот блок должен быть безопасен для игроков. [[Ссылки]] можно оставлять прямо в тексте.</span>
+            </label>
+
+            <label className="codex-field gm-secret-field story-gm-field structured-secret-field">
+              GM секреты / правда мастера
+              <textarea
+                className="story-textarea structured-textarea structured-secret-textarea"
+                rows={14}
+                value={structuredStory.gmSecrets}
+                onChange={(event) => updateStructuredStory({ gmSecrets: event.target.value })}
+                spellCheck="true"
+                placeholder="Скрытые мотивы, ловушки, будущие раскрытия, секреты фракций, настоящая история. Игрокам не показывается."
+              />
+              <span>При сохранении это останется Markdown-разделом ## GM Secrets и будет вырезаться из player-safe view.</span>
+            </label>
+          </div>
+
+          <section className="related-articles-workbench">
+            <div className="related-articles-head">
+              <div>
+                <span className="kicker">Связанные статьи</span>
+                <h3>Мультивыбор через чипы</h3>
+                <p>Эти связи питают backlinks, timeline, карту связей, Maps 2.0 и будущий импорт архива мастера.</p>
+              </div>
+              <select value="" onChange={(event) => event.target.value && toggleArrayValue("related", event.target.value)}>
+                <option value="">Добавить существующую связь</option>
+                {relationOptions.map((page) => <option key={page.path} value={page.title}>{optionLabel(page)}</option>)}
+              </select>
+            </div>
+
+            <div className="related-chip-cloud">
+              {asArray(fm.related).length === 0 && <span className="empty-inline-hint">Связей пока нет. Добавь NPC, город, карту, квест или событие timeline.</span>}
+              {asArray(fm.related).map((title) => {
+                const page = relatedPageByTitle(title);
+                return (
+                  <button key={title} type="button" className="related-chip" onClick={() => removeRelated(title)} title="Удалить связь">
+                    <span>{page ? labelCategory(page.category) : "Связь"}</span>
+                    <strong>{title}</strong>
+                    <em aria-hidden="true">×</em>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="inline-add controlled-create-row related-create-row">
+              <select value={linkedDraft.type} onChange={(event) => setLinkedDraft((current) => ({ ...current, type: event.target.value }))}>
+                {articleTypes.filter(([value]) => value !== "world").map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+              <input value={linkedDraft.title} onChange={(event) => setLinkedDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Создать новую связанную статью" />
+              <button type="button" className="type-chip" onClick={createLinkedPage}>Создать и связать</button>
+            </div>
+          </section>
+
+          <aside className="story-helper-panel structured-story-helper">
+            <strong>Быстрые блоки</strong>
+            <p>Markdown остаётся внутри vault. Просто теперь GM работает не с кашей, а с нормальной структурой.</p>
+            <div className="story-helper-actions">
+              <button type="button" className="type-chip" onClick={() => updateStructuredStory({ publicNotes: `${String(structuredStory.publicNotes || "").trimEnd()}${structuredStory.publicNotes ? "\n\n" : ""}## Что видят игроки\n\nКороткое описание, которое можно показывать в Handout / Player View.` })}>+ Public section</button>
+              <button type="button" className="type-chip" onClick={appendGmSecretsBlock}>+ GM secret</button>
+              <button type="button" className="type-chip" onClick={() => updateStructuredStory({ gmSecrets: `${String(structuredStory.gmSecrets || "").trimEnd()}${structuredStory.gmSecrets ? "\n" : ""}- Reveal условие: что должно произойти, чтобы открыть эту правду игрокам.` })}>+ Reveal note</button>
+            </div>
+            <div className="story-safe-rules">
+              <span>Public: безопасно для игроков.</span>
+              <span>GM Secrets: скрывается из player view.</span>
+              <span>Related: структурные связи в frontmatter.related.</span>
+              <span>Markdown tab остаётся для ручной правки.</span>
+            </div>
+          </aside>
+
+          <div className="article-editor-save-row">
+            <CodexButton type="button" onClick={onSaveStructured}><Save size={16} /> <span>Сохранить статью</span></CodexButton>
             {mode === "edit" && path && <span>{path}</span>}
           </div>
         </div>
