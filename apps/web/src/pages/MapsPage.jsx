@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Eye,
+  Copy,
   EyeOff,
   Gem,
   Link2,
@@ -10,6 +11,7 @@ import {
   MousePointer2,
   Plus,
   Search,
+  Send,
   ShieldCheck,
   SlidersHorizontal
 } from "lucide-react";
@@ -54,6 +56,8 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
   const [selectedPath, setSelectedPath] = useState("");
   const [previewMode, setPreviewMode] = useState(mode === "gm" ? "gm" : "player");
   const [unusedAssets, setUnusedAssets] = useState([]);
+  const [revealStatus, setRevealStatus] = useState(null);
+  const [revealBusy, setRevealBusy] = useState(false);
 
   useEffect(() => {
     if (mode !== "gm") return;
@@ -92,10 +96,44 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
   }, [maps, selectedPath]);
 
   const selectedMap = useMemo(() => maps.find((page) => page.path === selectedPath) || maps[0] || null, [maps, selectedPath]);
+  const selectedWorldName = activeWorld?.title || selectedMap?.world || "";
+  const playerViewUrl = selectedWorldName ? `/world/${encodeURIComponent(selectedWorldName)}/player` : "/player";
+  const selectedMapHasSecrets = selectedMap ? selectedMap.objects.some((item) => item.visibility === "gm" || item.type === "secret") : false;
+  const selectedMapPlayerReady = selectedMap ? selectedMap.player > 0 : false;
   const totalObjects = allMaps.reduce((sum, page) => sum + page.objects.length, 0);
   const playerObjects = allMaps.reduce((sum, page) => sum + page.player, 0);
   const gmObjects = allMaps.reduce((sum, page) => sum + page.gm, 0);
   const linkedObjects = allMaps.reduce((sum, page) => sum + page.linked, 0);
+
+  async function revealSelectedMap() {
+    if (!selectedMap) return;
+    setRevealBusy(true);
+    setRevealStatus(null);
+    try {
+      await api.revealSet({
+        world: selectedWorldName || selectedMap.world || selectedMap.title,
+        path: selectedMap.path,
+        note: selectedMapHasSecrets
+          ? "GM preview checked: this map contains hidden GM objects. Player view receives only the public map article."
+          : "Player-safe map handout from the GM map workbench."
+      });
+      setRevealStatus({ type: "success", text: `Карта «${selectedMap.title}» отправлена игрокам.` });
+    } catch (error) {
+      setRevealStatus({ type: "error", text: error.message || "Не удалось показать карту игрокам." });
+    } finally {
+      setRevealBusy(false);
+    }
+  }
+
+  async function copyPlayerLink() {
+    const url = `${window.location.origin}${playerViewUrl}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setRevealStatus({ type: "success", text: "Player link скопирован." });
+    } catch {
+      setRevealStatus({ type: "error", text: url });
+    }
+  }
 
   return (
     <div className="page-stack maps-hub-page maps2-workbench-page">
@@ -149,6 +187,16 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
                   {previewMode === "player" ? "Preview as Player" : "GM view"}
                 </button>
               )}
+              {mode === "gm" && (
+                <button type="button" className="maps2-preview-toggle maps2-reveal-action" onClick={revealSelectedMap} disabled={!selectedMapPlayerReady || revealBusy}>
+                  <Send size={16} /> {revealBusy ? "Показываю..." : "Reveal map"}
+                </button>
+              )}
+              {mode === "gm" && (
+                <button type="button" className="maps2-preview-toggle" onClick={copyPlayerLink}>
+                  <Copy size={16} /> Player link
+                </button>
+              )}
               <CodexButton as={Link} to={`/edit/${encodeURIComponent(selectedMap.path)}`} variant="secondary"><SlidersHorizontal size={16} /> Редактировать</CodexButton>
             </div>
           </div>
@@ -157,7 +205,23 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
             {mode === "gm" && <span><Gem size={14} /> {selectedMap.gm} GM-only</span>}
             <span><Link2 size={14} /> {selectedMap.linked} linked</span>
             {selectedMap.unlinked > 0 && <span className="warning"><ShieldCheck size={14} /> {selectedMap.unlinked} без статьи</span>}
+            {selectedMapHasSecrets && <span className="gm-warning"><EyeOff size={14} /> есть скрытый слой</span>}
+            {!selectedMapPlayerReady && <span className="warning"><ShieldCheck size={14} /> нет player objects</span>}
           </div>
+          {mode === "gm" && (
+            <div className={`maps2-reveal-strip ${revealStatus?.type || "idle"}`}>
+              <div>
+                <span className="kicker">Map reveal readiness</span>
+                <strong>{selectedMapPlayerReady ? "Можно показать игрокам" : "Сначала добавь player-visible объект или public map text"}</strong>
+              </div>
+              <p>
+                {revealStatus?.text || (selectedMapHasSecrets
+                  ? "Карта содержит GM-only слой. Используй Preview as Player перед Reveal."
+                  : "Карта выглядит безопасной для handout/reveal.")}
+              </p>
+              <Link to={playerViewUrl} target="_blank" rel="noreferrer">Открыть player view</Link>
+            </div>
+          )}
           <PageMap page={selectedMap} mode={previewMode} />
         </section>
       )}

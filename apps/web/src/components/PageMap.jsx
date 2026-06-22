@@ -4,13 +4,17 @@ import {
   AlertTriangle,
   Castle,
   Crown,
+  EyeOff,
   Gem,
+  Layers3,
+  Link2,
   MapPin,
   Maximize2,
   Minus,
   RotateCcw,
   ScrollText,
   ShoppingBag,
+  Target,
   Skull,
   Sparkles,
   UserRound,
@@ -86,6 +90,7 @@ export default function PageMap({ page, mode = "player" }) {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [drag, setDrag] = useState(null);
   const [hovered, setHovered] = useState(null);
+  const [selectedObjectId, setSelectedObjectId] = useState("");
   const [enabledTypes, setEnabledTypes] = useState(() => Object.fromEntries(mapObjectTypes.map((item) => [item.value, true])));
   const [showPlayerLayer, setShowPlayerLayer] = useState(true);
   const [showGmLayer, setShowGmLayer] = useState(mode === "gm");
@@ -97,6 +102,13 @@ export default function PageMap({ page, mode = "player" }) {
     if (object.visibility === "gm") return mode === "gm" && showGmLayer;
     return showPlayerLayer;
   }), [objects, enabledTypes, mode, showGmLayer, showPlayerLayer]);
+  const playerObjects = useMemo(() => objects.filter((object) => object.visibility !== "gm"), [objects]);
+  const gmObjects = useMemo(() => objects.filter((object) => object.visibility === "gm"), [objects]);
+  const linkedObjects = useMemo(() => objects.filter((object) => object.path), [objects]);
+  const unlinkedObjects = useMemo(() => objects.filter((object) => !object.path), [objects]);
+  const visibleTypeCount = Object.values(enabledTypes).filter(Boolean).length;
+  const selectedObject = activeObjects.find((object) => object.id === selectedObjectId) || hovered || activeObjects[0] || null;
+  const playerSafeReady = playerObjects.length > 0 && gmObjects.length === 0 ? "clean" : playerObjects.length > 0 ? "mixed" : "empty";
 
   if (!imagePath) return null;
 
@@ -111,6 +123,16 @@ export default function PageMap({ page, mode = "player" }) {
 
   function openObject(object) {
     if (object.path) navigate(toPage(object.path));
+  }
+
+  function setAllTypes(value) {
+    setEnabledTypes(Object.fromEntries(mapObjectTypes.map((item) => [item.value, value])));
+  }
+
+  function focusObject(object) {
+    setSelectedObjectId(object.id);
+    setPan({ x: 0, y: 0 });
+    if (object.shape !== "area") setScale((current) => Math.max(current, 1.15));
   }
 
   function handleWheel(event) {
@@ -148,25 +170,45 @@ export default function PageMap({ page, mode = "player" }) {
         </div>
       </div>
 
-      <div className="map2-filters">
-        <button type="button" className={showPlayerLayer ? "map2-filter-chip active" : "map2-filter-chip"} onClick={() => setShowPlayerLayer((value) => !value)}>
-          Player-visible
-        </button>
-        {mode === "gm" && (
-          <button type="button" className={showGmLayer ? "map2-filter-chip gm active" : "map2-filter-chip gm"} onClick={() => setShowGmLayer((value) => !value)}>
-            GM-only слой
+      <div className={`map2-safety-strip ${playerSafeReady}`}>
+        <div>
+          <span className="kicker">Player-safe check</span>
+          <strong>{mode === "gm" ? `${playerObjects.length} видно игрокам · ${gmObjects.length} скрыто для GM` : `${activeObjects.length} объектов доступно игрокам`}</strong>
+        </div>
+        <p>
+          {playerSafeReady === "clean" && "Карта чистая: все объекты подходят для игрока."}
+          {playerSafeReady === "mixed" && "Карта смешанная: GM-only слой есть, проверь Preview as Player перед reveal."}
+          {playerSafeReady === "empty" && "На карте пока нет player-visible объектов."}
+        </p>
+      </div>
+
+      <div className="map2-filter-bar">
+        <div className="map2-filters">
+          <button type="button" className={showPlayerLayer ? "map2-filter-chip active" : "map2-filter-chip"} onClick={() => setShowPlayerLayer((value) => !value)}>
+            Player-visible
           </button>
-        )}
-        {mapObjectTypes.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            className={enabledTypes[item.value] ? "map2-filter-chip active" : "map2-filter-chip"}
-            onClick={() => setEnabledTypes((current) => ({ ...current, [item.value]: !current[item.value] }))}
-          >
-            {item.label}
-          </button>
-        ))}
+          {mode === "gm" && (
+            <button type="button" className={showGmLayer ? "map2-filter-chip gm active" : "map2-filter-chip gm"} onClick={() => setShowGmLayer((value) => !value)}>
+              GM-only слой
+            </button>
+          )}
+          {mapObjectTypes.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              className={enabledTypes[item.value] ? "map2-filter-chip active" : "map2-filter-chip"}
+              onClick={() => setEnabledTypes((current) => ({ ...current, [item.value]: !current[item.value] }))}
+              style={{ "--object-color": item.color }}
+            >
+              <span className="map2-chip-dot" /> {item.label}
+            </button>
+          ))}
+        </div>
+        <div className="map2-filter-actions">
+          <button type="button" className="map2-mini-action" onClick={() => setAllTypes(true)}><Layers3 size={14} /> Все типы</button>
+          <button type="button" className="map2-mini-action" onClick={() => setAllTypes(false)}><EyeOff size={14} /> Скрыть типы</button>
+          <span>{visibleTypeCount}/{mapObjectTypes.length}</span>
+        </div>
       </div>
 
       <div className="map2-layout">
@@ -202,11 +244,11 @@ export default function PageMap({ page, mode = "player" }) {
                 <button
                   key={object.id}
                   type="button"
-                  className={`map2-object map2-pin map2-type-${object.type} ${object.visibility === "gm" ? "gm" : ""}`}
+                  className={`map2-object map2-pin map2-type-${object.type} ${object.visibility === "gm" ? "gm" : ""} ${selectedObjectId === object.id ? "selected" : ""}`}
                   style={{ left: `${object.x}%`, top: `${object.y}%`, "--object-color": object.color }}
                   onMouseEnter={() => setHovered(object)}
                   onMouseLeave={() => setHovered(null)}
-                  onClick={() => openObject(object)}
+                  onClick={(event) => { event.stopPropagation(); setSelectedObjectId(object.id); openObject(object); }}
                   title={object.label}
                 >
                   <Icon size={15} />
@@ -226,10 +268,24 @@ export default function PageMap({ page, mode = "player" }) {
         </div>
 
         <aside className="map2-object-list">
-          <div>
-            <span className="kicker">Объекты карты</span>
-            <h3>{activeObjects.length} / {objects.length}</h3>
+          <div className="map2-list-header">
+            <div>
+              <span className="kicker">Объекты карты</span>
+              <h3>{activeObjects.length} / {objects.length}</h3>
+            </div>
+            <small><Link2 size={13} /> {linkedObjects.length} linked · {unlinkedObjects.length} draft</small>
           </div>
+          {selectedObject && (
+            <div className="map2-focus-card" style={{ "--object-color": selectedObject.color }}>
+              <span>{labelMapObjectType(selectedObject.type)}{selectedObject.visibility === "gm" ? " · GM-only" : " · Player-visible"}</span>
+              <strong>{selectedObject.label}</strong>
+              {selectedObject.summary && <p>{selectedObject.summary}</p>}
+              <div>
+                {selectedObject.path ? <Link to={toPage(selectedObject.path)}>Открыть статью</Link> : <em>Нет связанной статьи</em>}
+                <button type="button" onClick={() => focusObject(selectedObject)}><Target size={13} /> Фокус</button>
+              </div>
+            </div>
+          )}
           {activeObjects.length ? activeObjects.map((object) => {
             const Icon = iconByType[object.type] || MapPin;
             const content = (
@@ -242,9 +298,23 @@ export default function PageMap({ page, mode = "player" }) {
               </>
             );
             return object.path ? (
-              <Link key={object.id} to={toPage(object.path)} style={{ "--object-color": object.color }}>{content}</Link>
+              <Link
+                key={object.id}
+                to={toPage(object.path)}
+                className={selectedObject?.id === object.id ? "active" : ""}
+                style={{ "--object-color": object.color }}
+                onMouseEnter={() => setHovered(object)}
+                onFocus={() => setHovered(object)}
+              >{content}</Link>
             ) : (
-              <div key={object.id} className="map2-list-static" style={{ "--object-color": object.color }}>{content}</div>
+              <button
+                key={object.id}
+                type="button"
+                className={selectedObject?.id === object.id ? "map2-list-static active" : "map2-list-static"}
+                style={{ "--object-color": object.color }}
+                onClick={() => focusObject(object)}
+                onMouseEnter={() => setHovered(object)}
+              >{content}</button>
             );
           }) : (
             <p className="builder-hint">Ничего не видно: проверь фильтры типов или слой GM/player.</p>
