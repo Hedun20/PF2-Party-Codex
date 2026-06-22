@@ -12,6 +12,7 @@ import GuidePage from "./pages/GuidePage.jsx";
 import MissingLinksPage from "./pages/MissingLinksPage.jsx";
 import RawEditorPage from "./pages/RawEditorPage.jsx";
 import VaultHealthPage from "./pages/VaultHealthPage.jsx";
+import PlayerSafetyPage from "./pages/PlayerSafetyPage.jsx";
 import TimelinePage from "./pages/TimelinePage.jsx";
 import MapsPage from "./pages/MapsPage.jsx";
 import SessionModePage from "./pages/SessionModePage.jsx";
@@ -110,6 +111,7 @@ export default function App() {
         <Route path="/timeline" element={<TimelinePage pages={pages} mode={effectiveMode} />} />
         <Route path="/maps" element={<MapsPage pages={pages} mode={effectiveMode} />} />
         <Route path="/health" element={<VaultHealthPage mode={effectiveMode} />} />
+        <Route path="/player-safety" element={<PlayerSafetyPage pages={pages} />} />
         <Route path="/guide" element={<GuidePage />} />
         <Route path="/foundry" element={<FoundryImportExportPage mode={effectiveMode} />} />
       </Routes>

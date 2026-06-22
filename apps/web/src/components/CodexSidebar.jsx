@@ -1,5 +1,5 @@
 import { Link, NavLink } from "react-router-dom";
-import { BookOpen, Castle, Clock3, Crosshair, FileQuestion, Globe2, Home, Map, MapPinned, ScrollText, ShieldCheck, Swords, UsersRound, X } from "lucide-react";
+import { BookOpen, Castle, Clock3, Crosshair, FileQuestion, Globe2, Home, Map, MapPinned, ScrollText, ShieldAlert, ShieldCheck, Swords, UsersRound, X } from "lucide-react";
 import LoreDropdown from "./LoreDropdown.jsx";
 import { worldRoute } from "../utils/worldContext.js";
 
@@ -67,6 +67,12 @@ export default function CodexSidebar({ onClose, canEdit = false, activeWorld = n
           <FileQuestion size={18} />
           <span>Ненаписанные статьи</span>
         </NavLink>
+        {canEdit && (
+          <NavLink to="/player-safety" className="nav-link" onClick={onClose}>
+            <ShieldAlert size={18} />
+            <span>Player Safety</span>
+          </NavLink>
+        )}
         <NavLink to="/health" className="nav-link" onClick={onClose}>
           <ShieldCheck size={18} />
           <span>Контроль vault</span>

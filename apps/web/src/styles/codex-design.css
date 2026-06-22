@@ -622,28 +622,16 @@
 }
 
 .timeline-branch-hero {
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 16% 0%, rgba(227, 182, 95, 0.18), transparent 32%),
-    radial-gradient(circle at 85% 18%, rgba(229, 75, 180, 0.18), transparent 32%),
-    linear-gradient(135deg, rgba(15, 12, 22, 0.98), rgba(27, 18, 39, 0.92));
+  overflow: visible;
+  background: transparent;
 }
 
 .timeline-branch-hero::after {
-  content: "";
-  position: absolute;
-  inset: -45% -20%;
-  z-index: 0;
-  opacity: 0.42;
-  pointer-events: none;
-  background:
-    conic-gradient(from 90deg at 50% 50%, transparent 0 18%, rgba(227, 182, 95, 0.12) 21%, transparent 26% 48%, rgba(168, 85, 247, 0.1) 54%, transparent 60% 100%);
-  animation: timeline-ambient-rotate 28s linear infinite;
+  content: none;
 }
 
 .timeline-branch-hero > * {
   position: relative;
-  z-index: 1;
 }
 
 .timeline-stat-grid {
@@ -1352,5 +1340,287 @@
 @media (max-width: 760px) {
   .world-context-switcher select {
     width: 100%;
+  }
+}
+
+/* Player Safety / Secrets Review */
+.player-safety-header {
+  gap: 1.4rem;
+  align-items: flex-start;
+}
+
+.safety-total-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 0.7rem;
+  min-width: min(420px, 100%);
+}
+
+.safety-total-grid div {
+  border: 1px solid rgba(227, 182, 95, 0.22);
+  border-radius: 18px;
+  padding: 0.85rem 1rem;
+  background: rgba(12, 10, 18, 0.48);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+.safety-total-grid strong {
+  display: block;
+  color: #f5d58d;
+  font-size: 1.45rem;
+}
+
+.safety-total-grid span {
+  color: var(--muted-text);
+  font-size: 0.82rem;
+}
+
+.safety-principle-card,
+.article-safety-banner,
+.article-player-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.safety-principle-card > div,
+.article-safety-banner > div {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.safety-principle-card p,
+.article-safety-banner p {
+  margin: 0;
+  color: var(--muted-text);
+}
+
+.safety-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+  gap: 1rem;
+  align-items: center;
+}
+
+.safety-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.safety-filter-row button {
+  border: 1px solid rgba(227, 182, 95, 0.18);
+  border-radius: 999px;
+  padding: 0.48rem 0.75rem;
+  background: rgba(255,255,255,0.045);
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.safety-filter-row button.is-active {
+  border-color: rgba(227, 182, 95, 0.72);
+  background: rgba(227, 182, 95, 0.16);
+  color: #f8dd9d;
+}
+
+.safety-search {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid rgba(227, 182, 95, 0.18);
+  border-radius: 16px;
+  padding: 0.6rem 0.8rem;
+  background: rgba(0,0,0,0.18);
+}
+
+.safety-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-main);
+}
+
+.safety-review-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(340px, 0.9fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.safety-review-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.safety-review-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  text-align: left;
+  border: 1px solid rgba(227, 182, 95, 0.16);
+  border-radius: 18px;
+  padding: 0.9rem 1rem;
+  background: rgba(12, 10, 18, 0.58);
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.safety-review-row > span {
+  grid-row: span 3;
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+}
+
+.safety-review-row strong { font-size: 1rem; }
+.safety-review-row em { color: #f0cf83; font-style: normal; font-size: 0.82rem; }
+.safety-review-row small { color: var(--muted-text); line-height: 1.4; }
+
+.safety-review-row.is-active {
+  border-color: rgba(227, 182, 95, 0.74);
+  box-shadow: 0 0 0 1px rgba(227, 182, 95, 0.16), 0 18px 42px rgba(0,0,0,0.28);
+}
+
+.safety-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.38rem 0.65rem;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: var(--text-main);
+  font-size: 0.8rem;
+}
+
+.safety-safe .safety-status-pill,
+.safety-status-pill.safety-safe,
+.safety-review-row.safety-safe > span,
+.article-safety-banner.safety-safe {
+  border-color: rgba(74, 222, 128, 0.34);
+}
+
+.safety-contains-secrets .safety-status-pill,
+.safety-status-pill.safety-contains-secrets,
+.safety-review-row.safety-contains-secrets > span,
+.article-safety-banner.safety-contains-secrets {
+  border-color: rgba(251, 191, 36, 0.48);
+}
+
+.safety-review-needed .safety-status-pill,
+.safety-status-pill.safety-review-needed,
+.safety-review-row.safety-review-needed > span,
+.article-safety-banner.safety-review-needed {
+  border-color: rgba(248, 113, 113, 0.52);
+}
+
+.safety-gm-only .safety-status-pill,
+.safety-status-pill.safety-gm-only,
+.safety-review-row.safety-gm-only > span,
+.article-safety-banner.safety-gm-only {
+  border-color: rgba(168, 85, 247, 0.48);
+}
+
+.safety-focus-panel {
+  position: sticky;
+  top: 1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.safety-focus-head {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.safety-focus-head strong {
+  font-size: 1.45rem;
+}
+
+.safety-focus-head p {
+  margin: 0;
+  color: var(--muted-text);
+}
+
+.safety-focus-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.safety-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.safety-facts div {
+  border-radius: 14px;
+  padding: 0.7rem;
+  background: rgba(255,255,255,0.045);
+}
+
+.safety-facts dt {
+  color: var(--muted-text);
+  font-size: 0.76rem;
+}
+
+.safety-facts dd {
+  margin: 0.2rem 0 0;
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.safety-warning-box {
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  border-radius: 16px;
+  padding: 0.9rem;
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.safety-warning-box ul {
+  margin: 0.55rem 0 0;
+  padding-left: 1.2rem;
+  color: var(--muted-text);
+}
+
+.safety-player-preview {
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding-top: 1rem;
+}
+
+.article-player-preview {
+  display: block;
+}
+
+.article-player-preview.is-blocked {
+  border-color: rgba(248, 113, 113, 0.42);
+}
+
+.article-player-preview-head {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 0.8rem;
+}
+
+@media (max-width: 920px) {
+  .safety-toolbar,
+  .safety-review-layout,
+  .player-safety-header {
+    grid-template-columns: 1fr;
+  }
+  .safety-focus-panel {
+    position: static;
   }
 }

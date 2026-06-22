@@ -4,7 +4,7 @@ import path from "path";
 import { Router } from "express";
 import { config } from "../config.js";
 import { auditVault } from "../services/auditService.js";
-import { listPages } from "../services/vaultService.js";
+import { getPlayerSafetyReview, listPages } from "../services/vaultService.js";
 import { slugify } from "../utils/slugify.js";
 import { requestMode, requireGm } from "../middleware/sessionMode.js";
 import { repairUploadedFilename } from "../utils/encoding.js";
@@ -55,6 +55,11 @@ toolsRouter.get("/metadata", (req, res) => {
   });
 });
 
+
+
+toolsRouter.get("/player-safety", requireGm, (_req, res) => {
+  res.json(getPlayerSafetyReview());
+});
 
 toolsRouter.get("/assets/list", async (req, res, next) => {
   try {

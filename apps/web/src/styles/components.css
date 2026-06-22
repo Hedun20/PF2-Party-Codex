@@ -2785,10 +2785,7 @@ textarea { min-height: 96px; resize: vertical; }
 }
 
 .maps-hub-hero {
-  background:
-    radial-gradient(circle at 12% 16%, rgba(56, 189, 248, 0.12), transparent 28%),
-    radial-gradient(circle at 88% 12%, rgba(227, 182, 95, 0.16), transparent 26%),
-    var(--panel);
+  background: transparent;
 }
 
 .maps-hub-tools {
@@ -4229,10 +4226,8 @@ textarea { min-height: 96px; resize: vertical; }
   grid-template-columns: minmax(0, 1fr) minmax(260px, 0.42fr);
   gap: 18px;
   align-items: stretch;
-  border-color: rgba(var(--world-accent-rgb), 0.24);
-  background:
-    radial-gradient(circle at 18% 12%, rgba(var(--world-accent-rgb), 0.22), transparent 36%),
-    linear-gradient(135deg, rgba(16, 13, 25, 0.94), rgba(8, 7, 13, 0.78));
+  border-color: var(--line);
+  background: transparent;
 }
 
 .session-hero-copy {

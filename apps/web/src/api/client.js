@@ -33,6 +33,7 @@ export const api = {
   markdownImportCommit: (payload) => request("/markdown/import/commit", { method: "POST", body: JSON.stringify(payload) }),
   metadata: (mode) => request(`/metadata?mode=${mode}`),
   audit: (mode) => request(`/audit?mode=${mode}`),
+  playerSafety: () => request("/player-safety"),
   uploadAsset: (formData) => request("/assets/upload", { method: "POST", body: formData }),
   assetList: (mode) => request(`/assets/list?mode=${mode}`),
   foundryImportPreview: (formData) => request("/foundry/import", { method: "POST", body: formData }),

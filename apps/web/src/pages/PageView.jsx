@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { PenLine, Trash2 } from "lucide-react";
+import { Eye, PenLine, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
 import { api } from "../api/client.js";
 import ArticleFactsPanel from "../components/ArticleFactsPanel.jsx";
 import HierarchyPanel from "../components/HierarchyPanel.jsx";
@@ -35,15 +35,30 @@ export default function PageView({ mode, pages = [], onChanged }) {
   const [error, setError] = useState("");
   const [deleteMessage, setDeleteMessage] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [playerPreview, setPlayerPreview] = useState(null);
+  const [previewMessage, setPreviewMessage] = useState("");
 
   useEffect(() => {
     setError("");
     setPage(null);
+    setPlayerPreview(null);
+    setPreviewMessage("");
     api.page(decodedPath, mode)
       .then((data) => setPage(data.page))
       .catch(() => setError(decodedPath));
   }, [decodedPath, mode]);
 
+  async function loadPlayerPreview() {
+    setPreviewMessage("");
+    setPlayerPreview(null);
+    try {
+      const data = await api.page(decodedPath, "player");
+      setPlayerPreview(data.page);
+      setPreviewMessage("Это ровно та player-safe версия, которую отдаёт player API.");
+    } catch {
+      setPreviewMessage("Игроки не смогут открыть эту статью: она GM-only, review-needed или скрыта целиком.");
+    }
+  }
 
   async function deleteCurrentPage() {
     if (!page || isDeleting) return;
@@ -96,6 +111,10 @@ export default function PageView({ mode, pages = [], onChanged }) {
         </div>
         {mode === "gm" && (
           <div className="editor-actions article-header-actions">
+            <CodexButton type="button" variant="secondary" size="sm" onClick={loadPlayerPreview}>
+              <Eye size={16} />
+              <span>Preview as Player</span>
+            </CodexButton>
             <CodexButton as={Link} to={`/edit/${encodeURIComponent(page.path)}`} size="sm">
               <PenLine size={16} />
               <span>Редактировать</span>
@@ -108,6 +127,25 @@ export default function PageView({ mode, pages = [], onChanged }) {
         )}
       </header>
       {deleteMessage && <div className="status-message danger-message">{deleteMessage}</div>}
+      {mode === "gm" && page.playerSafety && (
+        <section className={`codex-card article-safety-banner safety-${page.playerSafety.status}`}>
+          <div>
+            {page.playerSafety.status === "safe" ? <ShieldCheck size={20} /> : <ShieldAlert size={20} />}
+            <strong>{page.playerSafety.status === "safe" ? "Player-safe" : "Требует проверки перед игроками"}</strong>
+            <p>{page.playerSafety.warnings?.[0] || "Секретных блоков не найдено. Игроки получат только public-версию."}</p>
+          </div>
+          <CodexButton as={Link} to="/player-safety" variant="ghost" size="sm">Открыть Safety Review</CodexButton>
+        </section>
+      )}
+      {previewMessage && (
+        <section className={`codex-card article-player-preview ${playerPreview ? "" : "is-blocked"}`}>
+          <div className="article-player-preview-head">
+            <span className="kicker">Preview as Player</span>
+            <strong>{previewMessage}</strong>
+          </div>
+          {playerPreview?.content && <MarkdownViewer content={playerPreview.content} pages={pages} />}
+        </section>
+      )}
       <PageMap page={page} mode={mode} />
       <div className="article-main-layout">
         <div className="article-main-content">
