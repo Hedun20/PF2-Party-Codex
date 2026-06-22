@@ -8,6 +8,7 @@ import { categoriesRouter } from "./routes/categories.js";
 import { foundryRouter } from "./routes/foundry.js";
 import { healthRouter } from "./routes/health.js";
 import { pagesRouter } from "./routes/pages.js";
+import { revealRouter } from "./routes/reveal.js";
 import { searchRouter } from "./routes/search.js";
 import { toolsRouter } from "./routes/tools.js";
 import { startVaultWatcher } from "./services/fileWatchService.js";
@@ -21,6 +22,7 @@ app.get("/api/session", (req, res) => res.json(sessionPayload(req)));
 
 app.use("/api", healthRouter);
 app.use("/api", pagesRouter);
+app.use("/api", revealRouter);
 app.use("/api", categoriesRouter);
 app.use("/api", searchRouter);
 app.use("/api", foundryRouter);

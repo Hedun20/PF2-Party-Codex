@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, BookOpen, CheckCircle2, ClipboardCopy, Eye, FileText, MapPinned, PenLine, PlayCircle, ScrollText, ShieldAlert, Sparkles, Swords, UsersRound } from "lucide-react";
+import { ArrowLeft, BookOpen, RadioTower, CheckCircle2, ClipboardCopy, Eye, FileText, MapPinned, PenLine, PlayCircle, ScrollText, ShieldAlert, Sparkles, Swords, UsersRound } from "lucide-react";
 import CodexButton from "../components/ui/CodexButton.jsx";
+import { api } from "../api/client.js";
 import { getWorldOwnedPages, resolveWorldBySlug, worldRoute } from "../utils/worldContext.js";
 
 const QUEST_DONE_RE = /^(done|completed|complete|closed|failed|archived|cancelled|canceled|готово|закрыт|провален|архив)/i;
@@ -57,7 +58,7 @@ function sessionStorageKey(world) {
   return `pf2-session-mode:${world?.path || world?.title || "world"}`;
 }
 
-function ListPanel({ title, kicker, icon: Icon, items = [], empty, cta }) {
+function ListPanel({ title, kicker, icon: Icon, items = [], empty, cta, onReveal, revealDisabled }) {
   return (
     <section className="codex-card session-panel">
       <div className="session-panel-head">
@@ -70,10 +71,17 @@ function ListPanel({ title, kicker, icon: Icon, items = [], empty, cta }) {
       {items.length ? (
         <div className="session-link-list">
           {items.map((page) => (
-            <Link key={page.path} to={`/page/${encodeURIComponent(page.path)}`} className="session-link-item">
-              <strong>{page.title}</strong>
-              <span>{compactText(page.summary || page.frontmatter?.summary)}</span>
-            </Link>
+            <div key={page.path} className="session-link-row">
+              <Link to={`/page/${encodeURIComponent(page.path)}`} className="session-link-item">
+                <strong>{page.title}</strong>
+                <span>{compactText(page.summary || page.frontmatter?.summary)}</span>
+              </Link>
+              {onReveal && (
+                <button type="button" className="session-reveal-button" onClick={() => onReveal(page)} disabled={revealDisabled === page.path}>
+                  <RadioTower size={14} /> Reveal
+                </button>
+              )}
+            </div>
           ))}
         </div>
       ) : (
@@ -93,6 +101,8 @@ export default function SessionModePage({ pages = [], mode = "player", session }
   const world = resolveWorldBySlug(pages, worldSlug);
   const [notes, setNotes] = useState("");
   const [copied, setCopied] = useState(false);
+  const [revealMessage, setRevealMessage] = useState("");
+  const [revealingPath, setRevealingPath] = useState("");
 
   useEffect(() => {
     if (!world) return;
@@ -136,6 +146,20 @@ export default function SessionModePage({ pages = [], mode = "player", session }
     }
   };
 
+  const revealHandout = async (page) => {
+    if (!world || !page) return;
+    setRevealMessage("");
+    setRevealingPath(page.path);
+    try {
+      await api.revealSet({ world: world.title, path: page.path });
+      setRevealMessage(`Показано игрокам: ${page.title}`);
+    } catch (error) {
+      setRevealMessage(error.message);
+    } finally {
+      setRevealingPath("");
+    }
+  };
+
   return (
     <div className="page-stack session-mode-page">
       <section className="hero-panel session-hero-panel">
@@ -147,6 +171,7 @@ export default function SessionModePage({ pages = [], mode = "player", session }
             <CodexButton as={Link} to={worldRoute(world)} variant="secondary"><ArrowLeft size={16} /> Назад к миру</CodexButton>
             {session?.canEdit && <CodexButton as={Link} to={editorCreateLink(world, "session", nextTitle)}><BookOpen size={16} /> Создать recap</CodexButton>}
             <CodexButton type="button" variant="ghost" onClick={copyNotes}><ClipboardCopy size={16} /> {copied ? "Скопировано" : "Скопировать заметки"}</CodexButton>
+            <CodexButton as={Link} to={`${worldRoute(world)}/reveal`} variant="ghost"><RadioTower size={16} /> Reveal Mode</CodexButton>
           </div>
         </div>
         <div className="session-readiness codex-card">
@@ -160,6 +185,8 @@ export default function SessionModePage({ pages = [], mode = "player", session }
           </ul>
         </div>
       </section>
+
+      {revealMessage && <div className={`status-message ${revealMessage.includes("нельзя") ? "danger-message" : ""}`}>{revealMessage}</div>}
 
       <section className="session-mode-grid">
         <section className="codex-card session-notes-panel">
@@ -186,7 +213,7 @@ export default function SessionModePage({ pages = [], mode = "player", session }
         <ListPanel title="Сцены и карты" kicker="Открыть сейчас" icon={MapPinned} items={maps} empty="Карты появятся здесь, когда у статьи есть mapImage." cta={<Link className="small-context-link" to={`${worldRoute(world)}/maps`}>Все карты мира</Link>} />
         <ListPanel title="Активные квесты" kicker="Ставки партии" icon={Swords} items={activeQuests} empty="Создай quest со статусом active/idea — он появится в режиме сессии." cta={session?.canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "quest")}>Создать квест</Link> : null} />
         <ListPanel title="NPC / враги" kicker="Кого играть" icon={UsersRound} items={npcs} empty="NPC и враги мира появятся здесь после привязки к миру." cta={session?.canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "npc")}>Создать NPC</Link> : null} />
-        <ListPanel title="Player handouts" kicker="Показать игрокам" icon={Eye} items={handouts} empty="Публичные статьи мира станут быстрыми handouts для игроков." />
+        <ListPanel title="Player handouts" kicker="Показать игрокам" icon={Eye} items={handouts} empty="Публичные статьи мира станут быстрыми handouts для игроков." onReveal={session?.canEdit ? revealHandout : null} revealDisabled={revealingPath} cta={<Link className="small-context-link" to={`${worldRoute(world)}/reveal`}>Открыть полный Reveal Mode</Link>} />
         <ListPanel title="Последние recap" kicker="Память кампании" icon={BookOpen} items={lastSessions} empty="После первой игры создай recap, и он появится здесь." cta={session?.canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "session", nextTitle)}>Новый recap</Link> : null} />
 
         <section className="codex-card session-panel session-danger-panel">

@@ -15,6 +15,7 @@ import VaultHealthPage from "./pages/VaultHealthPage.jsx";
 import TimelinePage from "./pages/TimelinePage.jsx";
 import MapsPage from "./pages/MapsPage.jsx";
 import SessionModePage from "./pages/SessionModePage.jsx";
+import PlayerRevealPage, { PlayerPortalView } from "./pages/PlayerRevealPage.jsx";
 import { getWorldOwnedPages, getWorldSearchPages, resolveWorldBySlug, resolveWorldForPage } from "./utils/worldContext.js";
 
 function worldSlugFromPath(pathname = "") {
@@ -99,6 +100,8 @@ export default function App() {
         <Route path="/world/:worldSlug/timeline" element={<TimelinePage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />} />
         <Route path="/world/:worldSlug/maps" element={<MapsPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />} />
         <Route path="/world/:worldSlug/session" element={<SessionModePage pages={pages} mode={effectiveMode} session={session} />} />
+        <Route path="/world/:worldSlug/reveal" element={<PlayerRevealPage pages={pages} session={session} />} />
+        <Route path="/world/:worldSlug/player" element={<PlayerPortalView pages={pages} />} />
         <Route path="/category/:category/*" element={<CategoryPage pages={pages} mode={effectiveMode} />} />
         <Route path="/page/:path" element={<PageView mode={effectiveMode} pages={pages} onChanged={refresh} />} />
         <Route path="/editor" element={<EditorPage onSaved={refresh} session={session} activeWorld={activeWorld} />} />

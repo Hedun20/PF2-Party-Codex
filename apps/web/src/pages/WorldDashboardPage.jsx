@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, BookOpen, Castle, Clock3, Compass, Eye, FileQuestion, MapPinned, PenLine, PlayCircle, ScrollText, Swords, UsersRound } from "lucide-react";
+import { ArrowLeft, BookOpen, RadioTower, Castle, Clock3, Compass, Eye, FileQuestion, MapPinned, MonitorPlay, PenLine, PlayCircle, ScrollText, Swords, UsersRound } from "lucide-react";
 import EntityCard from "../components/EntityCard.jsx";
 import MarkdownViewer from "../components/MarkdownViewer.jsx";
 import CodexButton from "../components/ui/CodexButton.jsx";
@@ -123,6 +123,7 @@ function WorldGmDesktop({ world, ownedPages, session }) {
           <CodexButton as={Link} to={`${worldRoute(world)}/session`}><PlayCircle size={16} /> Start Session</CodexButton>
           <CodexButton as={Link} to={`${worldRoute(world)}/maps`} variant="secondary"><MapPinned size={16} /> Карты</CodexButton>
           <CodexButton as={Link} to={`${worldRoute(world)}/timeline`} variant="secondary"><Clock3 size={16} /> Timeline</CodexButton>
+          <CodexButton as={Link} to={`${worldRoute(world)}/reveal`} variant="secondary"><RadioTower size={16} /> Reveal</CodexButton>
           {canEdit && <CodexButton as={Link} to={editorCreateLink(world, "session", nextTitle)} variant="ghost"><BookOpen size={16} /> Recap</CodexButton>}
         </div>
         {canEdit && (
@@ -143,7 +144,7 @@ function WorldGmDesktop({ world, ownedPages, session }) {
       <PageMiniList title="NPC рядом" kicker="Кого играть" icon={UsersRound} items={npcPages} empty="NPC мира появятся здесь после привязки к миру/стране/городу." action={canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "npc")}>Создать NPC</Link> : null} />
       <PageMiniList title="Последние сессии" kicker="Recap" icon={BookOpen} items={sessions} empty="Создай сессию после игры — recap станет памятью кампании." action={canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "session", nextTitle)}>Создать recap</Link> : null} />
       <PageMiniList title="События timeline" kicker="История мира" icon={Clock3} items={timeline} empty="События с year/timelineYear или типом timelineEvent будут здесь." action={canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "timelineEvent")}>Добавить событие</Link> : null} />
-      <PageMiniList title="Показать игрокам" kicker="Player handout" icon={Eye} items={playerHandouts} empty="Публичные статьи мира можно быстро открыть как handout для игроков." />
+      <PageMiniList title="Показать игрокам" kicker="Player handout" icon={Eye} items={playerHandouts} empty="Публичные статьи мира можно быстро открыть как handout для игроков." action={<Link className="small-context-link" to={`${worldRoute(world)}/reveal`}>Открыть Reveal Mode</Link>} />
     </section>
   );
 }
@@ -205,6 +206,7 @@ export default function WorldDashboardPage({ pages = [], mode = "player", sessio
       <section className="world-command-strip">
         <Link to={`${worldRoute(world)}/maps`} className="codex-card world-command-card"><MapPinned size={19} /><strong>Карты мира</strong><span>{mapCount} карт</span></Link>
         <Link to={`${worldRoute(world)}/timeline`} className="codex-card world-command-card"><Clock3 size={19} /><strong>Timeline мира</strong><span>{timelineCount} событий</span></Link>
+        <Link to={`${worldRoute(world)}/reveal`} className="codex-card world-command-card"><MonitorPlay size={19} /><strong>Player Reveal</strong><span>экран игроков</span></Link>
         <Link to={`${worldRoute(world)}/category/npcs`} className="codex-card world-command-card"><UsersRound size={19} /><strong>NPC мира</strong><span>{characterCount} персонажей</span></Link>
         <Link to="/missing" className="codex-card world-command-card"><FileQuestion size={19} /><strong>Ненаписанные</strong><span>фантомные ссылки</span></Link>
       </section>
