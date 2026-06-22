@@ -93,9 +93,26 @@ function asArray(value) {
   return String(value).split(/[;,\n]/).map((item) => item.trim()).filter(Boolean);
 }
 
-export default function QuickEditor({ onSaved, initialTitle = "", initialWorld = "" }) {
+function normalizeArticleType(value = "") {
+  return types.some(([type]) => type === value) ? value : "lore";
+}
+
+export default function QuickEditor({ onSaved, initialTitle = "", initialWorld = "", initialType = "lore" }) {
   const [metadata, setMetadata] = useState({ pages: [], tags: [], worlds: [], countries: [], cities: [] });
-  const [form, setForm] = useState({ type: "lore", loreSubtype: "general", visibility: "public", tags: [], related: [], mapObjects: [], name: initialTitle, world: initialWorld });
+  const [form, setForm] = useState(() => {
+    const type = normalizeArticleType(initialType);
+    return {
+      type,
+      loreSubtype: "general",
+      category: categoryByType[type] || "lore",
+      visibility: "public",
+      tags: [],
+      related: [],
+      mapObjects: [],
+      name: initialTitle,
+      world: type === "world" ? "" : initialWorld
+    };
+  });
   const [mapDraft, setMapDraft] = useState(createEmptyMapDraft);
   const [relatedDraft, setRelatedDraft] = useState({ type: "npc", title: "" });
   const [localPreview, setLocalPreview] = useState({});
@@ -111,8 +128,14 @@ export default function QuickEditor({ onSaved, initialTitle = "", initialWorld =
   }, [initialTitle]);
 
   useEffect(() => {
-    if (initialWorld) setForm((current) => ({ ...current, world: current.world || initialWorld }));
-  }, [initialWorld]);
+    const type = normalizeArticleType(initialType);
+    setForm((current) => ({
+      ...current,
+      type,
+      category: type === "lore" ? loreCategoryBySubtype[current.loreSubtype || "general"] : (categoryByType[type] || "lore"),
+      world: type === "world" ? "" : (current.world || initialWorld)
+    }));
+  }, [initialWorld, initialType]);
 
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
   const updateDraft = (patch) => setMapDraft((current) => ({ ...current, ...patch }));

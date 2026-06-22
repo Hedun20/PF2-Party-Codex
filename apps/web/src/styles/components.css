@@ -4034,3 +4034,402 @@ textarea { min-height: 96px; resize: vertical; }
     width: auto;
   }
 }
+
+/* Patch: world GM desktop / session launch cockpit */
+.world-gm-desktop {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.12fr) repeat(2, minmax(220px, 0.72fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.world-gm-desktop-main,
+.world-desk-card {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(var(--world-accent-rgb), 0.24) !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(var(--world-accent-rgb), 0.18), transparent 34%),
+    linear-gradient(145deg, rgba(19, 15, 30, 0.92), rgba(9, 8, 14, 0.76)) !important;
+}
+
+.world-gm-desktop-main {
+  display: grid;
+  gap: 14px;
+  grid-row: span 2;
+  min-height: 100%;
+  padding: 22px;
+}
+
+.world-gm-desktop-main h2,
+.world-desk-card h3 {
+  margin: 0;
+}
+
+.world-gm-desktop-main p {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.world-desk-orb {
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(var(--world-accent-rgb), 0.28);
+  border-radius: 22px;
+  color: var(--world-accent);
+  background:
+    radial-gradient(circle, rgba(var(--world-accent-rgb), 0.22), transparent 68%),
+    rgba(255, 255, 255, 0.04);
+  box-shadow: 0 0 34px rgba(var(--world-accent-rgb), 0.16);
+}
+
+.world-desk-primary-actions,
+.world-create-dock {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.world-create-dock {
+  padding-top: 12px;
+  border-top: 1px solid rgba(var(--world-accent-rgb), 0.16);
+}
+
+.world-create-pill {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  align-items: center;
+  min-width: min(210px, 100%);
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--world-accent-rgb), 0.18);
+  border-radius: 14px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.035);
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.world-create-pill:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--world-accent-rgb), 0.42);
+  background: rgba(var(--world-accent-rgb), 0.1);
+}
+
+.world-create-pill svg {
+  grid-row: span 2;
+  color: var(--world-accent);
+}
+
+.world-create-pill span {
+  font-weight: 900;
+}
+
+.world-create-pill em {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-style: normal;
+  line-height: 1.25;
+}
+
+.world-desk-card {
+  display: grid;
+  gap: 12px;
+  min-height: 220px;
+  padding: 16px;
+}
+
+.world-desk-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.world-desk-card-head svg {
+  color: var(--world-accent);
+}
+
+.world-desk-list {
+  display: grid;
+  gap: 8px;
+}
+
+.world-desk-list-item {
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.12);
+  text-decoration: none;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.world-desk-list-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(var(--world-accent-rgb), 0.34);
+  background: rgba(var(--world-accent-rgb), 0.08);
+}
+
+.world-desk-list-item strong {
+  font-size: 0.92rem;
+}
+
+.world-desk-list-item span,
+.world-desk-empty {
+  color: var(--muted);
+  font-size: 0.83rem;
+  line-height: 1.35;
+}
+
+.world-desk-empty {
+  margin: 0;
+  align-self: center;
+}
+
+.world-desk-card .small-context-link {
+  align-self: end;
+  margin-top: auto;
+}
+
+@media (max-width: 1180px) {
+  .world-gm-desktop {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .world-gm-desktop-main {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .world-gm-desktop {
+    grid-template-columns: 1fr;
+  }
+
+  .world-create-pill {
+    min-width: 100%;
+  }
+}
+
+/* Patch: Session Mode / live GM cockpit */
+.session-mode-page {
+  --session-panel-min: 255px;
+}
+
+.session-hero-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.42fr);
+  gap: 18px;
+  align-items: stretch;
+  border-color: rgba(var(--world-accent-rgb), 0.24);
+  background:
+    radial-gradient(circle at 18% 12%, rgba(var(--world-accent-rgb), 0.22), transparent 36%),
+    linear-gradient(135deg, rgba(16, 13, 25, 0.94), rgba(8, 7, 13, 0.78));
+}
+
+.session-hero-copy {
+  display: grid;
+  gap: 12px;
+  align-content: center;
+}
+
+.session-hero-copy h1,
+.session-readiness h2,
+.session-panel h2,
+.session-notes-panel h2 {
+  margin: 0;
+}
+
+.session-hero-copy p,
+.session-readiness p,
+.session-panel p,
+.session-note-hint {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.session-readiness {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 82% 8%, rgba(var(--world-accent-rgb), 0.16), transparent 42%),
+    rgba(255, 255, 255, 0.04) !important;
+}
+
+.session-live-orb {
+  width: 62px;
+  height: 62px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(var(--world-accent-rgb), 0.32);
+  border-radius: 22px;
+  color: var(--world-accent);
+  background: rgba(var(--world-accent-rgb), 0.1);
+  box-shadow: 0 0 34px rgba(var(--world-accent-rgb), 0.16);
+}
+
+.session-readiness ul,
+.session-tips-list {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session-readiness li,
+.session-tips-list li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.session-readiness li svg,
+.session-tips-list li svg {
+  flex: 0 0 auto;
+  color: var(--world-accent);
+  margin-top: 1px;
+}
+
+.session-mode-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.18fr) repeat(2, minmax(220px, 0.82fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.session-notes-panel,
+.session-panel {
+  display: grid;
+  gap: 12px;
+  min-height: var(--session-panel-min);
+  padding: 16px;
+  border-color: rgba(var(--world-accent-rgb), 0.22) !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(var(--world-accent-rgb), 0.14), transparent 34%),
+    linear-gradient(145deg, rgba(18, 15, 28, 0.92), rgba(8, 7, 13, 0.74)) !important;
+}
+
+.session-notes-panel {
+  grid-row: span 2;
+  min-height: calc(var(--session-panel-min) * 2 + 14px);
+}
+
+.session-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.session-panel-head svg {
+  color: var(--world-accent);
+}
+
+.session-notes-panel textarea {
+  min-height: 330px;
+  resize: vertical;
+  padding: 14px;
+  border: 1px solid rgba(var(--world-accent-rgb), 0.22);
+  border-radius: 18px;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+  line-height: 1.5;
+}
+
+.session-notes-panel textarea:focus {
+  outline: none;
+  border-color: rgba(var(--world-accent-rgb), 0.55);
+  box-shadow: 0 0 0 3px rgba(var(--world-accent-rgb), 0.12);
+}
+
+.session-notes-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.session-link-list {
+  display: grid;
+  gap: 8px;
+}
+
+.session-link-item {
+  display: grid;
+  gap: 4px;
+  padding: 10px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 13px;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.14);
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.session-link-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(var(--world-accent-rgb), 0.36);
+  background: rgba(var(--world-accent-rgb), 0.08);
+}
+
+.session-link-item strong {
+  font-size: 0.92rem;
+}
+
+.session-link-item span,
+.session-empty,
+.session-note-hint {
+  color: var(--muted);
+  font-size: 0.83rem;
+  line-height: 1.36;
+}
+
+.session-empty {
+  margin: 0;
+  align-self: center;
+}
+
+.session-danger-panel {
+  border-color: rgba(255, 181, 72, 0.22) !important;
+}
+
+@media (max-width: 1180px) {
+  .session-hero-panel,
+  .session-mode-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .session-hero-copy,
+  .session-notes-panel {
+    grid-column: 1 / -1;
+  }
+
+  .session-notes-panel {
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .session-hero-panel,
+  .session-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .session-notes-panel textarea {
+    min-height: 260px;
+  }
+}

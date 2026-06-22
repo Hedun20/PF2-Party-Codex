@@ -6,6 +6,7 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
   const [searchParams] = useSearchParams();
   const initialTitle = searchParams.get("title") || "";
   const initialWorld = searchParams.get("world") || activeWorld?.title || "";
+  const initialType = searchParams.get("type") || "lore";
 
   if (!session?.canEdit) {
     return (
@@ -27,7 +28,7 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
         <h1>{initialWorld ? `Создать в мире: ${initialWorld}` : "Создать статью"}</h1>
         <p>{initialWorld ? "Новая статья автоматически получит привязку к выбранному миру. Это можно изменить вручную." : "Сначала минимум полей. Подтип лора, привязки, медиа и Maps 2.0 раскрываются только когда они нужны."}</p>
       </header>
-      <QuickEditor onSaved={onSaved} initialTitle={initialTitle} initialWorld={initialWorld} />
+      <QuickEditor onSaved={onSaved} initialTitle={initialTitle} initialWorld={initialWorld} initialType={initialType} />
     </div>
   );
 }
