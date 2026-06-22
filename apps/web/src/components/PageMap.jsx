@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
   Castle,
+  Check,
   Crown,
+  Edit3,
   EyeOff,
   Gem,
   Layers3,
@@ -11,16 +13,22 @@ import {
   MapPin,
   Maximize2,
   Minus,
+  Move,
+  Plus,
   RotateCcw,
+  Save,
   ScrollText,
   ShoppingBag,
   Target,
+  Trash2,
   Skull,
   Sparkles,
   UserRound,
-  Plus
+  X
 } from "lucide-react";
-import { colorMapObjectType, labelMapObjectType, mapObjectTypes } from "../utils/mapTypes.js";
+import { api } from "../api/client.js";
+import { colorMapObjectType, labelMapObjectType, mapObjectTypes, pageToMapObjectType } from "../utils/mapTypes.js";
+import { labelCategory } from "../utils/labels.js";
 
 const iconByType = {
   city: Castle,
@@ -84,7 +92,53 @@ function normalizeMapObjects(page) {
     }));
 }
 
-export default function PageMap({ page, mode = "player" }) {
+function serializeMapObjects(objects = []) {
+  return objects.map((object) => {
+    const base = {
+      id: object.id || `${object.shape || "pin"}-${Date.now()}`,
+      shape: object.shape || "pin",
+      type: object.type || "location",
+      label: object.label || "Новый объект",
+      path: object.path || "",
+      summary: object.summary || "",
+      visibility: object.type === "secret" ? "gm" : (object.visibility || "public"),
+      color: object.color || colorMapObjectType(object.type || "location")
+    };
+    if (base.shape === "area") {
+      return { ...base, points: Array.isArray(object.points) ? object.points : [] };
+    }
+    return {
+      ...base,
+      x: Number(object.x ?? 50),
+      y: Number(object.y ?? 50)
+    };
+  });
+}
+
+function createPinDraft() {
+  return {
+    id: "",
+    shape: "pin",
+    type: "location",
+    visibility: "public",
+    label: "",
+    path: "",
+    summary: "",
+    x: null,
+    y: null
+  };
+}
+
+function compactSummary(text = "") {
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  return clean.length > 150 ? `${clean.slice(0, 147)}...` : clean;
+}
+
+function optionLabel(page) {
+  return `${page.title} · ${labelCategory(page.category)}`;
+}
+
+export default function PageMap({ page, mode = "player", editable = false, availablePages = [], onObjectsSaved }) {
   const navigate = useNavigate();
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -94,9 +148,29 @@ export default function PageMap({ page, mode = "player" }) {
   const [enabledTypes, setEnabledTypes] = useState(() => Object.fromEntries(mapObjectTypes.map((item) => [item.value, true])));
   const [showPlayerLayer, setShowPlayerLayer] = useState(true);
   const [showGmLayer, setShowGmLayer] = useState(mode === "gm");
+  const [localObjects, setLocalObjects] = useState(null);
+  const [pinEditorOpen, setPinEditorOpen] = useState(false);
+  const [placingPin, setPlacingPin] = useState(false);
+  const [pinDraft, setPinDraft] = useState(createPinDraft);
+  const [saveStatus, setSaveStatus] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setLocalObjects(null);
+    setSelectedObjectId("");
+    setPinEditorOpen(false);
+    setPlacingPin(false);
+    setPinDraft(createPinDraft());
+    setSaveStatus("");
+  }, [page?.path]);
+
+  useEffect(() => {
+    setShowGmLayer(mode === "gm");
+  }, [mode]);
 
   const imagePath = page?.mapImage;
-  const objects = useMemo(() => normalizeMapObjects(page), [page]);
+  const pageForObjects = localObjects ? { ...page, mapObjects: localObjects, pins: [] } : page;
+  const objects = useMemo(() => normalizeMapObjects(pageForObjects), [pageForObjects]);
   const activeObjects = useMemo(() => objects.filter((object) => {
     if (!enabledTypes[object.type]) return false;
     if (object.visibility === "gm") return mode === "gm" && showGmLayer;
@@ -111,6 +185,10 @@ export default function PageMap({ page, mode = "player" }) {
   const playerSafeReady = playerObjects.length > 0 && gmObjects.length === 0 ? "clean" : playerObjects.length > 0 ? "mixed" : "empty";
 
   if (!imagePath) return null;
+
+  function updatePinDraft(patch) {
+    setPinDraft((current) => ({ ...current, ...patch }));
+  }
 
   function zoomBy(delta) {
     setScale((current) => Math.min(3.2, Math.max(0.65, Number((current + delta).toFixed(2)))));
@@ -141,8 +219,9 @@ export default function PageMap({ page, mode = "player" }) {
   }
 
   function startPan(event) {
+    if (placingPin) return;
     if (event.button !== 0) return;
-    if (event.target.closest(".map2-object, .map2-object-list a, .map2-filter-chip, .map2-zoom-button")) return;
+    if (event.target.closest(".map2-object, .map2-object-list a, .map2-filter-chip, .map2-zoom-button, .map2-pin-builder")) return;
     setDrag({ startX: event.clientX, startY: event.clientY, panX: pan.x, panY: pan.y });
   }
 
@@ -155,6 +234,131 @@ export default function PageMap({ page, mode = "player" }) {
     setDrag(null);
   }
 
+  function mapClickPosition(event) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return {
+      x: Number((((event.clientX - rect.left) / rect.width) * 100).toFixed(2)),
+      y: Number((((event.clientY - rect.top) / rect.height) * 100).toFixed(2))
+    };
+  }
+
+  function syncDraftWithPage(path) {
+    const linked = availablePages.find((candidate) => candidate.path === path);
+    if (!linked) {
+      updatePinDraft({ path });
+      return;
+    }
+    const inferredType = pageToMapObjectType(linked);
+    updatePinDraft({
+      path,
+      type: pinDraft.type === "location" ? inferredType : pinDraft.type,
+      label: pinDraft.label || linked.title,
+      summary: pinDraft.summary || compactSummary(linked.summary || ""),
+      visibility: linked.visibility === "gm" || pinDraft.type === "secret" ? "gm" : pinDraft.visibility
+    });
+  }
+
+  function startCreatePin() {
+    setPinDraft(createPinDraft());
+    setPinEditorOpen(true);
+    setPlacingPin(true);
+    setSaveStatus("Выбери статью/название и кликни по карте, где должен стоять пин.");
+  }
+
+  function editObject(object) {
+    setPinDraft({
+      id: object.id,
+      shape: object.shape || "pin",
+      type: object.type || "location",
+      visibility: object.visibility || "public",
+      label: object.label || "",
+      path: object.path || "",
+      summary: object.summary || "",
+      x: object.x ?? null,
+      y: object.y ?? null
+    });
+    setPinEditorOpen(true);
+    setPlacingPin(false);
+    setSaveStatus("Редактируешь выбранный пин. Можно изменить текст, слой или нажать “Переместить”.");
+  }
+
+  function moveObject(object) {
+    editObject(object);
+    setPlacingPin(true);
+    setSaveStatus("Кликни по карте, чтобы выбрать новое место для пина.");
+  }
+
+  function handleTransformClick(event) {
+    if (!editable || !pinEditorOpen || !placingPin) return;
+    if (event.target.closest(".map2-object, .map2-tooltip")) return;
+    const position = mapClickPosition(event);
+    updatePinDraft(position);
+    setSaveStatus("Позиция выбрана. Нажми “Сохранить пин”.");
+  }
+
+  async function persistObjects(nextObjects, successText) {
+    if (!page?.path) return;
+    setSaving(true);
+    setSaveStatus("Сохраняю карту...");
+    try {
+      const raw = await api.rawPage(page.path, "gm");
+      const canonical = serializeMapObjects(nextObjects);
+      await api.savePage({
+        requestedPath: page.path,
+        frontmatter: {
+          ...(raw.frontmatter || {}),
+          mapObjects: canonical,
+          pins: []
+        },
+        content: raw.content || ""
+      });
+      setLocalObjects(canonical);
+      onObjectsSaved?.(page.path, canonical);
+      setSaveStatus(successText || "Карта сохранена.");
+      setPlacingPin(false);
+    } catch (error) {
+      setSaveStatus(error.message || "Не удалось сохранить карту.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function savePinDraft() {
+    if (!editable) return;
+    if (!pinDraft.label.trim()) {
+      setSaveStatus("Сначала укажи название пина или выбери связанную статью.");
+      return;
+    }
+    if (pinDraft.x === null || pinDraft.y === null) {
+      setSaveStatus("Сначала кликни по карте, чтобы выбрать место пина.");
+      setPlacingPin(true);
+      return;
+    }
+    const nextObject = {
+      id: pinDraft.id || `pin-${Date.now()}`,
+      shape: "pin",
+      type: pinDraft.type || "location",
+      label: pinDraft.label.trim(),
+      path: pinDraft.path || "",
+      summary: pinDraft.summary || "",
+      visibility: pinDraft.type === "secret" ? "gm" : (pinDraft.visibility || "public"),
+      x: Number(pinDraft.x),
+      y: Number(pinDraft.y),
+      color: colorMapObjectType(pinDraft.type || "location")
+    };
+    const nextObjects = [...objects.filter((object) => object.id !== nextObject.id), nextObject];
+    await persistObjects(nextObjects, `Пин сохранён: ${nextObject.label}`);
+    setSelectedObjectId(nextObject.id);
+    setPinDraft(createPinDraft());
+  }
+
+  async function deleteObject(object) {
+    if (!editable || !object) return;
+    const nextObjects = objects.filter((item) => item.id !== object.id);
+    await persistObjects(nextObjects, `Объект удалён: ${object.label}`);
+    setSelectedObjectId("");
+  }
+
   return (
     <section className="page-map-panel map2-panel">
       <div className="map2-heading">
@@ -163,12 +367,66 @@ export default function PageMap({ page, mode = "player" }) {
           <h2>Области, пины и слои</h2>
         </div>
         <div className="map2-zoom-controls">
+          {editable && <button type="button" className={pinEditorOpen ? "map2-zoom-button active" : "map2-zoom-button"} onClick={startCreatePin} title="Добавить пин"><MapPin size={16} /> Пин</button>}
           <button type="button" className="map2-zoom-button" onClick={() => zoomBy(-0.15)} title="Отдалить"><Minus size={16} /></button>
           <button type="button" className="map2-zoom-button" onClick={resetView} title="Сбросить вид"><RotateCcw size={16} /></button>
           <button type="button" className="map2-zoom-button" onClick={() => zoomBy(0.15)} title="Приблизить"><Plus size={16} /></button>
           <span><Maximize2 size={15} /> {Math.round(scale * 100)}%</span>
         </div>
       </div>
+
+      {editable && (
+        <div className={pinEditorOpen ? "map2-pin-builder open" : "map2-pin-builder"}>
+          <div className="map2-pin-builder-head">
+            <div>
+              <span className="kicker">Pin Editor</span>
+              <strong>{pinDraft.id ? "Редактирование пина" : "Новый пин на карте"}</strong>
+            </div>
+            <div>
+              {!pinEditorOpen && <button type="button" className="map2-mini-action" onClick={startCreatePin}><Plus size={14} /> Добавить пин</button>}
+              {pinEditorOpen && <button type="button" className="map2-mini-action" onClick={() => { setPinEditorOpen(false); setPlacingPin(false); setPinDraft(createPinDraft()); }}><X size={14} /> Закрыть</button>}
+            </div>
+          </div>
+          {pinEditorOpen && (
+            <div className="map2-pin-builder-body">
+              <label>
+                Связанная статья
+                <select value={pinDraft.path} onChange={(event) => syncDraftWithPage(event.target.value)}>
+                  <option value="">Без связанной статьи</option>
+                  {availablePages.map((candidate) => <option key={candidate.path} value={candidate.path}>{optionLabel(candidate)}</option>)}
+                </select>
+              </label>
+              <label>
+                Название пина
+                <input value={pinDraft.label} onChange={(event) => updatePinDraft({ label: event.target.value })} placeholder="Например: Северные ворота" />
+              </label>
+              <label>
+                Тип
+                <select value={pinDraft.type} onChange={(event) => updatePinDraft({ type: event.target.value, visibility: event.target.value === "secret" ? "gm" : pinDraft.visibility })}>
+                  {mapObjectTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                </select>
+              </label>
+              <label>
+                Слой
+                <select value={pinDraft.type === "secret" ? "gm" : pinDraft.visibility} onChange={(event) => updatePinDraft({ visibility: event.target.value })} disabled={pinDraft.type === "secret"}>
+                  <option value="public">player-visible</option>
+                  <option value="gm">GM-only</option>
+                </select>
+              </label>
+              <label className="map2-pin-summary-field">
+                Hover-описание
+                <textarea value={pinDraft.summary} onChange={(event) => updatePinDraft({ summary: event.target.value })} placeholder="Короткая подсказка на hover." />
+              </label>
+              <div className="map2-pin-builder-actions">
+                <button type="button" className={placingPin ? "map2-mini-action active" : "map2-mini-action"} onClick={() => setPlacingPin(true)}><Move size={14} /> {pinDraft.id ? "Переместить" : "Выбрать место"}</button>
+                <button type="button" className="map2-mini-action primary" onClick={savePinDraft} disabled={saving}><Save size={14} /> {saving ? "Сохраняю..." : "Сохранить пин"}</button>
+                {pinDraft.x !== null && pinDraft.y !== null && <span className="map2-pin-coords">x {pinDraft.x}% · y {pinDraft.y}%</span>}
+              </div>
+              {saveStatus && <p className="map2-pin-status">{saveStatus}</p>}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={`map2-safety-strip ${playerSafeReady}`}>
         <div>
@@ -213,14 +471,14 @@ export default function PageMap({ page, mode = "player" }) {
 
       <div className="map2-layout">
         <div
-          className={drag ? "map2-stage panning" : "map2-stage"}
+          className={drag ? "map2-stage panning" : placingPin ? "map2-stage placing" : "map2-stage"}
           onWheel={handleWheel}
           onMouseDown={startPan}
           onMouseMove={movePan}
           onMouseUp={endPan}
           onMouseLeave={() => { endPan(); setHovered(null); }}
         >
-          <div className="map2-transform" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` }}>
+          <div className="map2-transform" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` }} onClick={handleTransformClick}>
             <img src={mediaUrl(imagePath)} alt={`Карта: ${page.title}`} draggable="false" />
             <svg className="map2-area-layer" viewBox="0 0 100 100" preserveAspectRatio="none">
               {activeObjects.filter((object) => object.shape === "area").map((object) => {
@@ -233,7 +491,7 @@ export default function PageMap({ page, mode = "player" }) {
                     style={{ "--object-color": object.color }}
                     onMouseEnter={() => setHovered({ ...object, x: center.x, y: center.y })}
                     onMouseLeave={() => setHovered(null)}
-                    onClick={() => openObject(object)}
+                    onClick={(event) => { event.stopPropagation(); setSelectedObjectId(object.id); if (mode !== "gm") openObject(object); }}
                   />
                 );
               })}
@@ -248,7 +506,7 @@ export default function PageMap({ page, mode = "player" }) {
                   style={{ left: `${object.x}%`, top: `${object.y}%`, "--object-color": object.color }}
                   onMouseEnter={() => setHovered(object)}
                   onMouseLeave={() => setHovered(null)}
-                  onClick={(event) => { event.stopPropagation(); setSelectedObjectId(object.id); openObject(object); }}
+                  onClick={(event) => { event.stopPropagation(); setSelectedObjectId(object.id); if (mode !== "gm") openObject(object); }}
                   title={object.label}
                 >
                   <Icon size={15} />
@@ -256,12 +514,17 @@ export default function PageMap({ page, mode = "player" }) {
                 </button>
               );
             })}
+            {placingPin && pinDraft.x !== null && pinDraft.y !== null && (
+              <button type="button" className="map2-object map2-pin map2-draft-pin" style={{ left: `${pinDraft.x}%`, top: `${pinDraft.y}%`, "--object-color": colorMapObjectType(pinDraft.type) }}>
+                <MapPin size={15} /><span>{pinDraft.label || "Новый пин"}</span>
+              </button>
+            )}
             {hovered && (
               <div className="map2-tooltip" style={{ left: `${hovered.x}%`, top: `${hovered.y}%`, "--object-color": hovered.color }}>
                 <span>{labelMapObjectType(hovered.type)}{hovered.visibility === "gm" ? " · GM" : ""}</span>
                 <strong>{hovered.label}</strong>
                 {hovered.summary && <p>{hovered.summary}</p>}
-                {hovered.path && <small>Клик откроет статью</small>}
+                {hovered.path && <small>{mode === "gm" ? "Выбрано. Открытие — в панели справа" : "Клик откроет статью"}</small>}
               </div>
             )}
           </div>
@@ -284,6 +547,13 @@ export default function PageMap({ page, mode = "player" }) {
                 {selectedObject.path ? <Link to={toPage(selectedObject.path)}>Открыть статью</Link> : <em>Нет связанной статьи</em>}
                 <button type="button" onClick={() => focusObject(selectedObject)}><Target size={13} /> Фокус</button>
               </div>
+              {editable && (
+                <div className="map2-focus-actions">
+                  {selectedObject.shape !== "area" && <button type="button" onClick={() => editObject(selectedObject)}><Edit3 size={13} /> Редактировать</button>}
+                  {selectedObject.shape !== "area" && <button type="button" onClick={() => moveObject(selectedObject)}><Move size={13} /> Переместить</button>}
+                  <button type="button" className="danger" onClick={() => deleteObject(selectedObject)}><Trash2 size={13} /> Удалить</button>
+                </div>
+              )}
             </div>
           )}
           {activeObjects.length ? activeObjects.map((object) => {
@@ -297,7 +567,7 @@ export default function PageMap({ page, mode = "player" }) {
                 </span>
               </>
             );
-            return object.path ? (
+            return object.path && mode !== "gm" ? (
               <Link
                 key={object.id}
                 to={toPage(object.path)}

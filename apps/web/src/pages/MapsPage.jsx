@@ -58,6 +58,7 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
   const [unusedAssets, setUnusedAssets] = useState([]);
   const [revealStatus, setRevealStatus] = useState(null);
   const [revealBusy, setRevealBusy] = useState(false);
+  const [objectOverrides, setObjectOverrides] = useState({});
 
   useEffect(() => {
     if (mode !== "gm") return;
@@ -71,12 +72,13 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
   const allMaps = useMemo(() => pages
     .filter((page) => page.mapImage)
     .map((page) => {
-      const objects = normalizeObjects(page);
+      const pageForObjects = objectOverrides[page.path] ? { ...page, mapObjects: objectOverrides[page.path], pins: [] } : page;
+      const objects = normalizeObjects(pageForObjects);
       const gm = objects.filter((item) => item.visibility === "gm" || item.type === "secret").length;
       const player = objects.length - gm;
       const linked = countLinkedObjects(objects);
       return { ...page, objects, gm, player, linked, unlinked: objects.length - linked };
-    }), [pages]);
+    }), [pages, objectOverrides]);
 
   const maps = useMemo(() => allMaps
     .filter((page) => {
@@ -222,7 +224,13 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
               <Link to={playerViewUrl} target="_blank" rel="noreferrer">Открыть player view</Link>
             </div>
           )}
-          <PageMap page={selectedMap} mode={previewMode} />
+          <PageMap
+            page={selectedMap}
+            mode={previewMode}
+            editable={mode === "gm"}
+            availablePages={pages}
+            onObjectsSaved={(path, objects) => setObjectOverrides((current) => ({ ...current, [path]: objects }))}
+          />
         </section>
       )}
 
