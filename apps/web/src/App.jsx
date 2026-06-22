@@ -31,6 +31,11 @@ function pagePathFromRoute(pathname = "") {
   }
 }
 
+function editorWorldFromLocation(location) {
+  if (location.pathname !== "/editor") return "";
+  return new URLSearchParams(location.search).get("world") || "";
+}
+
 export default function App() {
   const [session, setSession] = useState({ mode: "player", canEdit: false });
   const [mode, setMode] = useState(localStorage.getItem("codex-mode") || "gm");
@@ -66,8 +71,10 @@ export default function App() {
   const activeWorldSlug = worldSlugFromPath(location.pathname);
   const routeWorld = useMemo(() => resolveWorldBySlug(pages, activeWorldSlug), [pages, activeWorldSlug]);
   const activePagePath = pagePathFromRoute(location.pathname);
+  const editorWorldName = editorWorldFromLocation(location);
   const pageWorld = useMemo(() => (!routeWorld && activePagePath ? resolveWorldForPage(pages, activePagePath) : null), [pages, routeWorld, activePagePath]);
-  const activeWorld = routeWorld || pageWorld;
+  const editorWorld = useMemo(() => (!routeWorld && !pageWorld && editorWorldName ? resolveWorldBySlug(pages, editorWorldName) : null), [pages, routeWorld, pageWorld, editorWorldName]);
+  const activeWorld = routeWorld || pageWorld || editorWorld;
   const worldPages = useMemo(() => activeWorld ? getWorldOwnedPages(pages, activeWorld) : pages, [pages, activeWorld]);
   const shellPages = useMemo(() => activeWorld ? getWorldSearchPages(pages, activeWorld) : pages, [pages, activeWorld]);
 

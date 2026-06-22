@@ -438,3 +438,255 @@
 @keyframes cinematic-rain {
   to { background-position: -160px 360px, 70px 460px; }
 }
+
+/* Patch 4.4: world-specific living atmosphere effects */
+.cinematic-world-bg__effect {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+  will-change: transform, opacity, background-position, filter;
+}
+
+.world-bg-midgard .cinematic-world-bg__particles {
+  opacity: 0.18;
+  animation-name: cinematic-leaf-shadow-drift;
+}
+
+.world-bg-midgard .cinematic-world-bg__effect--primary,
+.world-bg-midgard .cinematic-world-bg__effect--secondary {
+  opacity: 0.58;
+  background-image:
+    radial-gradient(ellipse at 38% 42%, rgba(156, 243, 181, 0.75) 0 0.9px, transparent 2.8px),
+    radial-gradient(ellipse at 64% 48%, rgba(211, 166, 72, 0.48) 0 1px, transparent 3px),
+    radial-gradient(ellipse at 44% 58%, rgba(89, 169, 103, 0.56) 0 1.1px, transparent 3.4px);
+  background-size: 136px 168px, 188px 228px, 244px 268px;
+  background-position: 0 -180px, 68px -220px, -90px -260px;
+  filter: blur(0.2px) drop-shadow(0 0 6px rgba(134, 239, 172, 0.16));
+  transform: rotate(-8deg) scale(1.08);
+  animation: cinematic-leaves-fall 38s linear infinite;
+}
+
+.world-bg-midgard .cinematic-world-bg__effect--secondary {
+  opacity: 0.28;
+  filter: blur(1.1px);
+  transform: rotate(7deg) scale(1.18);
+  animation-duration: 58s;
+  animation-direction: reverse;
+}
+
+.world-bg-fire .cinematic-world-bg__effect--primary,
+.world-bg-infernal .cinematic-world-bg__effect--primary {
+  inset: auto -10% -8% -10%;
+  height: 38%;
+  opacity: 0.92;
+  background:
+    radial-gradient(ellipse at 18% 92%, rgba(255, 168, 54, 0.5), transparent 24%),
+    radial-gradient(ellipse at 46% 104%, rgba(239, 68, 68, 0.68), transparent 32%),
+    radial-gradient(ellipse at 76% 96%, rgba(251, 113, 33, 0.54), transparent 26%),
+    linear-gradient(180deg, transparent, rgba(116, 22, 8, 0.42) 42%, rgba(249, 115, 22, 0.24));
+  filter: blur(13px) saturate(1.28);
+  animation: cinematic-bottom-fire 5.8s ease-in-out infinite alternate;
+}
+
+.world-bg-fire .cinematic-world-bg__effect--secondary,
+.world-bg-infernal .cinematic-world-bg__effect--secondary {
+  opacity: 0.52;
+  background-image:
+    radial-gradient(circle, rgba(255, 199, 92, 0.8) 0 1px, transparent 2.5px),
+    radial-gradient(circle, rgba(248, 113, 113, 0.42) 0 1px, transparent 3px);
+  background-size: 86px 122px, 144px 190px;
+  background-position: 0 100%, 50px 110%;
+  filter: blur(0.4px);
+  animation: cinematic-embers-column 18s linear infinite;
+}
+
+.world-bg-arcane .cinematic-world-bg__particles {
+  opacity: 0.18;
+}
+
+.world-bg-arcane .cinematic-world-bg__effect--primary {
+  opacity: 0.46;
+  background:
+    radial-gradient(circle at 23% 22%, transparent 0 5.2%, rgba(167, 139, 250, 0.2) 5.4% 5.8%, transparent 6.1% 100%),
+    conic-gradient(from 18deg at 23% 22%, transparent 0 9%, rgba(167, 139, 250, 0.22) 10% 11%, transparent 12% 22%, rgba(34, 211, 238, 0.16) 23% 24%, transparent 25% 100%),
+    radial-gradient(circle at 76% 67%, transparent 0 7.4%, rgba(34, 211, 238, 0.16) 7.8% 8.2%, transparent 8.6% 100%),
+    conic-gradient(from 220deg at 76% 67%, transparent 0 11%, rgba(167, 139, 250, 0.18) 12% 13%, transparent 14% 36%, rgba(255, 255, 255, 0.11) 37% 38%, transparent 39% 100%);
+  filter: blur(0.15px) drop-shadow(0 0 16px rgba(167, 139, 250, 0.22));
+  animation: cinematic-rune-turn 34s linear infinite;
+}
+
+.world-bg-arcane .cinematic-world-bg__effect--secondary {
+  opacity: 0.34;
+  background-image:
+    linear-gradient(45deg, transparent 46%, rgba(167, 139, 250, 0.28) 47% 48%, transparent 49%),
+    linear-gradient(-45deg, transparent 46%, rgba(34, 211, 238, 0.16) 47% 48%, transparent 49%),
+    radial-gradient(circle, rgba(255, 255, 255, 0.18) 0 1px, transparent 2px);
+  background-size: 190px 190px, 230px 230px, 92px 92px;
+  animation: cinematic-magic-grid 42s linear infinite;
+}
+
+.world-bg-celestial .cinematic-world-bg__particles {
+  opacity: 0.16;
+}
+
+.world-bg-celestial .cinematic-world-bg__effect--primary {
+  inset: -18% -10% auto -10%;
+  height: 78%;
+  opacity: 0.84;
+  background:
+    radial-gradient(ellipse at 52% 0%, rgba(255, 255, 255, 0.58), transparent 28%),
+    conic-gradient(from 178deg at 50% 0%, transparent 0 40%, rgba(255, 255, 255, 0.16) 43% 46%, transparent 49% 52%, rgba(253, 230, 138, 0.16) 55% 58%, transparent 61% 100%);
+  filter: blur(10px);
+  animation: cinematic-divine-light 12s ease-in-out infinite alternate;
+}
+
+.world-bg-celestial .cinematic-world-bg__effect--secondary {
+  inset: auto -12% -8% -12%;
+  height: 42%;
+  opacity: 0.48;
+  background:
+    radial-gradient(ellipse at 18% 58%, rgba(255, 255, 255, 0.22), transparent 24%),
+    radial-gradient(ellipse at 48% 70%, rgba(253, 230, 138, 0.18), transparent 30%),
+    radial-gradient(ellipse at 78% 52%, rgba(255, 255, 255, 0.2), transparent 25%);
+  filter: blur(18px);
+  animation: cinematic-clouds 36s ease-in-out infinite alternate;
+}
+
+.world-bg-frost .cinematic-world-bg__effect--primary {
+  opacity: 0.42;
+  background:
+    linear-gradient(118deg, transparent 12%, rgba(125, 211, 252, 0.1) 20%, rgba(192, 132, 252, 0.08) 28%, transparent 44%),
+    linear-gradient(72deg, transparent 28%, rgba(34, 211, 238, 0.08) 38%, transparent 54%);
+  filter: blur(12px);
+  animation: cinematic-aurora 16s ease-in-out infinite alternate;
+}
+
+.world-bg-desert .cinematic-world-bg__effect--primary {
+  opacity: 0.34;
+  background:
+    linear-gradient(102deg, transparent 0 22%, rgba(245, 158, 11, 0.16) 30%, transparent 46%),
+    radial-gradient(ellipse at 72% 76%, rgba(251, 191, 36, 0.18), transparent 32%);
+  filter: blur(8px);
+  animation: cinematic-heat-haze 9s ease-in-out infinite alternate;
+}
+
+.world-bg-dungeon .cinematic-world-bg__effect--primary {
+  opacity: 0.52;
+  background:
+    radial-gradient(circle at 10% 72%, rgba(251, 146, 60, 0.22), transparent 18%),
+    radial-gradient(circle at 88% 28%, rgba(251, 146, 60, 0.15), transparent 14%);
+  filter: blur(14px);
+  animation: cinematic-torch-flicker 4.8s steps(3, end) infinite;
+}
+
+.world-bg-storm .cinematic-world-bg__effect--primary {
+  opacity: 0.0;
+  background:
+    linear-gradient(118deg, transparent 0 48%, rgba(219, 234, 254, 0.8) 49% 49.8%, transparent 51% 100%),
+    linear-gradient(104deg, transparent 0 58%, rgba(56, 189, 248, 0.45) 59% 60%, transparent 61% 100%);
+  filter: blur(1px) drop-shadow(0 0 18px rgba(56, 189, 248, 0.45));
+  animation: cinematic-lightning 9s linear infinite;
+}
+
+.world-bg-city .cinematic-world-bg__effect--primary {
+  inset: auto 0 0 0;
+  height: 34%;
+  opacity: 0.46;
+  background-image:
+    linear-gradient(180deg, transparent 0 62%, rgba(8, 7, 13, 0.52) 64% 100%),
+    radial-gradient(circle, rgba(250, 204, 21, 0.7) 0 1px, transparent 2.5px),
+    radial-gradient(circle, rgba(168, 85, 247, 0.34) 0 1px, transparent 2.5px);
+  background-size: 100% 100%, 86px 62px, 142px 82px;
+  background-position: 0 0, 0 20px, 46px 8px;
+  filter: blur(0.2px);
+  animation: cinematic-city-lamps 6s ease-in-out infinite alternate;
+}
+
+.world-bg-death .cinematic-world-bg__effect--primary {
+  inset: auto -10% -10% -10%;
+  height: 62%;
+  opacity: 0.54;
+  background:
+    radial-gradient(ellipse at 22% 74%, rgba(110, 231, 183, 0.16), transparent 24%),
+    radial-gradient(ellipse at 70% 66%, rgba(255, 255, 255, 0.12), transparent 22%),
+    linear-gradient(180deg, transparent, rgba(3, 18, 15, 0.46));
+  filter: blur(18px);
+  animation: cinematic-grave-fog 22s ease-in-out infinite alternate;
+}
+
+@keyframes cinematic-leaves-fall {
+  to { background-position: 320px 780px, -280px 860px, 220px 930px; }
+}
+
+@keyframes cinematic-leaf-shadow-drift {
+  to { background-position: 150px 240px, -120px 180px; }
+}
+
+@keyframes cinematic-bottom-fire {
+  from { transform: translateY(2%) scaleX(1); filter: blur(14px) saturate(1.12); }
+  to { transform: translateY(-4%) scaleX(1.08); filter: blur(18px) saturate(1.45); }
+}
+
+@keyframes cinematic-embers-column {
+  to { background-position: 80px -620px, -120px -760px; }
+}
+
+@keyframes cinematic-rune-turn {
+  from { transform: rotate(0deg) scale(1); }
+  to { transform: rotate(360deg) scale(1.025); }
+}
+
+@keyframes cinematic-magic-grid {
+  to { background-position: 240px 180px, -220px 260px, 130px -180px; }
+}
+
+@keyframes cinematic-divine-light {
+  from { transform: translateY(-2%) scaleX(0.96); opacity: 0.7; }
+  to { transform: translateY(1%) scaleX(1.08); opacity: 0.95; }
+}
+
+@keyframes cinematic-clouds {
+  from { transform: translateX(-3%); }
+  to { transform: translateX(4%); }
+}
+
+@keyframes cinematic-aurora {
+  from { transform: translateX(-4%) skewX(-5deg); opacity: 0.25; }
+  to { transform: translateX(5%) skewX(7deg); opacity: 0.55; }
+}
+
+@keyframes cinematic-heat-haze {
+  from { transform: translateX(-1%) skewX(-2deg); filter: blur(9px); }
+  to { transform: translateX(2%) skewX(4deg); filter: blur(14px); }
+}
+
+@keyframes cinematic-torch-flicker {
+  0%, 100% { opacity: 0.34; transform: scale(1); }
+  45% { opacity: 0.62; transform: scale(1.04); }
+  70% { opacity: 0.42; transform: scale(0.98); }
+}
+
+@keyframes cinematic-lightning {
+  0%, 89%, 93%, 100% { opacity: 0; }
+  90% { opacity: 0.75; }
+  91% { opacity: 0.12; }
+  92% { opacity: 0.58; }
+}
+
+@keyframes cinematic-city-lamps {
+  from { opacity: 0.36; filter: blur(0.2px); }
+  to { opacity: 0.58; filter: blur(0.6px); }
+}
+
+@keyframes cinematic-grave-fog {
+  from { transform: translateX(-4%) translateY(1%); }
+  to { transform: translateX(5%) translateY(-2%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cinematic-world-bg__effect {
+    animation: none !important;
+  }
+}

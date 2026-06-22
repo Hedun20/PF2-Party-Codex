@@ -119,6 +119,10 @@ function categoryMatchesType(typeKey, filter) {
   return typeKey === filter;
 }
 
+function editorPathForWorld(activeWorld) {
+  return activeWorld?.title ? `/editor?world=${encodeURIComponent(activeWorld.title)}` : "/editor";
+}
+
 export default function TimelinePage({ pages = [], mode = "player", embedded = false, activeWorld = null }) {
   const worlds = useMemo(() => [...new Set(pages.map((page) => page.world || page.frontmatter?.world).filter(Boolean))].sort(), [pages]);
   const [world, setWorld] = useState("");
@@ -230,7 +234,7 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
               <Clock3 size={30} />
               <strong>Timeline пока пустой</strong>
               <p>Создай статью типа “Событие timeline” или добавь `year`, `timelineYear`, `related`, `world` в frontmatter существующей статьи.</p>
-              {mode === "gm" && <CodexButton as={Link} to="/editor"><span>Создать событие</span></CodexButton>}
+              {mode === "gm" && <CodexButton as={Link} to={editorPathForWorld(activeWorld)}><span>{activeWorld ? "Создать событие в мире" : "Создать событие"}</span></CodexButton>}
             </div>
           )}
 

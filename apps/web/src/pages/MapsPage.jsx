@@ -19,6 +19,10 @@ function normalizeObjects(page) {
   ].filter((item) => item?.label);
 }
 
+function editorPathForWorld(activeWorld) {
+  return activeWorld?.title ? `/editor?world=${encodeURIComponent(activeWorld.title)}` : "/editor";
+}
+
 export default function MapsPage({ pages = [], mode = "player", activeWorld = null }) {
   const [query, setQuery] = useState("");
   const [layer, setLayer] = useState("all");
@@ -87,7 +91,7 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
           <MapPinned size={28} />
           <h2>Карт пока не найдено</h2>
           <p>Добавь `mapImage` в статье или загрузи карту в расширенном блоке создания статьи.</p>
-          <CodexButton as={Link} to="/editor">Создать статью с картой</CodexButton>
+          <CodexButton as={Link} to={editorPathForWorld(activeWorld)}>{activeWorld ? "Создать карту в мире" : "Создать статью с картой"}</CodexButton>
         </section>
       )}
 

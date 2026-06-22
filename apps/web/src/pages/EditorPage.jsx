@@ -2,10 +2,10 @@ import { Link, useSearchParams } from "react-router-dom";
 import QuickEditor from "../components/QuickEditor.jsx";
 import CodexButton from "../components/ui/CodexButton.jsx";
 
-export default function EditorPage({ onSaved, session }) {
+export default function EditorPage({ onSaved, session, activeWorld = null }) {
   const [searchParams] = useSearchParams();
   const initialTitle = searchParams.get("title") || "";
-  const initialWorld = searchParams.get("world") || "";
+  const initialWorld = searchParams.get("world") || activeWorld?.title || "";
 
   if (!session?.canEdit) {
     return (

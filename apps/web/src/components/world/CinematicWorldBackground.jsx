@@ -22,6 +22,8 @@ export default function CinematicWorldBackground({ theme }) {
       {imageSrc && <img className="cinematic-world-bg__poster" src={imageSrc} alt="" />}
       <div className="cinematic-world-bg__gradient" />
       <div className="cinematic-world-bg__particles" />
+      <div className="cinematic-world-bg__effect cinematic-world-bg__effect--primary" />
+      <div className="cinematic-world-bg__effect cinematic-world-bg__effect--secondary" />
       <div className="cinematic-world-bg__vignette" />
     </div>
   );
