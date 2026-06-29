@@ -9,6 +9,7 @@ build/
 vault/
 !vault-example/
 !vault-example/**
+data/
 
 # Local screenshots / QA artifacts
 *-check.png

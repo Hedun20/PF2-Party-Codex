@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api } from "./api/client.js";
 import FantasyShell from "./components/FantasyShell.jsx";
+import AuthPage from "./pages/AuthPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import WorldDashboardPage from "./pages/WorldDashboardPage.jsx";
 import CategoryPage from "./pages/CategoryPage.jsx";
@@ -15,6 +16,8 @@ import VaultHealthPage from "./pages/VaultHealthPage.jsx";
 import PlayerSafetyPage from "./pages/PlayerSafetyPage.jsx";
 import TimelinePage from "./pages/TimelinePage.jsx";
 import MapsPage from "./pages/MapsPage.jsx";
+import NotesPage from "./pages/NotesPage.jsx";
+import CharactersPage from "./pages/CharactersPage.jsx";
 import SessionModePage from "./pages/SessionModePage.jsx";
 import PlayerRevealPage, { PlayerPortalView } from "./pages/PlayerRevealPage.jsx";
 import { getWorldOwnedPages, getWorldSearchPages, resolveWorldBySlug, resolveWorldForPage } from "./utils/worldContext.js";
@@ -40,7 +43,7 @@ function editorWorldFromLocation(location) {
 }
 
 export default function App() {
-  const [session, setSession] = useState({ mode: "player", canEdit: false });
+  const [session, setSession] = useState({ mode: "player", canEdit: false, user: null });
   const [mode, setMode] = useState(localStorage.getItem("codex-mode") || "gm");
   const [pages, setPages] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -49,6 +52,14 @@ export default function App() {
   const location = useLocation();
 
   const effectiveMode = session.canEdit ? mode : "player";
+  const gmView = effectiveMode === "gm" && Boolean(session.canEdit);
+
+  const loadSession = async () => {
+    const data = await api.session();
+    setSession(data);
+    if (!data.canEdit) setMode("player");
+    return data;
+  };
 
   const refresh = async () => {
     const [pageData, categoryData] = await Promise.all([api.pages(effectiveMode), api.categories(effectiveMode)]);
@@ -56,17 +67,29 @@ export default function App() {
     setCategories(categoryData.categories);
   };
 
+  const handleAuth = async () => {
+    await loadSession();
+    await refresh();
+    navigate("/");
+  };
+
+  const handleLogout = async () => {
+    await api.logout();
+    await loadSession();
+    setMode("player");
+    navigate("/");
+  };
+
   useEffect(() => {
-    api.session().then((data) => {
-      setSession(data);
-      if (!data.canEdit) setMode("player");
-    }).catch(() => {});
+    loadSession().catch(() => {});
   }, []);
 
   useEffect(() => {
     if (session.canEdit) localStorage.setItem("codex-mode", mode);
-    refresh();
-    const timer = setInterval(refresh, 10000);
+    refresh().catch((error) => {
+      if (error.message?.includes("GM access")) setMode("player");
+    });
+    const timer = setInterval(() => refresh().catch(() => {}), 10000);
     return () => clearInterval(timer);
   }, [effectiveMode, session.canEdit]);
 
@@ -92,28 +115,32 @@ export default function App() {
       query={query}
       setQuery={setQuery}
       activeWorld={activeWorld}
+      onLogout={handleLogout}
       onSelectPage={(path) => navigate(`/page/${encodeURIComponent(path)}`)}
     >
       <Routes>
+        <Route path="/login" element={<AuthPage onAuth={handleAuth} session={session} />} />
         <Route path="/" element={<DashboardPage pages={pages} dashboard={dashboard} mode={effectiveMode} session={session} />} />
         <Route path="/world/:worldSlug" element={<WorldDashboardPage pages={pages} mode={effectiveMode} session={session} />} />
         <Route path="/world/:worldSlug/category/:category/*" element={<CategoryPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />} />
         <Route path="/world/:worldSlug/timeline" element={<TimelinePage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />} />
         <Route path="/world/:worldSlug/maps" element={<MapsPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />} />
-        <Route path="/world/:worldSlug/session" element={<SessionModePage pages={pages} mode={effectiveMode} session={session} />} />
-        <Route path="/world/:worldSlug/reveal" element={<PlayerRevealPage pages={pages} session={session} />} />
+        <Route path="/world/:worldSlug/session" element={gmView ? <SessionModePage pages={pages} mode={effectiveMode} session={session} /> : <PlayerPortalView pages={pages} />} />
+        <Route path="/world/:worldSlug/reveal" element={gmView ? <PlayerRevealPage pages={pages} session={session} /> : <PlayerPortalView pages={pages} />} />
         <Route path="/world/:worldSlug/player" element={<PlayerPortalView pages={pages} />} />
         <Route path="/category/:category/*" element={<CategoryPage pages={pages} mode={effectiveMode} />} />
         <Route path="/page/:path" element={<PageView mode={effectiveMode} pages={pages} onChanged={refresh} />} />
-        <Route path="/editor" element={<EditorPage onSaved={refresh} session={session} activeWorld={activeWorld} />} />
-        <Route path="/edit/:path" element={<RawEditorPage mode={effectiveMode} onSaved={refresh} pages={pages} />} />
-        <Route path="/missing" element={<MissingLinksPage mode={effectiveMode} />} />
+        <Route path="/editor" element={<EditorPage onSaved={refresh} session={{ ...session, canEdit: gmView }} activeWorld={activeWorld} />} />
+        <Route path="/edit/:path" element={<RawEditorPage mode={gmView ? "gm" : "player"} onSaved={refresh} pages={pages} />} />
+        <Route path="/missing" element={gmView ? <MissingLinksPage mode={effectiveMode} /> : <AuthPage onAuth={handleAuth} session={session} />} />
         <Route path="/timeline" element={<TimelinePage pages={pages} mode={effectiveMode} />} />
         <Route path="/maps" element={<MapsPage pages={pages} mode={effectiveMode} />} />
-        <Route path="/health" element={<VaultHealthPage mode={effectiveMode} />} />
-        <Route path="/player-safety" element={<PlayerSafetyPage pages={pages} />} />
-        <Route path="/guide" element={<GuidePage />} />
-        <Route path="/foundry" element={<FoundryImportExportPage mode={effectiveMode} />} />
+        <Route path="/notes" element={<NotesPage pages={pages} />} />
+        <Route path="/characters" element={<CharactersPage pages={pages} />} />
+        <Route path="/health" element={gmView ? <VaultHealthPage mode={effectiveMode} /> : <AuthPage onAuth={handleAuth} session={session} />} />
+        <Route path="/player-safety" element={gmView ? <PlayerSafetyPage pages={pages} /> : <AuthPage onAuth={handleAuth} session={session} />} />
+        <Route path="/guide" element={<GuidePage canEdit={gmView} />} />
+        <Route path="/foundry" element={gmView ? <FoundryImportExportPage mode={effectiveMode} /> : <AuthPage onAuth={handleAuth} session={session} />} />
       </Routes>
     </FantasyShell>
   );

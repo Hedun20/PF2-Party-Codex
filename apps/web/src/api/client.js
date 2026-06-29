@@ -1,19 +1,52 @@
 const API = "/api";
+const TOKEN_KEY = "pf2-auth-token";
+
+let authToken = localStorage.getItem(TOKEN_KEY) || "";
+
+function authHeaders(options = {}) {
+  if (options.body instanceof FormData) return authToken ? { Authorization: `Bearer ${authToken}` } : undefined;
+  return {
+    "Content-Type": "application/json",
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+  };
+}
 
 async function request(path, options = {}) {
   const response = await fetch(`${API}${path}`, {
-    headers: options.body instanceof FormData ? undefined : { "Content-Type": "application/json" },
+    headers: authHeaders(options),
     ...options
   });
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.includes("application/json")) {
-    throw new Error("Сервер ещё не обновлён. Перезапусти локалку, чтобы новые API-ручки стали доступны.");
+    throw new Error("Server is not returning the expected API response. Restart the local app so the new API routes are available.");
   }
   if (!response.ok) throw new Error((await response.json()).error || "Request failed");
   return response.json();
 }
 
+function setToken(token = "") {
+  authToken = token;
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+}
+
 export const api = {
+  setToken,
+  getToken: () => authToken,
+  register: (payload) => request("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
+  login: async (payload) => {
+    const data = await request("/auth/login", { method: "POST", body: JSON.stringify(payload) });
+    setToken(data.token);
+    return data;
+  },
+  logout: async () => {
+    try {
+      await request("/auth/logout", { method: "POST", body: JSON.stringify({}) });
+    } finally {
+      setToken("");
+    }
+  },
+  me: () => request("/auth/me"),
   session: () => request("/session"),
   pages: (mode) => request(`/pages?mode=${mode}`),
   missingLinks: (mode) => request(`/missing-links?mode=${mode}`),
@@ -33,7 +66,9 @@ export const api = {
   markdownImportCommit: (payload) => request("/markdown/import/commit", { method: "POST", body: JSON.stringify(payload) }),
   metadata: (mode) => request(`/metadata?mode=${mode}`),
   audit: (mode) => request(`/audit?mode=${mode}`),
+  auditLog: (limit = 200) => request(`/audit-log?limit=${limit}`),
   playerSafety: () => request("/player-safety"),
+  pf2Options: (source = "auto") => request(`/pf2/options?source=${encodeURIComponent(source)}`),
   uploadAsset: (formData) => request("/assets/upload", { method: "POST", body: formData }),
   assetList: (mode) => request(`/assets/list?mode=${mode}`),
   foundryImportPreview: (formData) => request("/foundry/import", { method: "POST", body: formData }),

@@ -99,12 +99,12 @@ export function analyzePlayerSafety(page = {}) {
   else if (containsSecrets || suspicious) status = "contains-secrets";
 
   const warnings = [];
-  if (gmOnly) warnings.push("Статья не видна игрокам целиком по visibility.");
+  if (gmOnly) warnings.push("Статья целиком скрыта от игроков по visibility.");
   if (secretBlockCount) warnings.push(`Найдено secret-блоков: ${secretBlockCount}.`);
   if (secretHeading) warnings.push("Есть раздел GM Secrets / секреты мастера.");
   if (gmOnlyMapObjects) warnings.push(`GM-only объектов карты: ${gmOnlyMapObjects}.`);
   if (gmOnlyPins) warnings.push(`GM-only пинов: ${gmOnlyPins}.`);
-  if (suspicious) warnings.push("Найдены слова, похожие на мастерские спойлеры — стоит проверить вручную.");
+  if (suspicious) warnings.push("Найдены слова, похожие на мастерские спойлеры. Проверь вручную, что public-текст не раскрывает лишнее.");
   if (!publicTextLength) warnings.push("Нет player-safe публичного текста.");
 
   return {

@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowRight, BookOpen, Flame, Globe2, Network, Sparkles } from "lucide-react";
 import CodexButton from "./ui/CodexButton.jsx";
-import { worldRoute } from "../utils/worldContext.js";
+import { getWorlds, worldRoute } from "../utils/worldContext.js";
 
 function normalizeTags(tags = []) {
   return tags.map((tag) => String(tag).toLowerCase());
@@ -93,7 +93,7 @@ function WorldsEmptyState() {
 }
 
 export default function WorldAtlas({ pages = [] }) {
-  const worlds = pages.filter((page) => page.category === "worlds" || page.type === "world");
+  const worlds = getWorlds(pages);
 
   return (
     <section className="atlas-layout worlds-only-layout worlds-cinematic-layout" aria-label="Миры кампании">
@@ -124,14 +124,14 @@ export default function WorldAtlas({ pages = [] }) {
 
       <aside className="minor-worlds-panel worlds-command-panel">
         <span className="minor-orbit" aria-hidden="true" />
-        <span className="kicker">Следующий wow-слой</span>
+        <span className="kicker">Следующий слой</span>
         <h2>Living Timeline</h2>
-        <p>Timeline теперь живёт отдельно. Следующий premium-pass — вертикальный trunk с ветками событий, NPC, городами и подсветкой связей.</p>
+        <p>Timeline живёт отдельно: события, NPC, города и подсветка связей не мешают обзору миров.</p>
         <CodexButton as={Link} to="/timeline" variant="secondary"><Flame size={16} /> Открыть Timeline</CodexButton>
         <div className="world-notes">
           <strong>Что готовим дальше</strong>
           <span>ветки событий вместо плоской ленты</span>
-          <span>hover подсветка связанных городов/NPC</span>
+          <span>hover-подсветка связанных городов/NPC</span>
           <span>player-safe режим без GM-секретов</span>
         </div>
       </aside>

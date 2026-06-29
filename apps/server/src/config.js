@@ -10,5 +10,6 @@ export const config = {
   rootDir,
   vaultDir: path.join(rootDir, "vault"),
   imagesDir: path.join(rootDir, "vault", "images"),
-  exportDir: path.join(rootDir, "foundry-export")
+  exportDir: path.join(rootDir, "foundry-export"),
+  dataDir: process.env.DATA_DIR || path.join(rootDir, "data")
 };

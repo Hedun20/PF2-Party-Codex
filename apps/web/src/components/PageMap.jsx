@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   AlertTriangle,
@@ -98,7 +98,7 @@ function serializeMapObjects(objects = []) {
       id: object.id || `${object.shape || "pin"}-${Date.now()}`,
       shape: object.shape || "pin",
       type: object.type || "location",
-      label: object.label || "Новый объект",
+      label: object.label || "ÐÐ¾Ð²Ñ‹Ð¹ Ð¾Ð±ÑŠÐµÐºÑ‚",
       path: object.path || "",
       summary: object.summary || "",
       visibility: object.type === "secret" ? "gm" : (object.visibility || "public"),
@@ -135,7 +135,7 @@ function compactSummary(text = "") {
 }
 
 function optionLabel(page) {
-  return `${page.title} · ${labelCategory(page.category)}`;
+  return `${page.title} Â· ${labelCategory(page.category)}`;
 }
 
 export default function PageMap({ page, mode = "player", editable = false, availablePages = [], onObjectsSaved }) {
@@ -143,6 +143,7 @@ export default function PageMap({ page, mode = "player", editable = false, avail
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [drag, setDrag] = useState(null);
+  const panFrame = useRef(null);
   const [hovered, setHovered] = useState(null);
   const [selectedObjectId, setSelectedObjectId] = useState("");
   const [enabledTypes, setEnabledTypes] = useState(() => Object.fromEntries(mapObjectTypes.map((item) => [item.value, true])));
@@ -213,10 +214,6 @@ export default function PageMap({ page, mode = "player", editable = false, avail
     if (object.shape !== "area") setScale((current) => Math.max(current, 1.15));
   }
 
-  function handleWheel(event) {
-    event.preventDefault();
-    zoomBy(event.deltaY > 0 ? -0.08 : 0.08);
-  }
 
   function startPan(event) {
     if (placingPin) return;
@@ -227,10 +224,19 @@ export default function PageMap({ page, mode = "player", editable = false, avail
 
   function movePan(event) {
     if (!drag) return;
-    setPan({ x: drag.panX + event.clientX - drag.startX, y: drag.panY + event.clientY - drag.startY });
+    const nextPan = { x: drag.panX + event.clientX - drag.startX, y: drag.panY + event.clientY - drag.startY };
+    if (panFrame.current) cancelAnimationFrame(panFrame.current);
+    panFrame.current = requestAnimationFrame(() => {
+      setPan(nextPan);
+      panFrame.current = null;
+    });
   }
 
   function endPan() {
+    if (panFrame.current) {
+      cancelAnimationFrame(panFrame.current);
+      panFrame.current = null;
+    }
     setDrag(null);
   }
 
@@ -262,7 +268,7 @@ export default function PageMap({ page, mode = "player", editable = false, avail
     setPinDraft(createPinDraft());
     setPinEditorOpen(true);
     setPlacingPin(true);
-    setSaveStatus("Выбери статью/название и кликни по карте, где должен стоять пин.");
+    setSaveStatus("Ð’Ñ‹Ð±ÐµÑ€Ð¸ ÑÑ‚Ð°Ñ‚ÑŒÑŽ/Ð½Ð°Ð·Ð²Ð°Ð½Ð¸Ðµ Ð¸ ÐºÐ»Ð¸ÐºÐ½Ð¸ Ð¿Ð¾ ÐºÐ°Ñ€Ñ‚Ðµ, Ð³Ð´Ðµ Ð´Ð¾Ð»Ð¶ÐµÐ½ ÑÑ‚Ð¾ÑÑ‚ÑŒ Ð¿Ð¸Ð½.");
   }
 
   function editObject(object) {
@@ -279,13 +285,13 @@ export default function PageMap({ page, mode = "player", editable = false, avail
     });
     setPinEditorOpen(true);
     setPlacingPin(false);
-    setSaveStatus("Редактируешь выбранный пин. Можно изменить текст, слой или нажать “Переместить”.");
+    setSaveStatus("Ð ÐµÐ´Ð°ÐºÑ‚Ð¸Ñ€ÑƒÐµÑˆÑŒ Ð²Ñ‹Ð±Ñ€Ð°Ð½Ð½Ñ‹Ð¹ Ð¿Ð¸Ð½. ÐœÐ¾Ð¶Ð½Ð¾ Ð¸Ð·Ð¼ÐµÐ½Ð¸Ñ‚ÑŒ Ñ‚ÐµÐºÑÑ‚, ÑÐ»Ð¾Ð¹ Ð¸Ð»Ð¸ Ð½Ð°Ð¶Ð°Ñ‚ÑŒ â€œÐŸÐµÑ€ÐµÐ¼ÐµÑÑ‚Ð¸Ñ‚ÑŒâ€.");
   }
 
   function moveObject(object) {
     editObject(object);
     setPlacingPin(true);
-    setSaveStatus("Кликни по карте, чтобы выбрать новое место для пина.");
+    setSaveStatus("ÐšÐ»Ð¸ÐºÐ½Ð¸ Ð¿Ð¾ ÐºÐ°Ñ€Ñ‚Ðµ, Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð²Ñ‹Ð±Ñ€Ð°Ñ‚ÑŒ Ð½Ð¾Ð²Ð¾Ðµ Ð¼ÐµÑÑ‚Ð¾ Ð´Ð»Ñ Ð¿Ð¸Ð½Ð°.");
   }
 
   function handleTransformClick(event) {
@@ -293,13 +299,13 @@ export default function PageMap({ page, mode = "player", editable = false, avail
     if (event.target.closest(".map2-object, .map2-tooltip")) return;
     const position = mapClickPosition(event);
     updatePinDraft(position);
-    setSaveStatus("Позиция выбрана. Нажми “Сохранить пин”.");
+    setSaveStatus("ÐŸÐ¾Ð·Ð¸Ñ†Ð¸Ñ Ð²Ñ‹Ð±Ñ€Ð°Ð½Ð°. ÐÐ°Ð¶Ð¼Ð¸ â€œÐ¡Ð¾Ñ…Ñ€Ð°Ð½Ð¸Ñ‚ÑŒ Ð¿Ð¸Ð½â€.");
   }
 
   async function persistObjects(nextObjects, successText) {
     if (!page?.path) return;
     setSaving(true);
-    setSaveStatus("Сохраняю карту...");
+    setSaveStatus("Ð¡Ð¾Ñ…Ñ€Ð°Ð½ÑÑŽ ÐºÐ°Ñ€Ñ‚Ñƒ...");
     try {
       const raw = await api.rawPage(page.path, "gm");
       const canonical = serializeMapObjects(nextObjects);
@@ -314,10 +320,10 @@ export default function PageMap({ page, mode = "player", editable = false, avail
       });
       setLocalObjects(canonical);
       onObjectsSaved?.(page.path, canonical);
-      setSaveStatus(successText || "Карта сохранена.");
+      setSaveStatus(successText || "ÐšÐ°Ñ€Ñ‚Ð° ÑÐ¾Ñ…Ñ€Ð°Ð½ÐµÐ½Ð°.");
       setPlacingPin(false);
     } catch (error) {
-      setSaveStatus(error.message || "Не удалось сохранить карту.");
+      setSaveStatus(error.message || "ÐÐµ ÑƒÐ´Ð°Ð»Ð¾ÑÑŒ ÑÐ¾Ñ…Ñ€Ð°Ð½Ð¸Ñ‚ÑŒ ÐºÐ°Ñ€Ñ‚Ñƒ.");
     } finally {
       setSaving(false);
     }
@@ -326,11 +332,11 @@ export default function PageMap({ page, mode = "player", editable = false, avail
   async function savePinDraft() {
     if (!editable) return;
     if (!pinDraft.label.trim()) {
-      setSaveStatus("Сначала укажи название пина или выбери связанную статью.");
+      setSaveStatus("Ð¡Ð½Ð°Ñ‡Ð°Ð»Ð° ÑƒÐºÐ°Ð¶Ð¸ Ð½Ð°Ð·Ð²Ð°Ð½Ð¸Ðµ Ð¿Ð¸Ð½Ð° Ð¸Ð»Ð¸ Ð²Ñ‹Ð±ÐµÑ€Ð¸ ÑÐ²ÑÐ·Ð°Ð½Ð½ÑƒÑŽ ÑÑ‚Ð°Ñ‚ÑŒÑŽ.");
       return;
     }
     if (pinDraft.x === null || pinDraft.y === null) {
-      setSaveStatus("Сначала кликни по карте, чтобы выбрать место пина.");
+      setSaveStatus("Ð¡Ð½Ð°Ñ‡Ð°Ð»Ð° ÐºÐ»Ð¸ÐºÐ½Ð¸ Ð¿Ð¾ ÐºÐ°Ñ€Ñ‚Ðµ, Ñ‡Ñ‚Ð¾Ð±Ñ‹ Ð²Ñ‹Ð±Ñ€Ð°Ñ‚ÑŒ Ð¼ÐµÑÑ‚Ð¾ Ð¿Ð¸Ð½Ð°.");
       setPlacingPin(true);
       return;
     }
@@ -347,7 +353,7 @@ export default function PageMap({ page, mode = "player", editable = false, avail
       color: colorMapObjectType(pinDraft.type || "location")
     };
     const nextObjects = [...objects.filter((object) => object.id !== nextObject.id), nextObject];
-    await persistObjects(nextObjects, `Пин сохранён: ${nextObject.label}`);
+    await persistObjects(nextObjects, `ÐŸÐ¸Ð½ ÑÐ¾Ñ…Ñ€Ð°Ð½Ñ‘Ð½: ${nextObject.label}`);
     setSelectedObjectId(nextObject.id);
     setPinDraft(createPinDraft());
   }
@@ -355,7 +361,7 @@ export default function PageMap({ page, mode = "player", editable = false, avail
   async function deleteObject(object) {
     if (!editable || !object) return;
     const nextObjects = objects.filter((item) => item.id !== object.id);
-    await persistObjects(nextObjects, `Объект удалён: ${object.label}`);
+    await persistObjects(nextObjects, `ÐžÐ±ÑŠÐµÐºÑ‚ ÑƒÐ´Ð°Ð»Ñ‘Ð½: ${object.label}`);
     setSelectedObjectId("");
   }
 
@@ -363,14 +369,14 @@ export default function PageMap({ page, mode = "player", editable = false, avail
     <section className="page-map-panel map2-panel">
       <div className="map2-heading">
         <div className="panel-heading">
-          <span className="kicker">Карта 2.0</span>
-          <h2>Области, пины и слои</h2>
+          <span className="kicker">ÐšÐ°Ñ€Ñ‚Ð° 2.0</span>
+          <h2>ÐžÐ±Ð»Ð°ÑÑ‚Ð¸, Ð¿Ð¸Ð½Ñ‹ Ð¸ ÑÐ»Ð¾Ð¸</h2>
         </div>
         <div className="map2-zoom-controls">
-          {editable && <button type="button" className={pinEditorOpen ? "map2-zoom-button active" : "map2-zoom-button"} onClick={startCreatePin} title="Добавить пин"><MapPin size={16} /> Пин</button>}
-          <button type="button" className="map2-zoom-button" onClick={() => zoomBy(-0.15)} title="Отдалить"><Minus size={16} /></button>
-          <button type="button" className="map2-zoom-button" onClick={resetView} title="Сбросить вид"><RotateCcw size={16} /></button>
-          <button type="button" className="map2-zoom-button" onClick={() => zoomBy(0.15)} title="Приблизить"><Plus size={16} /></button>
+          {editable && <button type="button" className={pinEditorOpen ? "map2-zoom-button active" : "map2-zoom-button"} onClick={startCreatePin} title="Ð”Ð¾Ð±Ð°Ð²Ð¸Ñ‚ÑŒ Ð¿Ð¸Ð½"><MapPin size={16} /> ÐŸÐ¸Ð½</button>}
+          <button type="button" className="map2-zoom-button" onClick={() => zoomBy(-0.15)} title="ÐžÑ‚Ð´Ð°Ð»Ð¸Ñ‚ÑŒ"><Minus size={16} /></button>
+          <button type="button" className="map2-zoom-button" onClick={resetView} title="Ð¡Ð±Ñ€Ð¾ÑÐ¸Ñ‚ÑŒ Ð²Ð¸Ð´"><RotateCcw size={16} /></button>
+          <button type="button" className="map2-zoom-button" onClick={() => zoomBy(0.15)} title="ÐŸÑ€Ð¸Ð±Ð»Ð¸Ð·Ð¸Ñ‚ÑŒ"><Plus size={16} /></button>
           <span><Maximize2 size={15} /> {Math.round(scale * 100)}%</span>
         </div>
       </div>
@@ -380,47 +386,47 @@ export default function PageMap({ page, mode = "player", editable = false, avail
           <div className="map2-pin-builder-head">
             <div>
               <span className="kicker">Pin Editor</span>
-              <strong>{pinDraft.id ? "Редактирование пина" : "Новый пин на карте"}</strong>
+              <strong>{pinDraft.id ? "Ð ÐµÐ´Ð°ÐºÑ‚Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð¸Ðµ Ð¿Ð¸Ð½Ð°" : "ÐÐ¾Ð²Ñ‹Ð¹ Ð¿Ð¸Ð½ Ð½Ð° ÐºÐ°Ñ€Ñ‚Ðµ"}</strong>
             </div>
             <div>
-              {!pinEditorOpen && <button type="button" className="map2-mini-action" onClick={startCreatePin}><Plus size={14} /> Добавить пин</button>}
-              {pinEditorOpen && <button type="button" className="map2-mini-action" onClick={() => { setPinEditorOpen(false); setPlacingPin(false); setPinDraft(createPinDraft()); }}><X size={14} /> Закрыть</button>}
+              {!pinEditorOpen && <button type="button" className="map2-mini-action" onClick={startCreatePin}><Plus size={14} /> Ð”Ð¾Ð±Ð°Ð²Ð¸Ñ‚ÑŒ Ð¿Ð¸Ð½</button>}
+              {pinEditorOpen && <button type="button" className="map2-mini-action" onClick={() => { setPinEditorOpen(false); setPlacingPin(false); setPinDraft(createPinDraft()); }}><X size={14} /> Ð—Ð°ÐºÑ€Ñ‹Ñ‚ÑŒ</button>}
             </div>
           </div>
           {pinEditorOpen && (
             <div className="map2-pin-builder-body">
               <label>
-                Связанная статья
+                Ð¡Ð²ÑÐ·Ð°Ð½Ð½Ð°Ñ ÑÑ‚Ð°Ñ‚ÑŒÑ
                 <select value={pinDraft.path} onChange={(event) => syncDraftWithPage(event.target.value)}>
-                  <option value="">Без связанной статьи</option>
+                  <option value="">Ð‘ÐµÐ· ÑÐ²ÑÐ·Ð°Ð½Ð½Ð¾Ð¹ ÑÑ‚Ð°Ñ‚ÑŒÐ¸</option>
                   {availablePages.map((candidate) => <option key={candidate.path} value={candidate.path}>{optionLabel(candidate)}</option>)}
                 </select>
               </label>
               <label>
-                Название пина
-                <input value={pinDraft.label} onChange={(event) => updatePinDraft({ label: event.target.value })} placeholder="Например: Северные ворота" />
+                ÐÐ°Ð·Ð²Ð°Ð½Ð¸Ðµ Ð¿Ð¸Ð½Ð°
+                <input value={pinDraft.label} onChange={(event) => updatePinDraft({ label: event.target.value })} placeholder="ÐÐ°Ð¿Ñ€Ð¸Ð¼ÐµÑ€: Ð¡ÐµÐ²ÐµÑ€Ð½Ñ‹Ðµ Ð²Ð¾Ñ€Ð¾Ñ‚Ð°" />
               </label>
               <label>
-                Тип
+                Ð¢Ð¸Ð¿
                 <select value={pinDraft.type} onChange={(event) => updatePinDraft({ type: event.target.value, visibility: event.target.value === "secret" ? "gm" : pinDraft.visibility })}>
                   {mapObjectTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                 </select>
               </label>
               <label>
-                Слой
+                Ð¡Ð»Ð¾Ð¹
                 <select value={pinDraft.type === "secret" ? "gm" : pinDraft.visibility} onChange={(event) => updatePinDraft({ visibility: event.target.value })} disabled={pinDraft.type === "secret"}>
                   <option value="public">player-visible</option>
                   <option value="gm">GM-only</option>
                 </select>
               </label>
               <label className="map2-pin-summary-field">
-                Hover-описание
-                <textarea value={pinDraft.summary} onChange={(event) => updatePinDraft({ summary: event.target.value })} placeholder="Короткая подсказка на hover." />
+                Hover-Ð¾Ð¿Ð¸ÑÐ°Ð½Ð¸Ðµ
+                <textarea value={pinDraft.summary} onChange={(event) => updatePinDraft({ summary: event.target.value })} placeholder="ÐšÐ¾Ñ€Ð¾Ñ‚ÐºÐ°Ñ Ð¿Ð¾Ð´ÑÐºÐ°Ð·ÐºÐ° Ð½Ð° hover." />
               </label>
               <div className="map2-pin-builder-actions">
-                <button type="button" className={placingPin ? "map2-mini-action active" : "map2-mini-action"} onClick={() => setPlacingPin(true)}><Move size={14} /> {pinDraft.id ? "Переместить" : "Выбрать место"}</button>
-                <button type="button" className="map2-mini-action primary" onClick={savePinDraft} disabled={saving}><Save size={14} /> {saving ? "Сохраняю..." : "Сохранить пин"}</button>
-                {pinDraft.x !== null && pinDraft.y !== null && <span className="map2-pin-coords">x {pinDraft.x}% · y {pinDraft.y}%</span>}
+                <button type="button" className={placingPin ? "map2-mini-action active" : "map2-mini-action"} onClick={() => setPlacingPin(true)}><Move size={14} /> {pinDraft.id ? "ÐŸÐµÑ€ÐµÐ¼ÐµÑÑ‚Ð¸Ñ‚ÑŒ" : "Ð’Ñ‹Ð±Ñ€Ð°Ñ‚ÑŒ Ð¼ÐµÑÑ‚Ð¾"}</button>
+                <button type="button" className="map2-mini-action primary" onClick={savePinDraft} disabled={saving}><Save size={14} /> {saving ? "Ð¡Ð¾Ñ…Ñ€Ð°Ð½ÑÑŽ..." : "Ð¡Ð¾Ñ…Ñ€Ð°Ð½Ð¸Ñ‚ÑŒ Ð¿Ð¸Ð½"}</button>
+                {pinDraft.x !== null && pinDraft.y !== null && <span className="map2-pin-coords">x {pinDraft.x}% Â· y {pinDraft.y}%</span>}
               </div>
               {saveStatus && <p className="map2-pin-status">{saveStatus}</p>}
             </div>
@@ -431,12 +437,12 @@ export default function PageMap({ page, mode = "player", editable = false, avail
       <div className={`map2-safety-strip ${playerSafeReady}`}>
         <div>
           <span className="kicker">Player-safe check</span>
-          <strong>{mode === "gm" ? `${playerObjects.length} видно игрокам · ${gmObjects.length} скрыто для GM` : `${activeObjects.length} объектов доступно игрокам`}</strong>
+          <strong>{mode === "gm" ? `${playerObjects.length} Ð²Ð¸Ð´Ð½Ð¾ Ð¸Ð³Ñ€Ð¾ÐºÐ°Ð¼ Â· ${gmObjects.length} ÑÐºÑ€Ñ‹Ñ‚Ð¾ Ð´Ð»Ñ GM` : `${activeObjects.length} Ð¾Ð±ÑŠÐµÐºÑ‚Ð¾Ð² Ð´Ð¾ÑÑ‚ÑƒÐ¿Ð½Ð¾ Ð¸Ð³Ñ€Ð¾ÐºÐ°Ð¼`}</strong>
         </div>
         <p>
-          {playerSafeReady === "clean" && "Карта чистая: все объекты подходят для игрока."}
-          {playerSafeReady === "mixed" && "Карта смешанная: GM-only слой есть, проверь Preview as Player перед reveal."}
-          {playerSafeReady === "empty" && "На карте пока нет player-visible объектов."}
+          {playerSafeReady === "clean" && "ÐšÐ°Ñ€Ñ‚Ð° Ñ‡Ð¸ÑÑ‚Ð°Ñ: Ð²ÑÐµ Ð¾Ð±ÑŠÐµÐºÑ‚Ñ‹ Ð¿Ð¾Ð´Ñ…Ð¾Ð´ÑÑ‚ Ð´Ð»Ñ Ð¸Ð³Ñ€Ð¾ÐºÐ°."}
+          {playerSafeReady === "mixed" && "ÐšÐ°Ñ€Ñ‚Ð° ÑÐ¼ÐµÑˆÐ°Ð½Ð½Ð°Ñ: GM-only ÑÐ»Ð¾Ð¹ ÐµÑÑ‚ÑŒ, Ð¿Ñ€Ð¾Ð²ÐµÑ€ÑŒ Preview as Player Ð¿ÐµÑ€ÐµÐ´ reveal."}
+          {playerSafeReady === "empty" && "ÐÐ° ÐºÐ°Ñ€Ñ‚Ðµ Ð¿Ð¾ÐºÐ° Ð½ÐµÑ‚ player-visible Ð¾Ð±ÑŠÐµÐºÑ‚Ð¾Ð²."}
         </p>
       </div>
 
@@ -447,7 +453,7 @@ export default function PageMap({ page, mode = "player", editable = false, avail
           </button>
           {mode === "gm" && (
             <button type="button" className={showGmLayer ? "map2-filter-chip gm active" : "map2-filter-chip gm"} onClick={() => setShowGmLayer((value) => !value)}>
-              GM-only слой
+              GM-only ÑÐ»Ð¾Ð¹
             </button>
           )}
           {mapObjectTypes.map((item) => (
@@ -463,8 +469,8 @@ export default function PageMap({ page, mode = "player", editable = false, avail
           ))}
         </div>
         <div className="map2-filter-actions">
-          <button type="button" className="map2-mini-action" onClick={() => setAllTypes(true)}><Layers3 size={14} /> Все типы</button>
-          <button type="button" className="map2-mini-action" onClick={() => setAllTypes(false)}><EyeOff size={14} /> Скрыть типы</button>
+          <button type="button" className="map2-mini-action" onClick={() => setAllTypes(true)}><Layers3 size={14} /> Ð’ÑÐµ Ñ‚Ð¸Ð¿Ñ‹</button>
+          <button type="button" className="map2-mini-action" onClick={() => setAllTypes(false)}><EyeOff size={14} /> Ð¡ÐºÑ€Ñ‹Ñ‚ÑŒ Ñ‚Ð¸Ð¿Ñ‹</button>
           <span>{visibleTypeCount}/{mapObjectTypes.length}</span>
         </div>
       </div>
@@ -472,14 +478,13 @@ export default function PageMap({ page, mode = "player", editable = false, avail
       <div className="map2-layout">
         <div
           className={drag ? "map2-stage panning" : placingPin ? "map2-stage placing" : "map2-stage"}
-          onWheel={handleWheel}
           onMouseDown={startPan}
           onMouseMove={movePan}
           onMouseUp={endPan}
           onMouseLeave={() => { endPan(); setHovered(null); }}
         >
           <div className="map2-transform" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})` }} onClick={handleTransformClick}>
-            <img src={mediaUrl(imagePath)} alt={`Карта: ${page.title}`} draggable="false" />
+            <img src={mediaUrl(imagePath)} alt={`ÐšÐ°Ñ€Ñ‚Ð°: ${page.title}`} draggable="false" />
             <svg className="map2-area-layer" viewBox="0 0 100 100" preserveAspectRatio="none">
               {activeObjects.filter((object) => object.shape === "area").map((object) => {
                 const center = areaCenter(object.points);
@@ -516,15 +521,15 @@ export default function PageMap({ page, mode = "player", editable = false, avail
             })}
             {placingPin && pinDraft.x !== null && pinDraft.y !== null && (
               <button type="button" className="map2-object map2-pin map2-draft-pin" style={{ left: `${pinDraft.x}%`, top: `${pinDraft.y}%`, "--object-color": colorMapObjectType(pinDraft.type) }}>
-                <MapPin size={15} /><span>{pinDraft.label || "Новый пин"}</span>
+                <MapPin size={15} /><span>{pinDraft.label || "ÐÐ¾Ð²Ñ‹Ð¹ Ð¿Ð¸Ð½"}</span>
               </button>
             )}
             {hovered && (
               <div className="map2-tooltip" style={{ left: `${hovered.x}%`, top: `${hovered.y}%`, "--object-color": hovered.color }}>
-                <span>{labelMapObjectType(hovered.type)}{hovered.visibility === "gm" ? " · GM" : ""}</span>
+                <span>{labelMapObjectType(hovered.type)}{hovered.visibility === "gm" ? " Â· GM" : ""}</span>
                 <strong>{hovered.label}</strong>
                 {hovered.summary && <p>{hovered.summary}</p>}
-                {hovered.path && <small>{mode === "gm" ? "Выбрано. Открытие — в панели справа" : "Клик откроет статью"}</small>}
+                {hovered.path && <small>{mode === "gm" ? "Ð’Ñ‹Ð±Ñ€Ð°Ð½Ð¾. ÐžÑ‚ÐºÑ€Ñ‹Ñ‚Ð¸Ðµ â€” Ð² Ð¿Ð°Ð½ÐµÐ»Ð¸ ÑÐ¿Ñ€Ð°Ð²Ð°" : "ÐšÐ»Ð¸Ðº Ð¾Ñ‚ÐºÑ€Ð¾ÐµÑ‚ ÑÑ‚Ð°Ñ‚ÑŒÑŽ"}</small>}
               </div>
             )}
           </div>
@@ -533,25 +538,25 @@ export default function PageMap({ page, mode = "player", editable = false, avail
         <aside className="map2-object-list">
           <div className="map2-list-header">
             <div>
-              <span className="kicker">Объекты карты</span>
+              <span className="kicker">ÐžÐ±ÑŠÐµÐºÑ‚Ñ‹ ÐºÐ°Ñ€Ñ‚Ñ‹</span>
               <h3>{activeObjects.length} / {objects.length}</h3>
             </div>
-            <small><Link2 size={13} /> {linkedObjects.length} linked · {unlinkedObjects.length} draft</small>
+            <small><Link2 size={13} /> {linkedObjects.length} linked Â· {unlinkedObjects.length} draft</small>
           </div>
           {selectedObject && (
             <div className="map2-focus-card" style={{ "--object-color": selectedObject.color }}>
-              <span>{labelMapObjectType(selectedObject.type)}{selectedObject.visibility === "gm" ? " · GM-only" : " · Player-visible"}</span>
+              <span>{labelMapObjectType(selectedObject.type)}{selectedObject.visibility === "gm" ? " Â· GM-only" : " Â· Player-visible"}</span>
               <strong>{selectedObject.label}</strong>
               {selectedObject.summary && <p>{selectedObject.summary}</p>}
               <div>
-                {selectedObject.path ? <Link to={toPage(selectedObject.path)}>Открыть статью</Link> : <em>Нет связанной статьи</em>}
-                <button type="button" onClick={() => focusObject(selectedObject)}><Target size={13} /> Фокус</button>
+                {selectedObject.path ? <Link to={toPage(selectedObject.path)}>ÐžÑ‚ÐºÑ€Ñ‹Ñ‚ÑŒ ÑÑ‚Ð°Ñ‚ÑŒÑŽ</Link> : <em>ÐÐµÑ‚ ÑÐ²ÑÐ·Ð°Ð½Ð½Ð¾Ð¹ ÑÑ‚Ð°Ñ‚ÑŒÐ¸</em>}
+                <button type="button" onClick={() => focusObject(selectedObject)}><Target size={13} /> Ð¤Ð¾ÐºÑƒÑ</button>
               </div>
               {editable && (
                 <div className="map2-focus-actions">
-                  {selectedObject.shape !== "area" && <button type="button" onClick={() => editObject(selectedObject)}><Edit3 size={13} /> Редактировать</button>}
-                  {selectedObject.shape !== "area" && <button type="button" onClick={() => moveObject(selectedObject)}><Move size={13} /> Переместить</button>}
-                  <button type="button" className="danger" onClick={() => deleteObject(selectedObject)}><Trash2 size={13} /> Удалить</button>
+                  {selectedObject.shape !== "area" && <button type="button" onClick={() => editObject(selectedObject)}><Edit3 size={13} /> Ð ÐµÐ´Ð°ÐºÑ‚Ð¸Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ</button>}
+                  {selectedObject.shape !== "area" && <button type="button" onClick={() => moveObject(selectedObject)}><Move size={13} /> ÐŸÐµÑ€ÐµÐ¼ÐµÑÑ‚Ð¸Ñ‚ÑŒ</button>}
+                  <button type="button" className="danger" onClick={() => deleteObject(selectedObject)}><Trash2 size={13} /> Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ</button>
                 </div>
               )}
             </div>
@@ -563,7 +568,7 @@ export default function PageMap({ page, mode = "player", editable = false, avail
                 <Icon size={16} />
                 <span>
                   <strong>{object.label}</strong>
-                  <em>{labelMapObjectType(object.type)}{object.visibility === "gm" ? " · GM" : ""}</em>
+                  <em>{labelMapObjectType(object.type)}{object.visibility === "gm" ? " Â· GM" : ""}</em>
                 </span>
               </>
             );
@@ -587,7 +592,7 @@ export default function PageMap({ page, mode = "player", editable = false, avail
               >{content}</button>
             );
           }) : (
-            <p className="builder-hint">Ничего не видно: проверь фильтры типов или слой GM/player.</p>
+            <p className="builder-hint">ÐÐ¸Ñ‡ÐµÐ³Ð¾ Ð½Ðµ Ð²Ð¸Ð´Ð½Ð¾: Ð¿Ñ€Ð¾Ð²ÐµÑ€ÑŒ Ñ„Ð¸Ð»ÑŒÑ‚Ñ€Ñ‹ Ñ‚Ð¸Ð¿Ð¾Ð² Ð¸Ð»Ð¸ ÑÐ»Ð¾Ð¹ GM/player.</p>
           )}
         </aside>
       </div>

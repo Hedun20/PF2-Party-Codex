@@ -16,7 +16,7 @@ export default function CategoryPage({ pages, mode, activeWorld = null }) {
         <header className="list-header worlds-header">
           <span className="kicker">Раздел архива</span>
           <h1>{title}</h1>
-          <p>Главные миры кампании. Это отдельный World Hub: широкие карточки миров, атмосфера, быстрые связи и вход в статьи. Timeline вынесен в собственный раздел, чтобы история не мешала обзору миров.</p>
+          <p>Главные миры кампании. Это World Hub с карточками актуальных миров, быстрыми связями и входом в статьи. Удалённые и архивные миры здесь не показываются.</p>
         </header>
         <WorldAtlas pages={pages} />
       </div>

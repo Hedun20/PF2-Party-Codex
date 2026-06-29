@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Eye, PenLine, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
+import { Eye, NotebookPen, PenLine, Plus, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
 import { api } from "../api/client.js";
 import ArticleFactsPanel from "../components/ArticleFactsPanel.jsx";
 import HierarchyPanel from "../components/HierarchyPanel.jsx";
@@ -8,6 +8,7 @@ import MarkdownViewer from "../components/MarkdownViewer.jsx";
 import PageMap from "../components/PageMap.jsx";
 import CodexButton from "../components/ui/CodexButton.jsx";
 import { labelCategory } from "../utils/labels.js";
+import { notesForPage, usePlayerNotes } from "../utils/playerNotes.js";
 
 function LinkList({ title, items = [] }) {
   if (!items.length) return null;
@@ -27,6 +28,41 @@ function LinkList({ title, items = [] }) {
   );
 }
 
+function ArticleNotesPanel({ page }) {
+  const { notes, addNote } = usePlayerNotes();
+  const linkedNotes = useMemo(() => notesForPage(notes, page.path), [notes, page.path]);
+
+  function addArticleNote() {
+    addNote({ title: `Заметка: ${page.title}`, linkedPath: page.path, linkedTitle: page.title });
+  }
+
+  return (
+    <section className="codex-card article-notes-panel">
+      <div className="article-notes-head">
+        <div>
+          <span className="kicker">Personal notes</span>
+          <h2>Мои заметки к статье</h2>
+        </div>
+        <NotebookPen size={20} />
+      </div>
+      {linkedNotes.length ? (
+        <div className="article-notes-list">
+          {linkedNotes.slice(0, 4).map((note) => (
+            <Link key={note.id} to={`/notes?article=${encodeURIComponent(page.path)}`}>
+              <strong>{note.title}</strong>
+              <span>{note.body ? note.body.slice(0, 120) : "Пустая заметка"}</span>
+            </Link>
+          ))}
+        </div>
+      ) : <p className="empty-copy">К этой статье пока нет личных заметок.</p>}
+      <div className="article-notes-actions">
+        <CodexButton type="button" size="sm" onClick={addArticleNote}><Plus size={15} /> Добавить</CodexButton>
+        <CodexButton as={Link} to={`/notes?article=${encodeURIComponent(page.path)}`} variant="secondary" size="sm">Открыть Notes</CodexButton>
+      </div>
+    </section>
+  );
+}
+
 export default function PageView({ mode, pages = [], onChanged }) {
   const { path } = useParams();
   const decodedPath = decodeURIComponent(path);
@@ -37,6 +73,7 @@ export default function PageView({ mode, pages = [], onChanged }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [playerPreview, setPlayerPreview] = useState(null);
   const [previewMessage, setPreviewMessage] = useState("");
+  const canEdit = mode === "gm";
 
   useEffect(() => {
     setError("");
@@ -61,13 +98,10 @@ export default function PageView({ mode, pages = [], onChanged }) {
   }
 
   async function deleteCurrentPage() {
-    if (!page || isDeleting) return;
+    if (!page || isDeleting || !canEdit) return;
     const backlinkCount = page.backlinks?.length || 0;
-    const warning = backlinkCount
-      ? `\n\nНа статью есть обратные ссылки: ${backlinkCount}. Ссылки останутся как фантомные/ненаписанные, сам файл уйдёт в корзину.`
-      : "";
-    const confirmed = window.confirm(`Удалить статью «${page.title}»?${warning}\n\nФайл будет перемещён в _trash, не уничтожен навсегда.`);
-    if (!confirmed) return;
+    const warning = backlinkCount ? `\n\nНа статью есть обратные ссылки: ${backlinkCount}. Файл уйдет в корзину, ссылки останутся фантомными.` : "";
+    if (!window.confirm(`Удалить статью «${page.title}»?${warning}`)) return;
 
     setIsDeleting(true);
     setDeleteMessage("");
@@ -89,10 +123,12 @@ export default function PageView({ mode, pages = [], onChanged }) {
         <header className="list-header">
           <span className="kicker">Фантомная ссылка</span>
           <h1>{error}</h1>
-          <p>На эту статью уже есть ссылка, но сам Markdown-файл ещё не создан.</p>
-          <CodexButton as={Link} to={`/missing?target=${encodeURIComponent(error)}`}>
-            Открыть в ненаписанных статьях
-          </CodexButton>
+          <p>{canEdit ? "На эту статью уже есть ссылка, но Markdown-файл ещё не создан." : "Эта ссылка пока не опубликована для игроков."}</p>
+          {canEdit ? (
+            <CodexButton as={Link} to={`/missing?target=${encodeURIComponent(error)}`}>Открыть в ненаписанных статьях</CodexButton>
+          ) : (
+            <CodexButton as={Link} variant="secondary" to="/">Вернуться в архив</CodexButton>
+          )}
         </header>
       </div>
     );
@@ -109,25 +145,16 @@ export default function PageView({ mode, pages = [], onChanged }) {
           <p>{page.summary}</p>
           <div className="tag-row">{page.tags?.map((tag) => <span key={tag}>{tag}</span>)}</div>
         </div>
-        {mode === "gm" && (
+        {canEdit && (
           <div className="editor-actions article-header-actions">
-            <CodexButton type="button" variant="secondary" size="sm" onClick={loadPlayerPreview}>
-              <Eye size={16} />
-              <span>Preview as Player</span>
-            </CodexButton>
-            <CodexButton as={Link} to={`/edit/${encodeURIComponent(page.path)}`} size="sm">
-              <PenLine size={16} />
-              <span>Редактировать</span>
-            </CodexButton>
-            <CodexButton type="button" variant="danger" size="sm" onClick={deleteCurrentPage} disabled={isDeleting}>
-              <Trash2 size={16} />
-              <span>{isDeleting ? "Удаляю…" : "Удалить"}</span>
-            </CodexButton>
+            <CodexButton type="button" variant="secondary" size="sm" onClick={loadPlayerPreview}><Eye size={16} /><span>Preview as Player</span></CodexButton>
+            <CodexButton as={Link} to={`/edit/${encodeURIComponent(page.path)}`} size="sm"><PenLine size={16} /><span>Редактировать</span></CodexButton>
+            <CodexButton type="button" variant="danger" size="sm" onClick={deleteCurrentPage} disabled={isDeleting}><Trash2 size={16} /><span>{isDeleting ? "Удаляю..." : "Удалить"}</span></CodexButton>
           </div>
         )}
       </header>
       {deleteMessage && <div className="status-message danger-message">{deleteMessage}</div>}
-      {mode === "gm" && page.playerSafety && (
+      {canEdit && page.playerSafety && (
         <section className={`codex-card article-safety-banner safety-${page.playerSafety.status}`}>
           <div>
             {page.playerSafety.status === "safe" ? <ShieldCheck size={20} /> : <ShieldAlert size={20} />}
@@ -143,16 +170,19 @@ export default function PageView({ mode, pages = [], onChanged }) {
             <span className="kicker">Preview as Player</span>
             <strong>{previewMessage}</strong>
           </div>
-          {playerPreview?.content && <MarkdownViewer content={playerPreview.content} pages={pages} />}
+          {playerPreview?.content && <MarkdownViewer content={playerPreview.content} pages={pages} canEdit={false} />}
         </section>
       )}
       <PageMap page={page} mode={mode} />
       <div className="article-main-layout">
         <div className="article-main-content">
           <HierarchyPanel title="Внутренний слой статьи" items={page.children} />
-          <MarkdownViewer content={page.content} pages={pages} />
+          <MarkdownViewer content={page.content} pages={pages} canEdit={canEdit} />
         </div>
-        <ArticleFactsPanel page={page} mode={mode} />
+        <div className="article-side-stack">
+          <ArticleFactsPanel page={page} mode={mode} />
+          <ArticleNotesPanel page={page} />
+        </div>
       </div>
       <LinkList title="Связанные статьи" items={page.relatedPages} />
       <LinkList title="Обратные ссылки" items={page.backlinks} />

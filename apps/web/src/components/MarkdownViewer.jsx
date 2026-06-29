@@ -12,7 +12,7 @@ function pageMatchesTarget(page, target) {
   return normalize(page.title) === normalize(target) || normalize(page.path) === normalize(target);
 }
 
-export default function MarkdownViewer({ content, pages = [] }) {
+export default function MarkdownViewer({ content, pages = [], canEdit = false }) {
   return (
     <article className="markdown-view">
       <ReactMarkdown
@@ -23,9 +23,9 @@ export default function MarkdownViewer({ content, pages = [] }) {
             if (!href?.startsWith("/page/")) return <a href={href} target="_blank" rel="noreferrer">{children}</a>;
             const target = decodeURIComponent(href.replace("/page/", ""));
             const exists = pages.some((page) => pageMatchesTarget(page, target));
-            return exists
-              ? <Link to={href}>{children}</Link>
-              : <Link className="phantom-link" to={`/missing?target=${encodeURIComponent(target)}`}>{children}</Link>;
+            if (exists) return <Link to={href}>{children}</Link>;
+            if (canEdit) return <Link className="phantom-link" to={`/missing?target=${encodeURIComponent(target)}`}>{children}</Link>;
+            return <span className="phantom-link is-disabled">{children}</span>;
           }
         }}
       >

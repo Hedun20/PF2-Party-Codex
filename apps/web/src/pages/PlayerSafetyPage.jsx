@@ -8,18 +8,18 @@ import { labelCategory } from "../utils/labels.js";
 
 const filters = [
   ["all", "Все"],
-  ["review-needed", "Нужно проверить"],
+  ["review-needed", "Проверить"],
   ["contains-secrets", "Есть секреты"],
-  ["gm-only", "GM-only"],
-  ["safe", "Safe"]
+  ["gm-only", "Только GM"],
+  ["safe", "Безопасно"]
 ];
 
 function statusLabel(status) {
   return {
-    safe: "Safe",
+    safe: "Безопасно",
     "contains-secrets": "Есть секреты",
-    "gm-only": "GM-only",
-    "review-needed": "Review needed"
+    "gm-only": "Только GM",
+    "review-needed": "Нужно проверить"
   }[status] || status;
 }
 
@@ -33,6 +33,10 @@ function statusIcon(status) {
 function compact(value = "") {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   return text.length > 180 ? `${text.slice(0, 177)}...` : text;
+}
+
+function dangerMessage(message = "") {
+  return /access|gm|forbidden|ошиб|нельзя/i.test(message);
 }
 
 export default function PlayerSafetyPage({ pages = [] }) {
@@ -55,7 +59,8 @@ export default function PlayerSafetyPage({ pages = [] }) {
     const needle = query.trim().toLowerCase();
     return (report.pages || []).filter((item) => {
       const statusMatch = filter === "all" || item.safety?.status === filter || (filter === "review-needed" && item.safety?.reviewNeeded);
-      const queryMatch = !needle || [item.title, item.path, item.category, item.world, item.summary].some((value) => String(value || "").toLowerCase().includes(needle));
+      const queryMatch = !needle || [item.title, item.path, item.category, item.world, item.summary]
+        .some((value) => String(value || "").toLowerCase().includes(needle));
       return statusMatch && queryMatch;
     });
   }, [report.pages, filter, query]);
@@ -66,9 +71,9 @@ export default function PlayerSafetyPage({ pages = [] }) {
     <div className="page-stack player-safety-page">
       <header className="list-header player-safety-header">
         <div>
-          <span className="kicker">Player Safety Review</span>
+          <span className="kicker">GM Safety Review</span>
           <h1>Проверка секретов перед игроками</h1>
-          <p>Игроки могут читать wiki, но сервер должен отдавать только player-safe версию: public текст, public связи, public пины и события. GM Secrets и secret-блоки не уходят в player API.</p>
+          <p>Здесь мастер видит, какие статьи можно показывать игрокам, а какие требуют ручной проверки. Player API отдает только public-версии: без GM-only статей, secret-блоков, скрытых пинов и мастерских слоев карты.</p>
         </div>
         <div className="safety-total-grid">
           <div><strong>{totals.total || 0}</strong><span>статей</span></div>
@@ -78,14 +83,14 @@ export default function PlayerSafetyPage({ pages = [] }) {
         </div>
       </header>
 
-      {message && <div className="status-message danger-message">{message}</div>}
+      {message && <div className={`status-message ${dangerMessage(message) ? "danger-message" : ""}`}>{message}</div>}
 
       <section className="codex-card safety-principle-card">
         <div>
           <ShieldCheck size={24} />
-          <strong>Правило безопасности</strong>
+          <strong>Как работает защита</strong>
         </div>
-        <p>Секреты должны удаляться на сервере, а не прятаться CSS-ом. Если игрок откроет DevTools, он всё равно не должен увидеть GM-текст в ответе API.</p>
+        <p>Секреты вырезаются на сервере, а не прячутся стилями в браузере. Даже если игрок откроет DevTools, в ответе API не должно быть GM-текста, скрытых объектов карты или приватных полей frontmatter.</p>
       </section>
 
       <section className="safety-toolbar codex-card">
@@ -107,11 +112,11 @@ export default function PlayerSafetyPage({ pages = [] }) {
             <button key={item.path} type="button" className={`safety-review-row ${focused?.path === item.path ? "is-active" : ""} safety-${item.safety?.status || "safe"}`} onClick={() => setFocused(item)}>
               <span>{statusIcon(item.safety?.status)}</span>
               <strong>{item.title}</strong>
-              <em>{labelCategory(item.category)} · {item.playerVisible ? "player-visible" : "hidden from players"}</em>
+              <em>{labelCategory(item.category)} · {item.playerVisible ? "видна игрокам" : "скрыта от игроков"}</em>
               <small>{compact(item.summary || item.playerContentPreview || item.path)}</small>
             </button>
           ))}
-          {!rows.length && <p className="empty-copy">По этому фильтру ничего нет. Либо всё чисто, либо фильтр слишком строгий.</p>}
+          {!rows.length && <p className="empty-copy">По этому фильтру ничего нет. Можно переключиться на “Все” или очистить поиск.</p>}
         </div>
 
         <aside className="codex-card safety-focus-panel">
@@ -124,13 +129,13 @@ export default function PlayerSafetyPage({ pages = [] }) {
               </div>
 
               <div className="safety-focus-actions">
-                <CodexButton as={Link} to={`/page/${encodeURIComponent(focused.path)}`} variant="secondary" size="sm"><Eye size={15} /> Открыть GM</CodexButton>
+                <CodexButton as={Link} to={`/page/${encodeURIComponent(focused.path)}`} variant="secondary" size="sm"><Eye size={15} /> Открыть статью</CodexButton>
                 <CodexButton as={Link} to={`/edit/${encodeURIComponent(focused.path)}`} variant="ghost" size="sm"><Sparkles size={15} /> Исправить</CodexButton>
               </div>
 
               <dl className="safety-facts">
-                <div><dt>Видимость</dt><dd>{focused.visibility || "public"}</dd></div>
-                <div><dt>Player API</dt><dd>{focused.playerVisible ? "отдаёт safe-версию" : "не отдаёт статью"}</dd></div>
+                <div><dt>Visibility</dt><dd>{focused.visibility || "public"}</dd></div>
+                <div><dt>Player API</dt><dd>{focused.playerVisible ? "отдает safe-версию" : "не отдает статью"}</dd></div>
                 <div><dt>Secret blocks</dt><dd>{focused.safety?.secretBlockCount || 0}</dd></div>
                 <div><dt>GM map layer</dt><dd>{(focused.safety?.gmOnlyMapObjects || 0) + (focused.safety?.gmOnlyPins || 0)}</dd></div>
               </dl>
@@ -147,7 +152,7 @@ export default function PlayerSafetyPage({ pages = [] }) {
                 {focused.playerVisible && focused.playerContentPreview ? (
                   <MarkdownViewer content={focused.playerContentPreview} pages={pages} />
                 ) : (
-                  <p>Игроки не получают эту статью или публичный текст пустой.</p>
+                  <p>Игроки не получают эту статью или публичный текст пока пустой.</p>
                 )}
               </div>
             </>

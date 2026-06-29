@@ -1,42 +1,35 @@
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, BookOpen, RadioTower, Castle, Clock3, Compass, Eye, FileQuestion, MapPinned, MonitorPlay, PenLine, PlayCircle, ScrollText, Swords, UsersRound } from "lucide-react";
+import { ArrowLeft, BookOpen, RadioTower, Castle, Clock3, Compass, Eye, FileQuestion, MapPinned, MonitorPlay, PenLine, PlayCircle, ScrollText, ShieldCheck, Swords, UsersRound } from "lucide-react";
 import EntityCard from "../components/EntityCard.jsx";
 import MarkdownViewer from "../components/MarkdownViewer.jsx";
 import CodexButton from "../components/ui/CodexButton.jsx";
 import { getSharedArchivePages, getWorldOwnedPages, isWorldPage, resolveWorldBySlug, worldRoute } from "../utils/worldContext.js";
 
 const WORLD_BLOCKS = [
-  ["Страны", "countries", Castle],
-  ["Города", "cities", Castle],
+  ["Countries", "countries", Castle],
+  ["Cities", "cities", Castle],
   ["NPC", "npcs", UsersRound],
-  ["Квесты", "quests", ScrollText],
-  ["Локации", "locations", MapPinned],
-  ["Сессии", "sessions", BookOpen]
+  ["Quests", "quests", ScrollText],
+  ["Locations", "locations", MapPinned],
+  ["Sessions", "sessions", BookOpen]
 ];
 
 const CREATOR_ACTIONS = [
-  ["Сессия", "session", BookOpen, "recap, решения игроков и hooks"],
-  ["Сцена / локация", "location", Compass, "комната, таверна, башня, encounter-зона"],
-  ["NPC", "npc", UsersRound, "союзник, торговец, свидетель, предатель"],
-  ["Квест", "quest", ScrollText, "цель, ставки, награда, последствия"],
-  ["Событие", "timelineEvent", Clock3, "год, эра, важность, связи"]
+  ["Session", "session", BookOpen, "recap, player decisions and hooks"],
+  ["Scene / location", "location", Compass, "room, tavern, tower, encounter zone"],
+  ["NPC", "npc", UsersRound, "ally, trader, witness or rival"],
+  ["Quest", "quest", ScrollText, "goal, stakes, reward and fallout"],
+  ["Timeline event", "timelineEvent", Clock3, "year, era, importance and links"]
 ];
 
-const QUEST_DONE_RE = /^(done|completed|complete|closed|failed|archived|cancelled|canceled|готово|закрыт|провален|архив)/i;
+const QUEST_DONE_RE = /^(done|completed|complete|closed|failed|archived|cancelled|canceled)/i;
 
 function lowerValue(value = "") {
   return String(value || "").trim().toLowerCase();
 }
 
 function pageDateValue(page) {
-  return page?.frontmatter?.sessionDate
-    || page?.frontmatter?.date
-    || page?.frontmatter?.updated
-    || page?.frontmatter?.created
-    || page?.mtime
-    || page?.updatedAt
-    || page?.createdAt
-    || "";
+  return page?.frontmatter?.sessionDate || page?.frontmatter?.date || page?.frontmatter?.updated || page?.frontmatter?.created || page?.mtime || page?.updatedAt || page?.createdAt || "";
 }
 
 function sortByDateDesc(a, b) {
@@ -45,8 +38,7 @@ function sortByDateDesc(a, b) {
 
 function isActiveQuest(page) {
   if (page?.category !== "quests" && page?.type !== "quest") return false;
-  const status = lowerValue(page?.frontmatter?.status || page?.status);
-  return !QUEST_DONE_RE.test(status);
+  return !QUEST_DONE_RE.test(lowerValue(page?.frontmatter?.status || page?.status));
 }
 
 function isNpcLike(page) {
@@ -69,7 +61,7 @@ function editorCreateLink(world, type = "lore", title = "") {
   return `/editor?${params.toString()}`;
 }
 
-function compactText(text = "", fallback = "Описание пока не заполнено.") {
+function compactText(text = "", fallback = "Description is not filled yet.") {
   const value = String(text || "").replace(/\s+/g, " ").trim();
   if (!value) return fallback;
   return value.length > 96 ? `${value.slice(0, 93)}...` : value;
@@ -94,34 +86,31 @@ function PageMiniList({ title, kicker, icon: Icon, items = [], empty, action }) 
             </Link>
           ))}
         </div>
-      ) : (
-        <p className="world-desk-empty">{empty}</p>
-      )}
+      ) : <p className="world-desk-empty">{empty}</p>}
       {action}
     </section>
   );
 }
 
-function WorldGmDesktop({ world, ownedPages, session }) {
-  const canEdit = Boolean(session?.canEdit);
+function WorldGmDesktop({ world, ownedPages, canEdit }) {
   const maps = ownedPages.filter((page) => page.mapImage).slice(0, 4);
   const activeQuests = ownedPages.filter(isActiveQuest).slice(0, 4);
   const npcPages = ownedPages.filter(isNpcLike).slice(0, 4);
   const sessions = ownedPages.filter(isSessionLike).sort(sortByDateDesc).slice(0, 4);
   const timeline = ownedPages.filter(isTimelineLike).sort(sortByDateDesc).slice(0, 4);
   const playerHandouts = ownedPages.filter((page) => page.visibility === "public" && !isWorldPage(page)).slice(0, 4);
-  const nextTitle = `${world.title}: следующая сессия`;
+  const nextTitle = `${world.title}: next session`;
 
   return (
     <section className="world-gm-desktop">
       <div className="world-gm-desktop-main codex-card">
         <div className="world-desk-orb"><PlayCircle size={34} /></div>
         <span className="kicker">GM Desktop</span>
-        <h2>Запуск мира за два клика</h2>
-        <p>Перед сессией мастеру нужны не все статьи сразу, а сцена, карта, NPC, активный квест, последний recap и заметки следующей игры. Этот блок собирает рабочий стол мира без лишнего архива вокруг.</p>
+        <h2>Launch this world in two clicks</h2>
+        <p>This is the GM prep desk: scenes, maps, NPCs, active quests, recaps, reveal controls and session notes. Players never land here.</p>
         <div className="world-desk-primary-actions">
           <CodexButton as={Link} to={`${worldRoute(world)}/session`}><PlayCircle size={16} /> Start Session</CodexButton>
-          <CodexButton as={Link} to={`${worldRoute(world)}/maps`} variant="secondary"><MapPinned size={16} /> Карты</CodexButton>
+          <CodexButton as={Link} to={`${worldRoute(world)}/maps`} variant="secondary"><MapPinned size={16} /> Maps</CodexButton>
           <CodexButton as={Link} to={`${worldRoute(world)}/timeline`} variant="secondary"><Clock3 size={16} /> Timeline</CodexButton>
           <CodexButton as={Link} to={`${worldRoute(world)}/reveal`} variant="secondary"><RadioTower size={16} /> Reveal</CodexButton>
           {canEdit && <CodexButton as={Link} to={editorCreateLink(world, "session", nextTitle)} variant="ghost"><BookOpen size={16} /> Recap</CodexButton>}
@@ -139,12 +128,39 @@ function WorldGmDesktop({ world, ownedPages, session }) {
         )}
       </div>
 
-      <PageMiniList title="Сцены и карты" kicker="Вести игру" icon={MapPinned} items={maps} empty="Добавь mapImage в статью карты или локации — она появится здесь." action={<Link className="small-context-link" to={`${worldRoute(world)}/maps`}>Все карты</Link>} />
-      <PageMiniList title="Активные квесты" kicker="Что движет партию" icon={Swords} items={activeQuests} empty="Активных квестов пока нет. Создай квест со статусом active/idea." action={canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "quest")}>Создать квест</Link> : null} />
-      <PageMiniList title="NPC рядом" kicker="Кого играть" icon={UsersRound} items={npcPages} empty="NPC мира появятся здесь после привязки к миру/стране/городу." action={canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "npc")}>Создать NPC</Link> : null} />
-      <PageMiniList title="Последние сессии" kicker="Recap" icon={BookOpen} items={sessions} empty="Создай сессию после игры — recap станет памятью кампании." action={canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "session", nextTitle)}>Создать recap</Link> : null} />
-      <PageMiniList title="События timeline" kicker="История мира" icon={Clock3} items={timeline} empty="События с year/timelineYear или типом timelineEvent будут здесь." action={canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "timelineEvent")}>Добавить событие</Link> : null} />
-      <PageMiniList title="Показать игрокам" kicker="Player handout" icon={Eye} items={playerHandouts} empty="Публичные статьи мира можно быстро открыть как handout для игроков." action={<Link className="small-context-link" to={`${worldRoute(world)}/reveal`}>Открыть Reveal Mode</Link>} />
+      <PageMiniList title="Scenes and maps" kicker="Run now" icon={MapPinned} items={maps} empty="Add mapImage to a map/location article and it appears here." action={<Link className="small-context-link" to={`${worldRoute(world)}/maps`}>All maps</Link>} />
+      <PageMiniList title="Active quests" kicker="Party stakes" icon={Swords} items={activeQuests} empty="No active quests yet." action={canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "quest")}>Create quest</Link> : null} />
+      <PageMiniList title="Nearby NPC" kicker="Who to play" icon={UsersRound} items={npcPages} empty="World NPCs appear here after linking to the world." action={canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "npc")}>Create NPC</Link> : null} />
+      <PageMiniList title="Recent sessions" kicker="Recap" icon={BookOpen} items={sessions} empty="Create the first recap after play." action={canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "session", nextTitle)}>Create recap</Link> : null} />
+      <PageMiniList title="Timeline events" kicker="World history" icon={Clock3} items={timeline} empty="Events with year/timelineYear appear here." action={canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "timelineEvent")}>Add event</Link> : null} />
+      <PageMiniList title="Show to players" kicker="Player handout" icon={Eye} items={playerHandouts} empty="Public articles can be revealed as handouts." action={<Link className="small-context-link" to={`${worldRoute(world)}/reveal`}>Open Reveal Mode</Link>} />
+    </section>
+  );
+}
+
+function WorldPlayerDesktop({ world, ownedPages }) {
+  const handouts = ownedPages.filter((page) => page.visibility === "public" && !isWorldPage(page)).slice(0, 6);
+  const maps = ownedPages.filter((page) => page.mapImage).slice(0, 3);
+  const quests = ownedPages.filter(isActiveQuest).slice(0, 4);
+  const timeline = ownedPages.filter(isTimelineLike).sort(sortByDateDesc).slice(0, 4);
+
+  return (
+    <section className="world-gm-desktop world-player-desktop">
+      <div className="world-gm-desktop-main codex-card">
+        <div className="world-desk-orb"><ShieldCheck size={34} /></div>
+        <span className="kicker">Player Portal</span>
+        <h2>Your view of this world</h2>
+        <p>This desk contains only player-visible material: public handouts, known quests, shared maps and timeline entries. GM preparation, session launch and reveal controls are hidden.</p>
+        <div className="world-desk-primary-actions">
+          <CodexButton as={Link} to={`${worldRoute(world)}/player`}><MonitorPlay size={16} /> Open live portal</CodexButton>
+          <CodexButton as={Link} to={`${worldRoute(world)}/maps`} variant="secondary"><MapPinned size={16} /> Public maps</CodexButton>
+          <CodexButton as={Link} to={`${worldRoute(world)}/timeline`} variant="secondary"><Clock3 size={16} /> Public timeline</CodexButton>
+        </div>
+      </div>
+      <PageMiniList title="Player handouts" kicker="Allowed lore" icon={Eye} items={handouts} empty="The GM has not published handouts in this world yet." />
+      <PageMiniList title="Known quests" kicker="Party goals" icon={Swords} items={quests} empty="No public active quests yet." />
+      <PageMiniList title="Public maps" kicker="Where you can go" icon={MapPinned} items={maps} empty="No public maps are available yet." />
+      <PageMiniList title="Known timeline" kicker="What happened" icon={Clock3} items={timeline} empty="No public timeline events yet." />
     </section>
   );
 }
@@ -160,22 +176,23 @@ function WorldStat({ value, label }) {
 export default function WorldDashboardPage({ pages = [], mode = "player", session }) {
   const { worldSlug } = useParams();
   const world = resolveWorldBySlug(pages, worldSlug);
+  const canEdit = mode === "gm" && Boolean(session?.canEdit);
 
   if (!world) {
     return (
       <div className="page-stack">
         <section className="hero-panel world-missing-panel">
-          <span className="kicker">Мир не найден</span>
-          <h1>Такого мира в Архиве нет</h1>
-          <p>Проверь ссылку или вернись в общий Архив. Возможно, статья мира была переименована или удалена.</p>
-          <CodexButton as={Link} to="/category/worlds" variant="secondary"><ArrowLeft size={16} /> К списку миров</CodexButton>
+          <span className="kicker">World not found</span>
+          <h1>This world is not in the archive</h1>
+          <p>Check the link or return to the world list. The world may have been renamed or deleted.</p>
+          <CodexButton as={Link} to="/category/worlds" variant="secondary"><ArrowLeft size={16} /> World list</CodexButton>
         </section>
       </div>
     );
   }
 
   const ownedPages = getWorldOwnedPages(pages, world).filter((page) => page.path !== world.path);
-  const sharedPages = getSharedArchivePages(pages).filter((page) => !["dashboard", "_examples"].includes(page.category)).slice(0, 8);
+  const sharedPages = canEdit ? getSharedArchivePages(pages).filter((page) => !["dashboard", "_examples"].includes(page.category)).slice(0, 8) : [];
   const mapCount = ownedPages.filter((page) => page.mapImage).length;
   const timelineCount = ownedPages.filter((page) => page.type === "timelineEvent" || page.category === "timeline" || page.category === "sessions" || page.frontmatter?.year || page.frontmatter?.timelineYear).length;
   const characterCount = ownedPages.filter((page) => ["npcs", "enemies", "characters"].includes(page.category)).length;
@@ -185,39 +202,45 @@ export default function WorldDashboardPage({ pages = [], mode = "player", sessio
     <div className="page-stack world-mode-page">
       <section className="hero-panel world-mode-hero">
         <div className="world-mode-hero-copy">
-          <span className="kicker">Активный мир</span>
+          <span className="kicker">{canEdit ? "Active GM world" : "Active player world"}</span>
           <h1>{world.title}</h1>
-          <p>{world.summary || "Этот мир уже открыт как отдельный контекст. Добавь summary, главный конфликт, стартовую зону и player-safe вводную в статье мира."}</p>
+          <p>{world.summary || "This world needs a public summary and a player-safe introduction."}</p>
           <div className="world-mode-actions">
-            <CodexButton as={Link} to="/" variant="secondary"><ArrowLeft size={16} /> В Архив</CodexButton>
-            <CodexButton as={Link} to={`/page/${encodeURIComponent(world.path)}`} variant="ghost"><BookOpen size={16} /> Статья мира</CodexButton>
-            {session?.canEdit && <CodexButton as={Link} to={`/editor?world=${encodeURIComponent(world.title)}`}><PenLine size={16} /> Создать в мире</CodexButton>}
+            <CodexButton as={Link} to="/" variant="secondary"><ArrowLeft size={16} /> Archive</CodexButton>
+            <CodexButton as={Link} to={`/page/${encodeURIComponent(world.path)}`} variant="ghost"><BookOpen size={16} /> World article</CodexButton>
+            {canEdit && <CodexButton as={Link} to={`/editor?world=${encodeURIComponent(world.title)}`}><PenLine size={16} /> Create in world</CodexButton>}
           </div>
         </div>
         <div className="world-mode-stat-card codex-card">
-          <WorldStat value={ownedPages.length} label="материалов" />
-          <WorldStat value={locationCount} label="мест" />
-          <WorldStat value={characterCount} label="персонажей" />
-          <WorldStat value={mapCount} label="карт" />
-          <WorldStat value={timelineCount} label="событий" />
+          <WorldStat value={ownedPages.length} label="articles" />
+          <WorldStat value={locationCount} label="places" />
+          <WorldStat value={characterCount} label="characters" />
+          <WorldStat value={mapCount} label="maps" />
+          <WorldStat value={timelineCount} label="events" />
         </div>
       </section>
 
       <section className="world-command-strip">
-        <Link to={`${worldRoute(world)}/maps`} className="codex-card world-command-card"><MapPinned size={19} /><strong>Карты мира</strong><span>{mapCount} карт</span></Link>
-        <Link to={`${worldRoute(world)}/timeline`} className="codex-card world-command-card"><Clock3 size={19} /><strong>Timeline мира</strong><span>{timelineCount} событий</span></Link>
-        <Link to={`${worldRoute(world)}/reveal`} className="codex-card world-command-card"><MonitorPlay size={19} /><strong>Player Reveal</strong><span>экран игроков</span></Link>
-        <Link to={`${worldRoute(world)}/category/npcs`} className="codex-card world-command-card"><UsersRound size={19} /><strong>NPC мира</strong><span>{characterCount} персонажей</span></Link>
-        <Link to="/missing" className="codex-card world-command-card"><FileQuestion size={19} /><strong>Ненаписанные</strong><span>фантомные ссылки</span></Link>
+        <Link to={`${worldRoute(world)}/maps`} className="codex-card world-command-card"><MapPinned size={19} /><strong>{canEdit ? "World maps" : "Public maps"}</strong><span>{mapCount} maps</span></Link>
+        <Link to={`${worldRoute(world)}/timeline`} className="codex-card world-command-card"><Clock3 size={19} /><strong>{canEdit ? "World timeline" : "Public timeline"}</strong><span>{timelineCount} events</span></Link>
+        {canEdit ? (
+          <>
+            <Link to={`${worldRoute(world)}/reveal`} className="codex-card world-command-card"><MonitorPlay size={19} /><strong>Player Reveal</strong><span>GM handout screen</span></Link>
+            <Link to={`${worldRoute(world)}/session`} className="codex-card world-command-card"><PlayCircle size={19} /><strong>Session Mode</strong><span>GM play desk</span></Link>
+            <Link to="/missing" className="codex-card world-command-card"><FileQuestion size={19} /><strong>Missing links</strong><span>GM diagnostics</span></Link>
+          </>
+        ) : (
+          <Link to={`${worldRoute(world)}/player`} className="codex-card world-command-card"><MonitorPlay size={19} /><strong>Live portal</strong><span>wait for GM reveal</span></Link>
+        )}
       </section>
 
-      <WorldGmDesktop world={world} ownedPages={ownedPages} session={session} />
+      {canEdit ? <WorldGmDesktop world={world} ownedPages={ownedPages} canEdit={canEdit} /> : <WorldPlayerDesktop world={world} ownedPages={ownedPages} />}
 
       {world.content && (
         <section className="section-band world-intro-band">
           <div className="section-title-row">
-            <h2>Вводная мира</h2>
-            <Link to={`/page/${encodeURIComponent(world.path)}`}>Открыть полную статью</Link>
+            <h2>World introduction</h2>
+            <Link to={`/page/${encodeURIComponent(world.path)}`}>Open full article</Link>
           </div>
           <MarkdownViewer content={world.content} pages={pages} />
         </section>
@@ -233,27 +256,27 @@ export default function WorldDashboardPage({ pages = [], mode = "player", sessio
                 <span className="kicker">{world.title}</span>
                 <h2>{title}</h2>
               </div>
-              <Link to={`${worldRoute(world)}/category/${category}`}>Все записи</Link>
+              <Link to={`${worldRoute(world)}/category/${category}`}>All entries</Link>
             </div>
             <div className="codex-card-grid card-grid">{items.map((page) => <EntityCard key={page.path} page={page} mode={mode} />)}</div>
           </section>
         );
       })}
 
-      <section className="section-band shared-archive-band">
-        <div className="section-title-row">
-          <div>
-            <span className="kicker">Общие материалы</span>
-            <h2>Из общего Архива</h2>
+      {canEdit && (
+        <section className="section-band shared-archive-band">
+          <div className="section-title-row">
+            <div>
+              <span className="kicker">Shared materials</span>
+              <h2>From the archive</h2>
+            </div>
+            <Link to="/">Back to archive</Link>
           </div>
-          <Link to="/">Вернуться в Архив</Link>
-        </div>
-        {sharedPages.length > 0 ? (
-          <div className="codex-card-grid card-grid">{sharedPages.map((page) => <EntityCard key={page.path} page={page} mode={mode} />)}</div>
-        ) : (
-          <p className="empty-copy">Общие статьи пока не созданы. Материалы без `world` будут появляться здесь отдельно, не смешиваясь с миром.</p>
-        )}
-      </section>
+          {sharedPages.length > 0 ? (
+            <div className="codex-card-grid card-grid">{sharedPages.map((page) => <EntityCard key={page.path} page={page} mode={mode} />)}</div>
+          ) : <p className="empty-copy">Shared archive articles without world context will appear here.</p>}
+        </section>
+      )}
     </div>
   );
 }

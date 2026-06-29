@@ -5,7 +5,7 @@ import CodexButton from "../components/ui/CodexButton.jsx";
 import { api } from "../api/client.js";
 import { getWorldOwnedPages, resolveWorldBySlug, worldRoute } from "../utils/worldContext.js";
 
-const QUEST_DONE_RE = /^(done|completed|complete|closed|failed|archived|cancelled|canceled|готово|закрыт|провален|архив)/i;
+const QUEST_DONE_RE = /^(done|completed|complete|closed|failed|archived|cancelled|canceled)/i;
 
 function lowerValue(value = "") {
   return String(value || "").trim().toLowerCase();
@@ -103,6 +103,7 @@ export default function SessionModePage({ pages = [], mode = "player", session }
   const [copied, setCopied] = useState(false);
   const [revealMessage, setRevealMessage] = useState("");
   const [revealingPath, setRevealingPath] = useState("");
+  const canEdit = mode === "gm" && Boolean(session?.canEdit);
 
   useEffect(() => {
     if (!world) return;
@@ -169,7 +170,7 @@ export default function SessionModePage({ pages = [], mode = "player", session }
           <p>Один экран для ведения партии: сцены, карты, NPC, активные квесты, handouts и черновые заметки. Тема и World Sound остаются от текущего мира.</p>
           <div className="world-mode-actions">
             <CodexButton as={Link} to={worldRoute(world)} variant="secondary"><ArrowLeft size={16} /> Назад к миру</CodexButton>
-            {session?.canEdit && <CodexButton as={Link} to={editorCreateLink(world, "session", nextTitle)}><BookOpen size={16} /> Создать recap</CodexButton>}
+            {canEdit && <CodexButton as={Link} to={editorCreateLink(world, "session", nextTitle)}><BookOpen size={16} /> Создать recap</CodexButton>}
             <CodexButton type="button" variant="ghost" onClick={copyNotes}><ClipboardCopy size={16} /> {copied ? "Скопировано" : "Скопировать заметки"}</CodexButton>
             <CodexButton as={Link} to={`${worldRoute(world)}/reveal`} variant="ghost"><RadioTower size={16} /> Reveal Mode</CodexButton>
           </div>
@@ -204,17 +205,17 @@ export default function SessionModePage({ pages = [], mode = "player", session }
           />
           <div className="session-notes-actions">
             <CodexButton type="button" onClick={copyNotes}><ClipboardCopy size={16} /> {copied ? "Скопировано" : "Скопировать"}</CodexButton>
-            {session?.canEdit && <CodexButton as={Link} to={editorCreateLink(world, "session", nextTitle)} variant="secondary"><FileText size={16} /> Открыть recap</CodexButton>}
+            {canEdit && <CodexButton as={Link} to={editorCreateLink(world, "session", nextTitle)} variant="secondary"><FileText size={16} /> Открыть recap</CodexButton>}
             <CodexButton type="button" variant="ghost" onClick={() => setNotes("")}>Очистить</CodexButton>
           </div>
           <p className="session-note-hint">Заметки сохраняются локально в браузере для этого мира. Это черновик, не финальная статья vault — после игры скопируй его в recap.</p>
         </section>
 
         <ListPanel title="Сцены и карты" kicker="Открыть сейчас" icon={MapPinned} items={maps} empty="Карты появятся здесь, когда у статьи есть mapImage." cta={<Link className="small-context-link" to={`${worldRoute(world)}/maps`}>Все карты мира</Link>} />
-        <ListPanel title="Активные квесты" kicker="Ставки партии" icon={Swords} items={activeQuests} empty="Создай quest со статусом active/idea — он появится в режиме сессии." cta={session?.canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "quest")}>Создать квест</Link> : null} />
-        <ListPanel title="NPC / враги" kicker="Кого играть" icon={UsersRound} items={npcs} empty="NPC и враги мира появятся здесь после привязки к миру." cta={session?.canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "npc")}>Создать NPC</Link> : null} />
-        <ListPanel title="Player handouts" kicker="Показать игрокам" icon={Eye} items={handouts} empty="Публичные статьи мира станут быстрыми handouts для игроков." onReveal={session?.canEdit ? revealHandout : null} revealDisabled={revealingPath} cta={<Link className="small-context-link" to={`${worldRoute(world)}/reveal`}>Открыть полный Reveal Mode</Link>} />
-        <ListPanel title="Последние recap" kicker="Память кампании" icon={BookOpen} items={lastSessions} empty="После первой игры создай recap, и он появится здесь." cta={session?.canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "session", nextTitle)}>Новый recap</Link> : null} />
+        <ListPanel title="Активные квесты" kicker="Ставки партии" icon={Swords} items={activeQuests} empty="Создай quest со статусом active/idea — он появится в режиме сессии." cta={canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "quest")}>Создать квест</Link> : null} />
+        <ListPanel title="NPC / враги" kicker="Кого играть" icon={UsersRound} items={npcs} empty="NPC и враги мира появятся здесь после привязки к миру." cta={canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "npc")}>Создать NPC</Link> : null} />
+        <ListPanel title="Player handouts" kicker="Показать игрокам" icon={Eye} items={handouts} empty="Публичные статьи мира станут быстрыми handouts для игроков." onReveal={canEdit ? revealHandout : null} revealDisabled={revealingPath} cta={<Link className="small-context-link" to={`${worldRoute(world)}/reveal`}>Открыть полный Reveal Mode</Link>} />
+        <ListPanel title="Последние recap" kicker="Память кампании" icon={BookOpen} items={lastSessions} empty="После первой игры создай recap, и он появится здесь." cta={canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "session", nextTitle)}>Новый recap</Link> : null} />
 
         <section className="codex-card session-panel session-danger-panel">
           <div className="session-panel-head">

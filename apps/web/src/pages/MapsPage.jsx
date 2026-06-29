@@ -59,15 +59,19 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
   const [revealStatus, setRevealStatus] = useState(null);
   const [revealBusy, setRevealBusy] = useState(false);
   const [objectOverrides, setObjectOverrides] = useState({});
+  const canEdit = mode === "gm";
 
   useEffect(() => {
-    if (mode !== "gm") return;
+    if (!canEdit) return;
     api.assetList(mode).then((data) => setUnusedAssets(data.unused || [])).catch(() => setUnusedAssets([]));
   }, [mode]);
 
   useEffect(() => {
-    if (mode !== "gm") setPreviewMode("player");
-  }, [mode]);
+    if (!canEdit) {
+      setPreviewMode("player");
+      if (layer === "gm") setLayer("all");
+    }
+  }, [canEdit, layer]);
 
   const allMaps = useMemo(() => pages
     .filter((page) => page.mapImage)
@@ -119,9 +123,9 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
           ? "GM preview checked: this map contains hidden GM objects. Player view receives only the public map article."
           : "Player-safe map handout from the GM map workbench."
       });
-      setRevealStatus({ type: "success", text: `Карта «${selectedMap.title}» отправлена игрокам.` });
+      setRevealStatus({ type: "success", text: `ÃÅ¡ÃÂ°Ã‘â‚¬Ã‘â€šÃÂ° Ã‚Â«${selectedMap.title}Ã‚Â» ÃÂ¾Ã‘â€šÃÂ¿Ã‘â‚¬ÃÂ°ÃÂ²ÃÂ»ÃÂµÃÂ½ÃÂ° ÃÂ¸ÃÂ³Ã‘â‚¬ÃÂ¾ÃÂºÃÂ°ÃÂ¼.` });
     } catch (error) {
-      setRevealStatus({ type: "error", text: error.message || "Не удалось показать карту игрокам." });
+      setRevealStatus({ type: "error", text: error.message || "ÃÂÃÂµ Ã‘Æ’ÃÂ´ÃÂ°ÃÂ»ÃÂ¾Ã‘ÂÃ‘Å’ ÃÂ¿ÃÂ¾ÃÂºÃÂ°ÃÂ·ÃÂ°Ã‘â€šÃ‘Å’ ÃÂºÃÂ°Ã‘â‚¬Ã‘â€šÃ‘Æ’ ÃÂ¸ÃÂ³Ã‘â‚¬ÃÂ¾ÃÂºÃÂ°ÃÂ¼." });
     } finally {
       setRevealBusy(false);
     }
@@ -131,7 +135,7 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
     const url = `${window.location.origin}${playerViewUrl}`;
     try {
       await navigator.clipboard.writeText(url);
-      setRevealStatus({ type: "success", text: "Player link скопирован." });
+      setRevealStatus({ type: "success", text: "Player link Ã‘ÂÃÂºÃÂ¾ÃÂ¿ÃÂ¸Ã‘â‚¬ÃÂ¾ÃÂ²ÃÂ°ÃÂ½." });
     } catch {
       setRevealStatus({ type: "error", text: url });
     }
@@ -141,45 +145,45 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
     <div className="page-stack maps-hub-page maps2-workbench-page">
       <header className="list-header maps-hub-hero article-page-header maps2-workbench-hero">
         <div>
-          <span className="kicker">Maps 2.0 · GM Workbench</span>
-          <h1>{activeWorld ? `Карты: ${activeWorld.title}` : "Карты кампании"}</h1>
+          <span className="kicker">{canEdit ? "Maps 2.0 Â· GM Workbench" : "Maps 2.0 Â· Player View"}</span>
+          <h1>{activeWorld ? `ÃÅ¡ÃÂ°Ã‘â‚¬Ã‘â€šÃ‘â€¹: ${activeWorld.title}` : "ÃÅ¡ÃÂ°Ã‘â‚¬Ã‘â€šÃ‘â€¹ ÃÂºÃÂ°ÃÂ¼ÃÂ¿ÃÂ°ÃÂ½ÃÂ¸ÃÂ¸"}</h1>
           <p>
             {activeWorld
-              ? "Интерактивный стол карт текущего мира: выбери важную карту, проверь пины, GM-слой, player-safe слой и связанные статьи."
-              : "Все карты архива в одном cockpit: пины, области, GM/player видимость, быстрый переход к статьям и подготовка к reveal."}
+              ? "ÃËœÃÂ½Ã‘â€šÃÂµÃ‘â‚¬ÃÂ°ÃÂºÃ‘â€šÃÂ¸ÃÂ²ÃÂ½Ã‘â€¹ÃÂ¹ Ã‘ÂÃ‘â€šÃÂ¾ÃÂ» ÃÂºÃÂ°Ã‘â‚¬Ã‘â€š Ã‘â€šÃÂµÃÂºÃ‘Æ’Ã‘â€°ÃÂµÃÂ³ÃÂ¾ ÃÂ¼ÃÂ¸Ã‘â‚¬ÃÂ°: ÃÂ²Ã‘â€¹ÃÂ±ÃÂµÃ‘â‚¬ÃÂ¸ ÃÂ²ÃÂ°ÃÂ¶ÃÂ½Ã‘Æ’Ã‘Å½ ÃÂºÃÂ°Ã‘â‚¬Ã‘â€šÃ‘Æ’, ÃÂ¿Ã‘â‚¬ÃÂ¾ÃÂ²ÃÂµÃ‘â‚¬Ã‘Å’ ÃÂ¿ÃÂ¸ÃÂ½Ã‘â€¹, GM-Ã‘ÂÃÂ»ÃÂ¾ÃÂ¹, player-safe Ã‘ÂÃÂ»ÃÂ¾ÃÂ¹ ÃÂ¸ Ã‘ÂÃÂ²Ã‘ÂÃÂ·ÃÂ°ÃÂ½ÃÂ½Ã‘â€¹ÃÂµ Ã‘ÂÃ‘â€šÃÂ°Ã‘â€šÃ‘Å’ÃÂ¸."
+              : "Ãâ€™Ã‘ÂÃÂµ ÃÂºÃÂ°Ã‘â‚¬Ã‘â€šÃ‘â€¹ ÃÂ°Ã‘â‚¬Ã‘â€¦ÃÂ¸ÃÂ²ÃÂ° ÃÂ² ÃÂ¾ÃÂ´ÃÂ½ÃÂ¾ÃÂ¼ cockpit: ÃÂ¿ÃÂ¸ÃÂ½Ã‘â€¹, ÃÂ¾ÃÂ±ÃÂ»ÃÂ°Ã‘ÂÃ‘â€šÃÂ¸, GM/player ÃÂ²ÃÂ¸ÃÂ´ÃÂ¸ÃÂ¼ÃÂ¾Ã‘ÂÃ‘â€šÃ‘Å’, ÃÂ±Ã‘â€¹Ã‘ÂÃ‘â€šÃ‘â‚¬Ã‘â€¹ÃÂ¹ ÃÂ¿ÃÂµÃ‘â‚¬ÃÂµÃ‘â€¦ÃÂ¾ÃÂ´ ÃÂº Ã‘ÂÃ‘â€šÃÂ°Ã‘â€šÃ‘Å’Ã‘ÂÃÂ¼ ÃÂ¸ ÃÂ¿ÃÂ¾ÃÂ´ÃÂ³ÃÂ¾Ã‘â€šÃÂ¾ÃÂ²ÃÂºÃÂ° ÃÂº reveal."}
           </p>
         </div>
         <div className="maps-hub-tools">
-          <label className="maps-hub-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти карту, город, NPC, квест..." /></label>
+          <label className="maps-hub-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ÃÂÃÂ°ÃÂ¹Ã‘â€šÃÂ¸ ÃÂºÃÂ°Ã‘â‚¬Ã‘â€šÃ‘Æ’, ÃÂ³ÃÂ¾Ã‘â‚¬ÃÂ¾ÃÂ´, NPC, ÃÂºÃÂ²ÃÂµÃ‘ÂÃ‘â€š..." /></label>
           <div className="maps-hub-layer-tabs">
-            {[['all', 'Все'], ['player', 'Player'], ['gm', 'GM']].map(([value, label]) => (
+            {(canEdit ? [["all", "Ð’ÑÐµ"], ["player", "Player"], ["gm", "GM"]] : [["all", "Ð’ÑÐµ"], ["player", "Player"]]).map(([value, label]) => (
               <button key={value} type="button" className={layer === value ? "active" : ""} onClick={() => setLayer(value)}>{label}</button>
             ))}
           </div>
           <div className="maps2-hero-actions">
-            <CodexButton as={Link} to={editorPathForWorld(activeWorld, "map")} variant="secondary"><Plus size={16} /> Новая карта</CodexButton>
-            {selectedMap && <CodexButton as={Link} to={pagePath(selectedMap)} variant="ghost"><Map size={16} /> Открыть статью</CodexButton>}
+            {canEdit && <CodexButton as={Link} to={editorPathForWorld(activeWorld, "map")} variant="secondary"><Plus size={16} /> ÐÐ¾Ð²Ð°Ñ ÐºÐ°Ñ€Ñ‚Ð°</CodexButton>}
+            {selectedMap && <CodexButton as={Link} to={pagePath(selectedMap)} variant="ghost"><Map size={16} /> ÃÅ¾Ã‘â€šÃÂºÃ‘â‚¬Ã‘â€¹Ã‘â€šÃ‘Å’ Ã‘ÂÃ‘â€šÃÂ°Ã‘â€šÃ‘Å’Ã‘Å½</CodexButton>}
           </div>
         </div>
       </header>
 
-      <section className="maps2-stats-grid" aria-label="Сводка карт">
-        <article><MapPinned size={18} /><span>Карт</span><strong>{allMaps.length}</strong></article>
+      <section className="maps2-stats-grid" aria-label="ÃÂ¡ÃÂ²ÃÂ¾ÃÂ´ÃÂºÃÂ° ÃÂºÃÂ°Ã‘â‚¬Ã‘â€š">
+        <article><MapPinned size={18} /><span>ÃÅ¡ÃÂ°Ã‘â‚¬Ã‘â€š</span><strong>{allMaps.length}</strong></article>
         <article><Eye size={18} /><span>Player objects</span><strong>{playerObjects}</strong></article>
-        <article><Gem size={18} /><span>GM-only</span><strong>{gmObjects}</strong></article>
-        <article><Link2 size={18} /><span>Связано</span><strong>{linkedObjects}/{totalObjects}</strong></article>
+        {canEdit && <article><Gem size={18} /><span>GM-only</span><strong>{gmObjects}</strong></article>}
+        <article><Link2 size={18} /><span>ÃÂ¡ÃÂ²Ã‘ÂÃÂ·ÃÂ°ÃÂ½ÃÂ¾</span><strong>{linkedObjects}/{totalObjects}</strong></article>
       </section>
 
       {selectedMap && (
         <section className="maps2-active-card builder-section">
           <div className="maps2-active-header">
             <div>
-              <span className="kicker">Активная карта</span>
+              <span className="kicker">ÃÂÃÂºÃ‘â€šÃÂ¸ÃÂ²ÃÂ½ÃÂ°Ã‘Â ÃÂºÃÂ°Ã‘â‚¬Ã‘â€šÃÂ°</span>
               <h2>{selectedMap.title}</h2>
-              <p>{selectedMap.summary || "Карта без краткого описания. Добавь public text, чтобы игрокам было понятно, что они видят."}</p>
+              <p>{selectedMap.summary || "ÃÅ¡ÃÂ°Ã‘â‚¬Ã‘â€šÃÂ° ÃÂ±ÃÂµÃÂ· ÃÂºÃ‘â‚¬ÃÂ°Ã‘â€šÃÂºÃÂ¾ÃÂ³ÃÂ¾ ÃÂ¾ÃÂ¿ÃÂ¸Ã‘ÂÃÂ°ÃÂ½ÃÂ¸Ã‘Â. Ãâ€ÃÂ¾ÃÂ±ÃÂ°ÃÂ²Ã‘Å’ public text, Ã‘â€¡Ã‘â€šÃÂ¾ÃÂ±Ã‘â€¹ ÃÂ¸ÃÂ³Ã‘â‚¬ÃÂ¾ÃÂºÃÂ°ÃÂ¼ ÃÂ±Ã‘â€¹ÃÂ»ÃÂ¾ ÃÂ¿ÃÂ¾ÃÂ½Ã‘ÂÃ‘â€šÃÂ½ÃÂ¾, Ã‘â€¡Ã‘â€šÃÂ¾ ÃÂ¾ÃÂ½ÃÂ¸ ÃÂ²ÃÂ¸ÃÂ´Ã‘ÂÃ‘â€š."}</p>
             </div>
             <div className="maps2-active-actions">
-              {mode === "gm" && (
+              {canEdit && (
                 <button
                   type="button"
                   className={previewMode === "player" ? "maps2-preview-toggle active" : "maps2-preview-toggle"}
@@ -189,45 +193,45 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
                   {previewMode === "player" ? "Preview as Player" : "GM view"}
                 </button>
               )}
-              {mode === "gm" && (
+              {canEdit && (
                 <button type="button" className="maps2-preview-toggle maps2-reveal-action" onClick={revealSelectedMap} disabled={!selectedMapPlayerReady || revealBusy}>
-                  <Send size={16} /> {revealBusy ? "Показываю..." : "Reveal map"}
+                  <Send size={16} /> {revealBusy ? "ÃÅ¸ÃÂ¾ÃÂºÃÂ°ÃÂ·Ã‘â€¹ÃÂ²ÃÂ°Ã‘Å½..." : "Reveal map"}
                 </button>
               )}
-              {mode === "gm" && (
+              {canEdit && (
                 <button type="button" className="maps2-preview-toggle" onClick={copyPlayerLink}>
                   <Copy size={16} /> Player link
                 </button>
               )}
-              <CodexButton as={Link} to={`/edit/${encodeURIComponent(selectedMap.path)}`} variant="secondary"><SlidersHorizontal size={16} /> Редактировать</CodexButton>
+              {canEdit && <CodexButton as={Link} to={`/edit/${encodeURIComponent(selectedMap.path)}`} variant="secondary"><SlidersHorizontal size={16} /> Ð ÐµÐ´Ð°ÐºÑ‚Ð¸Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ</CodexButton>}
             </div>
           </div>
           <div className="maps2-active-meta">
             <span><Eye size={14} /> {selectedMap.player} player-visible</span>
-            {mode === "gm" && <span><Gem size={14} /> {selectedMap.gm} GM-only</span>}
+            {canEdit && <span><Gem size={14} /> {selectedMap.gm} GM-only</span>}
             <span><Link2 size={14} /> {selectedMap.linked} linked</span>
-            {selectedMap.unlinked > 0 && <span className="warning"><ShieldCheck size={14} /> {selectedMap.unlinked} без статьи</span>}
-            {selectedMapHasSecrets && <span className="gm-warning"><EyeOff size={14} /> есть скрытый слой</span>}
-            {!selectedMapPlayerReady && <span className="warning"><ShieldCheck size={14} /> нет player objects</span>}
+            {selectedMap.unlinked > 0 && <span className="warning"><ShieldCheck size={14} /> {selectedMap.unlinked} ÃÂ±ÃÂµÃÂ· Ã‘ÂÃ‘â€šÃÂ°Ã‘â€šÃ‘Å’ÃÂ¸</span>}
+            {selectedMapHasSecrets && <span className="gm-warning"><EyeOff size={14} /> ÃÂµÃ‘ÂÃ‘â€šÃ‘Å’ Ã‘ÂÃÂºÃ‘â‚¬Ã‘â€¹Ã‘â€šÃ‘â€¹ÃÂ¹ Ã‘ÂÃÂ»ÃÂ¾ÃÂ¹</span>}
+            {!selectedMapPlayerReady && <span className="warning"><ShieldCheck size={14} /> ÃÂ½ÃÂµÃ‘â€š player objects</span>}
           </div>
-          {mode === "gm" && (
+          {canEdit && (
             <div className={`maps2-reveal-strip ${revealStatus?.type || "idle"}`}>
               <div>
                 <span className="kicker">Map reveal readiness</span>
-                <strong>{selectedMapPlayerReady ? "Можно показать игрокам" : "Сначала добавь player-visible объект или public map text"}</strong>
+                <strong>{selectedMapPlayerReady ? "ÃÅ“ÃÂ¾ÃÂ¶ÃÂ½ÃÂ¾ ÃÂ¿ÃÂ¾ÃÂºÃÂ°ÃÂ·ÃÂ°Ã‘â€šÃ‘Å’ ÃÂ¸ÃÂ³Ã‘â‚¬ÃÂ¾ÃÂºÃÂ°ÃÂ¼" : "ÃÂ¡ÃÂ½ÃÂ°Ã‘â€¡ÃÂ°ÃÂ»ÃÂ° ÃÂ´ÃÂ¾ÃÂ±ÃÂ°ÃÂ²Ã‘Å’ player-visible ÃÂ¾ÃÂ±Ã‘Å ÃÂµÃÂºÃ‘â€š ÃÂ¸ÃÂ»ÃÂ¸ public map text"}</strong>
               </div>
               <p>
                 {revealStatus?.text || (selectedMapHasSecrets
-                  ? "Карта содержит GM-only слой. Используй Preview as Player перед Reveal."
-                  : "Карта выглядит безопасной для handout/reveal.")}
+                  ? "ÃÅ¡ÃÂ°Ã‘â‚¬Ã‘â€šÃÂ° Ã‘ÂÃÂ¾ÃÂ´ÃÂµÃ‘â‚¬ÃÂ¶ÃÂ¸Ã‘â€š GM-only Ã‘ÂÃÂ»ÃÂ¾ÃÂ¹. ÃËœÃ‘ÂÃÂ¿ÃÂ¾ÃÂ»Ã‘Å’ÃÂ·Ã‘Æ’ÃÂ¹ Preview as Player ÃÂ¿ÃÂµÃ‘â‚¬ÃÂµÃÂ´ Reveal."
+                  : "ÃÅ¡ÃÂ°Ã‘â‚¬Ã‘â€šÃÂ° ÃÂ²Ã‘â€¹ÃÂ³ÃÂ»Ã‘ÂÃÂ´ÃÂ¸Ã‘â€š ÃÂ±ÃÂµÃÂ·ÃÂ¾ÃÂ¿ÃÂ°Ã‘ÂÃÂ½ÃÂ¾ÃÂ¹ ÃÂ´ÃÂ»Ã‘Â handout/reveal.")}
               </p>
-              <Link to={playerViewUrl} target="_blank" rel="noreferrer">Открыть player view</Link>
+              <Link to={playerViewUrl} target="_blank" rel="noreferrer">ÃÅ¾Ã‘â€šÃÂºÃ‘â‚¬Ã‘â€¹Ã‘â€šÃ‘Å’ player view</Link>
             </div>
           )}
           <PageMap
             page={selectedMap}
             mode={previewMode}
-            editable={mode === "gm"}
+            editable={canEdit}
             availablePages={pages}
             onObjectsSaved={(path, objects) => setObjectOverrides((current) => ({ ...current, [path]: objects }))}
           />
@@ -237,31 +241,31 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
       <section className="maps2-map-picker builder-section">
         <div className="maps2-section-heading">
           <div>
-            <span className="kicker">Библиотека карт</span>
-            <h2>Выбери карту для рабочего стола</h2>
+            <span className="kicker">Ãâ€˜ÃÂ¸ÃÂ±ÃÂ»ÃÂ¸ÃÂ¾Ã‘â€šÃÂµÃÂºÃÂ° ÃÂºÃÂ°Ã‘â‚¬Ã‘â€š</span>
+            <h2>Ãâ€™Ã‘â€¹ÃÂ±ÃÂµÃ‘â‚¬ÃÂ¸ ÃÂºÃÂ°Ã‘â‚¬Ã‘â€šÃ‘Æ’ ÃÂ´ÃÂ»Ã‘Â Ã‘â‚¬ÃÂ°ÃÂ±ÃÂ¾Ã‘â€¡ÃÂµÃÂ³ÃÂ¾ Ã‘ÂÃ‘â€šÃÂ¾ÃÂ»ÃÂ°</h2>
           </div>
-          <p>{maps.length} из {allMaps.length} карт после фильтров.</p>
+          <p>{maps.length} ÃÂ¸ÃÂ· {allMaps.length} ÃÂºÃÂ°Ã‘â‚¬Ã‘â€š ÃÂ¿ÃÂ¾Ã‘ÂÃÂ»ÃÂµ Ã‘â€žÃÂ¸ÃÂ»Ã‘Å’Ã‘â€šÃ‘â‚¬ÃÂ¾ÃÂ².</p>
         </div>
         <div className="maps-hub-grid maps2-picker-grid">
           {maps.map((page) => (
             <article key={page.path} className={selectedMap?.path === page.path ? "codex-card maps-hub-card maps2-picker-card active" : "codex-card maps-hub-card maps2-picker-card"}>
               <button type="button" className="maps2-card-select" onClick={() => setSelectedPath(page.path)}>
                 <div className="maps-hub-thumb">
-                  <img src={mediaUrl(page.mapImage)} alt={`Карта: ${page.title}`} />
-                  <span><MousePointer2 size={15} /> Выбрать</span>
+                  <img src={mediaUrl(page.mapImage)} alt={`ÃÅ¡ÃÂ°Ã‘â‚¬Ã‘â€šÃÂ°: ${page.title}`} />
+                  <span><MousePointer2 size={15} /> Ãâ€™Ã‘â€¹ÃÂ±Ã‘â‚¬ÃÂ°Ã‘â€šÃ‘Å’</span>
                 </div>
                 <div className="maps-hub-copy codex-card__body">
                   <span className="codex-card__eyebrow">{labelCategory(page.category)}</span>
                   <h3 className="codex-card__title">{page.title}</h3>
-                  <p className="codex-card__summary">{page.summary || "Карта без краткого описания."}</p>
+                  <p className="codex-card__summary">{page.summary || "ÃÅ¡ÃÂ°Ã‘â‚¬Ã‘â€šÃÂ° ÃÂ±ÃÂµÃÂ· ÃÂºÃ‘â‚¬ÃÂ°Ã‘â€šÃÂºÃÂ¾ÃÂ³ÃÂ¾ ÃÂ¾ÃÂ¿ÃÂ¸Ã‘ÂÃÂ°ÃÂ½ÃÂ¸Ã‘Â."}</p>
                   <div className="maps-hub-stats codex-card__meta">
                     <em><Eye size={14} /> {page.player} player</em>
-                    {mode === "gm" && <em><Gem size={14} /> {page.gm} GM</em>}
+                    {canEdit && <em><Gem size={14} /> {page.gm} GM</em>}
                     <em><Link2 size={14} /> {page.linked}/{page.objects.length}</em>
                   </div>
                 </div>
               </button>
-              <Link className="maps2-card-link" to={pagePath(page)}>Открыть статью</Link>
+              <Link className="maps2-card-link" to={pagePath(page)}>ÃÅ¾Ã‘â€šÃÂºÃ‘â‚¬Ã‘â€¹Ã‘â€šÃ‘Å’ Ã‘ÂÃ‘â€šÃÂ°Ã‘â€šÃ‘Å’Ã‘Å½</Link>
             </article>
           ))}
         </div>
@@ -270,17 +274,17 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
       {maps.length === 0 && (
         <section className="builder-section maps-empty-state">
           <MapPinned size={28} />
-          <h2>Карт пока не найдено</h2>
-          <p>Добавь `mapImage` в статье или загрузи карту в расширенном блоке создания статьи.</p>
-          <CodexButton as={Link} to={editorPathForWorld(activeWorld, "map")}>{activeWorld ? "Создать карту в мире" : "Создать статью с картой"}</CodexButton>
+          <h2>ÃÅ¡ÃÂ°Ã‘â‚¬Ã‘â€š ÃÂ¿ÃÂ¾ÃÂºÃÂ° ÃÂ½ÃÂµ ÃÂ½ÃÂ°ÃÂ¹ÃÂ´ÃÂµÃÂ½ÃÂ¾</h2>
+          <p>Ãâ€ÃÂ¾ÃÂ±ÃÂ°ÃÂ²Ã‘Å’ `mapImage` ÃÂ² Ã‘ÂÃ‘â€šÃÂ°Ã‘â€šÃ‘Å’ÃÂµ ÃÂ¸ÃÂ»ÃÂ¸ ÃÂ·ÃÂ°ÃÂ³Ã‘â‚¬Ã‘Æ’ÃÂ·ÃÂ¸ ÃÂºÃÂ°Ã‘â‚¬Ã‘â€šÃ‘Æ’ ÃÂ² Ã‘â‚¬ÃÂ°Ã‘ÂÃ‘Ë†ÃÂ¸Ã‘â‚¬ÃÂµÃÂ½ÃÂ½ÃÂ¾ÃÂ¼ ÃÂ±ÃÂ»ÃÂ¾ÃÂºÃÂµ Ã‘ÂÃÂ¾ÃÂ·ÃÂ´ÃÂ°ÃÂ½ÃÂ¸Ã‘Â Ã‘ÂÃ‘â€šÃÂ°Ã‘â€šÃ‘Å’ÃÂ¸.</p>
+          {canEdit && <CodexButton as={Link} to={editorPathForWorld(activeWorld, "map")}>{activeWorld ? "Ð¡Ð¾Ð·Ð´Ð°Ñ‚ÑŒ ÐºÐ°Ñ€Ñ‚Ñƒ Ð² Ð¼Ð¸Ñ€Ðµ" : "Ð¡Ð¾Ð·Ð´Ð°Ñ‚ÑŒ ÑÑ‚Ð°Ñ‚ÑŒÑŽ Ñ ÐºÐ°Ñ€Ñ‚Ð¾Ð¹"}</CodexButton>}
         </section>
       )}
 
-      {mode === "gm" && unusedAssets.length > 0 && (
+      {canEdit && unusedAssets.length > 0 && (
         <section className="builder-section maps-orphan-assets">
-          <span className="kicker">Диагностика карт</span>
-          <h2>Файлы есть, но к статьям не привязаны</h2>
-          <p>Эти изображения лежат в `vault/images`, но не используются как `mapImage`, avatar, token или handout. Если карта “пропала”, скопируй имя файла и вставь его в поле карты нужной статьи.</p>
+          <span className="kicker">Ãâ€ÃÂ¸ÃÂ°ÃÂ³ÃÂ½ÃÂ¾Ã‘ÂÃ‘â€šÃÂ¸ÃÂºÃÂ° ÃÂºÃÂ°Ã‘â‚¬Ã‘â€š</span>
+          <h2>ÃÂ¤ÃÂ°ÃÂ¹ÃÂ»Ã‘â€¹ ÃÂµÃ‘ÂÃ‘â€šÃ‘Å’, ÃÂ½ÃÂ¾ ÃÂº Ã‘ÂÃ‘â€šÃÂ°Ã‘â€šÃ‘Å’Ã‘ÂÃÂ¼ ÃÂ½ÃÂµ ÃÂ¿Ã‘â‚¬ÃÂ¸ÃÂ²Ã‘ÂÃÂ·ÃÂ°ÃÂ½Ã‘â€¹</h2>
+          <p>ÃÂ­Ã‘â€šÃÂ¸ ÃÂ¸ÃÂ·ÃÂ¾ÃÂ±Ã‘â‚¬ÃÂ°ÃÂ¶ÃÂµÃÂ½ÃÂ¸Ã‘Â ÃÂ»ÃÂµÃÂ¶ÃÂ°Ã‘â€š ÃÂ² `vault/images`, ÃÂ½ÃÂ¾ ÃÂ½ÃÂµ ÃÂ¸Ã‘ÂÃÂ¿ÃÂ¾ÃÂ»Ã‘Å’ÃÂ·Ã‘Æ’Ã‘Å½Ã‘â€šÃ‘ÂÃ‘Â ÃÂºÃÂ°ÃÂº `mapImage`, avatar, token ÃÂ¸ÃÂ»ÃÂ¸ handout. Ãâ€¢Ã‘ÂÃÂ»ÃÂ¸ ÃÂºÃÂ°Ã‘â‚¬Ã‘â€šÃÂ° Ã¢â‚¬Å“ÃÂ¿Ã‘â‚¬ÃÂ¾ÃÂ¿ÃÂ°ÃÂ»ÃÂ°Ã¢â‚¬Â, Ã‘ÂÃÂºÃÂ¾ÃÂ¿ÃÂ¸Ã‘â‚¬Ã‘Æ’ÃÂ¹ ÃÂ¸ÃÂ¼Ã‘Â Ã‘â€žÃÂ°ÃÂ¹ÃÂ»ÃÂ° ÃÂ¸ ÃÂ²Ã‘ÂÃ‘â€šÃÂ°ÃÂ²Ã‘Å’ ÃÂµÃÂ³ÃÂ¾ ÃÂ² ÃÂ¿ÃÂ¾ÃÂ»ÃÂµ ÃÂºÃÂ°Ã‘â‚¬Ã‘â€šÃ‘â€¹ ÃÂ½Ã‘Æ’ÃÂ¶ÃÂ½ÃÂ¾ÃÂ¹ Ã‘ÂÃ‘â€šÃÂ°Ã‘â€šÃ‘Å’ÃÂ¸.</p>
           <div className="maps-orphan-grid">
             {unusedAssets.slice(0, 24).map((asset) => (
               <article key={asset.path} className="maps-orphan-card">

@@ -24,7 +24,7 @@ export default function FantasyShell({ children, ...props }) {
           onClick={() => setSidebarOpen(false)}
         />
       )}
-      <CodexSidebar categories={props.categories} canEdit={Boolean(props.session?.canEdit)} activeWorld={props.activeWorld} onClose={() => setSidebarOpen(false)} />
+      <CodexSidebar categories={props.categories} canEdit={props.mode === "gm" && Boolean(props.session?.canEdit)} activeWorld={props.activeWorld} onClose={() => setSidebarOpen(false)} />
       <main className="main-stage">
         <CodexTopbar {...props} worldTheme={worldTheme} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
         <section className="content-stage">{children}</section>

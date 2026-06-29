@@ -15,34 +15,48 @@ function isLocalHost(host = "") {
 }
 
 function requestHost(req) {
-  // In Vite dev mode the backend may receive a proxied Host header, so Origin/Referer
-  // better represent the browser URL that the GM/player actually opened.
   return req.get("origin") || req.get("referer") || req.get("x-forwarded-host") || req.get("host") || "";
+}
+
+async function hasRegisteredUsers() {
+  const { hasUsers } = await import("./authStore.js");
+  return hasUsers();
 }
 
 export function isLocalGmRequest(req) {
   return isLocalHost(requestHost(req));
 }
 
-export function resolveRequestMode(req, requestedMode = "") {
+export async function resolveRequestMode(req, requestedMode = "") {
   const wantsPlayerPreview = String(requestedMode || req.query?.mode || "").toLowerCase() === "player";
   if (wantsPlayerPreview) return "player";
-  return isLocalGmRequest(req) ? "gm" : "player";
+  if (req.user?.role === "gm") return "gm";
+  if (isLocalGmRequest(req) && !(await hasRegisteredUsers())) return "gm";
+  return "player";
 }
 
-export function sessionInfo(req) {
-  const mode = resolveRequestMode(req);
+export async function sessionInfo(req) {
+  const mode = await resolveRequestMode(req);
+  const bootstrapping = mode === "gm" && !req.user;
   return {
     mode,
     canEdit: mode === "gm",
-    access: mode === "gm" ? "local-gm" : "lan-player",
-    host: requestHost(req)
+    access: req.user ? req.user.role : bootstrapping ? "bootstrap-local-gm" : "player",
+    host: requestHost(req),
+    user: req.user ? {
+      id: req.user.id,
+      email: req.user.email,
+      name: req.user.name,
+      role: req.user.role,
+      emailVerified: Boolean(req.user.emailVerified)
+    } : null,
+    authRequiredForGm: await hasRegisteredUsers()
   };
 }
 
-export function requireGm(req, res, next) {
-  if (resolveRequestMode(req) !== "gm") {
-    return res.status(403).json({ error: "Только локальный GM может изменять vault. Открой приложение через localhost на машине мастера." });
+export async function requireGm(req, res, next) {
+  if ((await resolveRequestMode(req)) !== "gm") {
+    return res.status(403).json({ error: "GM access required. Log in with a GM account to edit the campaign vault." });
   }
   next();
 }

@@ -6,12 +6,26 @@ export function slugifyWorld(value = "") {
     .replace(/^-+|-+$/g, "");
 }
 
+function truthyMeta(value) {
+  if (value === true) return true;
+  return /^(true|yes|1|deleted|archived)$/i.test(String(value || "").trim());
+}
+
 export function isWorldPage(page) {
-  return page?.category === "worlds" || page?.type === "world";
+  const path = String(page?.path || "");
+  if (!page || path.startsWith("_trash/") || path.startsWith("_examples/") || path.startsWith("_templates/")) return false;
+  if (truthyMeta(page.frontmatter?.deleted) || truthyMeta(page.frontmatter?.archived) || truthyMeta(page.deleted) || truthyMeta(page.archived)) return false;
+  return page.category === "worlds" || page.type === "world";
 }
 
 export function getWorlds(pages = []) {
-  return pages.filter(isWorldPage);
+  const seen = new Set();
+  return pages.filter(isWorldPage).filter((world) => {
+    const key = slugifyWorld(world.frontmatter?.slug || world.slug || world.title || world.path);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function arrayValue(value) {
@@ -61,7 +75,6 @@ function addSlugAliases(set, value) {
     if (!slug) continue;
     set.add(slug);
 
-    // Extra safety for URL/file slugs such as `mir-eldran`, `world-ember`, `мир-эльдран`.
     const strippedSlug = slug
       .replace(/^(мир|mir|world|setting|сеттинг|plan|plane)-+/i, "")
       .replace(/-+(мир|mir|world|setting|сеттинг|plan|plane)$/i, "");
@@ -206,10 +219,6 @@ export function getWorldOwnedPages(pages = [], world) {
     if (directlyBelongsToWorld(page, world)) addOwned(page);
   }
 
-  // Inherit world context through explicit metadata chains:
-  // World -> Country -> City -> Location/NPC/Timeline/Map.
-  // Example: city `Терен` has world `Эльдран`, timeline event has city `Терен`.
-  // The event should appear inside the world even if it has no direct `world` field.
   let changed = true;
   while (changed) {
     changed = false;
@@ -228,7 +237,6 @@ export function getWorldOwnedPages(pages = [], world) {
 export function getSharedArchivePages(pages = []) {
   return pages.filter(isSharedArchivePage);
 }
-
 
 export function resolveWorldForPage(pages = [], pathOrPage = "") {
   if (!Array.isArray(pages) || !pathOrPage) return null;

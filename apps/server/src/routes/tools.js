@@ -6,8 +6,9 @@ import { config } from "../config.js";
 import { auditVault } from "../services/auditService.js";
 import { getPlayerSafetyReview, listPages } from "../services/vaultService.js";
 import { slugify } from "../utils/slugify.js";
-import { requestMode, requireGm } from "../middleware/sessionMode.js";
+import { resolveRequestMode, requireGm } from "../services/sessionService.js";
 import { repairUploadedFilename } from "../utils/encoding.js";
+import { logAuditEvent, listAuditEvents } from "../services/auditLogService.js";
 
 const allowedExt = [".png", ".jpg", ".jpeg", ".webp"];
 
@@ -18,17 +19,15 @@ const upload = multer({
     const ext = path.extname(file.originalname).toLowerCase();
     const imageMime = /^image\/(png|jpeg|jpg|pjpeg|webp)$/i.test(file.mimetype);
     const imageExt = allowedExt.includes(ext);
-    if (!imageMime && !imageExt) {
-      return cb(new Error("Можно загружать только PNG, JPG, JPEG или WebP карты."));
-    }
+    if (!imageMime && !imageExt) return cb(new Error("Only PNG, JPG, JPEG or WebP maps can be uploaded."));
     cb(null, true);
   }
 });
 
 export const toolsRouter = Router();
 
-toolsRouter.get("/metadata", (req, res) => {
-  const pages = listPages(requestMode(req, "gm"));
+toolsRouter.get("/metadata", async (req, res) => {
+  const pages = listPages(await resolveRequestMode(req, "gm"));
   const compact = pages.map((page) => ({
     title: page.title,
     path: page.path,
@@ -55,15 +54,13 @@ toolsRouter.get("/metadata", (req, res) => {
   });
 });
 
-
-
 toolsRouter.get("/player-safety", requireGm, (_req, res) => {
   res.json(getPlayerSafetyReview());
 });
 
-toolsRouter.get("/assets/list", async (req, res, next) => {
+toolsRouter.get("/assets/list", requireGm, async (req, res, next) => {
   try {
-    const visiblePages = listPages(requestMode(req, "gm"));
+    const visiblePages = listPages("gm");
     const used = new Set(visiblePages.flatMap((page) => [page.mapImage, page.avatarImage, page.tokenImage, page.handoutImage, page.image]).filter(Boolean).map((item) => String(item).replace(/^images\//, "")));
     let files = [];
     try {
@@ -80,9 +77,17 @@ toolsRouter.get("/assets/list", async (req, res, next) => {
   }
 });
 
-toolsRouter.get("/audit", async (req, res, next) => {
+toolsRouter.get("/audit", requireGm, async (_req, res, next) => {
   try {
-    res.json(await auditVault(requestMode(req, "gm")));
+    res.json(await auditVault("gm"));
+  } catch (error) {
+    next(error);
+  }
+});
+
+toolsRouter.get("/audit-log", requireGm, async (req, res, next) => {
+  try {
+    res.json({ events: await listAuditEvents(req.query.limit) });
   } catch (error) {
     next(error);
   }
@@ -90,7 +95,7 @@ toolsRouter.get("/audit", async (req, res, next) => {
 
 toolsRouter.post("/assets/upload", requireGm, upload.single("file"), async (req, res, next) => {
   try {
-    if (!req.file) return res.status(400).json({ error: "Файл карты не получен." });
+    if (!req.file) return res.status(400).json({ error: "No map file received." });
     await fs.mkdir(config.imagesDir, { recursive: true });
 
     const originalName = repairUploadedFilename(req.file.originalname);
@@ -119,6 +124,7 @@ toolsRouter.post("/assets/upload", requireGm, upload.single("file"), async (req,
     }
 
     await fs.writeFile(target, req.file.buffer);
+    await logAuditEvent({ req, action: "vault.asset.upload", entityType: "asset", entityId: fileName, metadata: { size: req.file.size } });
     res.status(201).json({ fileName, path: fileName, url: `/api/assets/${fileName}` });
   } catch (error) {
     next(error);
@@ -126,11 +132,7 @@ toolsRouter.post("/assets/upload", requireGm, upload.single("file"), async (req,
 });
 
 toolsRouter.use((error, _req, res, next) => {
-  if (error?.message?.includes("File too large")) {
-    return res.status(413).json({ error: "Карта слишком большая. Сейчас лимит загрузки: 100MB." });
-  }
-  if (error?.message?.includes("Можно загружать")) {
-    return res.status(400).json({ error: error.message });
-  }
+  if (error?.message?.includes("File too large")) return res.status(413).json({ error: "Map is too large. Upload limit is 100MB." });
+  if (error?.message?.includes("Only PNG")) return res.status(400).json({ error: error.message });
   next(error);
 });
