@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, Eye, EyeOff, Plus, ShieldCheck, Trash2, UserRound } from "lucide-react";
+import { AlertCircle, BookOpen, Eye, EyeOff, Plus, ShieldCheck, Trash2, Upload, UserRound } from "lucide-react";
 import CodexButton from "../components/ui/CodexButton.jsx";
 import { api } from "../api/client.js";
 import { usePlayerCharacters } from "../utils/playerCharacters.js";
@@ -35,8 +35,8 @@ function optionName(options = [], id = "") {
 }
 
 function shortClass(character, options) {
-  const ancestry = optionName(options.ancestries, character.ancestry);
-  const className = optionName(options.classes, character.className);
+  const ancestry = optionName(options.ancestries, character.ancestry) || character.ancestry;
+  const className = optionName(options.classes, character.className) || character.className;
   return [ancestry, className].filter(Boolean).join(" - ") || "Class not selected";
 }
 
@@ -79,13 +79,103 @@ function ChipList({ values = [], options = [], onRemove }) {
   );
 }
 
+function ImportPanel({ onDryRun, onCommit, storageMode }) {
+  const [adapter, setAdapter] = useState("pathbuilder");
+  const [rawText, setRawText] = useState("");
+  const [filename, setFilename] = useState("");
+  const [preview, setPreview] = useState(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function loadFile(file) {
+    if (!file) return;
+    setFilename(file.name);
+    setRawText(await file.text());
+    setPreview(null);
+    setError("");
+  }
+
+  function parseJson() {
+    try {
+      return JSON.parse(rawText);
+    } catch {
+      throw new Error("JSON не читается. Проверь экспорт Pathbuilder/Foundry.");
+    }
+  }
+
+  async function runDryRun() {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await onDryRun({ adapter, rawImport: parseJson(), originalFilename: filename });
+      setPreview(result.preview || null);
+    } catch (dryRunError) {
+      setError(dryRunError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function runCommit() {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await onCommit({ adapter, rawImport: parseJson(), originalFilename: filename });
+      setPreview(result.preview || null);
+      setRawText("");
+      setFilename("");
+    } catch (commitError) {
+      setError(commitError.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="character-import-panel">
+      <div>
+        <span className="kicker">Character Sheet Hub</span>
+        <h2>Import JSON sheet</h2>
+        <p>Builder не делаем: Pathbuilder/Foundry остаются кузницей, Codex хранит импортированный снимок и показывает его красиво.</p>
+      </div>
+      <div className="character-import-grid">
+        <label>Source
+          <select value={adapter} onChange={(event) => { setAdapter(event.target.value); setPreview(null); }}>
+            <option value="pathbuilder">Pathbuilder JSON</option>
+            <option value="foundry">Foundry PF2e Actor JSON</option>
+          </select>
+        </label>
+        <label>JSON file
+          <input type="file" accept="application/json,.json" onChange={(event) => loadFile(event.target.files?.[0])} />
+        </label>
+      </div>
+      <textarea value={rawText} onChange={(event) => { setRawText(event.target.value); setPreview(null); }} placeholder="Или вставь JSON сюда..." />
+      {filename && <p className="character-muted-line">File: {filename}</p>}
+      {error && <div className="status-message danger-message"><AlertCircle size={16} /> {error}</div>}
+      {preview && (
+        <div className="character-import-preview">
+          <strong>{preview.name}</strong>
+          <span>Level {preview.level || 1} {preview.ancestry} {preview.className}</span>
+          {(preview.warnings || []).map((warning) => <small key={warning}>Warning: {warning}</small>)}
+        </div>
+      )}
+      <div className="character-import-actions">
+        <button type="button" onClick={runDryRun} disabled={!rawText || busy || storageMode !== "mongo"}>Dry-run preview</button>
+        <button type="button" onClick={runCommit} disabled={!rawText || busy || storageMode !== "mongo"}>Commit import</button>
+      </div>
+      {storageMode !== "mongo" && <p className="character-muted-line">Import requires Mongo workspace login. Browser fallback can still keep manual drafts.</p>}
+    </section>
+  );
+}
+
 export default function CharactersPage({ pages = [] }) {
-  const { characters, publicCharacters, addCharacter, updateCharacter, deleteCharacter } = usePlayerCharacters();
+  const { characters, publicCharacters, addCharacter, updateCharacter, deleteCharacter, importCharacter, dryRunImport, storageMode, busy, error } = usePlayerCharacters();
   const [selectedId, setSelectedId] = useState(characters[0]?.id || "");
   const [options, setOptions] = useState(emptyOptions);
   const [optionsSource, setOptionsSource] = useState("auto");
   const [optionsError, setOptionsError] = useState("");
   const [optionsBusy, setOptionsBusy] = useState(false);
+  const [savingId, setSavingId] = useState("");
   const selected = characters.find((character) => character.id === selectedId) || characters[0] || null;
   const sortedPages = useMemo(() => [...pages].sort((a, b) => a.title.localeCompare(b.title)), [pages]);
 
@@ -94,12 +184,13 @@ export default function CharactersPage({ pages = [] }) {
     setOptionsError("");
     api.pf2Options(optionsSource)
       .then((data) => setOptions({ ...emptyOptions, ...data }))
-      .catch((error) => setOptionsError(error.message))
+      .catch((loadError) => setOptionsError(loadError.message))
       .finally(() => setOptionsBusy(false));
   }, [optionsSource]);
 
   useEffect(() => {
     if (!selectedId && characters[0]?.id) setSelectedId(characters[0].id);
+    if (selectedId && !characters.some((character) => character.id === selectedId)) setSelectedId(characters[0]?.id || "");
   }, [characters, selectedId]);
 
   const heritageOptions = useMemo(() => {
@@ -112,29 +203,42 @@ export default function CharactersPage({ pages = [] }) {
     return options.feats.filter((feat) => Number(feat.level || 1) <= level && (!feat.ancestry || feat.ancestry === selected?.ancestry));
   }, [options.feats, selected?.level, selected?.ancestry]);
 
-  function createCharacter() {
-    const character = addCharacter({ name: "New character" });
+  async function createCharacter() {
+    const character = await addCharacter({ name: "New character" });
     setSelectedId(character.id);
   }
 
-  function patchField(field, value) {
-    updateCharacter(selected.id, { [field]: value });
+  async function patchField(field, value) {
+    if (!selected) return;
+    setSavingId(selected.id);
+    try {
+      await updateCharacter(selected.id, { [field]: value });
+    } finally {
+      setSavingId("");
+    }
   }
 
-  function patchNested(group, key, value) {
-    updateCharacter(selected.id, { [group]: { ...selected[group], [key]: value } });
+  async function patchNested(group, key, value) {
+    if (!selected) return;
+    await patchField(group, { ...selected[group], [key]: value });
   }
 
-  function toggleLinkedArticle(path) {
+  async function toggleLinkedArticle(path) {
     const current = selected.linkedArticles || [];
     const next = current.includes(path) ? current.filter((item) => item !== path) : [...current, path];
-    updateCharacter(selected.id, { linkedArticles: next });
+    await patchField("linkedArticles", next);
   }
 
-  function removeSelected() {
+  async function removeSelected() {
     const next = characters.find((character) => character.id !== selected.id);
-    deleteCharacter(selected.id);
+    await deleteCharacter(selected.id);
     setSelectedId(next?.id || "");
+  }
+
+  async function commitImport(input) {
+    const result = await importCharacter(input);
+    setSelectedId(result.character.id);
+    return result;
   }
 
   return (
@@ -142,8 +246,15 @@ export default function CharactersPage({ pages = [] }) {
       <header className="list-header characters-header">
         <span className="kicker">Player Workspace</span>
         <h1>Characters</h1>
-        <p>PF2e builder uses API-backed options: ancestry, heritage, background, class, feats and skills are selected from data instead of typed by hand.</p>
+        <p>Character Builder остаётся в roadmap. Сейчас это Character Sheet Hub: Mongo-хранилище, импорт JSON и красивый read-only dossier.</p>
       </header>
+
+      <div className={`status-message ${storageMode === "mongo" ? "success-message" : "warning-message"}`}>
+        <span>{storageMode === "mongo" ? "Mongo character workspace" : "Browser draft fallback"}{busy ? " · loading..." : ""}</span>
+        {error && <small>{error}</small>}
+      </div>
+
+      <ImportPanel onDryRun={dryRunImport} onCommit={commitImport} storageMode={storageMode} />
 
       <div className={`status-message pf2-source-strip ${options.meta?.fallback ? "warning-message" : ""}`}>
         <span>PF2 source: {options.meta?.sourceLabel || "PF2e options"}{optionsBusy ? " - loading..." : ""}</span>
@@ -169,7 +280,7 @@ export default function CharactersPage({ pages = [] }) {
               <button key={character.id} type="button" className={selected?.id === character.id ? "is-active" : ""} onClick={() => setSelectedId(character.id)}>
                 <strong>{character.name || "Unnamed"}</strong>
                 <span>{shortClass(character, options)} - level {character.level || 1}</span>
-                <small>{character.isVisibleToParty ? "visible to party" : "private draft"}</small>
+                <small>{character.source?.type || "manual"} · {character.isVisibleToParty ? "visible to party" : "private draft"}</small>
               </button>
             ))}
             {!characters.length && <p className="empty-copy">No characters yet.</p>}
@@ -185,11 +296,12 @@ export default function CharactersPage({ pages = [] }) {
         <section className="character-sheet-panel">
           {selected ? (
             <>
-              <div className="character-sheet-head">
-                <UserRound size={28} />
+              <div className="character-sheet-head character-hero-sheet">
+                <UserRound size={34} />
                 <div>
-                  <span className="kicker">{options.meta?.sourceLabel || "PF2e options"}</span>
+                  <span className="kicker">{selected.source?.type || options.meta?.sourceLabel || "Character dossier"}</span>
                   <input value={selected.name} onChange={(event) => patchField("name", event.target.value)} />
+                  <p>{shortClass(selected, options)} · Level {selected.level || 1}</p>
                 </div>
                 <button type="button" onClick={removeSelected} title="Delete character"><Trash2 size={18} /></button>
               </div>
@@ -203,8 +315,17 @@ export default function CharactersPage({ pages = [] }) {
                 </button>
               </div>
 
+              <div className="character-combat-strip">
+                <strong>AC {selected.defenses?.ac ?? 10}</strong>
+                <strong>HP {selected.defenses?.hp ?? 0}/{selected.defenses?.maxHp ?? 0}</strong>
+                <strong>Perception {selected.defenses?.perception ?? 0}</strong>
+                <span>Fort {selected.defenses?.fortitude ?? 0}</span>
+                <span>Ref {selected.defenses?.reflex ?? 0}</span>
+                <span>Will {selected.defenses?.will ?? 0}</span>
+              </div>
+
               <div className="character-field-grid">
-                <label>Player<input value={selected.playerName} onChange={(event) => patchField("playerName", event.target.value)} /></label>
+                <label>Player<input value={selected.playerName || ""} onChange={(event) => patchField("playerName", event.target.value)} /></label>
                 <SelectField label="Class" value={selected.className} onChange={(value) => patchField("className", value)} options={options.classes} />
                 <SelectField label="Level" value={selected.level} onChange={(value) => patchField("level", numberValue(value, 1))} options={options.levels} />
                 <SelectField label="Ancestry" value={selected.ancestry} onChange={(value) => updateCharacter(selected.id, { ancestry: value, heritage: "" })} options={options.ancestries} />
@@ -229,6 +350,13 @@ export default function CharactersPage({ pages = [] }) {
                 <label>Will<input type="number" value={selected.defenses?.will ?? 0} onChange={(event) => patchNested("defenses", "will", numberValue(event.target.value, 0))} /></label>
               </div>
 
+              {(selected.attacks?.length || selected.spells?.length) ? (
+                <section className="character-readonly-blocks">
+                  {!!selected.attacks?.length && <div><span className="kicker">Attacks</span>{selected.attacks.slice(0, 8).map((attack, index) => <p key={`${attack.name}-${index}`}><strong>{attack.name}</strong> {attack.bonus ? `+${attack.bonus}` : ""} {attack.damage || ""}</p>)}</div>}
+                  {!!selected.spells?.length && <div><span className="kicker">Spells</span>{selected.spells.slice(0, 12).map((spell, index) => <p key={`${spell.name}-${index}`}><strong>{spell.name}</strong> {spell.level !== "" ? `lvl ${spell.level}` : ""}</p>)}</div>}
+                </section>
+              ) : null}
+
               <section className="character-picker-panel">
                 <div>
                   <span className="kicker">PF2 API picks</span>
@@ -247,8 +375,9 @@ export default function CharactersPage({ pages = [] }) {
               </section>
 
               <div className="character-notes-grid">
-                <label className="character-text-field">Party summary<textarea value={selected.publicSummary} onChange={(event) => patchField("publicSummary", event.target.value)} placeholder="What other players know about this character..." /></label>
-                <label className="character-text-field">Private notes<textarea value={selected.privateNotes} onChange={(event) => patchField("privateNotes", event.target.value)} placeholder="Secrets, personal goal, build draft..." /></label>
+                <label className="character-text-field">Party summary<textarea value={selected.publicSummary || ""} onChange={(event) => patchField("publicSummary", event.target.value)} placeholder="What other players know about this character..." /></label>
+                <label className="character-text-field">Private notes<textarea value={selected.privateNotes || ""} onChange={(event) => patchField("privateNotes", event.target.value)} placeholder="Secrets, personal goal, build draft..." /></label>
+                <label className="character-text-field">Build notes<textarea value={selected.buildNotes || ""} onChange={(event) => patchField("buildNotes", event.target.value)} placeholder="Future feats, reminders, strategy..." /></label>
                 <label className="character-text-field">Inventory<textarea value={selected.inventoryText || ""} onChange={(event) => patchField("inventoryText", event.target.value)} placeholder="Weapons, armor, potions, important items..." /></label>
               </div>
 
@@ -265,13 +394,15 @@ export default function CharactersPage({ pages = [] }) {
                   ))}
                 </div>
               </section>
+              {savingId === selected.id && <p className="character-muted-line">Saving...</p>}
             </>
           ) : (
             <div className="notes-empty-editor character-empty-state">
               <UserRound size={38} />
               <h2>Create the first character</h2>
-              <p>The builder loads classes, ancestry, background, skills and feats through the PF2 API layer.</p>
+              <p>Manual drafts work in browser fallback. Mongo mode unlocks JSON import and campaign visibility.</p>
               <CodexButton type="button" onClick={createCharacter}><Plus size={16} /> New character</CodexButton>
+              <CodexButton type="button" onClick={() => document.querySelector(".character-import-panel input[type='file']")?.click()}><Upload size={16} /> Import JSON</CodexButton>
             </div>
           )}
         </section>

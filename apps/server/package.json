@@ -7,7 +7,10 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "mongo:smoke": "node scripts/mongo-smoke-test.mjs",
-    "mongo:migrate:auth": "node scripts/migrate-auth-to-mongo.mjs"
+    "mongo:migrate:auth": "node scripts/migrate-auth-to-mongo.mjs",
+    "vault:dry-run": "node scripts/vault-import-dry-run.mjs",
+    "vault:commit": "node scripts/vault-import-commit.mjs",
+    "vault:rollback": "node scripts/vault-import-rollback.mjs"
   },
   "dependencies": {
     "chokidar": "^3.6.0",

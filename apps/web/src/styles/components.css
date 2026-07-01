@@ -6906,3 +6906,133 @@ select option:focus {
   border-color: rgba(227, 182, 95, 0.62);
   box-shadow: 0 0 0 3px rgba(227, 182, 95, 0.12);
 }
+
+/* Stage 3 Personal Workspace Core */
+.notes-meta-grid,
+.character-import-grid,
+.character-import-actions,
+.character-combat-strip,
+.character-readonly-blocks {
+  display: grid;
+  gap: 12px;
+}
+
+.notes-meta-grid,
+.character-import-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.character-import-panel,
+.character-readonly-blocks > div {
+  border: 1px solid rgba(230, 199, 121, 0.18);
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(22, 16, 34, 0.88), rgba(12, 14, 25, 0.72));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
+  padding: 18px;
+}
+
+.character-import-panel textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  margin-top: 12px;
+  border: 1px solid rgba(230, 199, 121, 0.18);
+  border-radius: 16px;
+  background: rgba(6, 8, 16, 0.72);
+  color: var(--text);
+  padding: 12px 14px;
+}
+
+.character-import-grid label,
+.notes-meta-grid label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.character-import-grid select,
+.character-import-grid input,
+.notes-meta-grid select {
+  border: 1px solid rgba(230, 199, 121, 0.18);
+  border-radius: 14px;
+  background: rgba(6, 8, 16, 0.74);
+  color: var(--text);
+  padding: 10px 12px;
+}
+
+.character-import-actions {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  margin-top: 12px;
+}
+
+.character-import-actions button {
+  border: 1px solid rgba(230, 199, 121, 0.24);
+  border-radius: 999px;
+  background: rgba(230, 199, 121, 0.08);
+  color: var(--gold);
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.character-import-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.character-import-preview {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  border: 1px solid rgba(80, 190, 140, 0.24);
+  border-radius: 16px;
+  background: rgba(80, 190, 140, 0.08);
+  padding: 12px;
+}
+
+.character-import-preview strong,
+.character-combat-strip strong {
+  color: var(--gold);
+}
+
+.character-hero-sheet p,
+.character-import-preview span,
+.character-import-preview small {
+  color: var(--muted);
+  margin: 0;
+}
+
+.character-combat-strip {
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  margin: 14px 0;
+}
+
+.character-combat-strip strong,
+.character-combat-strip span {
+  border: 1px solid rgba(230, 199, 121, 0.16);
+  border-radius: 16px;
+  background: rgba(6, 8, 16, 0.5);
+  padding: 12px;
+  text-align: center;
+}
+
+.character-readonly-blocks {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  margin: 16px 0;
+}
+
+.character-readonly-blocks p {
+  margin: 7px 0 0;
+  color: var(--muted);
+}
+
+.success-message {
+  border-color: rgba(80, 190, 140, 0.25);
+  background: rgba(80, 190, 140, 0.08);
+  color: #b9f6d0;
+}
+
+.danger-message svg {
+  vertical-align: middle;
+  margin-right: 6px;
+}

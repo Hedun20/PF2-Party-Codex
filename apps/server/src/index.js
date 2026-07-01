@@ -8,14 +8,19 @@ import { attachUser } from "./middleware/auth.js";
 import { assetsRouter } from "./routes/assets.js";
 import { authRouter } from "./routes/auth.js";
 import { categoriesRouter } from "./routes/categories.js";
+import { charactersRouter } from "./routes/characters.js";
+import { entriesRouter } from "./routes/entries.js";
 import { foundryRouter } from "./routes/foundry.js";
+import { importRouter } from "./routes/import.js";
 import { healthRouter } from "./routes/health.js";
+import { notesRouter } from "./routes/notes.js";
 import { pagesRouter } from "./routes/pages.js";
 import { pf2Router } from "./routes/pf2.js";
 import { revealRouter } from "./routes/reveal.js";
 import { searchRouter } from "./routes/search.js";
 import { toolsRouter } from "./routes/tools.js";
 import { ensureIdentityIndexes } from "./repositories/identityRepository.js";
+import { ensureCodexIndexes } from "./repositories/entriesRepository.js";
 import { startVaultWatcher } from "./services/fileWatchService.js";
 import { rebuildVaultIndex } from "./services/vaultService.js";
 import { sessionInfo } from "./services/sessionService.js";
@@ -23,7 +28,7 @@ import { logger } from "./utils/logger.js";
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "6mb" }));
 app.use(attachUser);
 app.get("/api/session", async (req, res, next) => {
   try {
@@ -35,6 +40,10 @@ app.get("/api/session", async (req, res, next) => {
 
 app.use("/api", healthRouter);
 app.use("/api", authRouter);
+app.use("/api", notesRouter);
+app.use("/api", charactersRouter);
+app.use("/api", entriesRouter);
+app.use("/api", importRouter);
 app.use("/api", pagesRouter);
 app.use("/api", pf2Router);
 app.use("/api", revealRouter);
@@ -66,6 +75,7 @@ function localIps() {
 
 await connectMongo();
 await ensureIdentityIndexes();
+await ensureCodexIndexes();
 await rebuildVaultIndex();
 startVaultWatcher();
 
