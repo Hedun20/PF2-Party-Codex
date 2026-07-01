@@ -20,6 +20,11 @@ import NotesPage from "./pages/NotesPage.jsx";
 import CharactersPage from "./pages/CharactersPage.jsx";
 import SessionModePage from "./pages/SessionModePage.jsx";
 import PlayerRevealPage, { PlayerPortalView } from "./pages/PlayerRevealPage.jsx";
+import MyWorkspacePage from "./pages/MyWorkspacePage.jsx";
+import GMToolsPage from "./pages/GMToolsPage.jsx";
+import HandoutsPage from "./pages/HandoutsPage.jsx";
+import SettingsPage from "./pages/SettingsPage.jsx";
+import SessionsPage from "./pages/SessionsPage.jsx";
 import { getWorldOwnedPages, getWorldSearchPages, resolveWorldBySlug, resolveWorldForPage } from "./utils/worldContext.js";
 
 function worldSlugFromPath(pathname = "") {
@@ -135,8 +140,13 @@ export default function App() {
         <Route path="/missing" element={gmView ? <MissingLinksPage mode={effectiveMode} /> : <AuthPage onAuth={handleAuth} session={session} />} />
         <Route path="/timeline" element={<TimelinePage pages={pages} mode={effectiveMode} />} />
         <Route path="/maps" element={<MapsPage pages={pages} mode={effectiveMode} />} />
+        <Route path="/my" element={<MyWorkspacePage pages={pages} mode={effectiveMode} session={session} />} />
         <Route path="/notes" element={<NotesPage pages={pages} />} />
         <Route path="/characters" element={<CharactersPage pages={pages} />} />
+        <Route path="/handouts" element={<HandoutsPage pages={pages} mode={effectiveMode} />} />
+        <Route path="/sessions" element={<SessionsPage pages={pages} mode={effectiveMode} />} />
+        <Route path="/settings" element={<SettingsPage session={session} />} />
+        <Route path="/gm-tools" element={gmView ? <GMToolsPage session={session} /> : <AuthPage onAuth={handleAuth} session={session} />} />
         <Route path="/health" element={gmView ? <VaultHealthPage mode={effectiveMode} /> : <AuthPage onAuth={handleAuth} session={session} />} />
         <Route path="/player-safety" element={gmView ? <PlayerSafetyPage pages={pages} /> : <AuthPage onAuth={handleAuth} session={session} />} />
         <Route path="/guide" element={<GuidePage canEdit={gmView} />} />

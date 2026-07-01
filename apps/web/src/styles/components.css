@@ -7036,3 +7036,247 @@ select option:focus {
   vertical-align: middle;
   margin-right: 6px;
 }
+
+/* Stage 6: Navigation + UX stabilization */
+.sidebar-v2 .nav-stack-v2 {
+  gap: 12px;
+}
+
+.nav-group {
+  display: grid;
+  gap: 6px;
+}
+
+.nav-group-title {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  color: color-mix(in srgb, var(--muted) 82%, transparent);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.nav-group-links {
+  display: grid;
+  gap: 3px;
+}
+
+.topbar-v2 {
+  gap: 10px;
+}
+
+.top-quick-actions {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.top-quick-actions a,
+.topbar-auth-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--gold);
+  background: rgba(24, 18, 36, 0.72);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.top-quick-actions a:hover,
+.topbar-auth-button:hover,
+.auth-chip-link:hover {
+  color: var(--text);
+  border-color: rgba(227, 182, 95, 0.36);
+  background: rgba(227, 182, 95, 0.1);
+}
+
+.topbar-auth-button {
+  width: 42px;
+  padding: 0;
+}
+
+.auth-chip-link {
+  text-decoration: none;
+}
+
+.workspace-page,
+.gm-tools-page,
+.handouts-page,
+.settings-page,
+.sessions-page {
+  max-width: 1180px;
+}
+
+.workspace-hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.workspace-identity-strip,
+.workspace-stats-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.workspace-identity-strip span,
+.workspace-stats-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.workspace-stats-row strong {
+  color: var(--gold);
+}
+
+.workspace-grid,
+.handout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.workspace-card {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+  min-height: 112px;
+  text-decoration: none;
+  color: var(--text);
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.workspace-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(227, 182, 95, 0.34);
+  background: rgba(227, 182, 95, 0.08);
+}
+
+.workspace-card svg {
+  flex: 0 0 auto;
+  color: var(--gold);
+}
+
+.workspace-card strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text);
+  font-size: 1.02rem;
+}
+
+.workspace-card span {
+  display: block;
+  color: var(--muted);
+  line-height: 1.42;
+}
+
+.primary-workspace-card {
+  border-color: rgba(77, 212, 161, 0.24);
+  background: linear-gradient(135deg, rgba(77, 212, 161, 0.1), rgba(168, 85, 247, 0.08));
+}
+
+.workspace-status-card {
+  display: grid;
+  gap: 10px;
+  color: var(--muted);
+}
+
+.workspace-status-card p {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.gm-tools-grid .workspace-card {
+  min-height: 124px;
+}
+
+.handout-card {
+  overflow: hidden;
+  padding: 0;
+}
+
+.handout-card img,
+.handout-card-placeholder {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-bottom: 1px solid var(--line);
+  background: radial-gradient(circle at 50% 10%, rgba(227, 182, 95, 0.16), rgba(0, 0, 0, 0.14));
+}
+
+.handout-card-placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+}
+
+.handout-card-body {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+}
+
+.handout-card-body h2 {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--display);
+  font-size: 1.18rem;
+}
+
+.handout-card-body p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.handout-card-body a,
+.small-context-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  justify-self: start;
+  color: var(--gold);
+  text-decoration: none;
+}
+
+.handout-card-body a:hover,
+.small-context-link:hover {
+  color: var(--text);
+}
+
+@media (max-width: 1180px) {
+  .top-info-v2 span:nth-of-type(2),
+  .top-info-v2 span:nth-of-type(3) {
+    display: none;
+  }
+}
+
+@media (max-width: 920px) {
+  .top-quick-actions span {
+    display: none;
+  }
+
+  .top-info-v2 {
+    display: none;
+  }
+}

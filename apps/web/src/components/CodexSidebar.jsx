@@ -1,27 +1,85 @@
 import { Link, NavLink } from "react-router-dom";
-import { BookOpen, Castle, Clock3, Crosshair, FileQuestion, Globe2, Home, Map, MapPinned, NotebookPen, ScrollText, ShieldAlert, ShieldCheck, Swords, UserRound, UsersRound, X } from "lucide-react";
+import {
+  BookOpen,
+  Castle,
+  Clock3,
+  Crosshair,
+  FileQuestion,
+  Globe2,
+  Hammer,
+  Home,
+  Map,
+  MapPinned,
+  NotebookPen,
+  ScrollText,
+  Settings,
+  ShieldAlert,
+  ShieldCheck,
+  Sparkles,
+  Swords,
+  UserRound,
+  UsersRound,
+  Wrench,
+  X
+} from "lucide-react";
 import LoreDropdown from "./LoreDropdown.jsx";
 import { worldRoute } from "../utils/worldContext.js";
 
-const sections = [
-  ["Countries", "countries", Map],
-  ["Cities", "cities", Castle],
-  ["NPC", "npcs", UsersRound],
-  ["Enemies", "enemies", Swords],
-  ["Quests", "quests", ScrollText],
-  ["Sessions", "sessions", BookOpen],
-  ["Locations", "locations", Map]
+const codexSections = [
+  ["Worlds", "/category/worlds", Globe2],
+  ["Countries", "/category/countries", Map],
+  ["Cities", "/category/cities", Castle],
+  ["Locations", "/category/locations", MapPinned],
+  ["NPC", "/category/npcs", UsersRound],
+  ["Enemies", "/category/enemies", Swords],
+  ["Quests", "/category/quests", ScrollText]
+];
+
+const playerSections = [
+  ["Home", "/", Home],
+  ["My Character", "/characters", UserRound],
+  ["My Notes", "/notes", NotebookPen],
+  ["Known Lore", "/category/lore", BookOpen],
+  ["Maps", "/maps", MapPinned],
+  ["Timeline", "/timeline", Clock3],
+  ["Quests", "/category/quests", ScrollText],
+  ["Handouts", "/handouts", Sparkles],
+  ["Profile", "/my", UserRound]
 ];
 
 function scopedPath(activeWorld, path) {
-  return activeWorld ? `${worldRoute(activeWorld)}/${path.replace(/^\//, "")}` : path;
+  if (!activeWorld) return path;
+  if (path === "/") return worldRoute(activeWorld);
+  if (path === "/maps" || path === "/timeline") return `${worldRoute(activeWorld)}${path}`;
+  if (path.startsWith("/category/")) return `${worldRoute(activeWorld)}${path}`;
+  return path;
+}
+
+function NavGroup({ title, children }) {
+  return (
+    <div className="nav-group">
+      <span className="nav-group-title">{title}</span>
+      <div className="nav-group-links">{children}</div>
+    </div>
+  );
+}
+
+function NavItem({ to, icon: Icon, label, onClose, className = "" }) {
+  return (
+    <NavLink to={to} className={`nav-link ${className}`.trim()} onClick={onClose}>
+      <Icon size={18} />
+      <span>{label}</span>
+    </NavLink>
+  );
 }
 
 export default function CodexSidebar({ onClose, canEdit = false, activeWorld = null }) {
+  const brandTarget = activeWorld ? worldRoute(activeWorld) : "/";
+
   return (
-    <aside className="sidebar">
+    <aside className="sidebar sidebar-v2">
       <div className="sidebar-head">
-        <Link to={activeWorld ? worldRoute(activeWorld) : "/"} className="brand" onClick={onClose}>
+        <Link to={brandTarget} className="brand" onClick={onClose}>
           <Castle />
           <span>{activeWorld ? activeWorld.title : "PF2 Party Codex"}</span>
         </Link>
@@ -29,6 +87,7 @@ export default function CodexSidebar({ onClose, canEdit = false, activeWorld = n
           <X size={18} />
         </button>
       </div>
+
       {activeWorld && (
         <div className="sidebar-world-card">
           <span className="kicker">Active world</span>
@@ -37,68 +96,60 @@ export default function CodexSidebar({ onClose, canEdit = false, activeWorld = n
           <Link to="/" onClick={onClose}><Home size={15} /> All worlds</Link>
         </div>
       )}
-      <nav className="nav-stack">
-        <NavLink to="/category/worlds" className="nav-link" onClick={onClose}>
-          <Globe2 size={18} />
-          <span>Worlds</span>
-        </NavLink>
-        <NavLink to={scopedPath(activeWorld, "/timeline")} className="nav-link" onClick={onClose}>
-          <Clock3 size={18} />
-          <span>{activeWorld ? "World timeline" : "Timeline"}</span>
-        </NavLink>
-        <NavLink to={scopedPath(activeWorld, "/maps")} className="nav-link" onClick={onClose}>
-          <MapPinned size={18} />
-          <span>{activeWorld ? "World maps" : "Maps"}</span>
-        </NavLink>
-        <NavLink to="/notes" className="nav-link" onClick={onClose}>
-          <NotebookPen size={18} />
-          <span>Notes</span>
-        </NavLink>
-        <NavLink to="/characters" className="nav-link" onClick={onClose}>
-          <UserRound size={18} />
-          <span>Characters</span>
-        </NavLink>
-        {activeWorld && (
-          <NavLink to={`${worldRoute(activeWorld)}/player`} className="nav-link" onClick={onClose}>
-            <NotebookPen size={18} />
-            <span>Player portal</span>
-          </NavLink>
+
+      <nav className="nav-stack nav-stack-v2" aria-label="Main navigation">
+        {canEdit ? (
+          <>
+            <NavGroup title="GM Workspace">
+              <NavItem to="/" icon={Home} label="Dashboard" onClose={onClose} />
+              <NavItem to="/my" icon={UserRound} label="My Workspace" onClose={onClose} />
+              <NavItem to={activeWorld ? `${worldRoute(activeWorld)}/session` : "/sessions"} icon={BookOpen} label="Sessions" onClose={onClose} />
+              <NavItem to={activeWorld ? `${worldRoute(activeWorld)}/reveal` : "/handouts"} icon={Sparkles} label="Handouts" onClose={onClose} />
+              <NavItem to="/characters" icon={UsersRound} label="Players & Characters" onClose={onClose} />
+            </NavGroup>
+
+            <NavGroup title="World Codex">
+              {codexSections.map(([label, path, Icon]) => (
+                <NavItem key={path} to={scopedPath(activeWorld, path)} icon={Icon} label={label} onClose={onClose} />
+              ))}
+              <NavItem to={scopedPath(activeWorld, "/maps")} icon={MapPinned} label={activeWorld ? "World Maps" : "Maps"} onClose={onClose} />
+              <NavItem to={scopedPath(activeWorld, "/timeline")} icon={Clock3} label={activeWorld ? "World Timeline" : "Timeline"} onClose={onClose} />
+              {!activeWorld && <LoreDropdown />}
+            </NavGroup>
+
+            <NavGroup title="Create">
+              <NavItem to={activeWorld ? `/editor?world=${encodeURIComponent(activeWorld.title)}` : "/editor"} icon={Crosshair} label={activeWorld ? "Create in world" : "Create Article"} onClose={onClose} className="primary-link" />
+              <NavItem to="/notes" icon={NotebookPen} label="Notes" onClose={onClose} />
+            </NavGroup>
+
+            <NavGroup title="Admin & Tools">
+              <NavItem to="/gm-tools" icon={Wrench} label="GM Tools" onClose={onClose} />
+              <NavItem to="/settings" icon={Settings} label="Settings" onClose={onClose} />
+            </NavGroup>
+          </>
+        ) : (
+          <>
+            <NavGroup title="Player Workspace">
+              {playerSections.map(([label, path, Icon]) => (
+                <NavItem key={path} to={scopedPath(activeWorld, path)} icon={Icon} label={label} onClose={onClose} />
+              ))}
+            </NavGroup>
+
+            <NavGroup title="Campaign Archive">
+              <NavItem to={scopedPath(activeWorld, "/category/worlds")} icon={Globe2} label="Worlds" onClose={onClose} />
+              <NavItem to={scopedPath(activeWorld, "/category/npcs")} icon={UsersRound} label="Known NPC" onClose={onClose} />
+              <NavItem to={scopedPath(activeWorld, "/category/locations")} icon={Map} label="Locations" onClose={onClose} />
+            </NavGroup>
+          </>
         )}
-        {sections.map(([label, path, Icon]) => (
-          <NavLink key={path} to={scopedPath(activeWorld, `/category/${path}`)} className="nav-link" onClick={onClose}>
-            <Icon size={18} />
-            <span>{label}</span>
-          </NavLink>
-        ))}
-        {!activeWorld && <LoreDropdown />}
-        {canEdit && (
-          <NavLink to={activeWorld ? `/editor?world=${encodeURIComponent(activeWorld.title)}` : "/editor"} className="nav-link primary-link" onClick={onClose}>
-            <Crosshair size={18} />
-            <span>{activeWorld ? "Create in world" : "Create article"}</span>
-          </NavLink>
-        )}
-        {canEdit && (
-          <NavLink to="/missing" className="nav-link" onClick={onClose}>
-            <FileQuestion size={18} />
-            <span>Missing articles</span>
-          </NavLink>
-        )}
-        {canEdit && (
-          <NavLink to="/player-safety" className="nav-link" onClick={onClose}>
-            <ShieldAlert size={18} />
-            <span>Player Safety</span>
-          </NavLink>
-        )}
-        {canEdit && (
-          <NavLink to="/health" className="nav-link" onClick={onClose}>
-            <ShieldCheck size={18} />
-            <span>Vault control</span>
-          </NavLink>
-        )}
-        <NavLink to="/guide" className="nav-link" onClick={onClose}>
-          <BookOpen size={18} />
-          <span>Guide</span>
-        </NavLink>
+
+        <NavGroup title="Help">
+          <NavItem to="/guide" icon={BookOpen} label="Guide" onClose={onClose} />
+          {canEdit && <NavItem to="/player-safety" icon={ShieldAlert} label="Player Safety" onClose={onClose} />}
+          {canEdit && <NavItem to="/health" icon={ShieldCheck} label="Vault Control" onClose={onClose} />}
+          {canEdit && <NavItem to="/foundry" icon={Hammer} label="Foundry Import/Export" onClose={onClose} />}
+          {canEdit && <NavItem to="/missing" icon={FileQuestion} label="Missing Articles" onClose={onClose} />}
+        </NavGroup>
       </nav>
     </aside>
   );
