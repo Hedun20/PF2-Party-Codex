@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
+    "dev:create-owner": "node scripts/dev-create-owner-user.mjs",
     "start": "node src/index.js",
     "mongo:smoke": "node scripts/mongo-smoke-test.mjs",
     "mongo:migrate:auth": "node scripts/migrate-auth-to-mongo.mjs",
