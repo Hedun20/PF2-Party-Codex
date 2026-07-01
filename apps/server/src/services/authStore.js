@@ -28,7 +28,12 @@ function legacyRole(user) {
 
 export async function publicUser(user) {
   if (!user) return null;
-  const context = await identityContextForUser(user);
+  let context = { activeCampaign: null, membership: null, role: legacyRole(user) };
+  try {
+    context = await identityContextForUser(user);
+  } catch (error) {
+    if (!isMongoUnavailableError(error)) throw error;
+  }
   const role = context.role || legacyRole(user);
   return {
     id: idString(user),
@@ -89,26 +94,52 @@ function validateNewUser(input, existingUsers = []) {
   return normalizedEmail;
 }
 
+function isMongoUnavailableError(error) {
+  return error?.status === 503 || /MongoDB is not connected/i.test(String(error?.message || error || ""));
+}
+
+async function fallbackOnMongoUnavailable(mongoOperation, legacyOperation) {
+  if (!isMongoIdentityEnabled()) return legacyOperation();
+  try {
+    return await mongoOperation();
+  } catch (error) {
+    if (isMongoUnavailableError(error)) return legacyOperation();
+    throw error;
+  }
+}
+
 export async function listUsers() {
-  if (isMongoIdentityEnabled()) return mongoListUsers();
-  return readJson(USERS_FILE, []);
+  return fallbackOnMongoUnavailable(
+    () => mongoListUsers(),
+    () => readJson(USERS_FILE, [])
+  );
 }
 
 export async function hasUsers() {
-  if (isMongoIdentityEnabled()) return mongoHasUsers();
-  return (await listUsers()).length > 0;
+  return fallbackOnMongoUnavailable(
+    () => mongoHasUsers(),
+    async () => (await readJson(USERS_FILE, [])).length > 0
+  );
 }
 
 export async function findUserById(id) {
-  if (isMongoIdentityEnabled()) return mongoFindUserById(id);
-  const users = await listUsers();
-  return users.find((user) => user.id === id) || null;
+  return fallbackOnMongoUnavailable(
+    () => mongoFindUserById(id),
+    async () => {
+      const users = await readJson(USERS_FILE, []);
+      return users.find((user) => user.id === id) || null;
+    }
+  );
 }
 
 export async function findUserByEmail(email) {
-  if (isMongoIdentityEnabled()) return mongoFindUserByEmail(email);
-  const users = await listUsers();
-  return users.find((user) => user.email === normalizeEmail(email)) || null;
+  return fallbackOnMongoUnavailable(
+    () => mongoFindUserByEmail(email),
+    async () => {
+      const users = await readJson(USERS_FILE, []);
+      return users.find((user) => user.email === normalizeEmail(email)) || null;
+    }
+  );
 }
 
 export async function createUser(input) {
@@ -117,26 +148,30 @@ export async function createUser(input) {
   const now = new Date().toISOString();
 
   if (isMongoIdentityEnabled()) {
-    const existing = await mongoFindUserByEmail(input.email);
-    const normalizedEmail = validateNewUser(input, existing ? [existing] : []);
-    const user = await mongoInsertUser({
-      email: normalizedEmail,
-      passwordHash: password.hash,
-      passwordSalt: password.salt,
-      name: String(input.name || "").trim() || normalizedEmail.split("@")[0],
-      emailVerified: false,
-      emailVerifiedAt: "",
-      emailVerifyTokenHash: hashToken(verifyToken),
-      emailVerifyTokenExpiresAt: new Date(Date.now() + VERIFY_TTL_MS).toISOString(),
-      status: "active",
-      createdAt: now,
-      updatedAt: now
-    });
-    await bootstrapMembershipForNewUser(user);
-    return { user: await publicUser(user), verifyToken };
+    try {
+      const existing = await mongoFindUserByEmail(input.email);
+      const normalizedEmail = validateNewUser(input, existing ? [existing] : []);
+      const user = await mongoInsertUser({
+        email: normalizedEmail,
+        passwordHash: password.hash,
+        passwordSalt: password.salt,
+        name: String(input.name || "").trim() || normalizedEmail.split("@")[0],
+        emailVerified: false,
+        emailVerifiedAt: "",
+        emailVerifyTokenHash: hashToken(verifyToken),
+        emailVerifyTokenExpiresAt: new Date(Date.now() + VERIFY_TTL_MS).toISOString(),
+        status: "active",
+        createdAt: now,
+        updatedAt: now
+      });
+      await bootstrapMembershipForNewUser(user);
+      return { user: await publicUser(user), verifyToken };
+    } catch (error) {
+      if (!isMongoUnavailableError(error)) throw error;
+    }
   }
 
-  const users = await listUsers();
+  const users = await readJson(USERS_FILE, []);
   const normalizedEmail = validateNewUser(input, users);
   const user = {
     id: crypto.randomUUID(),
@@ -169,20 +204,24 @@ export async function verifyEmailToken(token = "") {
   const tokenHash = hashToken(String(token));
 
   if (isMongoIdentityEnabled()) {
-    const users = await mongoListUsers();
-    const user = users.find((item) => item.emailVerifyTokenHash === tokenHash);
-    if (!user) return null;
-    if (new Date(user.emailVerifyTokenExpiresAt || 0).getTime() < Date.now()) return null;
-    const updated = await mongoUpdateUser(idString(user), {
-      emailVerified: true,
-      emailVerifiedAt: new Date().toISOString(),
-      emailVerifyTokenHash: "",
-      emailVerifyTokenExpiresAt: ""
-    });
-    return publicUser(updated);
+    try {
+      const users = await mongoListUsers();
+      const user = users.find((item) => item.emailVerifyTokenHash === tokenHash);
+      if (!user) return null;
+      if (new Date(user.emailVerifyTokenExpiresAt || 0).getTime() < Date.now()) return null;
+      const updated = await mongoUpdateUser(idString(user), {
+        emailVerified: true,
+        emailVerifiedAt: new Date().toISOString(),
+        emailVerifyTokenHash: "",
+        emailVerifyTokenExpiresAt: ""
+      });
+      return publicUser(updated);
+    } catch (error) {
+      if (!isMongoUnavailableError(error)) throw error;
+    }
   }
 
-  const users = await listUsers();
+  const users = await readJson(USERS_FILE, []);
   const index = users.findIndex((user) => user.emailVerifyTokenHash === tokenHash);
   if (index === -1) return null;
   const user = users[index];

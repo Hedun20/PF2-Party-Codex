@@ -21,17 +21,22 @@ function sanitizeMongoError(error) {
     .replace(/(password=)[^&\s]+/gi, "$1<redacted>");
 }
 
+function setDisconnectedStatus(message, error = null) {
+  status = {
+    mode: config.mongoUri ? "mongo" : "legacy",
+    configured: Boolean(config.mongoUri),
+    connected: false,
+    database: config.mongoDbName,
+    driver: "mongodb",
+    error: error ? sanitizeMongoError(error) : null,
+    message
+  };
+  return status;
+}
+
 export async function connectMongo() {
   if (!config.mongoUri) {
-    status = {
-      mode: "legacy",
-      configured: false,
-      connected: false,
-      database: config.mongoDbName,
-      driver: "mongodb",
-      error: null,
-      message: "MONGO_URI is not configured; using legacy Markdown/JSON storage."
-    };
+    setDisconnectedStatus("MONGO_URI is not configured; using legacy Markdown/JSON storage.");
     logger.warn(status.message);
     return status;
   }
@@ -68,23 +73,25 @@ export async function connectMongo() {
     logger.info(status.message, { database: status.database });
     return status;
   } catch (error) {
+    const sanitized = sanitizeMongoError(error);
+    await closeMongo({ silent: true });
     status = {
       mode: "mongo",
       configured: true,
       connected: false,
       database: config.mongoDbName,
       driver: "mongodb",
-      error: sanitizeMongoError(error),
+      error: sanitized,
       message: "MongoDB connection failed. Legacy storage remains available."
     };
     logger.warn(`${status.message} ${status.error}`);
-    await closeMongo();
     return status;
   }
 }
 
 export function getDb() {
   if (!db) {
+    setDisconnectedStatus(config.mongoUri ? "MongoDB is configured but not connected." : "MongoDB is not configured.");
     const error = new Error("MongoDB is not connected.");
     error.status = 503;
     throw error;
@@ -92,12 +99,19 @@ export function getDb() {
   return db;
 }
 
-export function mongoStatus() {
-  return { ...status };
+export function isMongoConnected() {
+  return Boolean(db && status.connected);
 }
 
-export async function closeMongo() {
+export function mongoStatus() {
+  return { ...status, connected: Boolean(db && status.connected) };
+}
+
+export async function closeMongo(options = {}) {
   if (client) await client.close();
   client = null;
   db = null;
+  if (!options.silent) {
+    setDisconnectedStatus(config.mongoUri ? "MongoDB connection closed." : "MONGO_URI is not configured; using legacy Markdown/JSON storage.");
+  }
 }
