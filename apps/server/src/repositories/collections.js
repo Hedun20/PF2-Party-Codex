@@ -1,0 +1,20 @@
+export const collections = {
+  users: "users",
+  profiles: "profiles",
+  campaigns: "campaigns",
+  memberships: "memberships",
+  entries: "entries",
+  entryRelations: "entryRelations",
+  notes: "notes",
+  characters: "characters",
+  maps: "maps",
+  mapObjects: "mapObjects",
+  timelineEvents: "timelineEvents",
+  sessions: "sessions",
+  handouts: "handouts",
+  assets: "assets",
+  invitations: "invitations",
+  emailOutbox: "emailOutbox",
+  auditLogs: "auditLogs",
+  importJobs: "importJobs"
+};

@@ -13,8 +13,15 @@ function publicBase(req) {
   return `${protocol}://${req.get("host")}`;
 }
 
-function tokenResponse(user) {
-  return { user: toPublicUser(user), token: createSessionToken(user) };
+async function tokenResponse(user) {
+  const publicUser = await toPublicUser(user);
+  return {
+    user: publicUser,
+    activeCampaign: publicUser?.activeCampaign || null,
+    membership: publicUser?.membership || null,
+    role: publicUser?.role || "player",
+    token: createSessionToken(publicUser)
+  };
 }
 
 authRouter.post("/auth/register", async (req, res, next) => {
@@ -23,8 +30,8 @@ authRouter.post("/auth/register", async (req, res, next) => {
     const verifyUrl = `${publicBase(req)}/api/auth/verify-email?token=${encodeURIComponent(created.verifyToken)}`;
     const email = verifyEmailTemplate({ verifyUrl, name: created.user.name });
     await sendEmail({ to: created.user.email, subject: "Confirm your PF2 Party Codex email", ...email });
-    await logAuditEvent({ req, actorUserId: created.user.id, actorEmail: created.user.email, actorRole: created.user.role, action: "auth.register", entityType: "user", entityId: created.user.id });
-    res.status(201).json({ user: created.user, verificationSent: true, devVerifyUrl: process.env.NODE_ENV === "production" ? undefined : verifyUrl });
+    await logAuditEvent({ req, actorUserId: created.user.id, actorEmail: created.user.email, actorRole: created.user.role, campaignId: created.user.activeCampaign?.id, action: "auth.register", entityType: "user", entityId: created.user.id });
+    res.status(201).json({ user: created.user, activeCampaign: created.user.activeCampaign || null, membership: created.user.membership || null, role: created.user.role, verificationSent: true, devVerifyUrl: process.env.NODE_ENV === "production" ? undefined : verifyUrl });
   } catch (error) {
     next(error);
   }
@@ -40,31 +47,37 @@ authRouter.post("/auth/login", async (req, res, next) => {
       return res.status(401).json({ error: "Invalid email or password." });
     }
     if (!user.emailVerified) {
-      await logAuditEvent({ req, actorUserId: user.id, actorEmail: user.email, actorRole: user.role, action: "auth.login.failed", entityType: "user", entityId: user.id, metadata: { reason: "email_unverified" } });
+      const publicUser = await toPublicUser(user);
+      await logAuditEvent({ req, actorUserId: publicUser.id, actorEmail: user.email, actorRole: publicUser.role, campaignId: publicUser.activeCampaign?.id, action: "auth.login.failed", entityType: "user", entityId: publicUser.id, metadata: { reason: "email_unverified" } });
       return res.status(403).json({ error: "Confirm your email before logging in." });
     }
     req.user = user;
-    await logAuditEvent({ req, action: "auth.login.success", entityType: "user", entityId: user.id });
-    res.json(tokenResponse(user));
+    await logAuditEvent({ req, action: "auth.login.success", entityType: "user", entityId: String(user._id || user.id || "") });
+    res.json(await tokenResponse(user));
   } catch (error) {
     next(error);
   }
 });
 
 authRouter.post("/auth/logout", async (req, res) => {
-  await logAuditEvent({ req, action: "auth.logout", entityType: "user", entityId: req.user?.id || "" });
+  await logAuditEvent({ req, action: "auth.logout", entityType: "user", entityId: String(req.user?._id || req.user?.id || "") });
   res.json({ ok: true });
 });
 
-authRouter.get("/auth/me", (req, res) => {
-  res.json({ user: toPublicUser(req.user) });
+authRouter.get("/auth/me", async (req, res, next) => {
+  try {
+    const user = await toPublicUser(req.user);
+    res.json({ user, activeCampaign: user?.activeCampaign || null, membership: user?.membership || null, role: user?.role || "player" });
+  } catch (error) {
+    next(error);
+  }
 });
 
 authRouter.get("/auth/verify-email", async (req, res, next) => {
   try {
     const user = await verifyEmailToken(req.query.token || "");
     if (!user) return res.redirect("/?verified=invalid");
-    await logAuditEvent({ req, actorUserId: user.id, actorEmail: user.email, actorRole: user.role, action: "auth.email.verified", entityType: "user", entityId: user.id });
+    await logAuditEvent({ req, actorUserId: user.id, actorEmail: user.email, actorRole: user.role, campaignId: user.activeCampaign?.id, action: "auth.email.verified", entityType: "user", entityId: user.id });
     res.redirect("/?verified=1");
   } catch (error) {
     next(error);

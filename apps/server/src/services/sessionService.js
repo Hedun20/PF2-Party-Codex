@@ -23,6 +23,16 @@ async function hasRegisteredUsers() {
   return hasUsers();
 }
 
+async function publicUserForSession(user) {
+  if (!user) return null;
+  const { toPublicUser } = await import("./authStore.js");
+  return toPublicUser(user);
+}
+
+function canEditRole(role = "") {
+  return role === "owner" || role === "gm";
+}
+
 export function isLocalGmRequest(req) {
   return isLocalHost(requestHost(req));
 }
@@ -30,26 +40,25 @@ export function isLocalGmRequest(req) {
 export async function resolveRequestMode(req, requestedMode = "") {
   const wantsPlayerPreview = String(requestedMode || req.query?.mode || "").toLowerCase() === "player";
   if (wantsPlayerPreview) return "player";
-  if (req.user?.role === "gm") return "gm";
+  const publicUser = await publicUserForSession(req.user);
+  if (canEditRole(publicUser?.role || req.user?.role)) return "gm";
   if (isLocalGmRequest(req) && !(await hasRegisteredUsers())) return "gm";
   return "player";
 }
 
 export async function sessionInfo(req) {
+  const publicUser = await publicUserForSession(req.user);
   const mode = await resolveRequestMode(req);
   const bootstrapping = mode === "gm" && !req.user;
   return {
     mode,
     canEdit: mode === "gm",
-    access: req.user ? req.user.role : bootstrapping ? "bootstrap-local-gm" : "player",
+    access: publicUser ? publicUser.role : bootstrapping ? "bootstrap-local-gm" : "player",
     host: requestHost(req),
-    user: req.user ? {
-      id: req.user.id,
-      email: req.user.email,
-      name: req.user.name,
-      role: req.user.role,
-      emailVerified: Boolean(req.user.emailVerified)
-    } : null,
+    user: publicUser,
+    activeCampaign: publicUser?.activeCampaign || null,
+    membership: publicUser?.membership || null,
+    role: publicUser?.role || (bootstrapping ? "gm" : "player"),
     authRequiredForGm: await hasRegisteredUsers()
   };
 }

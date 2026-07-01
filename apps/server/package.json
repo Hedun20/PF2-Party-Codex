@@ -5,15 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "mongo:smoke": "node scripts/mongo-smoke-test.mjs",
+    "mongo:migrate:auth": "node scripts/migrate-auth-to-mongo.mjs"
   },
   "dependencies": {
     "chokidar": "^3.6.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
     "express": "^4.19.2",
     "gray-matter": "^4.0.3",
     "marked": "^12.0.2",
     "minisearch": "^7.1.0",
+    "mongodb": "^7.4.0",
     "multer": "^2.0.1",
     "sanitize-html": "^2.13.0",
     "turndown": "^7.2.0"

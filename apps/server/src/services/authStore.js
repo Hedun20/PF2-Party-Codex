@@ -1,16 +1,50 @@
 import crypto from "crypto";
 import { promisify } from "util";
+import {
+  bootstrapMembershipForNewUser,
+  identityContextForUser,
+  isMongoIdentityEnabled,
+  mongoFindUserByEmail,
+  mongoFindUserById,
+  mongoHasUsers,
+  mongoInsertUser,
+  mongoListUsers,
+  mongoUpdateUser,
+  normalizeEmail
+} from "../repositories/identityRepository.js";
 import { readJson, writeJson } from "./jsonDb.js";
 
 const scrypt = promisify(crypto.scrypt);
 const USERS_FILE = "users.json";
 const VERIFY_TTL_MS = Number(process.env.EMAIL_VERIFY_TTL_MS || 1000 * 60 * 60 * 24);
 
-function normalizeEmail(email = "") {
-  return String(email).trim().toLowerCase();
+function idString(user) {
+  return String(user?._id || user?.id || "");
 }
 
-function publicUser(user) {
+function legacyRole(user) {
+  return user?.role || "player";
+}
+
+export async function publicUser(user) {
+  if (!user) return null;
+  const context = await identityContextForUser(user);
+  const role = context.role || legacyRole(user);
+  return {
+    id: idString(user),
+    email: user.email,
+    name: user.name,
+    role,
+    emailVerified: Boolean(user.emailVerified),
+    status: user.status || "active",
+    activeCampaign: context.activeCampaign,
+    membership: context.membership,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt
+  };
+}
+
+function legacyPublicUser(user) {
   if (!user) return null;
   return {
     id: user.id,
@@ -18,6 +52,9 @@ function publicUser(user) {
     name: user.name,
     role: user.role,
     emailVerified: Boolean(user.emailVerified),
+    status: user.status || "active",
+    activeCampaign: null,
+    membership: null,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
   };
@@ -32,26 +69,7 @@ async function hashPassword(password, salt = crypto.randomBytes(16).toString("he
   return { salt, hash: hash.toString("hex") };
 }
 
-export async function listUsers() {
-  return readJson(USERS_FILE, []);
-}
-
-export async function hasUsers() {
-  return (await listUsers()).length > 0;
-}
-
-export async function findUserById(id) {
-  const users = await listUsers();
-  return users.find((user) => user.id === id) || null;
-}
-
-export async function findUserByEmail(email) {
-  const users = await listUsers();
-  return users.find((user) => user.email === normalizeEmail(email)) || null;
-}
-
-export async function createUser(input) {
-  const users = await listUsers();
+function validateNewUser(input, existingUsers = []) {
   const normalizedEmail = normalizeEmail(input.email);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
     const error = new Error("Enter a valid email address.");
@@ -63,15 +81,63 @@ export async function createUser(input) {
     error.status = 400;
     throw error;
   }
-  if (users.some((user) => user.email === normalizedEmail)) {
+  if (existingUsers.some((user) => user.email === normalizedEmail)) {
     const error = new Error("This email is already registered.");
     error.status = 409;
     throw error;
   }
+  return normalizedEmail;
+}
 
+export async function listUsers() {
+  if (isMongoIdentityEnabled()) return mongoListUsers();
+  return readJson(USERS_FILE, []);
+}
+
+export async function hasUsers() {
+  if (isMongoIdentityEnabled()) return mongoHasUsers();
+  return (await listUsers()).length > 0;
+}
+
+export async function findUserById(id) {
+  if (isMongoIdentityEnabled()) return mongoFindUserById(id);
+  const users = await listUsers();
+  return users.find((user) => user.id === id) || null;
+}
+
+export async function findUserByEmail(email) {
+  if (isMongoIdentityEnabled()) return mongoFindUserByEmail(email);
+  const users = await listUsers();
+  return users.find((user) => user.email === normalizeEmail(email)) || null;
+}
+
+export async function createUser(input) {
   const verifyToken = crypto.randomBytes(32).toString("base64url");
   const password = await hashPassword(input.password);
   const now = new Date().toISOString();
+
+  if (isMongoIdentityEnabled()) {
+    const existing = await mongoFindUserByEmail(input.email);
+    const normalizedEmail = validateNewUser(input, existing ? [existing] : []);
+    const user = await mongoInsertUser({
+      email: normalizedEmail,
+      passwordHash: password.hash,
+      passwordSalt: password.salt,
+      name: String(input.name || "").trim() || normalizedEmail.split("@")[0],
+      emailVerified: false,
+      emailVerifiedAt: "",
+      emailVerifyTokenHash: hashToken(verifyToken),
+      emailVerifyTokenExpiresAt: new Date(Date.now() + VERIFY_TTL_MS).toISOString(),
+      status: "active",
+      createdAt: now,
+      updatedAt: now
+    });
+    await bootstrapMembershipForNewUser(user);
+    return { user: await publicUser(user), verifyToken };
+  }
+
+  const users = await listUsers();
+  const normalizedEmail = validateNewUser(input, users);
   const user = {
     id: crypto.randomUUID(),
     email: normalizedEmail,
@@ -88,7 +154,7 @@ export async function createUser(input) {
     updatedAt: now
   };
   await writeJson(USERS_FILE, [...users, user]);
-  return { user: publicUser(user), verifyToken };
+  return { user: legacyPublicUser(user), verifyToken };
 }
 
 export async function verifyPassword(user, password) {
@@ -100,8 +166,23 @@ export async function verifyPassword(user, password) {
 }
 
 export async function verifyEmailToken(token = "") {
-  const users = await listUsers();
   const tokenHash = hashToken(String(token));
+
+  if (isMongoIdentityEnabled()) {
+    const users = await mongoListUsers();
+    const user = users.find((item) => item.emailVerifyTokenHash === tokenHash);
+    if (!user) return null;
+    if (new Date(user.emailVerifyTokenExpiresAt || 0).getTime() < Date.now()) return null;
+    const updated = await mongoUpdateUser(idString(user), {
+      emailVerified: true,
+      emailVerifiedAt: new Date().toISOString(),
+      emailVerifyTokenHash: "",
+      emailVerifyTokenExpiresAt: ""
+    });
+    return publicUser(updated);
+  }
+
+  const users = await listUsers();
   const index = users.findIndex((user) => user.emailVerifyTokenHash === tokenHash);
   if (index === -1) return null;
   const user = users[index];
@@ -115,9 +196,10 @@ export async function verifyEmailToken(token = "") {
     updatedAt: new Date().toISOString()
   };
   await writeJson(USERS_FILE, users);
-  return publicUser(users[index]);
+  return legacyPublicUser(users[index]);
 }
 
-export function toPublicUser(user) {
-  return publicUser(user);
+export async function toPublicUser(user) {
+  if (isMongoIdentityEnabled()) return publicUser(user);
+  return legacyPublicUser(user);
 }

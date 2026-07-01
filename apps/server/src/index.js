@@ -3,6 +3,7 @@ import express from "express";
 import os from "os";
 import path from "path";
 import { config } from "./config.js";
+import { closeMongo, connectMongo } from "./db/mongo.js";
 import { attachUser } from "./middleware/auth.js";
 import { assetsRouter } from "./routes/assets.js";
 import { authRouter } from "./routes/auth.js";
@@ -14,6 +15,7 @@ import { pf2Router } from "./routes/pf2.js";
 import { revealRouter } from "./routes/reveal.js";
 import { searchRouter } from "./routes/search.js";
 import { toolsRouter } from "./routes/tools.js";
+import { ensureIdentityIndexes } from "./repositories/identityRepository.js";
 import { startVaultWatcher } from "./services/fileWatchService.js";
 import { rebuildVaultIndex } from "./services/vaultService.js";
 import { sessionInfo } from "./services/sessionService.js";
@@ -62,6 +64,8 @@ function localIps() {
     .map((entry) => entry.address);
 }
 
+await connectMongo();
+await ensureIdentityIndexes();
 await rebuildVaultIndex();
 startVaultWatcher();
 
@@ -77,3 +81,10 @@ server.on("error", (error) => {
   }
   throw error;
 });
+
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.on(signal, async () => {
+    await closeMongo();
+    server.close(() => process.exit(0));
+  });
+}

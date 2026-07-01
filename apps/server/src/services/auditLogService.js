@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { getDb, mongoStatus } from "../db/mongo.js";
 import { logger } from "../utils/logger.js";
 import { readJson, writeJson } from "./jsonDb.js";
 
@@ -10,13 +11,28 @@ function requestIp(req) {
   return forwarded || req?.ip || req?.socket?.remoteAddress || "";
 }
 
+function actorId(input) {
+  return String(input.req?.user?._id || input.req?.user?.id || input.actorUserId || "") || null;
+}
+
+async function campaignIdFromInput(input) {
+  if (input.campaignId) return input.campaignId;
+  if (!input.req?.user || !mongoStatus().connected) return null;
+  try {
+    const { toPublicUser } = await import("./authStore.js");
+    const user = await toPublicUser(input.req.user);
+    return user?.activeCampaign?.id || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function logAuditEvent(input) {
   try {
-    const events = await readJson(AUDIT_FILE, []);
-    events.push({
-      id: crypto.randomUUID(),
+    const event = {
       createdAt: new Date().toISOString(),
-      actorUserId: input.req?.user?.id || input.actorUserId || null,
+      campaignId: await campaignIdFromInput(input),
+      actorUserId: actorId(input),
       actorEmail: input.req?.user?.email || input.actorEmail || "",
       actorRole: input.req?.user?.role || input.actorRole || "",
       action: input.action,
@@ -25,7 +41,15 @@ export async function logAuditEvent(input) {
       ip: requestIp(input.req),
       userAgent: String(input.req?.headers?.["user-agent"] || "").slice(0, 500),
       metadata: input.metadata || {}
-    });
+    };
+
+    if (mongoStatus().connected) {
+      await getDb().collection("auditLogs").insertOne(event);
+      return;
+    }
+
+    const events = await readJson(AUDIT_FILE, []);
+    events.push({ id: crypto.randomUUID(), ...event });
     await writeJson(AUDIT_FILE, events.slice(-MAX_EVENTS));
   } catch (error) {
     logger.error("Failed to write audit event", { action: input.action, error: error?.message || String(error) });
@@ -33,6 +57,11 @@ export async function logAuditEvent(input) {
 }
 
 export async function listAuditEvents(limit = 200) {
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 200, 1000));
+  if (mongoStatus().connected) {
+    const events = await getDb().collection("auditLogs").find({}).sort({ createdAt: -1 }).limit(safeLimit).toArray();
+    return events.map((event) => ({ ...event, id: String(event._id), _id: undefined }));
+  }
   const events = await readJson(AUDIT_FILE, []);
-  return events.slice(-Math.max(1, Math.min(Number(limit) || 200, 1000))).reverse();
+  return events.slice(-safeLimit).reverse();
 }

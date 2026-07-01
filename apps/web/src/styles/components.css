@@ -1870,13 +1870,17 @@ textarea { min-height: 96px; resize: vertical; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
+  min-width: 38px;
+  width: auto;
   height: 38px;
+  padding: 0 10px;
+  gap: 6px;
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--gold);
   background: rgba(227, 182, 95, 0.08);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .map2-filters {
@@ -1911,11 +1915,13 @@ textarea { min-height: 96px; resize: vertical; }
   grid-template-columns: minmax(0, 1fr) 260px;
   gap: 14px;
   align-items: stretch;
+  min-width: 0;
 }
 
 .map2-stage {
   position: relative;
   min-height: 560px;
+  min-width: 0;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1982,6 +1988,8 @@ textarea { min-height: 96px; resize: vertical; }
   font-size: 0.78rem;
   font-weight: 900;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
 }
 
@@ -2009,6 +2017,7 @@ textarea { min-height: 96px; resize: vertical; }
   backdrop-filter: blur(16px);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.36), 0 0 20px color-mix(in srgb, var(--object-color, var(--green)) 20%, transparent);
   pointer-events: none;
+  overflow-wrap: anywhere;
 }
 
 .map2-tooltip span,
@@ -2030,6 +2039,7 @@ textarea { min-height: 96px; resize: vertical; }
   border: 1px solid rgba(227, 182, 95, 0.14);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.18);
+  min-width: 0;
 }
 
 .map2-object-list h3 { margin: 2px 0 0; color: var(--gold); }
@@ -2038,6 +2048,7 @@ textarea { min-height: 96px; resize: vertical; }
   display: flex;
   align-items: flex-start;
   gap: 9px;
+  min-width: 0;
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--object-color, var(--green)) 28%, transparent);
   border-radius: 8px;
@@ -2051,7 +2062,10 @@ textarea { min-height: 96px; resize: vertical; }
 
 .map2-object-list svg { color: var(--object-color, var(--green)); flex: 0 0 auto; margin-top: 2px; }
 .map2-object-list span { display: grid; gap: 2px; }
-.map2-object-list strong { color: var(--text); }
+.map2-object-list strong {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
 .map2-object-list em { color: var(--muted); font-style: normal; font-size: 0.82rem; }
 
 @media (max-width: 1000px) {
@@ -5107,6 +5121,7 @@ textarea { min-height: 96px; resize: vertical; }
   justify-content: space-between;
   gap: 16px;
   align-items: flex-start;
+  min-width: 0;
 }
 
 .maps2-active-header h2,
@@ -5129,11 +5144,13 @@ textarea { min-height: 96px; resize: vertical; }
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+  min-width: min(360px, 100%);
 }
 
 .maps2-preview-toggle {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   min-height: 40px;
   padding: 9px 12px;
@@ -5142,6 +5159,7 @@ textarea { min-height: 96px; resize: vertical; }
   color: var(--text);
   background: rgba(0, 0, 0, 0.2);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .maps2-preview-toggle.active {
@@ -5217,6 +5235,10 @@ textarea { min-height: 96px; resize: vertical; }
   text-decoration: none;
   background: rgba(7, 8, 14, 0.72);
   backdrop-filter: blur(10px);
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .maps2-card-link:hover {
@@ -5258,6 +5280,7 @@ textarea { min-height: 96px; resize: vertical; }
   background:
     radial-gradient(circle at 0% 0%, rgba(77, 212, 161, 0.12), transparent 34%),
     rgba(5, 10, 12, 0.72);
+  min-width: 0;
 }
 
 .map2-safety-strip strong,
@@ -5335,11 +5358,13 @@ textarea { min-height: 96px; resize: vertical; }
   align-items: center;
   color: var(--muted);
   font-size: 0.82rem;
+  min-width: 0;
 }
 
 .map2-mini-action {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   min-height: 34px;
   padding: 7px 10px;
@@ -5348,6 +5373,7 @@ textarea { min-height: 96px; resize: vertical; }
   color: var(--text);
   background: rgba(0, 0, 0, 0.18);
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .map2-mini-action:hover {
@@ -5370,6 +5396,7 @@ textarea { min-height: 96px; resize: vertical; }
   justify-content: space-between;
   gap: 10px;
   align-items: start;
+  min-width: 0;
 }
 
 .map2-list-header small {
@@ -5389,6 +5416,7 @@ textarea { min-height: 96px; resize: vertical; }
   background:
     radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--object-color, var(--green)) 14%, transparent), transparent 38%),
     rgba(0, 0, 0, 0.22);
+  min-width: 0;
 }
 
 .map2-focus-card > span {
@@ -5401,6 +5429,7 @@ textarea { min-height: 96px; resize: vertical; }
 .map2-focus-card strong {
   color: var(--text);
   font-family: var(--display);
+  overflow-wrap: anywhere;
 }
 
 .map2-focus-card p {
@@ -5533,6 +5562,7 @@ textarea { min-height: 96px; resize: vertical; }
   color: var(--text);
   padding: 10px 12px;
   outline: none;
+  min-width: 0;
 }
 
 .map2-pin-builder-body textarea {
