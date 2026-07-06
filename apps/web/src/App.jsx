@@ -31,7 +31,7 @@ import AdminPlaceholderPage from "./pages/AdminPlaceholderPage.jsx";
 import GmHomePage from "./pages/GmHomePage.jsx";
 import PlayerHomePage from "./pages/PlayerHomePage.jsx";
 import SimplePlaceholderPage from "./pages/SimplePlaceholderPage.jsx";
-import PlayersPage from "./pages/PlayersPage.jsx";
+import PlayersPage from "./pages/PlayersPageV2.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import InviteAcceptPage from "./pages/InviteAcceptPage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
