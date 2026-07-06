@@ -16,11 +16,11 @@ function entityId(entity) {
 }
 
 function activeCampaignId(session) {
-  return entityId(session?.activeCampaign) || session?.activeMembership?.campaignId || session?.membership?.campaignId || "";
+  return entityId(session?.activeCampaign) || session?.activeMembership?.campaignId || "";
 }
 
 function roleFromSession(session) {
-  return String(session?.activeMembership?.role || session?.membership?.role || session?.role || "player").toLowerCase();
+  return String(session?.activeMembership?.role || "player").toLowerCase();
 }
 
 function canManagePlayers(session) {
@@ -124,10 +124,10 @@ export default function PlayersPage({ session }) {
                   {membersState.memberships.map((member) => (
                     <li key={member.id || `${member.userId}-${member.role}`}>
                       <strong>{member.displayName || member.email || "Campaign member"}</strong>
-                      {member.email ? <span> · {member.email}</span> : null}
-                      <span> · {member.role || "player"}</span>
-                      <span> · {member.status || "active"}</span>
-                      <small> · Joined: {formatDate(member.joinedAt || member.createdAt)}</small>
+                      {member.email ? <span> Â· {member.email}</span> : null}
+                      <span> Â· {member.role || "player"}</span>
+                      <span> Â· {member.status || "active"}</span>
+                      <small> Â· Joined: {formatDate(member.joinedAt || member.createdAt)}</small>
                     </li>
                   ))}
                 </ul>
@@ -144,9 +144,9 @@ export default function PlayersPage({ session }) {
                   {invitesState.invitations.map((invitation) => (
                     <li key={invitation.id || invitation.email}>
                       <strong>{invitation.email}</strong>
-                      <span> · {invitation.role || "player"}</span>
-                      <span> · {invitation.status || "pending"}</span>
-                      <small> · Expires: {formatDate(invitation.expiresAt)}</small>
+                      <span> Â· {invitation.role || "player"}</span>
+                      <span> Â· {invitation.status || "pending"}</span>
+                      <small> Â· Expires: {formatDate(invitation.expiresAt)}</small>
                     </li>
                   ))}
                 </ul>
