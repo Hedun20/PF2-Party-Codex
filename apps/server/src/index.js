@@ -17,6 +17,7 @@ import { importRouter } from "./routes/import.js";
 import { invitationsRouter, membershipsRouter } from "./routes/memberships.js";
 import { healthRouter } from "./routes/health.js";
 import { notesRouter } from "./routes/notes.js";
+import { onboardingRouter } from "./routes/onboarding.js";
 import { worldSystemsRouter } from "./routes/worldSystems.js";
 import { pagesRouter } from "./routes/pages.js";
 import { pf2Router } from "./routes/pf2.js";
@@ -54,6 +55,7 @@ app.get("/api/session", async (req, res, next) => {
 
 app.use("/api", healthRouter);
 app.use("/api", authRouter);
+app.use("/api", onboardingRouter);
 app.use("/api", membershipsRouter);
 app.use("/api", invitationsRouter);
 app.use("/api", notesRouter);
