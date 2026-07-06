@@ -15,7 +15,7 @@ function roleLabel(role, signedIn) {
   return signedIn ? "No campaign" : "Guest";
 }
 
-export default function CodexTopbar({ mode, session, pages, allPages, query, setQuery, onSelectPage, sidebarOpen, setSidebarOpen, activeWorld, worldTheme, onLogout }) {
+export default function CodexTopbar({ session, pages, allPages, query, setQuery, onSelectPage, sidebarOpen, setSidebarOpen, activeWorld, worldTheme, onLogout }) {
   const navigate = useNavigate();
   const hasMembership = Boolean(session?.activeMembership?.id);
   const signedIn = Boolean(session?.user);
@@ -27,7 +27,6 @@ export default function CodexTopbar({ mode, session, pages, allPages, query, set
   const publicCount = visiblePages.filter((page) => page.visibility === "public").length;
   const role = activeRole(session);
   const canManage = hasMembership && (role === "owner" || role === "gm");
-  const isGm = canManage && mode === "gm";
 
   function changeWorld(event) {
     const value = event.target.value;
@@ -55,7 +54,7 @@ export default function CodexTopbar({ mode, session, pages, allPages, query, set
           <CommandSearch pages={visiblePages} query={query} setQuery={setQuery} onSelectPage={onSelectPage} />
           <div className="top-quick-actions">
             <Link to="/notes" title="Quick note"><NotebookPen size={16} /> <span>Note</span></Link>
-            {isGm && <Link to={activeWorld ? `/editor?world=${encodeURIComponent(activeWorld.title)}` : "/editor"} title="Quick create"><PenLine size={16} /> <span>Create</span></Link>}
+            {canManage && <Link to={activeWorld ? `/editor?world=${encodeURIComponent(activeWorld.title)}` : "/editor"} title="Quick create"><PenLine size={16} /> <span>Create</span></Link>}
           </div>
         </>
       ) : (
