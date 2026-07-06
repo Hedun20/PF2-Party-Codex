@@ -1,6 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
 import CommandSearch from "./CommandSearch.jsx";
-import ModeToggle from "./ModeToggle.jsx";
 import WorldAmbienceControl from "./world/WorldAmbienceControl.jsx";
 import { Archive, LogIn, LogOut, Menu, NotebookPen, PenLine, UserRound } from "lucide-react";
 import { getWorlds, worldRoute, worldSlug } from "../utils/worldContext.js";
@@ -9,7 +8,14 @@ function activeRole(session) {
   return String(session?.activeMembership?.role || "").toLowerCase();
 }
 
-export default function CodexTopbar({ mode, setMode, session, pages, allPages, query, setQuery, onSelectPage, sidebarOpen, setSidebarOpen, activeWorld, worldTheme, onLogout }) {
+function roleLabel(role, signedIn) {
+  if (role === "owner") return "Owner";
+  if (role === "gm") return "GM";
+  if (role === "player") return "Player";
+  return signedIn ? "No campaign" : "Guest";
+}
+
+export default function CodexTopbar({ mode, session, pages, allPages, query, setQuery, onSelectPage, sidebarOpen, setSidebarOpen, activeWorld, worldTheme, onLogout }) {
   const navigate = useNavigate();
   const hasMembership = Boolean(session?.activeMembership?.id);
   const signedIn = Boolean(session?.user);
@@ -19,7 +25,7 @@ export default function CodexTopbar({ mode, setMode, session, pages, allPages, q
   const worlds = getWorlds(sourcePages);
   const worldCount = worlds.length;
   const publicCount = visiblePages.filter((page) => page.visibility === "public").length;
-  const role = activeRole(session) || (signedIn ? "user" : "guest");
+  const role = activeRole(session);
   const canManage = hasMembership && (role === "owner" || role === "gm");
   const isGm = canManage && mode === "gm";
 
@@ -63,7 +69,7 @@ export default function CodexTopbar({ mode, setMode, session, pages, allPages, q
         {campaignNavAvailable ? <span><strong>{worldCount}</strong> worlds</span> : null}
         {campaignNavAvailable ? <span><strong>{publicCount}</strong> public</span> : null}
         <span>{campaignNavAvailable ? activeWorld ? activeWorld.title : "Archive" : "Onboarding"}</span>
-        <span>{isGm ? "GM" : role === "owner" ? "Owner" : role === "user" ? "No campaign" : "Player"}</span>
+        <span>{roleLabel(role, signedIn)}</span>
       </div>
       <Link to="/profile" className="auth-chip auth-chip-link">
         <UserRound size={16} />
@@ -74,7 +80,6 @@ export default function CodexTopbar({ mode, setMode, session, pages, allPages, q
       ) : (
         <Link className="topbar-auth-button" to="/login" title="Log in"><LogIn size={16} /></Link>
       )}
-      <ModeToggle mode={mode} setMode={setMode} canEdit={canManage} />
     </header>
   );
 }
