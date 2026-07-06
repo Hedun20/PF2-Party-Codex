@@ -75,7 +75,7 @@ function canManageCampaign(session) {
 
 export default function App() {
   const [session, setSession] = useState({ mode: "player", canEdit: false, user: null, activeMembership: null, activeCampaign: null, activeWorkspace: null });
-  const [mode, setMode] = useState(localStorage.getItem("codex-mode") || "gm");
+  const [mode, setMode] = useState("gm");
   const [pages, setPages] = useState([]);
   const [categories, setCategories] = useState([]);
   const [query, setQuery] = useState("");
@@ -119,6 +119,7 @@ export default function App() {
 
   const handleAuth = async () => {
     const nextSession = await loadSession();
+    if (canManageCampaign(nextSession)) setMode("gm");
     await refresh(nextSession);
     navigate("/");
   };
