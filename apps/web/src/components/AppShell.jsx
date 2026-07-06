@@ -27,7 +27,7 @@ const playerLinks = [
 ];
 
 function hasCampaignMembership(session) {
-  return Boolean(session?.activeMembership?.id || session?.membership?.id);
+  return Boolean(session?.activeMembership?.id);
 }
 
 function PortalLink({ to, children }) {
