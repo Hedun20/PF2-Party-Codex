@@ -73,8 +73,9 @@ function NavItem({ to, icon: Icon, label, onClose, className = "" }) {
   );
 }
 
-export default function CodexSidebar({ onClose, canEdit = false, activeWorld = null }) {
+export default function CodexSidebar({ onClose, canEdit = false, activeWorld = null, signedIn = false, hasCampaignMembership = true }) {
   const brandTarget = activeWorld ? worldRoute(activeWorld) : "/";
+  const showOnboardingNav = signedIn && !hasCampaignMembership;
 
   return (
     <aside className="sidebar sidebar-v2">
@@ -88,7 +89,7 @@ export default function CodexSidebar({ onClose, canEdit = false, activeWorld = n
         </button>
       </div>
 
-      {activeWorld && (
+      {activeWorld && !showOnboardingNav && (
         <div className="sidebar-world-card">
           <span className="kicker">Active world</span>
           <strong>{activeWorld.title}</strong>
@@ -98,7 +99,17 @@ export default function CodexSidebar({ onClose, canEdit = false, activeWorld = n
       )}
 
       <nav className="nav-stack nav-stack-v2" aria-label="Main navigation">
-        {canEdit ? (
+        {showOnboardingNav ? (
+          <>
+            <NavGroup title="Account setup">
+              <NavItem to="/" icon={Sparkles} label="Start or join campaign" onClose={onClose} />
+              <NavItem to="/profile" icon={UserRound} label="Profile" onClose={onClose} />
+            </NavGroup>
+            <NavGroup title="Help">
+              <NavItem to="/guide" icon={BookOpen} label="Guide" onClose={onClose} />
+            </NavGroup>
+          </>
+        ) : canEdit ? (
           <>
             <NavGroup title="GM Workspace">
               <NavItem to="/" icon={Home} label="Dashboard" onClose={onClose} />
@@ -143,13 +154,15 @@ export default function CodexSidebar({ onClose, canEdit = false, activeWorld = n
           </>
         )}
 
-        <NavGroup title="Help">
-          <NavItem to="/guide" icon={BookOpen} label="Guide" onClose={onClose} />
-          {canEdit && <NavItem to="/player-safety" icon={ShieldAlert} label="Player Safety" onClose={onClose} />}
-          {canEdit && <NavItem to="/health" icon={ShieldCheck} label="Vault Control" onClose={onClose} />}
-          {canEdit && <NavItem to="/foundry" icon={Hammer} label="Foundry Import/Export" onClose={onClose} />}
-          {canEdit && <NavItem to="/missing" icon={FileQuestion} label="Missing Articles" onClose={onClose} />}
-        </NavGroup>
+        {!showOnboardingNav && (
+          <NavGroup title="Help">
+            <NavItem to="/guide" icon={BookOpen} label="Guide" onClose={onClose} />
+            {canEdit && <NavItem to="/player-safety" icon={ShieldAlert} label="Player Safety" onClose={onClose} />}
+            {canEdit && <NavItem to="/health" icon={ShieldCheck} label="Vault Control" onClose={onClose} />}
+            {canEdit && <NavItem to="/foundry" icon={Hammer} label="Foundry Import/Export" onClose={onClose} />}
+            {canEdit && <NavItem to="/missing" icon={FileQuestion} label="Missing Articles" onClose={onClose} />}
+          </NavGroup>
+        )}
       </nav>
     </aside>
   );
