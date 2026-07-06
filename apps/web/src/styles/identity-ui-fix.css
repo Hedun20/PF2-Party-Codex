@@ -1,0 +1,201 @@
+/* Identity / Onboarding v2 visual cleanup.
+   Keep route gating in App.jsx, but do not render the experimental portal navigation
+   as a second dashboard menu. Sidebar and topbar are the single navigation surface. */
+.portal-shell {
+  display: contents;
+}
+
+.portal-nav {
+  display: none !important;
+}
+
+.portal-content {
+  display: contents;
+}
+
+/* Stable card rhythm for the SaaS-ready workspace screens. */
+.workspace-grid,
+.settings-grid,
+.archive-summary-grid,
+.archive-recent-grid {
+  display: grid;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.workspace-grid,
+.settings-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.archive-summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.archive-recent-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.workspace-card.codex-card,
+.workspace-status-card.codex-card,
+.archive-count-card.codex-card,
+.archive-recent-card.codex-card,
+.notes-linked-card,
+.status-message {
+  box-sizing: border-box;
+}
+
+.workspace-card.codex-card,
+.workspace-status-card.codex-card,
+.archive-count-card.codex-card,
+.archive-recent-card.codex-card {
+  min-width: 0;
+  padding: 20px 22px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.workspace-card.codex-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  min-height: 132px;
+}
+
+.workspace-card.codex-card > svg,
+.workspace-status-card.codex-card > svg,
+.archive-count-card.codex-card > svg,
+.archive-recent-card.codex-card > svg {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  color: var(--gold);
+  filter: drop-shadow(0 0 14px rgba(227, 182, 95, 0.22));
+}
+
+.workspace-card.codex-card > div,
+.workspace-card.codex-card > span,
+.workspace-status-card.codex-card > div,
+.archive-recent-card.codex-card > div {
+  min-width: 0;
+}
+
+.workspace-card.codex-card strong,
+.archive-count-card.codex-card strong,
+.archive-recent-card.codex-card strong {
+  display: block;
+  margin: 0 0 6px;
+  color: var(--text);
+  font-family: var(--display);
+  font-size: 1.12rem;
+  line-height: 1.16;
+}
+
+.workspace-card.codex-card span,
+.workspace-status-card.codex-card p,
+.archive-recent-card.codex-card p,
+.archive-recent-card.codex-card li,
+.archive-count-card.codex-card span {
+  color: var(--muted);
+  line-height: 1.48;
+}
+
+.workspace-status-card.codex-card {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+}
+
+.workspace-status-card.codex-card:has(> svg) {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.workspace-status-card.codex-card:has(> svg) .kicker,
+.workspace-status-card.codex-card:has(> svg) h2,
+.workspace-status-card.codex-card:has(> svg) p,
+.workspace-status-card.codex-card:has(> svg) form,
+.workspace-status-card.codex-card:has(> svg) .status-message,
+.workspace-status-card.codex-card:has(> svg) .notes-linked-card {
+  grid-column: 2;
+}
+
+.workspace-status-card.codex-card:has(> svg) > svg {
+  grid-row: 1 / span 3;
+}
+
+.workspace-status-card.codex-card p,
+.archive-recent-card.codex-card p {
+  margin: 0;
+}
+
+.archive-count-card.codex-card {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 118px;
+}
+
+.archive-count-card.codex-card strong {
+  margin: 0;
+  color: var(--gold);
+  font-size: 2rem;
+}
+
+.archive-recent-card.codex-card ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.archive-recent-card.codex-card li {
+  padding: 10px 12px;
+  border: 1px solid rgba(227, 182, 95, 0.12);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.workspace-identity-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.workspace-identity-strip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid rgba(227, 182, 95, 0.18);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+@media (max-width: 700px) {
+  .workspace-card.codex-card,
+  .workspace-status-card.codex-card,
+  .archive-count-card.codex-card,
+  .archive-recent-card.codex-card {
+    padding: 16px;
+  }
+
+  .workspace-card.codex-card,
+  .workspace-status-card.codex-card:has(> svg) {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-status-card.codex-card:has(> svg) .kicker,
+  .workspace-status-card.codex-card:has(> svg) h2,
+  .workspace-status-card.codex-card:has(> svg) p,
+  .workspace-status-card.codex-card:has(> svg) form,
+  .workspace-status-card.codex-card:has(> svg) .status-message,
+  .workspace-status-card.codex-card:has(> svg) .notes-linked-card {
+    grid-column: 1;
+  }
+}
