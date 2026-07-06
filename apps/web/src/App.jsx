@@ -125,6 +125,7 @@ export default function App() {
 
   const handleOnboardingCreated = async () => {
     const nextSession = await loadSession();
+    if (canManageCampaign(nextSession)) setMode("gm");
     await refresh(nextSession);
     navigate("/");
   };
