@@ -483,6 +483,10 @@ export async function mongoUpdateUser(id, patch) {
   return mongoFindUserById(objectId.toString());
 }
 
+export async function bootstrapMembershipForNewUser(_user) {
+  return { workspace: null, campaign: null, membership: null, userOnly: true };
+}
+
 export async function bootstrapLocalDevWorkspaceForUser(user) {
   const campaignsCount = await campaigns().countDocuments();
   const userId = idString(user._id);
