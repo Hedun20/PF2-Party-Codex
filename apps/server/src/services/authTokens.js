@@ -1,17 +1,15 @@
 import crypto from "crypto";
+import { config } from "../config.js";
 
 const SESSION_TTL_MS = Number(process.env.AUTH_SESSION_TTL_MS || 1000 * 60 * 60 * 24 * 14);
 
-function secret() {
-  return process.env.AUTH_SECRET || "pf2-party-codex-local-dev-secret";
-}
 
 function b64url(input) {
   return Buffer.from(input).toString("base64url");
 }
 
 function sign(payload) {
-  return crypto.createHmac("sha256", secret()).update(payload).digest("base64url");
+  return crypto.createHmac("sha256", config.authSecret).update(payload).digest("base64url");
 }
 
 export function createSessionToken(user) {

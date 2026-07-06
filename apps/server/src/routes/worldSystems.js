@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { logAuditEvent } from "../services/auditLogService.js";
+import { identityContextForCampaign } from "../repositories/identityRepository.js";
 import { toPublicUser } from "../services/authStore.js";
 import {
   createCampaignSession,
@@ -45,18 +46,37 @@ async function currentContext(req) {
     error.status = 401;
     throw error;
   }
+
   const user = await toPublicUser(req.user);
-  const campaignId = req.query.campaignId || req.body?.campaignId || user?.activeCampaign?.id || user?.membership?.campaignId || "";
-  if (!campaignId || !user?.membership?.id) {
+  const requestedCampaignId = req.query.campaignId || req.body?.campaignId || "";
+  const campaignId = requestedCampaignId || user?.activeCampaign?.id || user?.activeMembership?.campaignId || user?.membership?.campaignId || "";
+  if (!campaignId) {
     const error = new Error("No active campaign membership found for this user.");
     error.status = 403;
     throw error;
   }
+
+  const campaignContext = await identityContextForCampaign(req.user, campaignId);
+  if (!campaignContext.activeMembership?.id) {
+    const error = new Error("No active membership found for the requested campaign.");
+    error.status = 403;
+    throw error;
+  }
+
   return {
-    user,
+    user: {
+      ...user,
+      activeWorkspace: campaignContext.activeWorkspace,
+      activeCampaign: campaignContext.activeCampaign,
+      activeMembership: campaignContext.activeMembership,
+      membership: campaignContext.membership,
+      role: campaignContext.role || "player"
+    },
     userId: user.id,
-    campaignId,
-    role: user.role || "player"
+    workspaceId: campaignContext.activeWorkspace?.id || campaignContext.activeMembership?.workspaceId || "",
+    campaignId: campaignContext.activeCampaign?.id || campaignId,
+    membershipId: campaignContext.activeMembership.id,
+    role: campaignContext.role || "player"
   };
 }
 

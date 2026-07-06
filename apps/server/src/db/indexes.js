@@ -1,8 +1,12 @@
 export const plannedIndexes = [
   { collection: "users", keys: { email: 1 }, options: { unique: true } },
   { collection: "profiles", keys: { userId: 1 }, options: { unique: true } },
+  { collection: "workspaces", keys: { ownerUserId: 1, status: 1 } },
+  { collection: "workspaces", keys: { name: 1 } },
+  { collection: "campaigns", keys: { workspaceId: 1, ownerUserId: 1 } },
   { collection: "campaigns", keys: { ownerUserId: 1, name: 1 } },
   { collection: "memberships", keys: { campaignId: 1, userId: 1 }, options: { unique: true } },
+  { collection: "memberships", keys: { workspaceId: 1, campaignId: 1, userId: 1 } },
   { collection: "memberships", keys: { userId: 1, status: 1 } },
   { collection: "entries", keys: { campaignId: 1, slug: 1 }, options: { unique: true } },
   { collection: "entries", keys: { campaignId: 1, type: 1, visibility: 1 } },

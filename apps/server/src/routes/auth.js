@@ -1,10 +1,18 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import { createUser, findUserByEmail, toPublicUser, verifyEmailToken, verifyPassword } from "../services/authStore.js";
 import { createSessionToken } from "../services/authTokens.js";
 import { sendEmail, verifyEmailTemplate } from "../services/emailService.js";
 import { logAuditEvent } from "../services/auditLogService.js";
 
 export const authRouter = Router();
+const authAttemptLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many auth attempts. Please try again later." }
+});
 
 function publicBase(req) {
   const configured = String(process.env.PUBLIC_APP_URL || "").replace(/\/$/, "");
@@ -17,27 +25,29 @@ async function tokenResponse(user) {
   const publicUser = await toPublicUser(user);
   return {
     user: publicUser,
+    activeWorkspace: publicUser?.activeWorkspace || null,
     activeCampaign: publicUser?.activeCampaign || null,
-    membership: publicUser?.membership || null,
+    activeMembership: publicUser?.activeMembership || publicUser?.membership || null,
+    membership: publicUser?.membership || publicUser?.activeMembership || null,
     role: publicUser?.role || "player",
     token: createSessionToken(publicUser)
   };
 }
 
-authRouter.post("/auth/register", async (req, res, next) => {
+authRouter.post("/auth/register", authAttemptLimiter, async (req, res, next) => {
   try {
     const created = await createUser(req.body || {});
     const verifyUrl = `${publicBase(req)}/api/auth/verify-email?token=${encodeURIComponent(created.verifyToken)}`;
     const email = verifyEmailTemplate({ verifyUrl, name: created.user.name });
     await sendEmail({ to: created.user.email, subject: "Confirm your PF2 Party Codex email", ...email });
     await logAuditEvent({ req, actorUserId: created.user.id, actorEmail: created.user.email, actorRole: created.user.role, campaignId: created.user.activeCampaign?.id, action: "auth.register", entityType: "user", entityId: created.user.id });
-    res.status(201).json({ user: created.user, activeCampaign: created.user.activeCampaign || null, membership: created.user.membership || null, role: created.user.role, verificationSent: true, devVerifyUrl: process.env.NODE_ENV === "production" ? undefined : verifyUrl });
+    res.status(201).json({ user: created.user, activeWorkspace: created.user.activeWorkspace || null, activeCampaign: created.user.activeCampaign || null, activeMembership: created.user.activeMembership || created.user.membership || null, membership: created.user.membership || created.user.activeMembership || null, role: created.user.role, verificationSent: true, devVerifyUrl: process.env.NODE_ENV === "production" ? undefined : verifyUrl });
   } catch (error) {
     next(error);
   }
 });
 
-authRouter.post("/auth/login", async (req, res, next) => {
+authRouter.post("/auth/login", authAttemptLimiter, async (req, res, next) => {
   try {
     const email = String(req.body?.email || "").trim().toLowerCase();
     const password = String(req.body?.password || "");
@@ -67,7 +77,7 @@ authRouter.post("/auth/logout", async (req, res) => {
 authRouter.get("/auth/me", async (req, res, next) => {
   try {
     const user = await toPublicUser(req.user);
-    res.json({ user, activeCampaign: user?.activeCampaign || null, membership: user?.membership || null, role: user?.role || "player" });
+    res.json({ user, activeWorkspace: user?.activeWorkspace || null, activeCampaign: user?.activeCampaign || null, activeMembership: user?.activeMembership || user?.membership || null, membership: user?.membership || user?.activeMembership || null, role: user?.role || "player" });
   } catch (error) {
     next(error);
   }

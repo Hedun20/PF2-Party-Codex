@@ -50,8 +50,11 @@ export async function ensureCharactersIndexes() {
   ];
 }
 
-export function serializeCharacter(character, { includeRawImport = false } = {}) {
+export function serializeCharacter(character, { includeRawImport = false, userId = "", role = "player" } = {}) {
   if (!character) return null;
+  const isOwner = userId && idString(character.ownerUserId) === idString(userId);
+  const isGm = role === "owner" || role === "gm";
+  const text = character.text || {};
   return {
     id: idString(character._id),
     campaignId: idString(character.campaignId),
@@ -64,12 +67,16 @@ export function serializeCharacter(character, { includeRawImport = false } = {})
     magic: character.magic || {},
     progression: character.progression || {},
     inventory: character.inventory || {},
-    text: character.text || {},
+    text: {
+      publicSummary: text.publicSummary || "",
+      ...(isOwner || isGm ? { privateNotes: text.privateNotes || "", buildNotes: text.buildNotes || "" } : {}),
+      ...(isGm ? { gmNotes: text.gmNotes || "" } : {})
+    },
     links: character.links || {},
     visibility: character.visibility || { visibleToParty: false, sharedWithGm: true },
     createdAt: character.createdAt,
     updatedAt: character.updatedAt,
-    ...(includeRawImport ? { rawImport: character.rawImport || {} } : {})
+    ...(includeRawImport && (isOwner || isGm) ? { rawImport: character.rawImport || {} } : {})
   };
 }
 
@@ -95,16 +102,16 @@ function documentFromNormalized({ campaignId, ownerUserId, normalized }) {
   };
 }
 
-export async function createManualCharacter({ campaignId, ownerUserId, input = {} }) {
+export async function createManualCharacter({ campaignId, ownerUserId, input = {}, role = "player" }) {
   const character = documentFromNormalized({ campaignId, ownerUserId, normalized: normalizeManualCharacter(input) });
   const result = await characters().insertOne(character);
-  return serializeCharacter({ ...character, _id: result.insertedId });
+  return serializeCharacter({ ...character, _id: result.insertedId }, { userId: ownerUserId, role });
 }
 
-export async function createImportedCharacter({ campaignId, ownerUserId, normalized }) {
+export async function createImportedCharacter({ campaignId, ownerUserId, normalized, role = "player" }) {
   const character = documentFromNormalized({ campaignId, ownerUserId, normalized });
   const result = await characters().insertOne(character);
-  return serializeCharacter({ ...character, _id: result.insertedId });
+  return serializeCharacter({ ...character, _id: result.insertedId }, { userId: ownerUserId, role });
 }
 
 export async function listCharactersForUser({ campaignId, userId, role = "player", scope = "mine" }) {
@@ -127,7 +134,7 @@ export async function listCharactersForUser({ campaignId, userId, role = "player
   }
 
   const result = await characters().find(query).sort({ updatedAt: -1, createdAt: -1 }).toArray();
-  return result.map((character) => serializeCharacter(character));
+  return result.map((character) => serializeCharacter(character, { userId, role }));
 }
 
 export async function findCharacterById(id) {
@@ -212,12 +219,12 @@ function normalizePatch(input = {}, existing = {}) {
   return patch;
 }
 
-export async function updateCharacter({ id, input }) {
+export async function updateCharacter({ id, input, userId = "", role = "player" }) {
   const existing = await findCharacterById(id);
   if (!existing) return null;
   const patch = normalizePatch(input, existing);
   await characters().updateOne({ _id: existing._id }, { $set: patch });
-  return serializeCharacter({ ...existing, ...patch });
+  return serializeCharacter({ ...existing, ...patch }, { userId, role });
 }
 
 export async function deleteCharacter(id) {

@@ -16,11 +16,14 @@ npm run dev
 Copy `.env.example` to `.env` when you want local environment overrides. MongoDB is optional in Stage 1:
 
 ```env
+AUTH_SECRET=replace-with-a-long-random-local-secret
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3050
 MONGO_URI=mongodb://127.0.0.1:27017
 MONGO_DB_NAME=pf2_party_codex
 ```
 
 Without `MONGO_URI`, the server starts in legacy Markdown/JSON mode and `/api/health/db` reports Mongo as unconfigured.
+`AUTH_SECRET` signs auth session tokens. Production refuses to start without it; local development prints a loud warning and uses a dev-only fallback if it is omitted. `ALLOWED_ORIGINS` is a comma-separated CORS allowlist and defaults locally to `http://localhost:5173,http://localhost:3050`.
 
 The backend listens on `0.0.0.0:3050` and prints:
 

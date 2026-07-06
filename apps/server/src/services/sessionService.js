@@ -56,8 +56,10 @@ export async function sessionInfo(req) {
     access: publicUser ? publicUser.role : bootstrapping ? "bootstrap-local-gm" : "player",
     host: requestHost(req),
     user: publicUser,
+    activeWorkspace: publicUser?.activeWorkspace || null,
     activeCampaign: publicUser?.activeCampaign || null,
-    membership: publicUser?.membership || null,
+    activeMembership: publicUser?.activeMembership || publicUser?.membership || null,
+    membership: publicUser?.membership || publicUser?.activeMembership || null,
     role: publicUser?.role || (bootstrapping ? "gm" : "player"),
     authRequiredForGm: await hasRegisteredUsers()
   };

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { ensureCodexIndexes, isMongoEntriesEnabled, listImportJobs, findImportJob } from "../repositories/entriesRepository.js";
+import { identityContextForCampaign } from "../repositories/identityRepository.js";
 import { toPublicUser } from "../services/authStore.js";
 import { requireGm } from "../services/sessionService.js";
 import { commitVaultImport, dryRunVaultImport, rollbackVaultImport } from "../services/vaultImportService.js";
@@ -9,11 +10,26 @@ export const importRouter = Router();
 
 async function gmContext(req) {
   const user = await toPublicUser(req.user);
+  const campaignId = req.body?.campaignId || req.query?.campaignId || user?.activeCampaign?.id || user?.activeMembership?.campaignId || user?.membership?.campaignId || "";
+  if (!campaignId) return { user, campaignId: "", actorUserId: user?.id || "", role: "player" };
+
+  const context = await identityContextForCampaign(req.user, campaignId);
+  if (!context.activeMembership?.id) {
+    const error = new Error("No active membership found for the requested campaign.");
+    error.status = 403;
+    throw error;
+  }
+  if (!["owner", "gm"].includes(context.role || "player")) {
+    const error = new Error("GM access required for the requested campaign.");
+    error.status = 403;
+    throw error;
+  }
+
   return {
     user,
-    campaignId: req.body?.campaignId || req.query?.campaignId || user?.activeCampaign?.id || user?.membership?.campaignId || "",
+    campaignId: context.activeCampaign?.id || campaignId,
     actorUserId: user?.id || "",
-    role: user?.role || "player"
+    role: context.role || "player"
   };
 }
 

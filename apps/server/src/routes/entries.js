@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { identityContextForCampaign } from "../repositories/identityRepository.js";
 import { toPublicUser } from "../services/authStore.js";
 import { listEntries, findEntryById, findEntryByPath, isMongoEntriesEnabled } from "../repositories/entriesRepository.js";
 
@@ -6,10 +7,20 @@ export const entriesRouter = Router();
 
 async function requestContext(req) {
   const user = await toPublicUser(req.user);
+  const campaignId = req.query.campaignId || user?.activeCampaign?.id || user?.activeMembership?.campaignId || user?.membership?.campaignId || "";
+  if (!campaignId) return { user, campaignId: "", role: "player" };
+
+  const context = await identityContextForCampaign(req.user, campaignId);
+  if (!context.activeMembership?.id) {
+    const error = new Error("No active membership found for the requested campaign.");
+    error.status = 403;
+    throw error;
+  }
+
   return {
     user,
-    campaignId: req.query.campaignId || user?.activeCampaign?.id || user?.membership?.campaignId || "",
-    role: user?.role || "player"
+    campaignId: context.activeCampaign?.id || campaignId,
+    role: context.role || "player"
   };
 }
 

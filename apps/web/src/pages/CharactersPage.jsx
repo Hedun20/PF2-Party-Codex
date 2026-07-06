@@ -1,296 +1,111 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { AlertCircle, BookOpen, Eye, EyeOff, Plus, ShieldCheck, Trash2, Upload, UserRound } from "lucide-react";
-import CodexButton from "../components/ui/CodexButton.jsx";
+import { ShieldCheck, UserRound } from "lucide-react";
 import { api } from "../api/client.js";
-import { usePlayerCharacters } from "../utils/playerCharacters.js";
-import { labelCategory } from "../utils/labels.js";
 
-const attributes = [["str", "STR"], ["dex", "DEX"], ["con", "CON"], ["int", "INT"], ["wis", "WIS"], ["cha", "CHA"]];
-
-const emptyOptions = {
-  meta: { sourceLabel: "PF2e options" },
-  ancestries: [],
-  heritages: [],
-  backgrounds: [],
-  classes: [],
-  skills: [],
-  feats: [],
-  alignments: [],
-  attributeOptions: [8, 10, 12, 14, 16, 18],
-  levels: Array.from({ length: 20 }, (_, index) => index + 1)
-};
-
-function pageLabel(page) {
-  return `${page.title} - ${labelCategory(page.category)}`;
+function valueOrDash(value) {
+  return value === undefined || value === null || value === "" ? "-" : value;
 }
 
-function numberValue(value, fallback = 0) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
+function characterName(character = {}) {
+  return character.identity?.name || character.name || "Unnamed character";
 }
 
-function optionName(options = [], id = "") {
-  return options.find((item) => item.id === id)?.name || id;
+function characterSubtitle(character = {}) {
+  const identity = character.identity || character;
+  return [identity.ancestry, identity.heritage, identity.background, identity.className ? `${identity.className}` : "", identity.level ? `Level ${identity.level}` : ""]
+    .filter(Boolean)
+    .join(" � ");
 }
 
-function shortClass(character, options) {
-  const ancestry = optionName(options.ancestries, character.ancestry) || character.ancestry;
-  const className = optionName(options.classes, character.className) || character.className;
-  return [ancestry, className].filter(Boolean).join(" - ") || "Class not selected";
+function firstNumber(...values) {
+  for (const value of values) {
+    const number = Number(value);
+    if (Number.isFinite(number)) return number;
+  }
+  return null;
 }
 
-function SelectField({ label, value, onChange, options = [], placeholder = "Select", disabled = false }) {
+function CharacterCard({ character, selected, onSelect }) {
+  const visibility = character.visibility || {};
   return (
-    <label>{label}
-      <select value={value || ""} onChange={(event) => onChange(event.target.value)} disabled={disabled}>
-        <option value="">{placeholder}</option>
-        {options.map((item) => <option key={item.id ?? item} value={item.id ?? item}>{item.name ?? item}</option>)}
-      </select>
-    </label>
+    <button type="button" className={selected ? "is-active" : ""} onClick={onSelect}>
+      <strong>{characterName(character)}</strong>
+      <span>{characterSubtitle(character) || "Character identity not filled yet"}</span>
+      <small>{visibility.visibleToParty ? "party visible" : "private"} � {visibility.sharedWithGm === false ? "not shared with GM" : "shared with GM"}</small>
+    </button>
   );
 }
 
-function MultiSelectField({ label, values = [], onChange, options = [] }) {
+function TextBlock({ label, value }) {
+  if (!value) return null;
   return (
-    <label>{label}
-      <select value="" onChange={(event) => {
-        const value = event.target.value;
-        if (!value) return;
-        if (!values.includes(value)) onChange([...values, value]);
-      }}>
-        <option value="">Add</option>
-        {options.filter((item) => !values.includes(item.id)).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-      </select>
-    </label>
-  );
-}
-
-function ChipList({ values = [], options = [], onRemove }) {
-  if (!values.length) return <p className="character-muted-line">Nothing selected yet.</p>;
-  return (
-    <div className="character-chip-list">
-      {values.map((value) => (
-        <button key={value} type="button" onClick={() => onRemove(value)} title="Remove">
-          {optionName(options, value)} x
-        </button>
-      ))}
+    <div>
+      <span className="kicker">{label}</span>
+      <p>{value}</p>
     </div>
   );
 }
 
-function ImportPanel({ onDryRun, onCommit, storageMode }) {
-  const [adapter, setAdapter] = useState("pathbuilder");
-  const [rawText, setRawText] = useState("");
-  const [filename, setFilename] = useState("");
-  const [preview, setPreview] = useState(null);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function loadFile(file) {
-    if (!file) return;
-    setFilename(file.name);
-    setRawText(await file.text());
-    setPreview(null);
-    setError("");
-  }
-
-  function parseJson() {
-    try {
-      return JSON.parse(rawText);
-    } catch {
-      throw new Error("JSON не читается. Проверь экспорт Pathbuilder/Foundry.");
-    }
-  }
-
-  async function runDryRun() {
-    setBusy(true);
-    setError("");
-    try {
-      const result = await onDryRun({ adapter, rawImport: parseJson(), originalFilename: filename });
-      setPreview(result.preview || null);
-    } catch (dryRunError) {
-      setError(dryRunError.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function runCommit() {
-    setBusy(true);
-    setError("");
-    try {
-      const result = await onCommit({ adapter, rawImport: parseJson(), originalFilename: filename });
-      setPreview(result.preview || null);
-      setRawText("");
-      setFilename("");
-    } catch (commitError) {
-      setError(commitError.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <section className="character-import-panel">
-      <div>
-        <span className="kicker">Character Sheet Hub</span>
-        <h2>Import JSON sheet</h2>
-        <p>Builder не делаем: Pathbuilder/Foundry остаются кузницей, Codex хранит импортированный снимок и показывает его красиво.</p>
-      </div>
-      <div className="character-import-grid">
-        <label>Source
-          <select value={adapter} onChange={(event) => { setAdapter(event.target.value); setPreview(null); }}>
-            <option value="pathbuilder">Pathbuilder JSON</option>
-            <option value="foundry">Foundry PF2e Actor JSON</option>
-          </select>
-        </label>
-        <label>JSON file
-          <input type="file" accept="application/json,.json" onChange={(event) => loadFile(event.target.files?.[0])} />
-        </label>
-      </div>
-      <textarea value={rawText} onChange={(event) => { setRawText(event.target.value); setPreview(null); }} placeholder="Или вставь JSON сюда..." />
-      {filename && <p className="character-muted-line">File: {filename}</p>}
-      {error && <div className="status-message danger-message"><AlertCircle size={16} /> {error}</div>}
-      {preview && (
-        <div className="character-import-preview">
-          <strong>{preview.name}</strong>
-          <span>Level {preview.level || 1} {preview.ancestry} {preview.className}</span>
-          {(preview.warnings || []).map((warning) => <small key={warning}>Warning: {warning}</small>)}
-        </div>
-      )}
-      <div className="character-import-actions">
-        <button type="button" onClick={runDryRun} disabled={!rawText || busy || storageMode !== "mongo"}>Dry-run preview</button>
-        <button type="button" onClick={runCommit} disabled={!rawText || busy || storageMode !== "mongo"}>Commit import</button>
-      </div>
-      {storageMode !== "mongo" && <p className="character-muted-line">Import requires Mongo workspace login. Browser fallback can still keep manual drafts.</p>}
-    </section>
-  );
-}
-
-export default function CharactersPage({ pages = [] }) {
-  const { characters, publicCharacters, addCharacter, updateCharacter, deleteCharacter, importCharacter, dryRunImport, storageMode, busy, error } = usePlayerCharacters();
-  const [selectedId, setSelectedId] = useState(characters[0]?.id || "");
-  const [options, setOptions] = useState(emptyOptions);
-  const [optionsSource, setOptionsSource] = useState("auto");
-  const [optionsError, setOptionsError] = useState("");
-  const [optionsBusy, setOptionsBusy] = useState(false);
-  const [savingId, setSavingId] = useState("");
-  const selected = characters.find((character) => character.id === selectedId) || characters[0] || null;
-  const sortedPages = useMemo(() => [...pages].sort((a, b) => a.title.localeCompare(b.title)), [pages]);
+export default function CharactersPage() {
+  const [state, setState] = useState({ loading: true, error: "", characters: [] });
+  const [selectedId, setSelectedId] = useState("");
 
   useEffect(() => {
-    setOptionsBusy(true);
-    setOptionsError("");
-    api.pf2Options(optionsSource)
-      .then((data) => setOptions({ ...emptyOptions, ...data }))
-      .catch((loadError) => setOptionsError(loadError.message))
-      .finally(() => setOptionsBusy(false));
-  }, [optionsSource]);
+    let active = true;
+    setState({ loading: true, error: "", characters: [] });
+    api.characters("mine")
+      .then((data) => {
+        if (!active) return;
+        setState({ loading: false, error: "", characters: Array.isArray(data.characters) ? data.characters : [] });
+      })
+      .catch((error) => {
+        if (!active) return;
+        setState({ loading: false, error: error.message || "Characters API failed.", characters: [] });
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
-    if (!selectedId && characters[0]?.id) setSelectedId(characters[0].id);
-    if (selectedId && !characters.some((character) => character.id === selectedId)) setSelectedId(characters[0]?.id || "");
-  }, [characters, selectedId]);
+    if (!selectedId && state.characters[0]?.id) setSelectedId(state.characters[0].id);
+    if (selectedId && !state.characters.some((character) => character.id === selectedId)) setSelectedId(state.characters[0]?.id || "");
+  }, [selectedId, state.characters]);
 
-  const heritageOptions = useMemo(() => {
-    if (!selected?.ancestry) return options.heritages;
-    return options.heritages.filter((heritage) => !heritage.ancestry || heritage.ancestry === selected.ancestry);
-  }, [options.heritages, selected?.ancestry]);
-
-  const featOptions = useMemo(() => {
-    const level = Number(selected?.level || 1);
-    return options.feats.filter((feat) => Number(feat.level || 1) <= level && (!feat.ancestry || feat.ancestry === selected?.ancestry));
-  }, [options.feats, selected?.level, selected?.ancestry]);
-
-  async function createCharacter() {
-    const character = await addCharacter({ name: "New character" });
-    setSelectedId(character.id);
-  }
-
-  async function patchField(field, value) {
-    if (!selected) return;
-    setSavingId(selected.id);
-    try {
-      await updateCharacter(selected.id, { [field]: value });
-    } finally {
-      setSavingId("");
-    }
-  }
-
-  async function patchNested(group, key, value) {
-    if (!selected) return;
-    await patchField(group, { ...selected[group], [key]: value });
-  }
-
-  async function toggleLinkedArticle(path) {
-    const current = selected.linkedArticles || [];
-    const next = current.includes(path) ? current.filter((item) => item !== path) : [...current, path];
-    await patchField("linkedArticles", next);
-  }
-
-  async function removeSelected() {
-    const next = characters.find((character) => character.id !== selected.id);
-    await deleteCharacter(selected.id);
-    setSelectedId(next?.id || "");
-  }
-
-  async function commitImport(input) {
-    const result = await importCharacter(input);
-    setSelectedId(result.character.id);
-    return result;
-  }
+  const selected = useMemo(() => state.characters.find((character) => character.id === selectedId) || state.characters[0] || null, [selectedId, state.characters]);
+  const identity = selected?.identity || {};
+  const stats = selected?.stats || {};
+  const saves = stats.saves || {};
+  const text = selected?.text || {};
+  const abilities = stats.abilities || {};
+  const hp = firstNumber(stats.currentHp, stats.hp);
+  const maxHp = firstNumber(stats.maxHp);
 
   return (
     <div className="page-stack characters-page">
       <header className="list-header characters-header">
         <span className="kicker">Player Workspace</span>
-        <h1>Characters</h1>
-        <p>Character Builder остаётся в roadmap. Сейчас это Character Sheet Hub: Mongo-хранилище, импорт JSON и красивый read-only dossier.</p>
+        <h1>My Character</h1>
+        <p>Read-only character identity and play reference from the campaign Mongo API. Character building and import are intentionally deferred.</p>
       </header>
 
-      <div className={`status-message ${storageMode === "mongo" ? "success-message" : "warning-message"}`}>
-        <span>{storageMode === "mongo" ? "Mongo character workspace" : "Browser draft fallback"}{busy ? " · loading..." : ""}</span>
-        {error && <small>{error}</small>}
-      </div>
-
-      <ImportPanel onDryRun={dryRunImport} onCommit={commitImport} storageMode={storageMode} />
-
-      <div className={`status-message pf2-source-strip ${options.meta?.fallback ? "warning-message" : ""}`}>
-        <span>PF2 source: {options.meta?.sourceLabel || "PF2e options"}{optionsBusy ? " - loading..." : ""}</span>
-        <div>
-          <button type="button" className={optionsSource === "auto" ? "active" : ""} onClick={() => setOptionsSource("auto")}>Auto</button>
-          <button type="button" className={optionsSource === "foundry" ? "active" : ""} onClick={() => setOptionsSource("foundry")}>Foundry</button>
-          <button type="button" className={optionsSource === "local" ? "active" : ""} onClick={() => setOptionsSource("local")}>Local</button>
-        </div>
-      </div>
-      {optionsError && <div className="status-message danger-message">PF2 API: {optionsError}</div>}
+      {state.loading ? <div className="status-message success-message"><span>Loading characters from Mongo...</span></div> : null}
+      {state.error ? <div className="status-message danger-message"><span>{state.error}</span></div> : null}
 
       <section className="characters-layout">
         <aside className="character-list-panel">
           <div className="notes-list-head">
             <div>
-              <span className="kicker">Party roster</span>
-              <h2>{characters.length} characters</h2>
+              <span className="kicker">My roster</span>
+              <h2>{state.characters.length} characters</h2>
             </div>
-            <button type="button" className="notes-icon-action" onClick={createCharacter} title="New character"><Plus size={18} /></button>
           </div>
           <div className="character-list">
-            {characters.map((character) => (
-              <button key={character.id} type="button" className={selected?.id === character.id ? "is-active" : ""} onClick={() => setSelectedId(character.id)}>
-                <strong>{character.name || "Unnamed"}</strong>
-                <span>{shortClass(character, options)} - level {character.level || 1}</span>
-                <small>{character.source?.type || "manual"} · {character.isVisibleToParty ? "visible to party" : "private draft"}</small>
-              </button>
+            {state.characters.map((character) => (
+              <CharacterCard key={character.id} character={character} selected={selected?.id === character.id} onSelect={() => setSelectedId(character.id)} />
             ))}
-            {!characters.length && <p className="empty-copy">No characters yet.</p>}
+            {!state.loading && !state.error && !state.characters.length ? <p className="empty-copy">No character has been added to this campaign yet.</p> : null}
           </div>
-          {publicCharacters.length > 0 && (
-            <div className="party-visible-box">
-              <span className="kicker">Visible to party</span>
-              {publicCharacters.map((character) => <strong key={character.id}>{character.name}</strong>)}
-            </div>
-          )}
         </aside>
 
         <section className="character-sheet-panel">
@@ -299,110 +114,53 @@ export default function CharactersPage({ pages = [] }) {
               <div className="character-sheet-head character-hero-sheet">
                 <UserRound size={34} />
                 <div>
-                  <span className="kicker">{selected.source?.type || options.meta?.sourceLabel || "Character dossier"}</span>
-                  <input value={selected.name} onChange={(event) => patchField("name", event.target.value)} />
-                  <p>{shortClass(selected, options)} · Level {selected.level || 1}</p>
+                  <span className="kicker">Character dossier</span>
+                  <h2>{characterName(selected)}</h2>
+                  <p>{characterSubtitle(selected) || "No character identity fields returned yet."}</p>
                 </div>
-                <button type="button" onClick={removeSelected} title="Delete character"><Trash2 size={18} /></button>
-              </div>
-
-              <div className="character-privacy-row">
-                <button type="button" className={selected.isSharedWithGm ? "active" : ""} onClick={() => patchField("isSharedWithGm", !selected.isSharedWithGm)}>
-                  <ShieldCheck size={16} /> {selected.isSharedWithGm ? "GM can view sheet" : "Hidden from GM"}
-                </button>
-                <button type="button" className={selected.isVisibleToParty ? "active" : ""} onClick={() => patchField("isVisibleToParty", !selected.isVisibleToParty)}>
-                  {selected.isVisibleToParty ? <Eye size={16} /> : <EyeOff size={16} />} {selected.isVisibleToParty ? "Party summary visible" : "Hidden from party"}
-                </button>
-              </div>
-
-              <div className="character-combat-strip">
-                <strong>AC {selected.defenses?.ac ?? 10}</strong>
-                <strong>HP {selected.defenses?.hp ?? 0}/{selected.defenses?.maxHp ?? 0}</strong>
-                <strong>Perception {selected.defenses?.perception ?? 0}</strong>
-                <span>Fort {selected.defenses?.fortitude ?? 0}</span>
-                <span>Ref {selected.defenses?.reflex ?? 0}</span>
-                <span>Will {selected.defenses?.will ?? 0}</span>
-              </div>
-
-              <div className="character-field-grid">
-                <label>Player<input value={selected.playerName || ""} onChange={(event) => patchField("playerName", event.target.value)} /></label>
-                <SelectField label="Class" value={selected.className} onChange={(value) => patchField("className", value)} options={options.classes} />
-                <SelectField label="Level" value={selected.level} onChange={(value) => patchField("level", numberValue(value, 1))} options={options.levels} />
-                <SelectField label="Ancestry" value={selected.ancestry} onChange={(value) => updateCharacter(selected.id, { ancestry: value, heritage: "" })} options={options.ancestries} />
-                <SelectField label="Heritage" value={selected.heritage} onChange={(value) => patchField("heritage", value)} options={heritageOptions} disabled={!selected.ancestry} />
-                <SelectField label="Background" value={selected.background} onChange={(value) => patchField("background", value)} options={options.backgrounds} />
-                <SelectField label="Alignment" value={selected.alignment} onChange={(value) => patchField("alignment", value)} options={options.alignments} />
-              </div>
-
-              <div className="character-score-grid">
-                {attributes.map(([key, label]) => (
-                  <SelectField key={key} label={label} value={selected.attributes?.[key] ?? 10} onChange={(value) => patchNested("attributes", key, numberValue(value, 10))} options={options.attributeOptions} />
-                ))}
               </div>
 
               <div className="character-field-grid compact">
-                <label>AC<input type="number" value={selected.defenses?.ac ?? 10} onChange={(event) => patchNested("defenses", "ac", numberValue(event.target.value, 10))} /></label>
-                <label>HP<input type="number" value={selected.defenses?.hp ?? 10} onChange={(event) => patchNested("defenses", "hp", numberValue(event.target.value, 10))} /></label>
-                <label>Max HP<input type="number" value={selected.defenses?.maxHp ?? 10} onChange={(event) => patchNested("defenses", "maxHp", numberValue(event.target.value, 10))} /></label>
-                <label>Perception<input type="number" value={selected.defenses?.perception ?? 0} onChange={(event) => patchNested("defenses", "perception", numberValue(event.target.value, 0))} /></label>
-                <label>Fort<input type="number" value={selected.defenses?.fortitude ?? 0} onChange={(event) => patchNested("defenses", "fortitude", numberValue(event.target.value, 0))} /></label>
-                <label>Ref<input type="number" value={selected.defenses?.reflex ?? 0} onChange={(event) => patchNested("defenses", "reflex", numberValue(event.target.value, 0))} /></label>
-                <label>Will<input type="number" value={selected.defenses?.will ?? 0} onChange={(event) => patchNested("defenses", "will", numberValue(event.target.value, 0))} /></label>
+                <label>Ancestry<input readOnly value={valueOrDash(identity.ancestry)} /></label>
+                <label>Heritage<input readOnly value={valueOrDash(identity.heritage)} /></label>
+                <label>Background<input readOnly value={valueOrDash(identity.background)} /></label>
+                <label>Class<input readOnly value={valueOrDash(identity.className)} /></label>
+                <label>Level<input readOnly value={valueOrDash(identity.level)} /></label>
+                <label>Speed<input readOnly value={valueOrDash(stats.speed)} /></label>
               </div>
 
-              {(selected.attacks?.length || selected.spells?.length) ? (
-                <section className="character-readonly-blocks">
-                  {!!selected.attacks?.length && <div><span className="kicker">Attacks</span>{selected.attacks.slice(0, 8).map((attack, index) => <p key={`${attack.name}-${index}`}><strong>{attack.name}</strong> {attack.bonus ? `+${attack.bonus}` : ""} {attack.damage || ""}</p>)}</div>}
-                  {!!selected.spells?.length && <div><span className="kicker">Spells</span>{selected.spells.slice(0, 12).map((spell, index) => <p key={`${spell.name}-${index}`}><strong>{spell.name}</strong> {spell.level !== "" ? `lvl ${spell.level}` : ""}</p>)}</div>}
-                </section>
-              ) : null}
-
-              <section className="character-picker-panel">
-                <div>
-                  <span className="kicker">PF2 API picks</span>
-                  <h2>Skills and feats</h2>
-                </div>
-                <div className="character-picker-grid">
-                  <div>
-                    <MultiSelectField label="Skills" values={selected.skillIds || []} onChange={(value) => patchField("skillIds", value)} options={options.skills} />
-                    <ChipList values={selected.skillIds || []} options={options.skills} onRemove={(value) => patchField("skillIds", (selected.skillIds || []).filter((item) => item !== value))} />
-                  </div>
-                  <div>
-                    <MultiSelectField label="Feats" values={selected.featIds || []} onChange={(value) => patchField("featIds", value)} options={featOptions} />
-                    <ChipList values={selected.featIds || []} options={options.feats} onRemove={(value) => patchField("featIds", (selected.featIds || []).filter((item) => item !== value))} />
-                  </div>
-                </div>
-              </section>
-
-              <div className="character-notes-grid">
-                <label className="character-text-field">Party summary<textarea value={selected.publicSummary || ""} onChange={(event) => patchField("publicSummary", event.target.value)} placeholder="What other players know about this character..." /></label>
-                <label className="character-text-field">Private notes<textarea value={selected.privateNotes || ""} onChange={(event) => patchField("privateNotes", event.target.value)} placeholder="Secrets, personal goal, build draft..." /></label>
-                <label className="character-text-field">Build notes<textarea value={selected.buildNotes || ""} onChange={(event) => patchField("buildNotes", event.target.value)} placeholder="Future feats, reminders, strategy..." /></label>
-                <label className="character-text-field">Inventory<textarea value={selected.inventoryText || ""} onChange={(event) => patchField("inventoryText", event.target.value)} placeholder="Weapons, armor, potions, important items..." /></label>
+              <div className="character-combat-strip">
+                <strong>AC {valueOrDash(stats.armorClass)}</strong>
+                <strong>HP {hp === null ? "-" : hp}{maxHp === null ? "" : `/${maxHp}`}</strong>
+                <strong>Perception {valueOrDash(stats.perception)}</strong>
+                <span>Fort {valueOrDash(saves.fortitude)}</span>
+                <span>Ref {valueOrDash(saves.reflex)}</span>
+                <span>Will {valueOrDash(saves.will)}</span>
               </div>
 
-              <section className="character-links-panel">
-                <div>
-                  <span className="kicker">Linked articles</span>
-                  <h2>Where this character appeared</h2>
-                </div>
-                <div className="character-link-list">
-                  {sortedPages.slice(0, 80).map((page) => (
-                    <button key={page.path} type="button" className={(selected.linkedArticles || []).includes(page.path) ? "active" : ""} onClick={() => toggleLinkedArticle(page.path)}>
-                      <BookOpen size={14} /> {pageLabel(page)}
-                    </button>
-                  ))}
-                </div>
+              <div className="character-score-grid">
+                {[["str", "STR"], ["dex", "DEX"], ["con", "CON"], ["int", "INT"], ["wis", "WIS"], ["cha", "CHA"]].map(([key, label]) => (
+                  <label key={key}>{label}<input readOnly value={valueOrDash(abilities[key])} /></label>
+                ))}
+              </div>
+
+              <section className="character-readonly-blocks">
+                <TextBlock label="Public summary" value={text.publicSummary} />
+                <TextBlock label="Private notes" value={text.privateNotes} />
+                <TextBlock label="Build notes" value={text.buildNotes} />
+                <TextBlock label="GM notes" value={text.gmNotes} />
               </section>
-              {savingId === selected.id && <p className="character-muted-line">Saving...</p>}
+
+              <div className="status-message success-message">
+                <ShieldCheck size={16} />
+                <span>Only fields returned by the backend are rendered. Raw imports and other players' private fields are not requested here.</span>
+              </div>
             </>
           ) : (
             <div className="notes-empty-editor character-empty-state">
               <UserRound size={38} />
-              <h2>Create the first character</h2>
-              <p>Manual drafts work in browser fallback. Mongo mode unlocks JSON import and campaign visibility.</p>
-              <CodexButton type="button" onClick={createCharacter}><Plus size={16} /> New character</CodexButton>
-              <CodexButton type="button" onClick={() => document.querySelector(".character-import-panel input[type='file']")?.click()}><Upload size={16} /> Import JSON</CodexButton>
+              <h2>No character has been added to this campaign yet.</h2>
+              <p>Character creation, import, and full PF2e sheet polish are deferred to a future character stage.</p>
             </div>
           )}
         </section>

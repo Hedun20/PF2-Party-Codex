@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api } from "./api/client.js";
 import FantasyShell from "./components/FantasyShell.jsx";
+import AppShell from "./components/AppShell.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import WorldDashboardPage from "./pages/WorldDashboardPage.jsx";
@@ -25,6 +26,14 @@ import GMToolsPage from "./pages/GMToolsPage.jsx";
 import HandoutsPage from "./pages/HandoutsPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import SessionsPage from "./pages/SessionsPage.jsx";
+import CampaignArchivePage from "./pages/CampaignArchivePage.jsx";
+import AdminPlaceholderPage from "./pages/AdminPlaceholderPage.jsx";
+import GmHomePage from "./pages/GmHomePage.jsx";
+import PlayerHomePage from "./pages/PlayerHomePage.jsx";
+import SimplePlaceholderPage from "./pages/SimplePlaceholderPage.jsx";
+import PlayersPage from "./pages/PlayersPage.jsx";
+import ProfilePage from "./pages/ProfilePage.jsx";
+import InviteAcceptPage from "./pages/InviteAcceptPage.jsx";
 import { getWorldOwnedPages, getWorldSearchPages, resolveWorldBySlug, resolveWorldForPage } from "./utils/worldContext.js";
 
 function worldSlugFromPath(pathname = "") {
@@ -47,6 +56,14 @@ function editorWorldFromLocation(location) {
   return new URLSearchParams(location.search).get("world") || "";
 }
 
+function campaignRole(session) {
+  return String(session?.activeMembership?.role || session?.membership?.role || session?.role || session?.user?.role || "").toLowerCase();
+}
+
+function canManageCampaign(session) {
+  return Boolean(session?.canEdit) || ["owner", "gm"].includes(campaignRole(session));
+}
+
 export default function App() {
   const [session, setSession] = useState({ mode: "player", canEdit: false, user: null });
   const [mode, setMode] = useState(localStorage.getItem("codex-mode") || "gm");
@@ -56,13 +73,14 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const effectiveMode = session.canEdit ? mode : "player";
-  const gmView = effectiveMode === "gm" && Boolean(session.canEdit);
+  const canManage = canManageCampaign(session);
+  const effectiveMode = canManage ? mode : "player";
+  const gmView = effectiveMode === "gm" && canManage;
 
   const loadSession = async () => {
     const data = await api.session();
     setSession(data);
-    if (!data.canEdit) setMode("player");
+    if (!canManageCampaign(data)) setMode("player");
     return data;
   };
 
@@ -90,13 +108,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (session.canEdit) localStorage.setItem("codex-mode", mode);
+    if (canManage) localStorage.setItem("codex-mode", mode);
     refresh().catch((error) => {
       if (error.message?.includes("GM access")) setMode("player");
     });
     const timer = setInterval(() => refresh().catch(() => {}), 10000);
     return () => clearInterval(timer);
-  }, [effectiveMode, session.canEdit]);
+  }, [effectiveMode, canManage]);
 
   const dashboard = useMemo(() => pages.find((page) => page.path === "index.md"), [pages]);
   const activeWorldSlug = worldSlugFromPath(location.pathname);
@@ -112,7 +130,7 @@ export default function App() {
   return (
     <FantasyShell
       mode={effectiveMode}
-      setMode={session.canEdit ? setMode : () => {}}
+      setMode={canManage ? setMode : () => {}}
       session={session}
       pages={shellPages}
       allPages={pages}
@@ -123,9 +141,17 @@ export default function App() {
       onLogout={handleLogout}
       onSelectPage={(path) => navigate(`/page/${encodeURIComponent(path)}`)}
     >
-      <Routes>
+      <AppShell session={session} canManage={canManage}>
+        <Routes>
         <Route path="/login" element={<AuthPage onAuth={handleAuth} session={session} />} />
+        <Route path="/invite/:token" element={<InviteAcceptPage session={session} onAccepted={loadSession} />} />
         <Route path="/" element={<DashboardPage pages={pages} dashboard={dashboard} mode={effectiveMode} session={session} />} />
+        <Route path="/gm" element={canManage ? <GmHomePage session={session} /> : <AuthPage onAuth={handleAuth} session={session} />} />
+        <Route path="/player" element={<PlayerHomePage session={session} />} />
+        <Route path="/archive" element={<CampaignArchivePage session={session} />} />
+        <Route path="/admin" element={canManage ? <AdminPlaceholderPage /> : <AuthPage onAuth={handleAuth} session={session} />} />
+        <Route path="/players" element={canManage ? <PlayersPage session={session} /> : <AuthPage onAuth={handleAuth} session={session} />} />
+        <Route path="/profile" element={<ProfilePage session={session} />} />
         <Route path="/world/:worldSlug" element={<WorldDashboardPage pages={pages} mode={effectiveMode} session={session} />} />
         <Route path="/world/:worldSlug/category/:category/*" element={<CategoryPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />} />
         <Route path="/world/:worldSlug/timeline" element={<TimelinePage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />} />
@@ -151,7 +177,8 @@ export default function App() {
         <Route path="/player-safety" element={gmView ? <PlayerSafetyPage pages={pages} /> : <AuthPage onAuth={handleAuth} session={session} />} />
         <Route path="/guide" element={<GuidePage canEdit={gmView} />} />
         <Route path="/foundry" element={gmView ? <FoundryImportExportPage mode={effectiveMode} /> : <AuthPage onAuth={handleAuth} session={session} />} />
-      </Routes>
+        </Routes>
+      </AppShell>
     </FantasyShell>
   );
 }

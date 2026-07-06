@@ -1,10 +1,12 @@
 import cors from "cors";
 import express from "express";
+import helmet from "helmet";
 import os from "os";
 import path from "path";
 import { config } from "./config.js";
 import { closeMongo, connectMongo } from "./db/mongo.js";
 import { attachUser } from "./middleware/auth.js";
+import { archiveRouter } from "./routes/archive.js";
 import { assetsRouter } from "./routes/assets.js";
 import { authRouter } from "./routes/auth.js";
 import { categoriesRouter } from "./routes/categories.js";
@@ -12,6 +14,7 @@ import { charactersRouter } from "./routes/characters.js";
 import { entriesRouter } from "./routes/entries.js";
 import { foundryRouter } from "./routes/foundry.js";
 import { importRouter } from "./routes/import.js";
+import { invitationsRouter, membershipsRouter } from "./routes/memberships.js";
 import { healthRouter } from "./routes/health.js";
 import { notesRouter } from "./routes/notes.js";
 import { worldSystemsRouter } from "./routes/worldSystems.js";
@@ -21,6 +24,7 @@ import { revealRouter } from "./routes/reveal.js";
 import { searchRouter } from "./routes/search.js";
 import { toolsRouter } from "./routes/tools.js";
 import { ensureIdentityIndexes } from "./repositories/identityRepository.js";
+import { ensureInvitationIndexes } from "./repositories/invitationsRepository.js";
 import { ensureCodexIndexes } from "./repositories/entriesRepository.js";
 import { ensureWorldSystemIndexes } from "./repositories/worldSystemsRepository.js";
 import { startVaultWatcher } from "./services/fileWatchService.js";
@@ -29,7 +33,15 @@ import { sessionInfo } from "./services/sessionService.js";
 import { logger } from "./utils/logger.js";
 
 const app = express();
-app.use(cors());
+app.use(helmet());
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || config.allowedOrigins.includes(origin)) return callback(null, true);
+    const error = new Error("Origin is not allowed by CORS.");
+    error.status = 403;
+    return callback(error);
+  }
+}));
 app.use(express.json({ limit: "6mb" }));
 app.use(attachUser);
 app.get("/api/session", async (req, res, next) => {
@@ -42,6 +54,8 @@ app.get("/api/session", async (req, res, next) => {
 
 app.use("/api", healthRouter);
 app.use("/api", authRouter);
+app.use("/api", membershipsRouter);
+app.use("/api", invitationsRouter);
 app.use("/api", notesRouter);
 app.use("/api", charactersRouter);
 app.use("/api", entriesRouter);
@@ -54,7 +68,12 @@ app.use("/api", categoriesRouter);
 app.use("/api", searchRouter);
 app.use("/api", foundryRouter);
 app.use("/api", toolsRouter);
+app.use("/api/campaigns/:campaignId/archive", archiveRouter);
+app.use("/api/archive", archiveRouter);
 app.use("/api", assetsRouter);
+app.use("/api", (req, res) => {
+  res.status(404).json({ error: `API route not found: ${req.originalUrl}` });
+});
 
 const webDist = path.join(config.rootDir, "apps", "web", "dist");
 app.use("/fonts", express.static(path.join(webDist, "fonts"), { fallthrough: false, index: false }));
@@ -78,6 +97,7 @@ function localIps() {
 
 await connectMongo();
 await ensureIdentityIndexes();
+await ensureInvitationIndexes();
 await ensureCodexIndexes();
 await ensureWorldSystemIndexes();
 await rebuildVaultIndex();

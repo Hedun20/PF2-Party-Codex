@@ -24,6 +24,16 @@ async function request(path, options = {}) {
   return response.json();
 }
 
+
+function queryString(params = {}) {
+  const pairs = Object.entries(params || {})
+    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .flatMap(([key, value]) => {
+      const values = Array.isArray(value) ? value : [value];
+      return values.map((item) => `${encodeURIComponent(key)}=${encodeURIComponent(String(item))}`);
+    });
+  return pairs.length ? `?${pairs.join("&")}` : "";
+}
 function setToken(token = "") {
   authToken = token;
   if (token) localStorage.setItem(TOKEN_KEY, token);
@@ -69,6 +79,34 @@ export const api = {
   auditLog: (limit = 200) => request(`/audit-log?limit=${limit}`),
   playerSafety: () => request("/player-safety"),
 
+  campaignArchive: (campaignId) => request(`/campaigns/${encodeURIComponent(campaignId)}/archive`),
+  archive: (params = {}) => request(`/archive${queryString(params)}`),
+  campaignMemberships: (campaignId) => request(`/campaigns/${encodeURIComponent(campaignId)}/memberships`),
+  campaignInvitations: (campaignId, params = {}) => request(`/campaigns/${encodeURIComponent(campaignId)}/invitations${queryString(params)}`),
+  createCampaignInvitation: (campaignId, payload) => request(`/campaigns/${encodeURIComponent(campaignId)}/invitations`, { method: "POST", body: JSON.stringify(payload) }),
+  acceptInvitation: (token) => request("/invitations/accept", { method: "POST", body: JSON.stringify({ token }) }),
+
+  maps: (params = {}) => request(`/maps${queryString(params)}`),
+  map: (id, params = {}) => request(`/maps/${encodeURIComponent(id)}${queryString(params)}`),
+  createMap: (payload) => request("/maps", { method: "POST", body: JSON.stringify(payload) }),
+  updateMap: (id, payload) => request(`/maps/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deleteMap: (id) => request(`/maps/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  mapObjects: (mapId, params = {}) => request(`/maps/${encodeURIComponent(mapId)}/objects${queryString(params)}`),
+  createMapObject: (mapId, payload) => request(`/maps/${encodeURIComponent(mapId)}/objects`, { method: "POST", body: JSON.stringify(payload) }),
+  updateMapObject: (id, payload) => request(`/map-objects/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deleteMapObject: (id) => request(`/map-objects/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  timelineEvents: (params = {}) => request(`/timeline-events${queryString(params)}`),
+  createTimelineEvent: (payload) => request("/timeline-events", { method: "POST", body: JSON.stringify(payload) }),
+  updateTimelineEvent: (id, payload) => request(`/timeline-events/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deleteTimelineEvent: (id) => request(`/timeline-events/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  sessions: (params = {}) => request(`/sessions${queryString(params)}`),
+  createSession: (payload) => request("/sessions", { method: "POST", body: JSON.stringify(payload) }),
+  updateSession: (id, payload) => request(`/sessions/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deleteSession: (id) => request(`/sessions/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  handouts: (params = {}) => request(`/handouts${queryString(params)}`),
+  createHandout: (payload) => request("/handouts", { method: "POST", body: JSON.stringify(payload) }),
+  updateHandout: (id, payload) => request(`/handouts/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deleteHandout: (id) => request(`/handouts/${encodeURIComponent(id)}`, { method: "DELETE" }),
   notes: (scope = "mine") => request(`/notes?scope=${encodeURIComponent(scope)}`),
   createNote: (payload) => request("/notes", { method: "POST", body: JSON.stringify(payload) }),
   updateNote: (id, payload) => request(`/notes/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }),

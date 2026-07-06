@@ -9,6 +9,7 @@ const email = "timurabbasovhaha@gmail.com".trim().toLowerCase();
 const password = "Appolon20";
 const name = "Тимур";
 const campaignName = "PF2 Party Codex";
+const workspaceName = "PF2 Party Codex Workspace";
 
 if (!config.mongoUri) {
   throw new Error("MONGO_URI is missing. Check your .env.");
@@ -33,6 +34,7 @@ try {
 
   const db = client.db("pf2_party_codex");
   const users = db.collection("users");
+  const workspaces = db.collection("workspaces");
   const campaigns = db.collection("campaigns");
   const memberships = db.collection("memberships");
 
@@ -74,10 +76,35 @@ try {
   const userResult = await users.insertOne(user);
   const userId = userResult.insertedId;
 
+
+  let workspace = await workspaces.findOne({ name: workspaceName });
+
+  if (!workspace) {
+    const workspaceDoc = {
+      name: workspaceName,
+      ownerUserId: userId,
+      status: "active",
+      plan: "local-dev",
+      settings: { billingEnabled: false },
+      createdAt: stamp,
+      updatedAt: stamp
+    };
+    const workspaceResult = await workspaces.insertOne(workspaceDoc);
+    workspace = { ...workspaceDoc, _id: workspaceResult.insertedId };
+    console.log("Workspace created:", workspace._id.toString());
+  } else {
+    await workspaces.updateOne(
+      { _id: workspace._id },
+      { $set: { ownerUserId: userId, updatedAt: stamp } }
+    );
+    workspace = await workspaces.findOne({ _id: workspace._id });
+    console.log("Workspace found and owner updated:", workspace._id.toString());
+  }
   let campaign = await campaigns.findOne({ name: campaignName });
 
   if (!campaign) {
     const campaignDoc = {
+      workspaceId: workspace._id,
       name: campaignName,
       description: "Default campaign workspace.",
       ownerUserId: userId,
@@ -105,6 +132,7 @@ try {
       {
         $set: {
           ownerUserId: userId,
+          workspaceId: workspace._id,
           updatedAt: stamp
         }
       }
@@ -121,6 +149,7 @@ try {
 
   const membership = {
     userId,
+    workspaceId: workspace._id,
     campaignId: campaign._id,
     role: "owner",
     status: "active",
@@ -136,6 +165,7 @@ try {
   console.log({
     userId: userId.toString(),
     email,
+    workspaceId: workspace._id.toString(),
     campaignId: campaign._id.toString(),
     membershipId: membershipResult.insertedId.toString(),
     role: "owner"

@@ -17,6 +17,7 @@ const mongoUri = process.env.MONGO_URI || "";
 const dataDir = process.env.DATA_DIR || path.join(rootDir, "data");
 const usersFile = path.join(dataDir, "users.json");
 const defaultCampaignName = "PF2 Party Codex";
+const defaultWorkspaceName = "PF2 Party Codex Workspace";
 
 function normalizeEmail(email = "") {
   return String(email).trim().toLowerCase();
@@ -53,6 +54,8 @@ async function main() {
     usersSkipped: 0,
     campaignCreated: false,
     campaignFound: false,
+    workspaceCreated: false,
+    workspaceFound: false,
     membershipsCreated: 0,
     membershipsSkipped: 0,
     warnings: []
@@ -71,12 +74,17 @@ async function main() {
     await client.connect();
     const db = client.db(database);
     const users = db.collection("users");
+    const workspaces = db.collection("workspaces");
     const campaigns = db.collection("campaigns");
     const memberships = db.collection("memberships");
 
     await users.createIndex({ email: 1 }, { unique: true });
+    await workspaces.createIndex({ ownerUserId: 1, status: 1 });
+    await workspaces.createIndex({ name: 1 });
+    await campaigns.createIndex({ workspaceId: 1, ownerUserId: 1 });
     await campaigns.createIndex({ ownerUserId: 1 });
     await memberships.createIndex({ userId: 1, campaignId: 1 }, { unique: true });
+    await memberships.createIndex({ workspaceId: 1, campaignId: 1, userId: 1 });
     await memberships.createIndex({ campaignId: 1, role: 1 });
     await db.collection("auditLogs").createIndex({ campaignId: 1, createdAt: -1 });
 
@@ -119,12 +127,37 @@ async function main() {
       migrated.push({ legacy, user, role: mongoRoleForLegacy(legacy, index) });
     }
 
+
+    const owner = firstOwnerUser || migrated[0]?.user;
+    let workspace = await workspaces.findOne({ name: defaultWorkspaceName });
+    if (workspace) {
+      report.workspaceFound = true;
+      await workspaces.updateOne(
+        { _id: workspace._id },
+        { $set: { ownerUserId: workspace.ownerUserId || owner?._id || null, updatedAt: stamp } }
+      );
+      workspace = await workspaces.findOne({ _id: workspace._id });
+    } else {
+      const document = {
+        name: defaultWorkspaceName,
+        ownerUserId: owner?._id || null,
+        status: "active",
+        plan: "local-dev",
+        settings: { billingEnabled: false },
+        createdAt: stamp,
+        updatedAt: stamp
+      };
+      const result = await workspaces.insertOne(document);
+      workspace = { ...document, _id: result.insertedId };
+      report.workspaceCreated = true;
+    }
     let campaign = await campaigns.findOne({ name: defaultCampaignName });
     if (campaign) {
       report.campaignFound = true;
     } else {
       const owner = firstOwnerUser || migrated[0]?.user;
       const document = {
+        workspaceId: workspace._id,
         name: defaultCampaignName,
         description: "Default campaign workspace created during auth migration.",
         ownerUserId: owner?._id || null,
@@ -143,15 +176,24 @@ async function main() {
       report.campaignCreated = true;
     }
 
+    if (!campaign.workspaceId) {
+      await campaigns.updateOne({ _id: campaign._id }, { $set: { workspaceId: workspace._id, updatedAt: stamp } });
+      campaign = await campaigns.findOne({ _id: campaign._id });
+    }
+
     for (const item of migrated) {
       const userId = item.user._id instanceof ObjectId ? item.user._id : new ObjectId(String(item.user._id));
       const existing = await memberships.findOne({ userId, campaignId: campaign._id });
       if (existing) {
+        if (!existing.workspaceId) {
+          await memberships.updateOne({ _id: existing._id }, { $set: { workspaceId: workspace._id, updatedAt: stamp } });
+        }
         report.membershipsSkipped += 1;
         continue;
       }
       await memberships.insertOne({
         userId,
+        workspaceId: workspace._id,
         campaignId: campaign._id,
         role: item.role,
         status: "active",

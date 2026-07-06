@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertTriangle,
@@ -172,6 +172,37 @@ function playerUrlForWorld(activeWorld, active) {
   return worldName ? `/world/${encodeURIComponent(slug(worldName) || worldName)}/player` : "/";
 }
 
+function mongoTimelineItem(event = {}) {
+  const visibility = String(event.visibility || "public").toLowerCase();
+  const typeConfig = TYPE_CONFIG.timelineEvent;
+  return {
+    id: event.id,
+    path: `mongo-timeline:${event.id || event.title || "event"}`,
+    sourceKind: "mongo",
+    typeKey: "timelineEvent",
+    typeConfig,
+    title: event.title || "Untitled event",
+    summary: event.description || "",
+    content: event.description || "",
+    gmNotes: event.gmNotes || "",
+    year: event.dateLabel || "?",
+    dateLabel: event.dateLabel || "",
+    era: event.era || event.branch || "Campaign",
+    branch: event.branch || "main",
+    importance: event.branch || "event",
+    category: "timeline",
+    world: "",
+    frontmatter: {},
+    tags: [],
+    relatedPages: [],
+    visibility,
+    playerVisible: ["public", "revealed"].includes(visibility),
+    hasSecrets: Boolean(event.gmNotes),
+    createdAt: event.createdAt,
+    updatedAt: event.updatedAt
+  };
+}
+
 export default function TimelinePage({ pages = [], mode = "player", embedded = false, activeWorld = null }) {
   const worlds = useMemo(() => [...new Set(pages.map((page) => page.world || page.frontmatter?.world).filter(Boolean))].sort(), [pages]);
   const [world, setWorld] = useState("");
@@ -182,11 +213,46 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
   const [playerPreview, setPlayerPreview] = useState(false);
   const [revealBusy, setRevealBusy] = useState(false);
   const [revealMessage, setRevealMessage] = useState("");
+  const [timelineState, setTimelineState] = useState({ loading: true, error: "", events: null, role: "" });
+
+  useEffect(() => {
+    let active = true;
+    setTimelineState({ loading: true, error: "", events: null, role: "" });
+    api.timelineEvents()
+      .then((data) => {
+        if (!active) return;
+        setTimelineState({ loading: false, error: "", events: Array.isArray(data.timelineEvents) ? data.timelineEvents : [], role: data.role || "" });
+      })
+      .catch((error) => {
+        if (!active) return;
+        setTimelineState({ loading: false, error: error.message || "Timeline API failed.", events: null, role: "" });
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const canUseGmTools = mode === "gm";
   const effectivePlayerView = mode !== "gm" || playerPreview;
 
-  const allTimelineItems = useMemo(() => pages
+  const mongoTimelineItems = useMemo(() => (timelineState.events || [])
+    .map(mongoTimelineItem)
+    .filter((event) => categoryMatchesType(event.typeKey, typeFilter))
+    .filter((event) => {
+      if (!query.trim()) return true;
+      const needle = query.trim().toLowerCase();
+      return [
+        event.title,
+        event.summary,
+        event.dateLabel,
+        event.era,
+        event.branch,
+        event.visibility
+      ].filter(Boolean).join(" ").toLowerCase().includes(needle);
+    })
+    .sort(sortTimeline), [timelineState.events, typeFilter, query]);
+
+  const legacyTimelineItems = useMemo(() => pages
     .filter(isTimelineCandidate)
     .filter((page) => !world || page.world === world || page.frontmatter?.world === world)
     .map((page) => {
@@ -195,10 +261,12 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
       const visibility = getVisibility(page);
       return {
         ...page,
+        sourceKind: "legacy",
         typeKey,
         typeConfig: TYPE_CONFIG[typeKey] || TYPE_CONFIG.event,
         year: getYear(page),
         era: getEra(page),
+        branch: page.frontmatter?.branch || page.frontmatter?.arc || "legacy",
         importance: page.frontmatter?.importance || (page.category === "sessions" ? "session" : "event"),
         relatedPages,
         visibility,
@@ -222,6 +290,10 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
       ].filter(Boolean).join(" ").toLowerCase().includes(needle);
     })
     .sort(sortTimeline), [pages, world, typeFilter, query]);
+
+  const usingMongoTimeline = Array.isArray(timelineState.events) && !timelineState.error;
+  const usingLegacyFallback = Boolean(timelineState.error && legacyTimelineItems.length);
+  const allTimelineItems = usingMongoTimeline ? mongoTimelineItems : usingLegacyFallback ? legacyTimelineItems : [];
 
   const timelineItems = useMemo(() => allTimelineItems
     .filter((page) => !effectivePlayerView || page.playerVisible)
@@ -259,7 +331,7 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
   }, [timelineItems.length, effectivePlayerView, stats.gm]);
 
   async function revealActiveEvent() {
-    if (!active || !active.playerVisible) {
+    if (!active || active.sourceKind === "mongo" || !active.playerVisible) {
       setRevealMessage("Это событие нельзя показать игрокам: оно GM-only или secret.");
       return;
     }
@@ -311,7 +383,7 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
               {playerPreview ? <Eye size={16} /> : <EyeOff size={16} />}
               {playerPreview ? "GM view" : "Preview as Player"}
             </button>
-            <button type="button" className="timeline2-toggle" onClick={revealActiveEvent} disabled={!active || revealBusy || !active.playerVisible}>
+            <button type="button" className="timeline2-toggle" onClick={revealActiveEvent} disabled={!active || active.sourceKind === "mongo" || revealBusy || !active.playerVisible}>
               <Send size={16} /> {revealBusy ? "Показываю..." : "Reveal event"}
             </button>
             {(activeWorld || active) && (
@@ -337,6 +409,30 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
       </section>
 
       {revealMessage && <div className={`status-message ${revealMessage.includes("нельзя") || revealMessage.includes("Не могу") ? "danger-message" : ""}`}>{revealMessage}</div>}
+
+      {timelineState.loading && (
+        <section className="codex-card workspace-status-card">
+          <Clock3 size={22} />
+          <span className="kicker">Loading timeline</span>
+          <p>Fetching timeline events from Mongo.</p>
+        </section>
+      )}
+
+      {timelineState.error && usingLegacyFallback && (
+        <section className="codex-card workspace-status-card">
+          <AlertTriangle size={22} />
+          <span className="kicker">Compatibility fallback</span>
+          <p>Mongo timeline events could not be loaded. Showing legacy vault timeline data instead.</p>
+        </section>
+      )}
+
+      {timelineState.error && !usingLegacyFallback && (
+        <section className="codex-card workspace-status-card">
+          <AlertTriangle size={22} />
+          <span className="kicker">Timeline unavailable</span>
+          <p>{timelineState.error}</p>
+        </section>
+      )}
 
       <section className="timeline-command-panel timeline2-command-panel" aria-label="Timeline filters">
         <label className="timeline-control timeline-control--search">
@@ -380,12 +476,11 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
 
       <section className="timeline-branch-layout timeline2-layout">
         <div className={`timeline-branch-explorer timeline2-explorer ${effectivePlayerView ? "player-preview" : "gm-preview"}`} style={{ "--timeline-items": Math.max(timelineItems.length, 1) }}>
-          {timelineItems.length === 0 && (
+          {!timelineState.loading && timelineItems.length === 0 && (
             <div className="timeline-empty-state timeline-branch-empty">
               <Clock3 size={30} />
               <strong>{effectivePlayerView ? "Player timeline пустой" : "Timeline пока пустой"}</strong>
-              <p>{effectivePlayerView ? "Нет публичных событий. Переключись в GM view или сделай важные события visibility: public." : "Создай статью типа “Событие timeline” или добавь `year`, `timelineYear`, `related`, `world` в frontmatter существующей статьи."}</p>
-              {canUseGmTools && <CodexButton as={Link} to={editorPathForWorld(activeWorld, "timelineEvent")}><span>{activeWorld ? "Создать событие в мире" : "Создать событие"}</span></CodexButton>}
+              <p>{usingMongoTimeline ? "No Mongo timeline events are available for this campaign yet." : effectivePlayerView ? "No player-visible legacy timeline events are available." : "No legacy timeline events are available in the compatibility fallback."}</p>
             </div>
           )}
 
@@ -428,9 +523,11 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
                         <button type="button" onClick={() => setSelectedPath(event.path)} className="timeline-focus-button">
                           Focus
                         </button>
-                        <CodexButton as={Link} to={`/page/${encodeURIComponent(event.path)}`} variant="ghost">
-                          <Link2 size={15} /> <span>Open entry</span>
-                        </CodexButton>
+                        {event.sourceKind !== "mongo" && (
+                          <CodexButton as={Link} to={`/page/${encodeURIComponent(event.path)}`} variant="ghost">
+                            <Link2 size={15} /> <span>Open entry</span>
+                          </CodexButton>
+                        )}
                       </div>
                     </div>
                     <button
@@ -455,6 +552,7 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
               <span className="kicker">Фокус ветви</span>
               <h2>{active.title}</h2>
               <p>{compact(active.summary || active.content || "", 260)}</p>
+              {active.gmNotes && <p>{compact(active.gmNotes, 220)}</p>}
               <div className="timeline2-dossier-status">
                 <span className={active.playerVisible ? "public" : "gm"}>{active.playerVisible ? <Eye size={14} /> : <EyeOff size={14} />}{active.playerVisible ? "Можно игрокам" : "GM-only"}</span>
                 {active.hasSecrets && <span className="secret"><ShieldAlert size={14} /> есть секреты</span>}
@@ -485,11 +583,13 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
                 )) : <p className="timeline-muted-note">Нет связей. Добавь связанные статьи через Structured Article Editor.</p>}
               </div>
               <div className="timeline2-dossier-actions">
-                <CodexButton as={Link} to={`/page/${encodeURIComponent(active.path)}`}>
-                  <BookOpen size={16} /> <span>Открыть статью</span>
-                </CodexButton>
-                {canUseGmTools && <CodexButton as={Link} to={`/edit/${encodeURIComponent(active.path)}`} variant="ghost"><span>Редактировать</span></CodexButton>}
-                {canUseGmTools && <button type="button" className="timeline2-toggle" onClick={revealActiveEvent} disabled={!active.playerVisible || revealBusy}><RadioTower size={15} /> Reveal</button>}
+                {active.sourceKind !== "mongo" && (
+                  <CodexButton as={Link} to={`/page/${encodeURIComponent(active.path)}`}>
+                    <BookOpen size={16} /> <span>Открыть статью</span>
+                  </CodexButton>
+                )}
+                {canUseGmTools && active.sourceKind !== "mongo" && <CodexButton as={Link} to={`/edit/${encodeURIComponent(active.path)}`} variant="ghost"><span>Редактировать</span></CodexButton>}
+                {canUseGmTools && <button type="button" className="timeline2-toggle" onClick={revealActiveEvent} disabled={active.sourceKind === "mongo" || !active.playerVisible || revealBusy}><RadioTower size={15} /> Reveal</button>}
               </div>
             </>
           ) : (

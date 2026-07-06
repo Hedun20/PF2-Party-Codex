@@ -28,7 +28,7 @@ function legacyRole(user) {
 
 export async function publicUser(user) {
   if (!user) return null;
-  let context = { activeCampaign: null, membership: null, role: legacyRole(user) };
+  let context = { activeWorkspace: null, activeCampaign: null, activeMembership: null, membership: null, role: legacyRole(user) };
   try {
     context = await identityContextForUser(user);
   } catch (error) {
@@ -42,8 +42,10 @@ export async function publicUser(user) {
     role,
     emailVerified: Boolean(user.emailVerified),
     status: user.status || "active",
+    activeWorkspace: context.activeWorkspace,
     activeCampaign: context.activeCampaign,
-    membership: context.membership,
+    activeMembership: context.activeMembership || context.membership,
+    membership: context.membership || context.activeMembership,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
   };
@@ -58,7 +60,9 @@ function legacyPublicUser(user) {
     role: user.role,
     emailVerified: Boolean(user.emailVerified),
     status: user.status || "active",
+    activeWorkspace: null,
     activeCampaign: null,
+    activeMembership: null,
     membership: null,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt

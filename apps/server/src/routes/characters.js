@@ -70,7 +70,7 @@ charactersRouter.post("/characters", async (req, res, next) => {
   try {
     assertMongoCharacters();
     const context = await currentContext(req);
-    const character = await createManualCharacter({ campaignId: context.campaignId, ownerUserId: context.userId, input: req.body || {} });
+    const character = await createManualCharacter({ campaignId: context.campaignId, ownerUserId: context.userId, role: context.role, input: req.body || {} });
     await logAuditEvent({ req, action: "characters.create", entityType: "character", entityId: character.id, campaignId: context.campaignId, metadata: { source: "manual" } });
     res.status(201).json({ character });
   } catch (error) {
@@ -85,7 +85,7 @@ charactersRouter.get("/characters/:id", async (req, res, next) => {
     const character = await findCharacterById(req.params.id);
     if (!character || !sameId(character.campaignId, context.campaignId) || !canReadCharacter(character, context)) return res.status(404).json({ error: "Character not found." });
     const includeRawImport = sameId(character.ownerUserId, context.userId) || ["owner", "gm"].includes(context.role);
-    res.json({ character: serializeCharacter(character, { includeRawImport }) });
+    res.json({ character: serializeCharacter(character, { includeRawImport, userId: context.userId, role: context.role }) });
   } catch (error) {
     next(error);
   }
@@ -98,7 +98,7 @@ charactersRouter.patch("/characters/:id", async (req, res, next) => {
     const existing = await findCharacterById(req.params.id);
     if (!existing || !sameId(existing.campaignId, context.campaignId) || !canReadCharacter(existing, context)) return res.status(404).json({ error: "Character not found." });
     if (!canWriteCharacter(existing, context)) return res.status(403).json({ error: "You cannot edit this character." });
-    const character = await updateCharacter({ id: req.params.id, input: req.body || {} });
+    const character = await updateCharacter({ id: req.params.id, userId: context.userId, role: context.role, input: req.body || {} });
     await logAuditEvent({ req, action: "characters.update", entityType: "character", entityId: character.id, campaignId: context.campaignId });
     res.json({ character });
   } catch (error) {
@@ -113,7 +113,7 @@ charactersRouter.patch("/characters/:id/presentation", async (req, res, next) =>
     const existing = await findCharacterById(req.params.id);
     if (!existing || !sameId(existing.campaignId, context.campaignId) || !canReadCharacter(existing, context)) return res.status(404).json({ error: "Character not found." });
     if (!canWriteCharacter(existing, context)) return res.status(403).json({ error: "You cannot edit this character." });
-    const character = await updateCharacter({ id: req.params.id, input: { text: req.body?.text, visuals: req.body?.visuals, links: req.body?.links, visibility: req.body?.visibility } });
+    const character = await updateCharacter({ id: req.params.id, userId: context.userId, role: context.role, input: { text: req.body?.text, visuals: req.body?.visuals, links: req.body?.links, visibility: req.body?.visibility } });
     await logAuditEvent({ req, action: "characters.presentation.update", entityType: "character", entityId: character.id, campaignId: context.campaignId });
     res.json({ character });
   } catch (error) {
@@ -156,7 +156,7 @@ for (const [path, adapter] of [
       assertMongoCharacters();
       const context = await currentContext(req);
       const report = await parseImportResponse(req, adapter);
-      const character = await createImportedCharacter({ campaignId: context.campaignId, ownerUserId: context.userId, normalized: report.character });
+      const character = await createImportedCharacter({ campaignId: context.campaignId, ownerUserId: context.userId, role: context.role, normalized: report.character });
       await logAuditEvent({ req, action: "characters.import", entityType: "character", entityId: character.id, campaignId: context.campaignId, metadata: { adapter, warnings: report.preview.warnings } });
       res.status(201).json({ ok: true, preview: report.preview, character });
     } catch (error) {
