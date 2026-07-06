@@ -1,13 +1,13 @@
 import OnboardingPage from "./OnboardingPage.jsx";
 
-export default function ProfilePage({ session }) {
+export default function ProfilePage({ session, onOnboardingCreated }) {
   const user = session?.user || {};
-  const membership = session?.activeMembership || session?.membership || {};
+  const membership = session?.activeMembership || {};
   const campaign = session?.activeCampaign || {};
   const hasCampaign = Boolean(membership?.id);
 
   if (user?.id && !hasCampaign) {
-    return <OnboardingPage session={session} />;
+    return <OnboardingPage session={session} onCreated={onOnboardingCreated} />;
   }
 
   return (
@@ -20,7 +20,7 @@ export default function ProfilePage({ session }) {
           <span>{user.displayName || user.name || "Player"}</span>
           {user.email ? <span>{user.email}</span> : null}
           {campaign.name ? <span>Campaign: {campaign.name}</span> : null}
-          <span>Role: {membership.role || session?.role || "user"}</span>
+          <span>Role: {membership.role || "user"}</span>
         </div>
       </section>
     </div>
