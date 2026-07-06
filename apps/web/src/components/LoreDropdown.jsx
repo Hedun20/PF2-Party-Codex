@@ -3,24 +3,24 @@ import { NavLink } from "react-router-dom";
 import { ChevronDown, Gem } from "lucide-react";
 
 const lore = [
-  ["gods", "Боги"],
-  ["factions", "Фракции"],
-  ["history", "История"],
-  ["planes", "Планы"],
-  ["artifacts", "Артефакты"],
-  ["magic", "Магия"],
-  ["cults", "Культы"],
-  ["prophecies", "Пророчества"],
+  ["gods", "Gods"],
+  ["factions", "Factions"],
+  ["history", "History"],
+  ["planes", "Planes"],
+  ["artifacts", "Artifacts"],
+  ["magic", "Magic"],
+  ["cults", "Cults"],
+  ["prophecies", "Prophecies"],
   ["timeline", "Timeline"]
 ];
 
 export default function LoreDropdown() {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   return (
     <div className="lore-menu">
       <button className="nav-link nav-button" onClick={() => setOpen(!open)}>
         <Gem size={18} />
-        <span>Лор</span>
+        <span>Lore</span>
         <ChevronDown size={16} className={open ? "turn" : ""} />
       </button>
       {open && (
