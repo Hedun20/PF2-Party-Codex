@@ -224,6 +224,7 @@ export default function App() {
         <Route path="/gm-tools" element={managerRoute(<GMToolsPage session={session} />)} />
         <Route path="/health" element={managerRoute(<VaultHealthPage mode={effectiveMode} />)} />
         <Route path="/player-safety" element={managerRoute(<PlayerSafetyPage pages={pages} />)} />
+        <Route path="/dice" element={campaignRoute(<SimplePlaceholderPage title="Кубики" kicker="Dice tray">Dice tray будет выделен в отдельный модуль. Сейчас это зафиксировано как следующий UX-блок.</SimplePlaceholderPage>)} />
         <Route path="/guide" element={<GuidePage canEdit={gmView} />} />
         <Route path="/foundry" element={managerRoute(<FoundryImportExportPage mode={effectiveMode} />)} />
         </Routes>
