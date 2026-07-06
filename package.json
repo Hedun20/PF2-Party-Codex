@@ -2,7 +2,7 @@
   "name": "pf2-party-codex",
   "version": "0.1.0",
   "private": true,
-  "description": "Local-first premium Pathfinder 2e campaign wiki with Markdown vault storage and Foundry Journal import/export.",
+  "description": "Archive-first TTRPG campaign workspace with MongoDB source of truth, GM/Player portals, and invitation-based campaign access.",
   "scripts": {
     "dev": "concurrently -n server,web -c magenta,cyan \"npm run dev --workspace apps/server\" \"npm run dev --workspace apps/web\"",
     "build": "npm run build --workspace apps/web",
