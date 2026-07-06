@@ -26,6 +26,10 @@ const playerLinks = [
   ["Profile", "/profile"]
 ];
 
+function hasCampaignMembership(session) {
+  return Boolean(session?.activeMembership?.id || session?.membership?.id);
+}
+
 function PortalLink({ to, children }) {
   return (
     <NavLink className={({ isActive }) => `portal-nav-link${isActive ? " active" : ""}`} to={to} end={to === "/"}>
@@ -51,7 +55,7 @@ function PortalGroup({ icon: Icon, title, links }) {
 export default function AppShell({ children, session, canManage }) {
   const signedIn = Boolean(session?.user);
 
-  if (!signedIn) return children;
+  if (!signedIn || !hasCampaignMembership(session)) return children;
 
   return (
     <div className="portal-shell">
