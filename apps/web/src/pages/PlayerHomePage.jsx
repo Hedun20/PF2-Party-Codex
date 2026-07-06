@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
 function role(session) {
-  return session?.activeMembership?.role || session?.membership?.role || session?.role || "player";
+  return session?.activeMembership?.role || "player";
 }
 
 const playerCards = [
