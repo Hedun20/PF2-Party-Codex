@@ -8,13 +8,7 @@ function entityId(entity) {
 }
 
 function activeCampaignId(session) {
-  return (
-    entityId(session?.activeCampaign) ||
-    session?.activeMembership?.campaignId ||
-    session?.membership?.campaignId ||
-    session?.campaignId ||
-    ""
-  );
+  return entityId(session?.activeCampaign) || session?.activeMembership?.campaignId || "";
 }
 
 function itemLabel(item) {
@@ -57,7 +51,7 @@ export default function CampaignArchivePage({ session }) {
   const availableSections = archive.availableSections || [];
   const campaign = data.campaign || session?.activeCampaign || {};
   const workspace = data.workspace || session?.activeWorkspace || {};
-  const role = data.role || session?.activeMembership?.role || session?.membership?.role || session?.role || (session?.canEdit ? "gm" : "player");
+  const role = data.role || session?.activeMembership?.role || "player";
 
   return (
     <div className="page-stack archive-page">
