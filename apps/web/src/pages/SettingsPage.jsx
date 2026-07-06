@@ -1,5 +1,9 @@
 import { Database, Mail, Settings, ShieldCheck, UsersRound } from "lucide-react";
 
+function activeRole(session) {
+  return session?.activeMembership?.role || "user";
+}
+
 export default function SettingsPage({ session }) {
   return (
     <div className="page-stack settings-page">
@@ -14,14 +18,14 @@ export default function SettingsPage({ session }) {
           <Settings size={22} />
           <div>
             <strong>Campaign</strong>
-            <span>{session?.activeCampaign?.name || "Default campaign"}</span>
+            <span>{session?.activeCampaign?.name || "No active campaign"}</span>
           </div>
         </article>
         <article className="codex-card workspace-card">
           <UsersRound size={22} />
           <div>
             <strong>Membership</strong>
-            <span>{session?.membership?.role || session?.role || "guest"}</span>
+            <span>{activeRole(session)}</span>
           </div>
         </article>
         <article className="codex-card workspace-card" id="mongo">
