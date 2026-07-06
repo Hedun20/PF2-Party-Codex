@@ -2,11 +2,16 @@ import { Link } from "react-router-dom";
 import { BookOpen, Clock3, MapPinned, NotebookPen, Sparkles, UserRound, UsersRound } from "lucide-react";
 
 function displayRole(session) {
-  return session?.role || session?.membership?.role || (session?.canEdit ? "gm" : "player");
+  return session?.activeMembership?.role || "user";
+}
+
+function canManageCampaign(session) {
+  const role = String(session?.activeMembership?.role || "").toLowerCase();
+  return role === "owner" || role === "gm";
 }
 
 export default function MyWorkspacePage({ session, pages = [], mode = "player" }) {
-  const isGm = Boolean(session?.canEdit) && mode === "gm";
+  const isGm = canManageCampaign(session) && mode === "gm";
   const publicCount = pages.filter((page) => page.visibility === "public").length;
   const worldCount = pages.filter((page) => page.category === "worlds" || page.type === "world").length;
   const mapCount = pages.filter((page) => page.mapImage).length;
