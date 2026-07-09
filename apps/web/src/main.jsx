@@ -7,6 +7,7 @@ import "./styles/fantasy.css";
 import "./styles/components.css";
 import "./styles/codex-design.css";
 import "./styles/codex-buttons.css";
+import "./styles/stage10b-hotfix.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
