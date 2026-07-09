@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { BookOpen, Clock3, Dices, FileQuestion, MapPinned, PenLine, Sparkles, UsersRound } from "lucide-react";
+import { BookOpen, Clock3, Dices, NotebookPen, PenLine, Settings, Sparkles, UserRound, UsersRound } from "lucide-react";
 import EntityCard from "../components/EntityCard.jsx";
 import MarkdownViewer from "../components/MarkdownViewer.jsx";
 
@@ -17,55 +17,93 @@ function canManageCampaign(session) {
   return role === "owner" || role === "gm";
 }
 
-function DashboardAction({ to, icon: Icon, title, description, primary = false }) {
+function ModeCard({ to, icon: Icon, title, description, links = [], primary = false }) {
   return (
-    <Link to={to} className={`codex-card workbench-action${primary ? " primary-workbench-card" : ""}`}>
-      <Icon size={20} />
-      <strong>{title}</strong>
-      <span>{description}</span>
-    </Link>
+    <article className={`codex-card product-mode-card${primary ? " product-mode-card--primary" : ""}`}>
+      <Link to={to} className="product-mode-main-link">
+        <Icon size={28} />
+        <strong>{title}</strong>
+        <span>{description}</span>
+      </Link>
+      {links.length ? (
+        <div className="product-mode-link-row">
+          {links.map(([label, path]) => <Link key={path} to={path}>{label}</Link>)}
+        </div>
+      ) : null}
+    </article>
   );
 }
 
-function MasterWorkbench({ pages, canEdit = false, campaignName = "" }) {
+function ProductModeDashboard({ pages, canEdit = false, campaignName = "" }) {
   const mapCount = pages.filter((page) => page.mapImage).length;
   const worldCount = pages.filter((page) => page.category === "worlds" || page.type === "world").length;
   const publicCount = pages.filter((page) => page.visibility === "public").length;
 
-  const gmActions = [
-    ["/editor", PenLine, "Создать материал", "Статья, NPC, город, квест, сессия, карта или событие.", true],
-    ["/players", UsersRound, "Игроки и приглашения", "Добавить участника и скопировать invite link."],
-    ["/archive", BookOpen, "Архив кампании", "Mongo-сводка всех разделов кампании."],
-    ["/handouts", Sparkles, "Материалы / Reveal", "Проверить, что открыто участникам."],
-    ["/dice", Dices, "Кубики", "Локальный dice tray для быстрых бросков."],
-    ["/missing", FileQuestion, "Недостающие статьи", "Wiki-ссылки, для которых ещё нет материала."]
+  const gmModes = [
+    {
+      to: "/archive",
+      icon: BookOpen,
+      title: "Архив кампании",
+      description: "Подготовка: миры, NPC, квесты, лор, timeline, карты GM и материалы игрокам.",
+      primary: true,
+      links: [["Создать", "/editor"], ["Timeline", "/timeline"], ["Материалы", "/handouts"]]
+    },
+    {
+      to: "/session-desk",
+      icon: Dices,
+      title: "Игровой стол",
+      description: "Живая сессия: кубики, быстрые заметки, материалы игрокам и быстрый доступ к архиву.",
+      links: [["Кубики", "/dice"], ["Заметки", "/notes"], ["Сессии", "/sessions"]]
+    },
+    {
+      to: "/players",
+      icon: Settings,
+      title: "Управление",
+      description: "Игроки, приглашения, профиль, настройки и диагностика кампании.",
+      links: [["Игроки", "/players"], ["Профиль", "/profile"], ["Настройки", "/settings"]]
+    }
   ];
 
-  const playerActions = [
-    ["/archive", BookOpen, "Известный архив", "Лор и материалы, которые доступны участнику."],
-    ["/handouts", Sparkles, "Материалы", "Открытые GM подсказки, изображения и handouts."],
-    ["/maps", MapPinned, "Карты", `${mapCount} карт в видимых слоях.`],
-    ["/timeline", Clock3, "Timeline", "Известные события и публичная история."],
-    ["/dice", Dices, "Кубики", "Локальный dice tray для быстрых бросков."]
+  const playerModes = [
+    {
+      to: "/session-desk",
+      icon: UserRound,
+      title: "Мой игровой стол",
+      description: "Персонаж, кубики, заметки и материалы, которые GM открыл для игры.",
+      primary: true,
+      links: [["Персонаж", "/characters"], ["Кубики", "/dice"], ["Заметки", "/notes"]]
+    },
+    {
+      to: "/archive",
+      icon: BookOpen,
+      title: "Известный архив",
+      description: "Лор, NPC, квесты и сведения, доступные участнику кампании.",
+      links: [["Лор", "/archive"], ["Материалы", "/handouts"]]
+    },
+    {
+      to: "/profile",
+      icon: Settings,
+      title: "Профиль",
+      description: "Аккаунт, кампания и роль участника.",
+      links: [["Профиль", "/profile"], ["Настройки", "/settings"]]
+    }
   ];
 
-  const actions = canEdit ? gmActions : playerActions;
+  const modes = canEdit ? gmModes : playerModes;
 
   return (
-    <section className="workbench-panel">
+    <section className="workbench-panel product-mode-panel">
       <div className="workbench-copy">
         <span className="kicker">{canEdit ? "GM Dashboard" : "Player Dashboard"}</span>
-        <h2>{canEdit ? "Рабочий стол мастера" : "Портал участника"}</h2>
+        <h2>{canEdit ? "Выберите рабочую зону" : "Выберите режим игры"}</h2>
         <p>{canEdit
-          ? "Быстрый старт для подготовки и ведения сессии: материалы, игроки, архив, handouts, карты и кубики."
-          : "Безопасный доступ к тому, что GM уже открыл: архив, материалы, карты, timeline и кубики."}</p>
+          ? "Проект разделён на три зоны: подготовка в архиве, живая игра за игровым столом и управление кампанией."
+          : "Участнику доступны игровой стол, известный архив и профиль. Карты не вынесены отдельно: GM открывает нужные изображения как материалы игрокам."}</p>
         {campaignName ? <p>Кампания: <strong>{campaignName}</strong></p> : null}
       </div>
 
-      <div className="workbench-actions">
-        {actions.map(([to, Icon, title, description, primary]) => (
-          <DashboardAction key={to} to={to} icon={Icon} title={title} description={description} primary={primary} />
-        ))}
+      <div className="product-mode-grid">
+        {modes.map((mode) => <ModeCard key={mode.to} {...mode} />)}
       </div>
 
       <div className="workbench-stats">
@@ -83,13 +121,13 @@ export default function DashboardPage({ pages, dashboard, mode, session }) {
   return (
     <div className="page-stack">
       <section className="hero-panel">
-        <span className="kicker">Campaign Codex</span>
-        <h1>{session?.activeCampaign?.name || "PF2 Party Codex"}</h1>
-        <p>{dashboard?.summary || "Архив кампании для миров, лора, сессий, GM-секретов, handouts и playtest-материалов."}</p>
+        <span className="kicker">PF2 Party Codex</span>
+        <h1>{session?.activeCampaign?.name || "Campaign Dashboard"}</h1>
+        <p>{dashboard?.summary || "Две главные зоны продукта: Архив кампании для подготовки и Игровой стол для живой сессии."}</p>
       </section>
-      <MasterWorkbench pages={pages} canEdit={canEdit} campaignName={session?.activeCampaign?.name || ""} />
+      <ProductModeDashboard pages={pages} canEdit={canEdit} campaignName={session?.activeCampaign?.name || ""} />
       {dashboard && <MarkdownViewer content={dashboard.content} pages={pages} />}
-      {blocks.map(([title, category]) => {
+      {canEdit && blocks.map(([title, category]) => {
         const items = pages.filter((page) => page.category === category || page.category?.startsWith(`${category}/`)).slice(0, 4);
         return (
           <section className="section-band" key={category}>
