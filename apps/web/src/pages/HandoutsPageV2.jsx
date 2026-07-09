@@ -67,7 +67,7 @@ export default function HandoutsPageV2({ pages = [], mode = "player" }) {
       })
       .catch((error) => {
         if (!active) return;
-        setState({ loading: false, error: error.message || "Handouts API failed.", handouts: [], role: "" });
+        setState({ loading: false, error: error.message || "Не удалось загрузить материалы игрокам.", handouts: [], role: "" });
       });
     return () => { active = false; };
   }, []);
@@ -79,9 +79,9 @@ export default function HandoutsPageV2({ pages = [], mode = "player" }) {
   return (
     <div className="page-stack handouts-page">
       <section className="hero-panel">
-        <span className="kicker">Материалы / Reveal</span>
-        <h1>Материалы для участников</h1>
-        <p>Handouts — это картинки, тексты и подсказки, которые GM открыл группе. Reveal — действие GM: сделать материал доступным участникам кампании.</p>
+        <span className="kicker">Материалы игрокам</span>
+        <h1>Открытые материалы</h1>
+        <p>Это письма, портреты, картинки, улики, описания сцен и другие “раздатки”, которые GM подготовил и открыл участникам. Reveal — это действие GM: открыть материал игрокам.</p>
         <div className="workspace-identity-strip">
           {state.role ? <span>Роль: {state.role}</span> : null}
           <span>{mode === "gm" ? "GM видит подготовленные и открытые материалы" : "Участник видит только открытые материалы"}</span>
@@ -92,7 +92,7 @@ export default function HandoutsPageV2({ pages = [], mode = "player" }) {
         <section className="codex-card workspace-status-card">
           <Sparkles size={24} />
           <h2>Загружаю материалы</h2>
-          <p>Проверяю Mongo handouts и совместимые материалы из vault.</p>
+          <p>Проверяю материалы, открытые для текущей кампании.</p>
         </section>
       ) : null}
 
@@ -108,8 +108,8 @@ export default function HandoutsPageV2({ pages = [], mode = "player" }) {
         <>
           <section className="codex-card workspace-status-card">
             <AlertTriangle size={22} />
-            <span className="kicker">Совместимость с vault</span>
-            <p>Mongo handouts пока недоступны. Ниже показаны публичные handout-материалы из старого архива.</p>
+            <span className="kicker">Совместимость со старым архивом</span>
+            <p>Ниже показаны публичные материалы из старого архива кампании.</p>
           </section>
           <section className="handout-grid">{vaultItems.map((page) => <VaultHandoutCard key={page.path} page={page} />)}</section>
         </>
@@ -121,7 +121,7 @@ export default function HandoutsPageV2({ pages = [], mode = "player" }) {
         <section className="codex-card workspace-status-card">
           <Eye size={24} />
           <h2>Пока нет открытых материалов</h2>
-          <p>{mode === "gm" ? "Добавьте handout или публичную статью, чтобы материал появился здесь." : "GM ещё не открыл материалы для вашей группы."}</p>
+          <p>{mode === "gm" ? "Добавьте материал или публичную статью, чтобы она появилась здесь для участников." : "GM ещё не открыл материалы для вашей группы."}</p>
         </section>
       ) : null}
     </div>
