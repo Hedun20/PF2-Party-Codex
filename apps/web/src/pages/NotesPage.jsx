@@ -1,133 +1,233 @@
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, NotebookPen, Search } from "lucide-react";
+import { BookOpen, Link2, NotebookPen, Plus, Save, Search, Trash2 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
-import { api } from "../api/client.js";
+import CodexButton from "../components/ui/CodexButton.jsx";
+import { notesForPage, usePlayerNotes } from "../utils/playerNotes.js";
+import { labelCategory } from "../utils/labels.js";
+
+const visibilityOptions = [
+  { value: "private", label: "Private" },
+  { value: "sharedWithGm", label: "Shared with GM" },
+  { value: "partyVisible", label: "Party visible" },
+  { value: "gmPrivate", label: "GM private" }
+];
 
 function formatDate(value = "") {
-  if (!value) return "";
+  if (!value) return "—";
   try {
-    return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+    return new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
   } catch {
     return value;
   }
 }
 
-function preview(text = "", limit = 900) {
-  const value = String(text || "").replace(/\s+/g, " ").trim();
-  if (!value) return "No note body returned.";
-  return value.length > limit ? `${value.slice(0, limit - 3)}...` : value;
+function pageLabel(page) {
+  if (!page) return "Без привязки";
+  return `${page.title} · ${labelCategory(page.category)}`;
 }
 
-function visibilityLabel(value = "private") {
-  return value || "private";
+function draftFromNote(note) {
+  return {
+    title: note?.title || "Новая заметка",
+    body: note?.body || "",
+    visibility: note?.visibility || "private",
+    linkedPath: note?.linkedPath || "",
+    linkedTitle: note?.linkedTitle || ""
+  };
 }
 
 export default function NotesPage({ pages = [] }) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const requestedArticle = searchParams.get("article") || "";
-  const [state, setState] = useState({ loading: true, error: "", notes: [] });
+  const requestedNoteId = searchParams.get("note") || "";
+  const requestedArticlePage = pages.find((page) => page.path === requestedArticle) || null;
+  const { notes, addNote, updateNote, deleteNote, storageMode, busy, error } = usePlayerNotes();
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState(requestedNoteId || "");
+  const [draft, setDraft] = useState(draftFromNote(null));
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    let active = true;
-    setState({ loading: true, error: "", notes: [] });
-    api.notes("mine")
-      .then((data) => {
-        if (!active) return;
-        setState({ loading: false, error: "", notes: Array.isArray(data.notes) ? data.notes : [] });
-      })
-      .catch((error) => {
-        if (!active) return;
-        setState({ loading: false, error: error.message || "Notes API failed.", notes: [] });
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const articleNote = requestedArticle ? state.notes.find((note) => note.linkedPath === requestedArticle) : null;
-    if (articleNote && selectedId !== articleNote.id) {
-      setSelectedId(articleNote.id);
-      return;
-    }
-    if (!selectedId && state.notes[0]?.id) setSelectedId(state.notes[0].id);
-    if (selectedId && !state.notes.some((note) => note.id === selectedId)) setSelectedId(state.notes[0]?.id || "");
-  }, [requestedArticle, selectedId, state.notes]);
+  const articleNotes = useMemo(() => requestedArticle ? notesForPage(notes, requestedArticle) : [], [notes, requestedArticle]);
+  const baseNotes = requestedArticle && !requestedNoteId ? articleNotes : notes;
 
   const filteredNotes = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return state.notes;
-    return state.notes.filter((note) => [note.title, note.body, note.linkedTitle, note.visibility].some((value) => String(value || "").toLowerCase().includes(needle)));
-  }, [query, state.notes]);
+    if (!needle) return baseNotes;
+    return baseNotes.filter((note) => [note.title, note.body, note.linkedTitle, note.visibility].some((value) => String(value || "").toLowerCase().includes(needle)));
+  }, [baseNotes, query]);
 
-  const selectedNote = useMemo(() => state.notes.find((note) => note.id === selectedId) || state.notes[0] || null, [selectedId, state.notes]);
-  const linkedPageExists = selectedNote?.linkedPath && pages.some((page) => page.path === selectedNote.linkedPath);
+  const selectedNote = useMemo(() => notes.find((note) => note.id === selectedId) || filteredNotes[0] || notes[0] || null, [filteredNotes, notes, selectedId]);
+  const sortedPages = useMemo(() => [...pages].sort((a, b) => a.title.localeCompare(b.title)), [pages]);
+  const linkedPageExists = draft.linkedPath && pages.some((page) => page.path === draft.linkedPath);
+
+  useEffect(() => {
+    if (requestedNoteId && notes.some((note) => note.id === requestedNoteId)) {
+      setSelectedId(requestedNoteId);
+      return;
+    }
+    if (requestedArticle && articleNotes[0]?.id) {
+      setSelectedId(articleNotes[0].id);
+      return;
+    }
+    if (!selectedId && notes[0]?.id) setSelectedId(notes[0].id);
+    if (selectedId && !notes.some((note) => note.id === selectedId)) setSelectedId(notes[0]?.id || "");
+  }, [articleNotes, notes, requestedArticle, requestedNoteId, selectedId]);
+
+  useEffect(() => {
+    setDraft(draftFromNote(selectedNote));
+    setMessage("");
+  }, [selectedNote?.id]);
+
+  function selectNote(id) {
+    setSelectedId(id);
+    setMessage("");
+    if (id) setSearchParams({ note: id });
+  }
+
+  async function createNote() {
+    setSaving(true);
+    setMessage("");
+    try {
+      const note = await addNote({
+        title: requestedArticlePage ? `Заметка: ${requestedArticlePage.title}` : "Новая заметка",
+        linkedPath: requestedArticlePage?.path || "",
+        linkedTitle: requestedArticlePage?.title || "",
+        visibility: "private"
+      });
+      setSelectedId(note.id);
+      setSearchParams({ note: note.id });
+      setMessage("Заметка создана. Теперь её можно редактировать и сохранить.");
+    } catch (createError) {
+      setMessage(createError.message || "Не удалось создать заметку.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function updateDraft(patch) {
+    setDraft((current) => ({ ...current, ...patch }));
+  }
+
+  function updateLinkedPage(path) {
+    const linked = pages.find((page) => page.path === path);
+    updateDraft({ linkedPath: linked?.path || "", linkedTitle: linked?.title || "" });
+  }
+
+  async function saveDraft() {
+    if (!selectedNote) return;
+    setSaving(true);
+    setMessage("");
+    try {
+      await updateNote(selectedNote.id, draft);
+      setMessage("Заметка сохранена.");
+    } catch (saveError) {
+      setMessage(saveError.message || "Не удалось сохранить заметку.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeNote() {
+    if (!selectedNote) return;
+    if (!window.confirm(`Удалить заметку «${selectedNote.title || "Без названия"}»?`)) return;
+    setSaving(true);
+    setMessage("");
+    try {
+      const next = notes.find((note) => note.id !== selectedNote.id);
+      await deleteNote(selectedNote.id);
+      setSelectedId(next?.id || "");
+      if (next?.id) setSearchParams({ note: next.id });
+      else setSearchParams({});
+    } catch (deleteError) {
+      setMessage(deleteError.message || "Не удалось удалить заметку.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <div className="page-stack notes-page">
+    <div className="page-stack notes-page notes-page-editable">
       <header className="list-header notes-header">
         <span className="kicker">Player Workspace</span>
         <h1>My Notes</h1>
-        <p>Campaign notes loaded from the Mongo API. Create/edit is intentionally deferred here unless a later stage enables the full notes workflow.</p>
+        <p>Личный блокнот кампании: заметки можно создавать, открывать по ссылке, редактировать, привязывать к статье и удалять.</p>
       </header>
 
-      {state.loading ? <div className="status-message success-message"><span>Loading notes from Mongo...</span></div> : null}
-      {state.error ? <div className="status-message danger-message"><span>{state.error}</span></div> : null}
+      <div className={`status-message ${storageMode === "mongo" ? "success-message" : "warning-message"}`}>
+        <span>{storageMode === "mongo" ? "Mongo workspace" : "Browser fallback"}{busy ? " · loading..." : ""}</span>
+        {error ? <small>{error}</small> : null}
+      </div>
+      {message ? <div className="status-message success-message"><span>{message}</span></div> : null}
 
       <section className="notes-layout notes-layout-polished">
         <aside className="notes-list-panel">
           <div className="notes-list-head">
             <div>
               <span className="kicker">Notebook</span>
-              <h2>{state.notes.length} notes</h2>
+              <h2>{requestedArticle && !requestedNoteId ? `${articleNotes.length} linked notes` : `${notes.length} notes`}</h2>
             </div>
+            <CodexButton type="button" size="sm" onClick={createNote} disabled={saving}><Plus size={16} /> <span>New</span></CodexButton>
           </div>
+          {requestedArticle ? (
+            <div className="notes-scope-chip">
+              <Link2 size={14} /> Linked to: {requestedArticlePage?.title || requestedArticle}
+              <button type="button" onClick={() => setSearchParams({})}>Clear</button>
+            </div>
+          ) : null}
           <label className="notes-search"><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search notes..." /></label>
           <div className="notes-list">
             {filteredNotes.map((note) => (
-              <button key={note.id} type="button" className={selectedNote?.id === note.id ? "is-active" : ""} onClick={() => setSelectedId(note.id)}>
+              <button key={note.id} type="button" className={selectedNote?.id === note.id ? "is-active" : ""} onClick={() => selectNote(note.id)}>
                 <strong>{note.title || "Untitled note"}</strong>
                 <span>{note.linkedTitle || "No linked article"}</span>
-                <small>{visibilityLabel(note.visibility)} � {formatDate(note.updatedAt)}</small>
+                <small>{note.visibility || "private"} · {formatDate(note.updatedAt)}</small>
               </button>
             ))}
-            {!state.loading && !state.error && !filteredNotes.length ? <p className="empty-copy">No notes have been added to this campaign yet.</p> : null}
+            {!busy && !filteredNotes.length ? <p className="empty-copy">No notes match this view.</p> : null}
           </div>
         </aside>
 
         <section className="notes-editor-panel">
           {selectedNote ? (
             <>
-              <div className="notes-editor-head">
+              <div className="notes-editor-head notes-editor-head-editable">
                 <NotebookPen size={22} />
-                <h2>{selectedNote.title || "Untitled note"}</h2>
+                <input value={draft.title} onChange={(event) => updateDraft({ title: event.target.value })} placeholder="Note title" />
+                <CodexButton type="button" variant="danger" size="sm" onClick={removeNote} disabled={saving}><Trash2 size={16} /> <span>Delete</span></CodexButton>
               </div>
               <div className="notes-meta-grid">
                 <label className="notes-link-field">
-                  <span>Visibility</span>
-                  <input readOnly value={visibilityLabel(selectedNote.visibility)} />
+                  <span><Link2 size={15} /> Linked article</span>
+                  <select value={draft.linkedPath || ""} onChange={(event) => updateLinkedPage(event.target.value)}>
+                    <option value="">No linked article</option>
+                    {sortedPages.map((page) => <option key={page.path} value={page.path}>{pageLabel(page)}</option>)}
+                  </select>
                 </label>
                 <label className="notes-link-field">
-                  <span>Updated</span>
-                  <input readOnly value={formatDate(selectedNote.updatedAt) || "Not available"} />
+                  <span>Visibility</span>
+                  <select value={draft.visibility || "private"} onChange={(event) => updateDraft({ visibility: event.target.value })}>
+                    {visibilityOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
                 </label>
               </div>
-              {selectedNote.linkedPath && linkedPageExists ? (
-                <Link className="notes-linked-card" to={`/page/${encodeURIComponent(selectedNote.linkedPath)}`}>
-                  <BookOpen size={16} /> Open linked article: {selectedNote.linkedTitle || selectedNote.linkedPath}
+              {draft.linkedPath && linkedPageExists ? (
+                <Link className="notes-linked-card" to={`/page/${encodeURIComponent(draft.linkedPath)}`}>
+                  <BookOpen size={16} /> Open linked article: {draft.linkedTitle || draft.linkedPath}
                 </Link>
               ) : null}
-              <div className="article-notes-panel">
-                <p>{preview(selectedNote.body)}</p>
+              <textarea className="notes-body-editor" value={draft.body} onChange={(event) => updateDraft({ body: event.target.value })} placeholder="Пиши мысли, догадки, обещания NPC, планы на следующую сессию..." />
+              <div className="notes-editor-actions">
+                <span>Updated: {formatDate(selectedNote.updatedAt)}</span>
+                <CodexButton type="button" onClick={saveDraft} disabled={saving}><Save size={16} /> <span>{saving ? "Saving..." : "Save note"}</span></CodexButton>
               </div>
             </>
           ) : (
             <div className="notes-empty-editor notes-empty-compact">
               <NotebookPen size={34} />
-              <h2>No notes have been added to this campaign yet.</h2>
-              <p>Private, shared-with-GM, and party-visible notes will appear here when returned by the backend.</p>
+              <h2>No notes yet.</h2>
+              <p>Create the first note, or open an article and add a note directly from there.</p>
+              <CodexButton type="button" onClick={createNote} disabled={saving}><Plus size={16} /> <span>New note</span></CodexButton>
             </div>
           )}
         </section>
