@@ -31,6 +31,7 @@ import AdminPlaceholderPage from "./pages/AdminPlaceholderPage.jsx";
 import GmHomePage from "./pages/GmHomePage.jsx";
 import PlayerHomePage from "./pages/PlayerHomePage.jsx";
 import SimplePlaceholderPage from "./pages/SimplePlaceholderPage.jsx";
+import DiceTrayPage from "./pages/DiceTrayPage.jsx";
 import PlayersPage from "./pages/PlayersPageV2.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import InviteAcceptPage from "./pages/InviteAcceptPage.jsx";
@@ -224,7 +225,7 @@ export default function App() {
         <Route path="/gm-tools" element={managerRoute(<GMToolsPage session={session} />)} />
         <Route path="/health" element={managerRoute(<VaultHealthPage mode={effectiveMode} />)} />
         <Route path="/player-safety" element={managerRoute(<PlayerSafetyPage pages={pages} />)} />
-        <Route path="/dice" element={campaignRoute(<SimplePlaceholderPage title="Кубики" kicker="Dice tray">Dice tray будет выделен в отдельный модуль. Сейчас это зафиксировано как следующий UX-блок.</SimplePlaceholderPage>)} />
+        <Route path="/dice" element={campaignRoute(<DiceTrayPage />)} />
         <Route path="/guide" element={<GuidePage canEdit={gmView} />} />
         <Route path="/foundry" element={managerRoute(<FoundryImportExportPage mode={effectiveMode} />)} />
         </Routes>
