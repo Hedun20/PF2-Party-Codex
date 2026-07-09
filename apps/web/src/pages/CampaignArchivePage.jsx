@@ -1,7 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { BookOpen, Clock3, FileText, MapPinned, NotebookPen, Sparkles, UserRound } from "lucide-react";
 import { api } from "../api/client.js";
 
 const recentSections = ["entries", "maps", "timelineEvents", "sessions", "handouts"];
+
+const sectionMeta = {
+  entries: { label: "Статьи", icon: FileText, path: "/category/lore", empty: "Статьи архива пока не созданы." },
+  maps: { label: "Карты", icon: MapPinned, path: "/maps", empty: "Карты пока не добавлены." },
+  timelineEvents: { label: "Timeline", icon: Clock3, path: "/timeline", empty: "События timeline пока не добавлены." },
+  sessions: { label: "Сессии", icon: BookOpen, path: "/sessions", empty: "Сессии пока не запланированы." },
+  handouts: { label: "Материалы", icon: Sparkles, path: "/handouts", empty: "Handouts пока не открыты игрокам." },
+  characters: { label: "Персонажи", icon: UserRound, path: "/characters", empty: "Персонажи пока не добавлены." },
+  notes: { label: "Заметки", icon: NotebookPen, path: "/notes", empty: "Заметки пока не созданы." }
+};
 
 function entityId(entity) {
   return entity?.id || entity?._id || entity?.campaignId || "";
@@ -12,11 +24,54 @@ function activeCampaignId(session) {
 }
 
 function itemLabel(item) {
-  return item?.title || item?.name || item?.label || item?.summary || item?.id || item?._id || "Untitled";
+  return item?.title || item?.name || item?.label || item?.summary || item?.id || item?._id || "Без названия";
+}
+
+function itemSubline(item = {}) {
+  const parts = [item.type, item.category, item.visibility, item.status, item.dateLabel, item.scheduledAt].filter(Boolean);
+  return parts.join(" · ");
 }
 
 function sectionLabel(section) {
-  return section.replace(/([A-Z])/g, " $1").replace(/^./, (value) => value.toUpperCase());
+  return sectionMeta[section]?.label || section.replace(/([A-Z])/g, " $1");
+}
+
+function isManager(role = "") {
+  return ["owner", "gm"].includes(String(role).toLowerCase());
+}
+
+function ArchiveCountCard({ section, value }) {
+  const meta = sectionMeta[section] || sectionMeta.entries;
+  const Icon = meta.icon;
+  return (
+    <Link to={meta.path} className="codex-card archive-count-card">
+      <Icon size={20} />
+      <span>{sectionLabel(section)}</span>
+      <strong>{Number(value || 0)}</strong>
+    </Link>
+  );
+}
+
+function RecentSection({ section, items, manager }) {
+  const meta = sectionMeta[section] || sectionMeta.entries;
+  return (
+    <article className="codex-card archive-recent-card">
+      <span className="kicker">{sectionLabel(section)}</span>
+      {items.length ? (
+        <ul>
+          {items.map((item, index) => (
+            <li key={item?.id || item?._id || `${section}-${index}`}>
+              <strong>{itemLabel(item)}</strong>
+              {itemSubline(item) ? <span> · {itemSubline(item)}</span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>{manager ? meta.empty : "Пока нет материалов, доступных игроку."}</p>
+      )}
+      <Link className="codex-button codex-button--ghost codex-button--sm" to={meta.path}>Открыть раздел</Link>
+    </article>
+  );
 }
 
 export default function CampaignArchivePage({ session }) {
@@ -36,7 +91,7 @@ export default function CampaignArchivePage({ session }) {
         if (active) setState({ loading: false, data, error: "" });
       })
       .catch((error) => {
-        if (active) setState({ loading: false, data: null, error: error.message || "Archive is unavailable." });
+        if (active) setState({ loading: false, data: null, error: error.message || "Архив кампании недоступен." });
       });
 
     return () => {
@@ -52,75 +107,66 @@ export default function CampaignArchivePage({ session }) {
   const campaign = data.campaign || session?.activeCampaign || {};
   const workspace = data.workspace || session?.activeWorkspace || {};
   const role = data.role || session?.activeMembership?.role || "player";
+  const manager = isManager(role);
+  const visibilityLabel = archive.visibility === "gm" ? "GM видит публичные и приватные материалы" : "Игрок видит только публичные и открытые материалы";
 
   return (
     <div className="page-stack archive-page">
       <section className="hero-panel archive-hero">
-        <span className="kicker">Campaign Archive</span>
-        <h1>{campaign?.name || "Campaign Archive"}</h1>
-        <p>{campaignId ? "Campaign content summary from the active archive contract." : "No active campaign is available for this session."}</p>
+        <span className="kicker">Архив кампании</span>
+        <h1>{campaign?.name || "Архив кампании"}</h1>
+        <p>{campaignId ? "Единый Mongo-архив активной кампании: статьи, карты, timeline, сессии, handouts, персонажи и заметки." : "Нет активной кампании для текущей сессии."}</p>
         <div className="workspace-identity-strip">
           {workspace?.name ? <span>Workspace: {workspace.name}</span> : null}
-          <span>Role: {role}</span>
-          {campaignId ? <span>Campaign ID: {campaignId}</span> : null}
+          <span>Роль: {role}</span>
+          <span>{visibilityLabel}</span>
         </div>
       </section>
 
       {!campaignId ? (
         <section className="codex-card workspace-status-card">
-          <span className="kicker">Archive unavailable</span>
-          <p>Choose or join a campaign before opening the archive.</p>
+          <span className="kicker">Архив недоступен</span>
+          <p>Создайте кампанию или примите приглашение перед открытием архива.</p>
         </section>
       ) : null}
 
       {state.error ? (
         <section className="codex-card workspace-status-card">
-          <span className="kicker">Archive unavailable</span>
+          <span className="kicker">Архив недоступен</span>
           <p>{state.error}</p>
         </section>
       ) : null}
 
       {state.loading ? (
         <section className="codex-card workspace-status-card">
-          <span className="kicker">Loading archive</span>
-          <p>Fetching the current campaign summary.</p>
+          <span className="kicker">Загрузка архива</span>
+          <p>Получаю Mongo summary активной кампании.</p>
         </section>
       ) : null}
 
       {state.data ? (
         <>
-          <section className="archive-summary-grid" aria-label="Archive counts">
-            {Object.entries(counts).map(([key, value]) => (
-              <article className="codex-card archive-count-card" key={key}>
-                <span>{sectionLabel(key)}</span>
-                <strong>{Number(value || 0)}</strong>
-              </article>
-            ))}
+          <section className="archive-summary-grid" aria-label="Сводка архива">
+            {Object.entries(counts).map(([key, value]) => <ArchiveCountCard key={key} section={key} value={value} />)}
           </section>
 
           <section className="codex-card workspace-status-card">
-            <span className="kicker">Available sections</span>
+            <span className="kicker">Состояние архива</span>
+            <p>{availableSections.length ? "В кампании уже есть данные в Mongo-разделах ниже." : manager ? "Mongo-архив пока пустой. Начните с создания статьи, карты или handout." : "Мастер пока не открыл материалы игрокам."}</p>
             <div className="archive-chip-row">
-              {availableSections.length ? availableSections.map((section) => <span key={section}>{sectionLabel(section)}</span>) : <span>No sections returned.</span>}
+              {availableSections.length ? availableSections.map((section) => <span key={section}>{sectionLabel(section)}</span>) : <span>Нет активных разделов</span>}
             </div>
+            {manager ? (
+              <div className="workspace-stats-row">
+                <Link className="codex-button codex-button--primary codex-button--sm" to="/editor">Создать статью</Link>
+                <Link className="codex-button codex-button--secondary codex-button--sm" to="/maps">Добавить карту</Link>
+                <Link className="codex-button codex-button--ghost codex-button--sm" to="/handouts">Материалы / Reveal</Link>
+              </div>
+            ) : null}
           </section>
 
-          <section className="archive-recent-grid" aria-label="Recent archive items">
-            {recentSections.map((section) => {
-              const items = Array.isArray(recent[section]) ? recent[section] : [];
-              return (
-                <article className="codex-card archive-recent-card" key={section}>
-                  <span className="kicker">Recent {sectionLabel(section)}</span>
-                  {items.length ? (
-                    <ul>
-                      {items.map((item, index) => <li key={item?.id || item?._id || `${section}-${index}`}>{itemLabel(item)}</li>)}
-                    </ul>
-                  ) : (
-                    <p>No recent items returned.</p>
-                  )}
-                </article>
-              );
-            })}
+          <section className="archive-recent-grid" aria-label="Последние материалы архива">
+            {recentSections.map((section) => <RecentSection key={section} section={section} items={Array.isArray(recent[section]) ? recent[section] : []} manager={manager} />)}
           </section>
         </>
       ) : null}
