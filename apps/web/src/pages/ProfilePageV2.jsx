@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Crown, Mail, ShieldCheck, UserRound, UsersRound } from "lucide-react";
+import { Crown, Copy, Mail, ShieldCheck, UserRound, UsersRound } from "lucide-react";
 import OnboardingPage from "./OnboardingPage.jsx";
 
 function roleLabel(role = "user") {
@@ -11,6 +11,11 @@ function roleLabel(role = "user") {
 
 function displayName(user = {}) {
   return user.displayName || user.name || user.email || "Пользователь";
+}
+
+function copyEmail(email = "") {
+  if (!email || !navigator?.clipboard) return;
+  navigator.clipboard.writeText(email).catch(() => {});
 }
 
 export default function ProfilePageV2({ session, onOnboardingCreated }) {
@@ -31,16 +36,17 @@ export default function ProfilePageV2({ session, onOnboardingCreated }) {
         <h1>{displayName(user)}</h1>
         <p>Аккаунт, активный workspace, кампания и роль в текущей кампании.</p>
         <div className="workspace-identity-strip">
-          {user.email ? <span><Mail size={15} /> {user.email}</span> : null}
+          {user.email ? <span className="profile-email-chip"><Mail size={15} /> <span>{user.email}</span></span> : null}
           <span><ShieldCheck size={15} /> {roleLabel(membership.role || "user")}</span>
           {campaign.name ? <span><Crown size={15} /> {campaign.name}</span> : null}
         </div>
       </section>
 
       <section className="workspace-grid settings-grid">
-        <article className="codex-card workspace-card">
+        <article className="codex-card workspace-card profile-account-card">
           <UserRound size={22} />
-          <div><strong>Аккаунт</strong><span>{user.email || "Email не указан"}</span></div>
+          <div><strong>Аккаунт</strong><span className="profile-email-text">{user.email || "Email не указан"}</span></div>
+          {user.email ? <button type="button" className="codex-button codex-button--ghost codex-button--sm" onClick={() => copyEmail(user.email)}><Copy size={14} /> Copy</button> : null}
         </article>
         <article className="codex-card workspace-card">
           <UsersRound size={22} />
