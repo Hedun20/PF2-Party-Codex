@@ -2,6 +2,25 @@
 
 Branch: `fix/identity-onboarding-v2`
 
+Status: **Green locally after Codex build and browser smoke**
+
+Last validation:
+
+- Codex pulled the latest branch first.
+- `npm install` completed.
+- `npm run build` passed.
+- Dev server started at `http://localhost:5173`.
+- Legacy nested portal navigation was removed from `AppShell.jsx`.
+- `/players`, `/my`, `/profile`, `/settings`, `/dice` render.
+- `/players` invite is player-only; no GM role select.
+- Invite API creates a copyable `inviteUrl`.
+- New registration returns no campaign membership.
+- Onboarding creates workspace, campaign, and owner membership.
+- Player is denied on `/players`, `/editor`, `/gm-tools`, `/health`.
+- Owner and seeded GM membership can access `/players`, `/editor`, `/gm-tools`, `/health`.
+- Sidebar/topbar show no GM/player toggle.
+- Duplicate `.portal-nav` count is `0`.
+
 ## Goal
 
 Bring the product from identity-foundation state to testable platform state.
@@ -33,54 +52,25 @@ This stage is not about adding billing, SaaS admin, or landing pages yet. It clo
 - Localized Settings page.
 - Added a temporary `/dice` placeholder route so workspace cards do not dead-end.
 - Removed unused `identity-ui-fix.css`.
-
-## Still to close before Green QA
-
-1. Run local build.
-2. Run browser smoke with Mongo.
-3. Check `/players` invite creation and invite acceptance.
-4. Check `/my`, `/profile`, `/settings`, `/handouts`, `/dice` visually.
-5. Check no-campaign onboarding.
-6. Check player cannot access `/players`, `/editor`, `/gm-tools`, `/health`.
-7. Check owner/GM can access `/players`, `/editor`, `/gm-tools`, `/health`.
-8. Optionally localize the remaining sidebar labels and Handouts empty state if they are still visibly mixed.
-
-## Codex task
-
-Use Codex for local build and QA only after pulling the branch.
-
-Prompt:
-
-```text
-You are working on Hedun20/PF2-Party-Codex branch fix/identity-onboarding-v2. Do not merge main. Do not add billing, landing, subscriptions, or SaaS admin features.
-
-Goal: verify Stage 8 Portal UX Closing Pack and fix only regressions that block test readiness.
-
-Run:
-- npm install if needed
-- npm run build
-- node --check apps/server/src/repositories/identityRepository.js
-- node --check apps/server/src/repositories/invitationsRepository.js
-- node --check apps/server/src/routes/onboarding.js
-- node --check apps/server/src/routes/memberships.js
-- node --check apps/server/src/services/sessionService.js
-- node --check apps/server/src/index.js
-
-Then inspect app flows:
-1. Register new user: must be no-campaign, not GM/player.
-2. No-campaign user sees onboarding/profile only.
-3. Onboarding creates workspace/campaign/owner membership.
-4. Owner sees GM portal, /players, /editor, /gm-tools.
-5. /players must invite only player, no GM role select.
-6. Invite creates email outbox item and returns copyable invite link.
-7. Second user accepts invite and becomes player.
-8. Player cannot access GM-only routes.
-9. /my, /profile, /settings must render without blank pages.
-10. /dice must not 404; placeholder is acceptable.
-
-If a build error appears, fix the smallest possible code issue. Do not redesign the app. Do not merge to main. Report exact files changed and whether status is Green or Yellow.
-```
+- Removed legacy inner portal nav wrapper from `AppShell.jsx`.
 
 ## Merge rule
 
-Do not merge until local build and browser smoke are Green.
+This branch is now eligible for merge to `main` if the user accepts the local Green QA result.
+
+Suggested merge flow:
+
+```bash
+git checkout main
+git pull --ff-only origin main
+git merge --no-ff fix/identity-onboarding-v2
+npm run build
+git push origin main
+```
+
+After merge, create the Stage 9 branch:
+
+```bash
+git checkout -b stage9-campaign-archive-mongo
+git push -u origin stage9-campaign-archive-mongo
+```
