@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { BookOpen, Clock3, Dices, NotebookPen, Search, Sparkles, UserRound } from "lucide-react";
+import { CodexCard, PageHero, PageShell } from "../components/ui/index.js";
 
 function role(session) {
   return String(session?.activeMembership?.role || "player").toLowerCase();
@@ -11,13 +12,13 @@ function canManage(session) {
 
 function DeskCard({ to, icon: Icon, title, description, primary = false }) {
   return (
-    <Link to={to} className={`codex-card workspace-card session-desk-card${primary ? " primary-workspace-card" : ""}`}>
+    <CodexCard as={Link} to={to} className={`workspace-card session-desk-card${primary ? " primary-workspace-card" : ""}`}>
       <Icon size={24} />
       <div>
         <strong>{title}</strong>
         <span>{description}</span>
       </div>
-    </Link>
+    </CodexCard>
   );
 }
 
@@ -45,18 +46,19 @@ export default function SessionDeskPage({ session }) {
   const cards = manager ? gmCards : playerCards;
 
   return (
-    <div className="page-stack session-desk-page">
-      <section className="hero-panel">
-        <span className="kicker">Игровой стол</span>
-        <h1>{manager ? "Рабочий стол сессии" : "Мой игровой стол"}</h1>
-        <p>{manager
+    <PageShell className="session-desk-page">
+      <PageHero
+        kicker="Игровой стол"
+        title={manager ? "Рабочий стол сессии" : "Мой игровой стол"}
+        description={manager
           ? "Всё, что нужно во время живой игры: кубики, быстрые заметки, материалы игрокам и быстрый доступ к архиву."
-          : "Минимальный экран участника во время игры: персонаж, кубики, заметки, открытые материалы и известный лор."}</p>
+          : "Минимальный экран участника во время игры: персонаж, кубики, заметки, открытые материалы и известный лор."}
+      >
         <div className="workspace-identity-strip">
           <span>Кампания: {campaign}</span>
           <span>Роль: {role(session)}</span>
         </div>
-      </section>
+      </PageHero>
 
       <section className="workspace-grid">
         {cards.map(([to, Icon, title, description, primary]) => (
@@ -64,10 +66,10 @@ export default function SessionDeskPage({ session }) {
         ))}
       </section>
 
-      <section className="codex-card workspace-status-card">
+      <CodexCard className="workspace-status-card" as="section">
         <span className="kicker">Принцип</span>
         <p>Архив нужен для подготовки и знаний. Игровой стол нужен во время сессии, когда надо быстро бросить кубы, открыть материал или записать заметку.</p>
-      </section>
-    </div>
+      </CodexCard>
+    </PageShell>
   );
 }
