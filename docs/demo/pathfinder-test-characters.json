@@ -1,0 +1,72 @@
+{
+  "notes": "Manual demo payloads for POST /api/characters after logging in as a campaign owner/GM/player. These do not auto-seed production data.",
+  "characters": [
+    {
+      "name": "Vaelor Dusk-Revenant",
+      "ancestry": "Human",
+      "heritage": "Nephilim",
+      "background": "Noble Scion",
+      "className": "Thaumaturge",
+      "level": 6,
+      "alignment": "LN",
+      "attributes": { "str": 4, "dex": 1, "con": 3, "int": 0, "wis": 1, "cha": 4 },
+      "defenses": { "ac": 24, "hp": 86, "maxHp": 86, "perception": 13, "fortitude": 15, "reflex": 10, "will": 15 },
+      "publicSummary": "A black-armored battlefield occultist with a crimson two-handed blade, commanding presence, fear pressure, and force-like psychic flavor. Built to test martial, social, aura, heavy armor, and implement presentation.",
+      "privateNotes": "Inspired by a dark fallen-knight fantasy archetype; not a direct licensed character name for public demo use.",
+      "buildNotes": "Thaumaturge 6, Regalia implement, heavy armor theme, bastard sword/crossguard weapon, charisma-forward intimidation and party aura support.",
+      "gmNotes": "Use to test GM-visible notes, private fields, party-safe character summary, and dark armored portrait presentation later.",
+      "inventoryText": "Full plate, bastard sword, regalia implement, adventurer's pack, healer's tools, lesser healing potions.",
+      "isVisibleToParty": true,
+      "isSharedWithGm": true,
+      "linkedArticles": ["npcs/vaelor-dusk-revenant.md", "lore/fallen-orders.md"]
+    },
+    {
+      "name": "Kara Ironvale",
+      "ancestry": "Dwarf",
+      "heritage": "Ancient-Blooded Dwarf",
+      "background": "Guard",
+      "className": "Champion",
+      "level": 6,
+      "alignment": "LG",
+      "attributes": { "str": 4, "dex": 0, "con": 4, "int": 0, "wis": 2, "cha": 2 },
+      "defenses": { "ac": 26, "hp": 98, "maxHp": 98, "perception": 12, "fortitude": 16, "reflex": 9, "will": 14 },
+      "publicSummary": "Frontline shield defender for testing tank-style character cards, high AC/HP, saves, and party-visible support notes.",
+      "buildNotes": "Simple durable martial baseline for comparing character presentation against more complex builds.",
+      "inventoryText": "Steel shield, full plate, warhammer, religious symbol, repair kit.",
+      "isVisibleToParty": true,
+      "isSharedWithGm": true
+    },
+    {
+      "name": "Seren Ashquill",
+      "ancestry": "Elf",
+      "heritage": "Seer Elf",
+      "background": "Scholar",
+      "className": "Wizard",
+      "level": 6,
+      "alignment": "NG",
+      "attributes": { "str": 0, "dex": 3, "con": 1, "int": 4, "wis": 2, "cha": 0 },
+      "defenses": { "ac": 21, "hp": 54, "maxHp": 54, "perception": 11, "fortitude": 9, "reflex": 13, "will": 15 },
+      "publicSummary": "Arcane researcher and control caster for testing spellcaster identity, low HP, high intelligence, and lore-linked character notes.",
+      "buildNotes": "Prepared arcane caster test profile. Use later to validate spell presentation blocks.",
+      "inventoryText": "Spellbook, staff, explorer's clothing, scroll case, ink and quills.",
+      "isVisibleToParty": true,
+      "isSharedWithGm": true
+    },
+    {
+      "name": "Mira Dawnhand",
+      "ancestry": "Human",
+      "heritage": "Versatile Human",
+      "background": "Field Medic",
+      "className": "Cleric",
+      "level": 6,
+      "alignment": "NG",
+      "attributes": { "str": 1, "dex": 1, "con": 2, "int": 0, "wis": 4, "cha": 3 },
+      "defenses": { "ac": 22, "hp": 72, "maxHp": 72, "perception": 14, "fortitude": 13, "reflex": 10, "will": 16 },
+      "publicSummary": "Party healer and support caster for testing support-role presentation, public utility notes, and GM-shared but player-owned data.",
+      "buildNotes": "Healing font support profile with high Wisdom/Charisma. Use to test support cards and future spell blocks.",
+      "inventoryText": "Healer's tools, religious symbol, mace, chain shirt, scrolls, healing kit.",
+      "isVisibleToParty": true,
+      "isSharedWithGm": true
+    }
+  ]
+}
