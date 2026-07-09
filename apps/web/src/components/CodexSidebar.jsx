@@ -25,7 +25,7 @@ import {
   X
 } from "lucide-react";
 import LoreDropdown from "./LoreDropdown.jsx";
-import { modeHome, modeMeta, scopedPath, scopeKicker, scopeLabel, shellModeFromPath } from "../utils/shellContext.js";
+import { modeHome, modeMeta, scopedPath, scopeKicker, scopeLabel, shellModeFromLocation } from "../utils/shellContext.js";
 
 const codexSections = [
   ["Worlds", "/category/worlds", Globe2],
@@ -86,10 +86,10 @@ function TableTools({ activeWorld, onClose }) {
       <NavItem to={scopedPath("/session-desk", activeWorld)} icon={Dices} label="Session Desk" onClose={onClose} />
       <NavItem to={scopedPath("/sessions", activeWorld)} icon={Swords} label="Current Session" onClose={onClose} />
       <NavItem to={scopedPath("/dice", activeWorld)} icon={Dices} label="Dice Tray" onClose={onClose} />
-      <NavItem to={scopedPath("/notes", activeWorld)} icon={NotebookPen} label="Quick Notes" onClose={onClose} />
-      <NavItem to={scopedPath("/handouts", activeWorld)} icon={Sparkles} label="Reveal / Handouts" onClose={onClose} />
+      <NavItem to={scopedPath("/notes", activeWorld, { mode: "table" })} icon={NotebookPen} label="Quick Notes" onClose={onClose} />
+      <NavItem to={scopedPath("/handouts", activeWorld, { mode: "table" })} icon={Sparkles} label="Reveal / Handouts" onClose={onClose} />
       <NavItem to={scopedPath("/characters", activeWorld)} icon={UsersRound} label="Characters / Party" onClose={onClose} />
-      <NavItem to={scopedPath("/maps", activeWorld)} icon={MapPinned} label="Session Maps" onClose={onClose} />
+      <NavItem to={scopedPath("/maps", activeWorld, { mode: "table" })} icon={MapPinned} label="Session Maps" onClose={onClose} />
       <NavItem to={scopedPath("/archive", activeWorld)} icon={BookOpen} label="Quick Archive" onClose={onClose} />
     </NavGroup>
   );
@@ -166,7 +166,7 @@ function PlayerTools({ mode, activeWorld, onClose }) {
 
 export default function CodexSidebar({ onClose, canEdit = false, activeWorld = null, signedIn = false, hasCampaignMembership = true }) {
   const location = useLocation();
-  const mode = shellModeFromPath(location.pathname);
+  const mode = shellModeFromLocation(location.pathname, location.search);
   const meta = modeMeta(mode);
   const brandTarget = modeHome(mode, canEdit, activeWorld);
   const showOnboardingNav = signedIn && !hasCampaignMembership;
