@@ -25,12 +25,44 @@ function rollFormula(input) {
   if (!parsed) throw new Error("Формула должна быть вида 1d20+7 или 2d6+3.");
   const rolls = Array.from({ length: parsed.count }, () => randomInt(parsed.sides));
   const total = rolls.reduce((sum, value) => sum + value, 0) + parsed.modifier;
-  return { ...parsed, rolls, total, createdAt: new Date().toLocaleTimeString() };
+  const natural = parsed.count === 1 ? rolls[0] : null;
+  return { ...parsed, rolls, total, natural, createdAt: new Date().toLocaleTimeString() };
 }
 
 function rollLabel(result) {
   const modifier = result.modifier ? ` ${result.modifier > 0 ? "+" : "-"} ${Math.abs(result.modifier)}` : "";
   return `${result.rolls.join(" + ")}${modifier}`;
+}
+
+function rollTone(result) {
+  if (result.sides === 20 && result.natural === 20) return "critical";
+  if (result.sides === 20 && result.natural === 1) return "fumble";
+  return "normal";
+}
+
+function DiceFace({ sides, value, large = false }) {
+  return (
+    <div className={`dice-face dice-face--d${sides} ${large ? "dice-face--large" : ""}`}>
+      <span>d{sides}</span>
+      <strong>{value || "—"}</strong>
+    </div>
+  );
+}
+
+function RollCard({ result, latest = false }) {
+  const tone = rollTone(result);
+  return (
+    <article className={`codex-card roll-history-card roll-history-card--${tone} ${latest ? "roll-history-card--latest" : ""}`}>
+      <DiceFace sides={result.sides} value={result.natural || result.total} large={latest} />
+      <div className="roll-history-card-body">
+        <span className="kicker">{latest ? "Последний бросок" : result.createdAt}</span>
+        <h2>{result.label} = {result.total}</h2>
+        <p>{rollLabel(result)}</p>
+        {tone === "critical" ? <strong className="roll-badge">Natural 20</strong> : null}
+        {tone === "fumble" ? <strong className="roll-badge roll-badge--danger">Natural 1</strong> : null}
+      </div>
+    </article>
+  );
 }
 
 export default function DiceTrayPage() {
@@ -65,20 +97,22 @@ export default function DiceTrayPage() {
         <p>Быстрый локальный бросок для playtest: d20, d12, d10, d8, d6, d4 и простые формулы вроде 1d20+7 или 2d6+3.</p>
       </section>
 
-      <section className="builder-section quick-create-panel">
+      <section className="builder-section quick-create-panel dice-roll-panel">
         <div className="quick-create-copy">
           <span className="kicker">Быстрый бросок</span>
           <h2>{latest ? `${latest.label} = ${latest.total}` : "Выберите кубик"}</h2>
           <p>{latest ? `${rollLabel(latest)} · ${latest.createdAt}` : "История хранится только локально в браузере и не синхронизируется между игроками."}</p>
         </div>
-        <div className="type-grid compact-type-grid">
+        <div className="dice-quick-grid">
           {quickDice.map((sides) => (
-            <button key={sides} type="button" className="type-chip" onClick={() => quickRoll(sides)}>
-              <Dices size={17} /> d{sides}
+            <button key={sides} type="button" className="dice-quick-button" onClick={() => quickRoll(sides)}>
+              <DiceFace sides={sides} />
             </button>
           ))}
         </div>
       </section>
+
+      {latest ? <RollCard result={latest} latest /> : null}
 
       <section className="builder-section create-flow-section">
         <div className="visual-editor-section-head">
@@ -97,18 +131,14 @@ export default function DiceTrayPage() {
         {error ? <p className="save-message">{error}</p> : null}
       </section>
 
-      <section className="codex-card workspace-status-card">
+      <section className="roll-history-section">
         <span className="kicker">История бросков</span>
         {history.length ? (
-          <ul>
-            {history.map((item, index) => (
-              <li key={`${item.createdAt}-${index}`}>
-                <strong>{item.label} = {item.total}</strong> · {rollLabel(item)} · {item.createdAt}
-              </li>
-            ))}
-          </ul>
+          <div className="roll-history-grid">
+            {history.map((item, index) => <RollCard key={`${item.createdAt}-${index}`} result={item} />)}
+          </div>
         ) : (
-          <p>Бросков пока нет. Нажмите d20 или введите формулу.</p>
+          <article className="codex-card workspace-status-card"><p>Бросков пока нет. Нажмите d20 или введите формулу.</p></article>
         )}
       </section>
     </div>
