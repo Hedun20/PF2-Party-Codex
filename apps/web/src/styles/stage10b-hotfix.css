@@ -6,6 +6,14 @@
   gap: 14px;
 }
 
+.dashboard-page-compact .hero-panel {
+  margin-bottom: 0;
+}
+
+.dashboard-zone-panel {
+  margin-top: 0;
+}
+
 .product-mode-card {
   padding: 0;
   overflow: hidden;
@@ -14,6 +22,7 @@
 .product-mode-main-link {
   display: grid;
   gap: 10px;
+  min-width: 0;
   padding: 18px;
   color: inherit;
   text-decoration: none;
@@ -28,7 +37,11 @@
 .product-mode-main-link span,
 .product-mode-link-row a,
 .profile-email-text,
-.profile-email-chip span {
+.profile-email-chip span,
+.session-desk-card span,
+.player-portal-card span,
+.workspace-card > div,
+.workspace-card > div span {
   overflow-wrap: anywhere;
   word-break: break-word;
   min-width: 0;
@@ -58,6 +71,50 @@
 .profile-email-chip {
   min-width: 0;
   max-width: 100%;
+}
+
+.players-invite-form {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.players-invite-form label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: var(--muted);
+}
+
+.players-invite-form input {
+  min-height: 40px;
+}
+
+.players-invite-form .codex-button {
+  align-self: end;
+  min-height: 34px;
+  height: 40px;
+  padding-block: 8px;
+}
+
+.create-type-grid {
+  align-items: stretch;
+}
+
+.create-type-grid .type-chip {
+  min-height: 44px;
+  height: 100%;
+  padding: 10px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.create-flow-section .codex-field > span {
+  display: none;
 }
 
 .dice-roll-panel {
@@ -160,7 +217,8 @@
 @media (max-width: 760px) {
   .profile-account-card,
   .roll-history-card,
-  .roll-history-card--latest {
+  .roll-history-card--latest,
+  .players-invite-form {
     grid-template-columns: 1fr;
   }
 }
