@@ -3,7 +3,7 @@ import CommandSearch from "./CommandSearch.jsx";
 import WorldAmbienceControl from "./world/WorldAmbienceControl.jsx";
 import { Archive, Dices, LogIn, LogOut, Menu, NotebookPen, PenLine, Settings, Sparkles, UserRound, UsersRound } from "lucide-react";
 import { getWorlds, worldSlug } from "../utils/worldContext.js";
-import { changeScopePath, modeHome, modeMeta, pageToolFromPath, scopeLabel, shellModeFromPath } from "../utils/shellContext.js";
+import { changeScopePath, modeHome, modeMeta, pageToolFromPath, scopeLabel, scopedPath, shellModeFromLocation } from "../utils/shellContext.js";
 
 function activeRole(session) {
   return String(session?.activeMembership?.role || "").toLowerCase();
@@ -23,7 +23,7 @@ function modeClass(mode, currentMode) {
 export default function CodexTopbar({ session, pages, allPages, query, setQuery, onSelectPage, sidebarOpen, setSidebarOpen, activeWorld, worldTheme, onLogout }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const currentMode = shellModeFromPath(location.pathname);
+  const currentMode = shellModeFromLocation(location.pathname, location.search);
   const meta = modeMeta(currentMode);
   const hasMembership = Boolean(session?.activeMembership?.id);
   const signedIn = Boolean(session?.user);
@@ -89,10 +89,10 @@ export default function CodexTopbar({ session, pages, allPages, query, setQuery,
       {campaignNavAvailable ? (
         <div className="top-quick-actions top-quick-actions-contextual">
           {currentMode === "archive" && canManage ? <Link to={activeWorld ? `/editor?world=${encodeURIComponent(activeWorld.title)}` : "/editor"} title="Create archive entry"><PenLine size={16} /> <span>Create</span></Link> : null}
-          {currentMode === "table" ? <Link to={activeWorld ? `/dice?world=${encodeURIComponent(worldSlug(activeWorld))}` : "/dice"} title="Dice tray"><Dices size={16} /> <span>Dice</span></Link> : null}
-          {currentMode === "table" ? <Link to={activeWorld ? `/handouts?world=${encodeURIComponent(worldSlug(activeWorld))}` : "/handouts"} title="Handouts"><Sparkles size={16} /> <span>Handouts</span></Link> : null}
+          {currentMode === "table" ? <Link to={scopedPath("/dice", activeWorld)} title="Dice tray"><Dices size={16} /> <span>Dice</span></Link> : null}
+          {currentMode === "table" ? <Link to={scopedPath("/handouts", activeWorld, { mode: "table" })} title="Handouts"><Sparkles size={16} /> <span>Handouts</span></Link> : null}
           {currentMode === "management" && canManage ? <Link to="/players" title="Players and invitations"><UsersRound size={16} /> <span>Players</span></Link> : null}
-          {currentMode !== "management" ? <Link to={activeWorld ? `/notes?world=${encodeURIComponent(worldSlug(activeWorld))}` : "/notes"} title="Quick note"><NotebookPen size={16} /> <span>Note</span></Link> : null}
+          {currentMode !== "management" ? <Link to={scopedPath("/notes", activeWorld, currentMode === "table" ? { mode: "table" } : {})} title="Quick note"><NotebookPen size={16} /> <span>Note</span></Link> : null}
         </div>
       ) : null}
 
