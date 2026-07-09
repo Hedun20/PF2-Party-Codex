@@ -11,10 +11,12 @@ function canManage(session) {
 
 function DeskCard({ to, icon: Icon, title, description, primary = false }) {
   return (
-    <Link to={to} className={`codex-card workspace-card${primary ? " primary-workspace-card" : ""}`}>
+    <Link to={to} className={`codex-card workspace-card session-desk-card${primary ? " primary-workspace-card" : ""}`}>
       <Icon size={24} />
-      <strong>{title}</strong>
-      <span>{description}</span>
+      <div>
+        <strong>{title}</strong>
+        <span>{description}</span>
+      </div>
     </Link>
   );
 }
