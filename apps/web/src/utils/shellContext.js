@@ -44,8 +44,13 @@ export const TABLE_PATHS = [
   "/session-desk",
   "/sessions",
   "/dice",
-  "/notes",
   "/characters"
+];
+
+export const SHARED_TOOL_PATHS = [
+  "/handouts",
+  "/notes",
+  "/maps"
 ];
 
 export const ARCHIVE_PATHS = [
@@ -54,6 +59,7 @@ export const ARCHIVE_PATHS = [
   "/maps",
   "/timeline",
   "/handouts",
+  "/notes",
   "/page",
   "/editor",
   "/edit"
@@ -61,6 +67,17 @@ export const ARCHIVE_PATHS = [
 
 function startsWithAny(pathname = "", paths = []) {
   return paths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
+
+export function modeFromSearch(search = "") {
+  const value = new URLSearchParams(search || "").get("mode");
+  return ["archive", "table", "management"].includes(value) ? value : "";
+}
+
+export function shellModeFromLocation(pathname = "", search = "") {
+  const explicitMode = modeFromSearch(search);
+  if (explicitMode) return explicitMode;
+  return shellModeFromPath(pathname);
 }
 
 export function shellModeFromPath(pathname = "") {
@@ -108,7 +125,7 @@ export function normalizeLegacyWorldPath(pathname = "") {
   if (rest === "maps") return "/maps";
   if (rest === "timeline") return "/timeline";
   if (rest === "session") return "/sessions";
-  if (rest === "reveal") return "/handouts";
+  if (rest === "reveal") return "/handouts?mode=table";
   if (rest === "player") return "/player";
   return "/archive";
 }
@@ -151,7 +168,7 @@ export function changeScopePath(pathname = "/archive", search = "", world = null
 }
 
 export function pageToolFromPath(pathname = "") {
-  const normalized = normalizeLegacyWorldPath(pathname || "/");
+  const normalized = normalizeLegacyWorldPath(pathname || "/").split("?")[0];
   if (normalized === "/") return "Dashboard";
   if (normalized.startsWith("/category/")) return normalized.split("/")[2] || "Category";
   if (normalized === "/archive") return "Overview";
