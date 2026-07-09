@@ -9,11 +9,6 @@ function hostFromValue(value = "") {
   }
 }
 
-function isLocalHost(host = "") {
-  const normalized = hostFromValue(host);
-  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1" || normalized === "0.0.0.0";
-}
-
 function requestHost(req) {
   return req.get("origin") || req.get("referer") || req.get("x-forwarded-host") || req.get("host") || "";
 }
@@ -29,45 +24,48 @@ async function publicUserForSession(user) {
   return toPublicUser(user);
 }
 
+function campaignRole(publicUser) {
+  return String(publicUser?.activeMembership?.role || publicUser?.membership?.role || "").toLowerCase();
+}
+
 function canEditRole(role = "") {
   return role === "owner" || role === "gm";
 }
 
-export function isLocalGmRequest(req) {
-  return isLocalHost(requestHost(req));
+export function isLocalGmRequest(_req) {
+  return false;
 }
 
 export async function resolveRequestMode(req, requestedMode = "") {
   const wantsPlayerPreview = String(requestedMode || req.query?.mode || "").toLowerCase() === "player";
   if (wantsPlayerPreview) return "player";
   const publicUser = await publicUserForSession(req.user);
-  if (canEditRole(publicUser?.role || req.user?.role)) return "gm";
-  if (isLocalGmRequest(req) && !(await hasRegisteredUsers())) return "gm";
+  if (canEditRole(campaignRole(publicUser))) return "gm";
   return "player";
 }
 
 export async function sessionInfo(req) {
   const publicUser = await publicUserForSession(req.user);
+  const role = campaignRole(publicUser) || (publicUser ? "user" : "anonymous");
   const mode = await resolveRequestMode(req);
-  const bootstrapping = mode === "gm" && !req.user;
   return {
     mode,
-    canEdit: mode === "gm",
-    access: publicUser ? publicUser.role : bootstrapping ? "bootstrap-local-gm" : "player",
+    canEdit: canEditRole(role),
+    access: role,
     host: requestHost(req),
     user: publicUser,
     activeWorkspace: publicUser?.activeWorkspace || null,
     activeCampaign: publicUser?.activeCampaign || null,
     activeMembership: publicUser?.activeMembership || publicUser?.membership || null,
     membership: publicUser?.membership || publicUser?.activeMembership || null,
-    role: publicUser?.role || (bootstrapping ? "gm" : "player"),
+    role,
     authRequiredForGm: await hasRegisteredUsers()
   };
 }
 
 export async function requireGm(req, res, next) {
   if ((await resolveRequestMode(req)) !== "gm") {
-    return res.status(403).json({ error: "GM access required. Log in with a GM account to edit the campaign vault." });
+    return res.status(403).json({ error: "GM access required. Log in with an owner/GM campaign membership to manage campaign content." });
   }
   next();
 }

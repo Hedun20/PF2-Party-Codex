@@ -31,9 +31,10 @@ import AdminPlaceholderPage from "./pages/AdminPlaceholderPage.jsx";
 import GmHomePage from "./pages/GmHomePage.jsx";
 import PlayerHomePage from "./pages/PlayerHomePage.jsx";
 import SimplePlaceholderPage from "./pages/SimplePlaceholderPage.jsx";
-import PlayersPage from "./pages/PlayersPage.jsx";
+import PlayersPage from "./pages/PlayersPageV2.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import InviteAcceptPage from "./pages/InviteAcceptPage.jsx";
+import OnboardingPage from "./pages/OnboardingPage.jsx";
 import { getWorldOwnedPages, getWorldSearchPages, resolveWorldBySlug, resolveWorldForPage } from "./utils/worldContext.js";
 
 function worldSlugFromPath(pathname = "") {
@@ -56,23 +57,33 @@ function editorWorldFromLocation(location) {
   return new URLSearchParams(location.search).get("world") || "";
 }
 
+function activeMembership(session) {
+  return session?.activeMembership || null;
+}
+
+function hasActiveCampaignMembership(session) {
+  return Boolean(activeMembership(session)?.id);
+}
+
 function campaignRole(session) {
-  return String(session?.activeMembership?.role || session?.membership?.role || session?.role || session?.user?.role || "").toLowerCase();
+  return String(activeMembership(session)?.role || "").toLowerCase();
 }
 
 function canManageCampaign(session) {
-  return Boolean(session?.canEdit) || ["owner", "gm"].includes(campaignRole(session));
+  return ["owner", "gm"].includes(campaignRole(session));
 }
 
 export default function App() {
-  const [session, setSession] = useState({ mode: "player", canEdit: false, user: null });
-  const [mode, setMode] = useState(localStorage.getItem("codex-mode") || "gm");
+  const [session, setSession] = useState({ mode: "player", canEdit: false, user: null, activeMembership: null, activeCampaign: null, activeWorkspace: null });
+  const [mode, setMode] = useState("gm");
   const [pages, setPages] = useState([]);
   const [categories, setCategories] = useState([]);
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
 
+  const signedIn = Boolean(session?.user);
+  const hasMembership = hasActiveCampaignMembership(session);
   const canManage = canManageCampaign(session);
   const effectiveMode = canManage ? mode : "player";
   const gmView = effectiveMode === "gm" && canManage;
@@ -84,15 +95,39 @@ export default function App() {
     return data;
   };
 
-  const refresh = async () => {
-    const [pageData, categoryData] = await Promise.all([api.pages(effectiveMode), api.categories(effectiveMode)]);
-    setPages(pageData.pages);
-    setCategories(categoryData.categories);
+  const refresh = async (sessionOverride = session) => {
+    if (sessionOverride?.user && !hasActiveCampaignMembership(sessionOverride)) {
+      setPages([]);
+      setCategories([]);
+      return { pages: [], categories: [] };
+    }
+
+    try {
+      const [pageData, categoryData] = await Promise.all([api.pages(effectiveMode), api.categories(effectiveMode)]);
+      setPages(Array.isArray(pageData.pages) ? pageData.pages : []);
+      setCategories(Array.isArray(categoryData.categories) ? categoryData.categories : []);
+      return { pages: pageData.pages || [], categories: categoryData.categories || [] };
+    } catch (error) {
+      if (error.message?.includes("GM access")) setMode("player");
+      if (sessionOverride?.user && !hasActiveCampaignMembership(sessionOverride)) {
+        setPages([]);
+        setCategories([]);
+      }
+      return { pages: [], categories: [] };
+    }
   };
 
   const handleAuth = async () => {
-    await loadSession();
-    await refresh();
+    const nextSession = await loadSession();
+    if (canManageCampaign(nextSession)) setMode("gm");
+    await refresh(nextSession);
+    navigate("/");
+  };
+
+  const handleOnboardingCreated = async () => {
+    const nextSession = await loadSession();
+    if (canManageCampaign(nextSession)) setMode("gm");
+    await refresh(nextSession);
     navigate("/");
   };
 
@@ -100,6 +135,8 @@ export default function App() {
     await api.logout();
     await loadSession();
     setMode("player");
+    setPages([]);
+    setCategories([]);
     navigate("/");
   };
 
@@ -109,12 +146,10 @@ export default function App() {
 
   useEffect(() => {
     if (canManage) localStorage.setItem("codex-mode", mode);
-    refresh().catch((error) => {
-      if (error.message?.includes("GM access")) setMode("player");
-    });
+    refresh().catch(() => {});
     const timer = setInterval(() => refresh().catch(() => {}), 10000);
     return () => clearInterval(timer);
-  }, [effectiveMode, canManage]);
+  }, [effectiveMode, canManage, hasMembership]);
 
   const dashboard = useMemo(() => pages.find((page) => page.path === "index.md"), [pages]);
   const activeWorldSlug = worldSlugFromPath(location.pathname);
@@ -126,6 +161,20 @@ export default function App() {
   const activeWorld = routeWorld || pageWorld || editorWorld;
   const worldPages = useMemo(() => activeWorld ? getWorldOwnedPages(pages, activeWorld) : pages, [pages, activeWorld]);
   const shellPages = useMemo(() => activeWorld ? getWorldSearchPages(pages, activeWorld) : pages, [pages, activeWorld]);
+
+  const onboardingElement = <OnboardingPage session={session} onCreated={handleOnboardingCreated} />;
+  const accessDeniedElement = (
+    <SimplePlaceholderPage title="GM access required" kicker="Campaign permissions">
+      This route requires an active campaign membership with owner or GM role.
+    </SimplePlaceholderPage>
+  );
+  const campaignRoute = (element) => (signedIn && !hasMembership ? onboardingElement : element);
+  const managerRoute = (element) => {
+    if (!signedIn) return <AuthPage onAuth={handleAuth} session={session} />;
+    if (!hasMembership) return onboardingElement;
+    if (!canManage) return accessDeniedElement;
+    return element;
+  };
 
   return (
     <FantasyShell
@@ -145,38 +194,39 @@ export default function App() {
         <Routes>
         <Route path="/login" element={<AuthPage onAuth={handleAuth} session={session} />} />
         <Route path="/invite/:token" element={<InviteAcceptPage session={session} onAccepted={loadSession} />} />
-        <Route path="/" element={<DashboardPage pages={pages} dashboard={dashboard} mode={effectiveMode} session={session} />} />
-        <Route path="/gm" element={canManage ? <GmHomePage session={session} /> : <AuthPage onAuth={handleAuth} session={session} />} />
-        <Route path="/player" element={<PlayerHomePage session={session} />} />
-        <Route path="/archive" element={<CampaignArchivePage session={session} />} />
-        <Route path="/admin" element={canManage ? <AdminPlaceholderPage /> : <AuthPage onAuth={handleAuth} session={session} />} />
-        <Route path="/players" element={canManage ? <PlayersPage session={session} /> : <AuthPage onAuth={handleAuth} session={session} />} />
-        <Route path="/profile" element={<ProfilePage session={session} />} />
-        <Route path="/world/:worldSlug" element={<WorldDashboardPage pages={pages} mode={effectiveMode} session={session} />} />
-        <Route path="/world/:worldSlug/category/:category/*" element={<CategoryPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />} />
-        <Route path="/world/:worldSlug/timeline" element={<TimelinePage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />} />
-        <Route path="/world/:worldSlug/maps" element={<MapsPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />} />
-        <Route path="/world/:worldSlug/session" element={gmView ? <SessionModePage pages={pages} mode={effectiveMode} session={session} /> : <PlayerPortalView pages={pages} />} />
-        <Route path="/world/:worldSlug/reveal" element={gmView ? <PlayerRevealPage pages={pages} session={session} /> : <PlayerPortalView pages={pages} />} />
-        <Route path="/world/:worldSlug/player" element={<PlayerPortalView pages={pages} />} />
-        <Route path="/category/:category/*" element={<CategoryPage pages={pages} mode={effectiveMode} />} />
-        <Route path="/page/:path" element={<PageView mode={effectiveMode} pages={pages} onChanged={refresh} />} />
-        <Route path="/editor" element={<EditorPage onSaved={refresh} session={{ ...session, canEdit: gmView }} activeWorld={activeWorld} />} />
-        <Route path="/edit/:path" element={<RawEditorPage mode={gmView ? "gm" : "player"} onSaved={refresh} pages={pages} />} />
-        <Route path="/missing" element={gmView ? <MissingLinksPage mode={effectiveMode} /> : <AuthPage onAuth={handleAuth} session={session} />} />
-        <Route path="/timeline" element={<TimelinePage pages={pages} mode={effectiveMode} />} />
-        <Route path="/maps" element={<MapsPage pages={pages} mode={effectiveMode} />} />
-        <Route path="/my" element={<MyWorkspacePage pages={pages} mode={effectiveMode} session={session} />} />
-        <Route path="/notes" element={<NotesPage pages={pages} />} />
-        <Route path="/characters" element={<CharactersPage pages={pages} />} />
-        <Route path="/handouts" element={<HandoutsPage pages={pages} mode={effectiveMode} />} />
-        <Route path="/sessions" element={<SessionsPage pages={pages} mode={effectiveMode} />} />
-        <Route path="/settings" element={<SettingsPage session={session} />} />
-        <Route path="/gm-tools" element={gmView ? <GMToolsPage session={session} /> : <AuthPage onAuth={handleAuth} session={session} />} />
-        <Route path="/health" element={gmView ? <VaultHealthPage mode={effectiveMode} /> : <AuthPage onAuth={handleAuth} session={session} />} />
-        <Route path="/player-safety" element={gmView ? <PlayerSafetyPage pages={pages} /> : <AuthPage onAuth={handleAuth} session={session} />} />
+        <Route path="/" element={campaignRoute(<DashboardPage pages={pages} dashboard={dashboard} mode={effectiveMode} session={session} />)} />
+        <Route path="/gm" element={managerRoute(<GmHomePage session={session} />)} />
+        <Route path="/player" element={campaignRoute(<PlayerHomePage session={session} />)} />
+        <Route path="/archive" element={campaignRoute(<CampaignArchivePage session={session} />)} />
+        <Route path="/admin" element={managerRoute(<AdminPlaceholderPage />)} />
+        <Route path="/players" element={managerRoute(<PlayersPage session={session} />)} />
+        <Route path="/profile" element={<ProfilePage session={session} onOnboardingCreated={handleOnboardingCreated} />} />
+        <Route path="/world/:worldSlug" element={campaignRoute(<WorldDashboardPage pages={pages} mode={effectiveMode} session={session} />)} />
+        <Route path="/world/:worldSlug/category/:category/*" element={campaignRoute(<CategoryPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
+        <Route path="/world/:worldSlug/timeline" element={campaignRoute(<TimelinePage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
+        <Route path="/world/:worldSlug/maps" element={campaignRoute(<MapsPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
+        <Route path="/world/:worldSlug/session" element={campaignRoute(gmView ? <SessionModePage pages={pages} mode={effectiveMode} session={session} /> : <PlayerPortalView pages={pages} />)} />
+        <Route path="/world/:worldSlug/reveal" element={campaignRoute(gmView ? <PlayerRevealPage pages={pages} session={session} /> : <PlayerPortalView pages={pages} />)} />
+        <Route path="/world/:worldSlug/player" element={campaignRoute(<PlayerPortalView pages={pages} />)} />
+        <Route path="/category/:category/*" element={campaignRoute(<CategoryPage pages={pages} mode={effectiveMode} />)} />
+        <Route path="/page/:path" element={campaignRoute(<PageView mode={effectiveMode} pages={pages} onChanged={refresh} />)} />
+        <Route path="/editor" element={managerRoute(<EditorPage onSaved={refresh} session={{ ...session, canEdit: gmView }} activeWorld={activeWorld} />)} />
+        <Route path="/edit/:path" element={managerRoute(<RawEditorPage mode="gm" onSaved={refresh} pages={pages} />)} />
+        <Route path="/missing" element={managerRoute(<MissingLinksPage mode={effectiveMode} />)} />
+        <Route path="/timeline" element={campaignRoute(<TimelinePage pages={pages} mode={effectiveMode} />)} />
+        <Route path="/maps" element={campaignRoute(<MapsPage pages={pages} mode={effectiveMode} />)} />
+        <Route path="/my" element={campaignRoute(<MyWorkspacePage pages={pages} mode={effectiveMode} session={session} />)} />
+        <Route path="/notes" element={campaignRoute(<NotesPage pages={pages} />)} />
+        <Route path="/characters" element={campaignRoute(<CharactersPage pages={pages} />)} />
+        <Route path="/handouts" element={campaignRoute(<HandoutsPage pages={pages} mode={effectiveMode} />)} />
+        <Route path="/sessions" element={campaignRoute(<SessionsPage pages={pages} mode={effectiveMode} />)} />
+        <Route path="/settings" element={campaignRoute(<SettingsPage session={session} />)} />
+        <Route path="/gm-tools" element={managerRoute(<GMToolsPage session={session} />)} />
+        <Route path="/health" element={managerRoute(<VaultHealthPage mode={effectiveMode} />)} />
+        <Route path="/player-safety" element={managerRoute(<PlayerSafetyPage pages={pages} />)} />
+        <Route path="/dice" element={campaignRoute(<SimplePlaceholderPage title="Кубики" kicker="Dice tray">Dice tray будет выделен в отдельный модуль. Сейчас это зафиксировано как следующий UX-блок.</SimplePlaceholderPage>)} />
         <Route path="/guide" element={<GuidePage canEdit={gmView} />} />
-        <Route path="/foundry" element={gmView ? <FoundryImportExportPage mode={effectiveMode} /> : <AuthPage onAuth={handleAuth} session={session} />} />
+        <Route path="/foundry" element={managerRoute(<FoundryImportExportPage mode={effectiveMode} />)} />
         </Routes>
       </AppShell>
     </FantasyShell>

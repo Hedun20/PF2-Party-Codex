@@ -4,7 +4,7 @@ import { sendEmail } from "../services/emailService.js";
 import { activateMembershipForInvitation, mongoFindUserById, normalizeEmail, objectIdFrom, publicMembership } from "./identityRepository.js";
 
 const INVITE_TTL_MS = Number(process.env.INVITATION_TTL_MS || 1000 * 60 * 60 * 24 * 7);
-const INVITE_ROLES = new Set(["player", "gm"]);
+const INVITE_ROLE = "player";
 
 function invitations() {
   return getDb().collection("invitations");
@@ -47,12 +47,13 @@ export async function ensureInvitationIndexes() {
 
 export function publicInvitation(invitation, { includeInviteUrl = false, inviteUrl = "" } = {}) {
   if (!invitation) return null;
+  const exposedInviteUrl = inviteUrl || invitation.inviteUrl || "";
   return {
     id: idString(invitation._id),
     workspaceId: idString(invitation.workspaceId),
     campaignId: idString(invitation.campaignId),
     email: invitation.email || "",
-    role: invitation.role || "player",
+    role: invitation.role || INVITE_ROLE,
     status: invitation.status || "pending",
     expiresAt: invitation.expiresAt || "",
     invitedBy: idString(invitation.invitedBy),
@@ -60,7 +61,7 @@ export function publicInvitation(invitation, { includeInviteUrl = false, inviteU
     acceptedAt: invitation.acceptedAt || "",
     createdAt: invitation.createdAt,
     updatedAt: invitation.updatedAt,
-    ...(includeInviteUrl && inviteUrl ? { inviteUrl } : {})
+    ...(includeInviteUrl || exposedInviteUrl ? { inviteUrl: exposedInviteUrl } : {})
   };
 }
 
@@ -71,13 +72,7 @@ function validateInvitationInput(input = {}) {
     error.status = 400;
     throw error;
   }
-  const role = INVITE_ROLES.has(String(input.role || "player")) ? String(input.role || "player") : "";
-  if (!role) {
-    const error = new Error("Invitation role must be player or gm.");
-    error.status = 400;
-    throw error;
-  }
-  return { email, role };
+  return { email, role: INVITE_ROLE };
 }
 
 export async function listInvitationsForCampaign({ campaignId, status = "pending" } = {}) {
@@ -116,6 +111,7 @@ export async function createCampaignInvitation({ campaign, workspace, invitedBy,
     email,
     role,
     tokenHash: hashInvitationToken(token),
+    inviteUrl,
     status: "pending",
     expiresAt: new Date(Date.now() + INVITE_TTL_MS).toISOString(),
     invitedBy: key(invitedBy),
@@ -129,9 +125,9 @@ export async function createCampaignInvitation({ campaign, workspace, invitedBy,
 
   await sendEmail({
     to: email,
-    subject: "Invitation to PF2 Party Codex",
-    text: `You have been invited to join ${campaign.name || "a PF2 Party Codex campaign"} as ${role}. Accept the invitation: ${inviteUrl}`,
-    html: `<p>You have been invited to join <strong>${campaign.name || "a PF2 Party Codex campaign"}</strong> as <strong>${role}</strong>.</p><p><a href="${inviteUrl}">Accept invitation</a></p><p>${inviteUrl}</p>`
+    subject: "PF2 Party Codex: приглашение в кампанию",
+    text: `Вас пригласили в кампанию ${campaign.name || "PF2 Party Codex"} как игрока. Ссылка для входа: ${inviteUrl}`,
+    html: `<p>Вас пригласили в кампанию <strong>${campaign.name || "PF2 Party Codex"}</strong> как <strong>игрока</strong>.</p><p><a href="${inviteUrl}">Принять приглашение</a></p><p>${inviteUrl}</p>`
   });
 
   return publicInvitation(saved, { includeInviteUrl: true, inviteUrl });
@@ -178,7 +174,7 @@ export async function acceptInvitation({ token, user }) {
     userId: idString(fullUser._id),
     workspaceId: idString(invitation.workspaceId),
     campaignId: idString(invitation.campaignId),
-    role: invitation.role,
+    role: INVITE_ROLE,
     displayName: fullUser.name || fullUser.email || "Campaign member"
   });
 

@@ -58,6 +58,7 @@ export const api = {
   },
   me: () => request("/auth/me"),
   session: () => request("/session"),
+  createWorkspaceOnboarding: (payload) => request("/onboarding/workspace", { method: "POST", body: JSON.stringify(payload) }),
   pages: (mode) => request(`/pages?mode=${mode}`),
   missingLinks: (mode) => request(`/missing-links?mode=${mode}`),
   page: (path, mode) => request(`/page?path=${encodeURIComponent(path)}&mode=${mode}`),

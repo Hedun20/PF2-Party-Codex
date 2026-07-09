@@ -12,6 +12,11 @@ const blocks = [
   ["Locations", "locations"]
 ];
 
+function canManageCampaign(session) {
+  const role = String(session?.activeMembership?.role || "").toLowerCase();
+  return role === "owner" || role === "gm";
+}
+
 function MasterWorkbench({ pages, canEdit = false }) {
   const mapCount = pages.filter((page) => page.mapImage).length;
   const worldCount = pages.filter((page) => page.category === "worlds" || page.type === "world").length;
@@ -71,6 +76,8 @@ function MasterWorkbench({ pages, canEdit = false }) {
 }
 
 export default function DashboardPage({ pages, dashboard, mode, session }) {
+  const canEdit = mode === "gm" && canManageCampaign(session);
+
   return (
     <div className="page-stack">
       <section className="hero-panel">
@@ -78,7 +85,7 @@ export default function DashboardPage({ pages, dashboard, mode, session }) {
         <h1>PF2 Party Codex</h1>
         <p>{dashboard?.summary || "Local Pathfinder 2e campaign archive for worlds, lore, sessions, GM secrets and Foundry journals."}</p>
       </section>
-      <MasterWorkbench pages={pages} canEdit={mode === "gm" && Boolean(session?.canEdit)} />
+      <MasterWorkbench pages={pages} canEdit={canEdit} />
       {dashboard && <MarkdownViewer content={dashboard.content} pages={pages} />}
       {blocks.map(([title, category]) => {
         const items = pages.filter((page) => page.category === category || page.category?.startsWith(`${category}/`)).slice(0, 4);
