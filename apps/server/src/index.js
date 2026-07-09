@@ -33,11 +33,27 @@ import { rebuildVaultIndex } from "./services/vaultService.js";
 import { sessionInfo } from "./services/sessionService.js";
 import { logger } from "./utils/logger.js";
 
+function isDevLocalOrigin(origin = "") {
+  if (process.env.NODE_ENV === "production") return false;
+  try {
+    const url = new URL(origin);
+    const localHosts = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
+    const viteDevPort = Number(url.port || 0);
+    return localHosts.has(url.hostname) && ((viteDevPort >= 5173 && viteDevPort <= 5199) || viteDevPort === config.port);
+  } catch {
+    return false;
+  }
+}
+
+function isAllowedOrigin(origin = "") {
+  return !origin || config.allowedOrigins.includes(origin) || isDevLocalOrigin(origin);
+}
+
 const app = express();
 app.use(helmet());
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || config.allowedOrigins.includes(origin)) return callback(null, true);
+    if (isAllowedOrigin(origin)) return callback(null, true);
     const error = new Error("Origin is not allowed by CORS.");
     error.status = 403;
     return callback(error);
