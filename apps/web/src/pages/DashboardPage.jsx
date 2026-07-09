@@ -1,16 +1,5 @@
 import { Link } from "react-router-dom";
-import { BookOpen, Clock3, Dices, NotebookPen, PenLine, Settings, Sparkles, UserRound, UsersRound } from "lucide-react";
-import EntityCard from "../components/EntityCard.jsx";
-import MarkdownViewer from "../components/MarkdownViewer.jsx";
-
-const blocks = [
-  ["Активные квесты", "quests"],
-  ["Важные NPC", "npcs"],
-  ["Известные враги", "enemies"],
-  ["Свежий лор", "lore"],
-  ["Сессии", "sessions"],
-  ["Локации", "locations"]
-];
+import { BookOpen, Dices, Settings, UserRound } from "lucide-react";
 
 function canManageCampaign(session) {
   const role = String(session?.activeMembership?.role || "").toLowerCase();
@@ -92,13 +81,13 @@ function ProductModeDashboard({ pages, canEdit = false, campaignName = "" }) {
   const modes = canEdit ? gmModes : playerModes;
 
   return (
-    <section className="workbench-panel product-mode-panel">
+    <section className="workbench-panel product-mode-panel dashboard-zone-panel">
       <div className="workbench-copy">
         <span className="kicker">{canEdit ? "GM Dashboard" : "Player Dashboard"}</span>
         <h2>{canEdit ? "Выберите рабочую зону" : "Выберите режим игры"}</h2>
         <p>{canEdit
-          ? "Проект разделён на три зоны: подготовка в архиве, живая игра за игровым столом и управление кампанией."
-          : "Участнику доступны игровой стол, известный архив и профиль. Карты не вынесены отдельно: GM открывает нужные изображения как материалы игрокам."}</p>
+          ? "Архив для подготовки, Игровой стол для сессии, Управление для игроков и настроек."
+          : "Игровой стол, известный архив и профиль — без лишних карт и GM-инструментов."}</p>
         {campaignName ? <p>Кампания: <strong>{campaignName}</strong></p> : null}
       </div>
 
@@ -106,36 +95,28 @@ function ProductModeDashboard({ pages, canEdit = false, campaignName = "" }) {
         {modes.map((mode) => <ModeCard key={mode.to} {...mode} />)}
       </div>
 
-      <div className="workbench-stats">
-        <span><strong>{worldCount}</strong> миров</span>
-        <span><strong>{publicCount}</strong> публичных</span>
-        <span><strong>{mapCount}</strong> карт</span>
-      </div>
+      {canEdit ? (
+        <div className="workbench-stats compact-dashboard-stats">
+          <span><strong>{worldCount}</strong> миров</span>
+          <span><strong>{publicCount}</strong> публичных</span>
+          <span><strong>{mapCount}</strong> карт</span>
+        </div>
+      ) : null}
     </section>
   );
 }
 
-export default function DashboardPage({ pages, dashboard, mode, session }) {
+export default function DashboardPage({ pages, mode, session }) {
   const canEdit = mode === "gm" && canManageCampaign(session);
 
   return (
-    <div className="page-stack">
+    <div className="page-stack dashboard-page-compact">
       <section className="hero-panel">
         <span className="kicker">PF2 Party Codex</span>
         <h1>{session?.activeCampaign?.name || "Campaign Dashboard"}</h1>
-        <p>{dashboard?.summary || "Две главные зоны продукта: Архив кампании для подготовки и Игровой стол для живой сессии."}</p>
+        <p>Выберите рабочую зону. Остальные разделы доступны внутри Архива, Игрового стола или Управления.</p>
       </section>
       <ProductModeDashboard pages={pages} canEdit={canEdit} campaignName={session?.activeCampaign?.name || ""} />
-      {dashboard && <MarkdownViewer content={dashboard.content} pages={pages} />}
-      {canEdit && blocks.map(([title, category]) => {
-        const items = pages.filter((page) => page.category === category || page.category?.startsWith(`${category}/`)).slice(0, 4);
-        return (
-          <section className="section-band" key={category}>
-            <h2>{title}</h2>
-            <div className="codex-card-grid card-grid">{items.map((page) => <EntityCard key={page.path} page={page} mode={mode} />)}</div>
-          </section>
-        );
-      })}
     </div>
   );
 }
