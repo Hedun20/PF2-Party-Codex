@@ -26,24 +26,25 @@ import LoreDropdown from "./LoreDropdown.jsx";
 import { worldRoute } from "../utils/worldContext.js";
 
 const codexSections = [
-  ["Worlds", "/category/worlds", Globe2],
-  ["Countries", "/category/countries", Map],
-  ["Cities", "/category/cities", Castle],
-  ["Locations", "/category/locations", MapPinned],
+  ["Миры", "/category/worlds", Globe2],
+  ["Страны", "/category/countries", Map],
+  ["Города", "/category/cities", Castle],
+  ["Локации", "/category/locations", MapPinned],
   ["NPC", "/category/npcs", UsersRound],
-  ["Enemies", "/category/enemies", Swords],
-  ["Quests", "/category/quests", ScrollText]
+  ["Враги", "/category/enemies", Swords],
+  ["Квесты", "/category/quests", ScrollText]
 ];
 
 const playerSections = [
-  ["Home", "/player", Home],
-  ["Known Lore", "/archive", BookOpen],
-  ["Handouts", "/handouts", Sparkles],
-  ["Maps", "/maps", MapPinned],
+  ["Домой", "/player", Home],
+  ["Известный архив", "/archive", BookOpen],
+  ["Материалы", "/handouts", Sparkles],
+  ["Карты", "/maps", MapPinned],
   ["Timeline", "/timeline", Clock3],
-  ["My Character", "/characters", UserRound],
-  ["My Notes", "/notes", NotebookPen],
-  ["Profile", "/profile", UserRound]
+  ["Мой персонаж", "/characters", UserRound],
+  ["Мои заметки", "/notes", NotebookPen],
+  ["Кубики", "/dice", Crosshair],
+  ["Профиль", "/profile", UserRound]
 ];
 
 function scopedPath(activeWorld, path) {
@@ -83,65 +84,66 @@ export default function CodexSidebar({ onClose, canEdit = false, activeWorld = n
           <Castle />
           <span>{activeWorld ? activeWorld.title : "PF2 Party Codex"}</span>
         </Link>
-        <button className="sidebar-close" onClick={onClose} title="Close navigation">
+        <button className="sidebar-close" onClick={onClose} title="Закрыть навигацию">
           <X size={18} />
         </button>
       </div>
 
       {activeWorld && !showOnboardingNav && (
         <div className="sidebar-world-card">
-          <span className="kicker">Active world</span>
+          <span className="kicker">Активный мир</span>
           <strong>{activeWorld.title}</strong>
-          <p>{activeWorld.summary || "World filter is active. Navigation below shows this world's material."}</p>
-          <Link to="/" onClick={onClose}><Home size={15} /> All worlds</Link>
+          <p>{activeWorld.summary || "Фильтр мира активен. Навигация ниже показывает материалы этого мира."}</p>
+          <Link to="/" onClick={onClose}><Home size={15} /> Все миры</Link>
         </div>
       )}
 
       <nav className="nav-stack nav-stack-v2" aria-label="Main navigation">
         {showOnboardingNav ? (
           <>
-            <NavGroup title="Account setup">
-              <NavItem to="/" icon={Sparkles} label="Start or join campaign" onClose={onClose} />
-              <NavItem to="/profile" icon={UserRound} label="Profile" onClose={onClose} />
+            <NavGroup title="Настройка аккаунта">
+              <NavItem to="/" icon={Sparkles} label="Создать или присоединиться" onClose={onClose} />
+              <NavItem to="/profile" icon={UserRound} label="Профиль" onClose={onClose} />
             </NavGroup>
-            <NavGroup title="Help">
-              <NavItem to="/guide" icon={BookOpen} label="Guide" onClose={onClose} />
+            <NavGroup title="Помощь">
+              <NavItem to="/guide" icon={BookOpen} label="Гайд" onClose={onClose} />
             </NavGroup>
           </>
         ) : canEdit ? (
           <>
             <NavGroup title="GM Portal">
               <NavItem to="/" icon={Home} label="Dashboard" onClose={onClose} />
-              <NavItem to="/archive" icon={BookOpen} label="Campaign Archive" onClose={onClose} />
-              <NavItem to="/my" icon={UserRound} label="My Workspace" onClose={onClose} />
-              <NavItem to="/players" icon={UsersRound} label="Players" onClose={onClose} />
+              <NavItem to="/archive" icon={BookOpen} label="Архив кампании" onClose={onClose} />
+              <NavItem to="/my" icon={UserRound} label="Рабочий стол" onClose={onClose} />
+              <NavItem to="/players" icon={UsersRound} label="Игроки" onClose={onClose} />
             </NavGroup>
 
             <NavGroup title="World Codex">
               {codexSections.map(([label, path, Icon]) => (
                 <NavItem key={path} to={scopedPath(activeWorld, path)} icon={Icon} label={label} onClose={onClose} />
               ))}
-              <NavItem to={scopedPath(activeWorld, "/maps")} icon={MapPinned} label={activeWorld ? "World Maps" : "Maps"} onClose={onClose} />
-              <NavItem to={scopedPath(activeWorld, "/timeline")} icon={Clock3} label={activeWorld ? "World Timeline" : "Timeline"} onClose={onClose} />
+              <NavItem to={scopedPath(activeWorld, "/maps")} icon={MapPinned} label={activeWorld ? "Карты мира" : "Карты"} onClose={onClose} />
+              <NavItem to={scopedPath(activeWorld, "/timeline")} icon={Clock3} label={activeWorld ? "Timeline мира" : "Timeline"} onClose={onClose} />
               {!activeWorld && <LoreDropdown />}
             </NavGroup>
 
             <NavGroup title="GM Operations">
-              <NavItem to={activeWorld ? `/editor?world=${encodeURIComponent(activeWorld.title)}` : "/editor"} icon={Crosshair} label={activeWorld ? "Create in world" : "Create Article"} onClose={onClose} className="primary-link" />
-              <NavItem to={activeWorld ? `${worldRoute(activeWorld)}/session` : "/sessions"} icon={BookOpen} label="Sessions" onClose={onClose} />
-              <NavItem to={activeWorld ? `${worldRoute(activeWorld)}/reveal` : "/handouts"} icon={Sparkles} label="Reveal / Handouts" onClose={onClose} />
-              <NavItem to="/characters" icon={UsersRound} label="Characters" onClose={onClose} />
-              <NavItem to="/notes" icon={NotebookPen} label="Notes" onClose={onClose} />
+              <NavItem to={activeWorld ? `/editor?world=${encodeURIComponent(activeWorld.title)}` : "/editor"} icon={Crosshair} label={activeWorld ? "Создать в мире" : "Создать статью"} onClose={onClose} className="primary-link" />
+              <NavItem to={activeWorld ? `${worldRoute(activeWorld)}/session` : "/sessions"} icon={BookOpen} label="Сессии" onClose={onClose} />
+              <NavItem to={activeWorld ? `${worldRoute(activeWorld)}/reveal` : "/handouts"} icon={Sparkles} label="Материалы / Reveal" onClose={onClose} />
+              <NavItem to="/characters" icon={UsersRound} label="Персонажи" onClose={onClose} />
+              <NavItem to="/notes" icon={NotebookPen} label="Заметки" onClose={onClose} />
+              <NavItem to="/dice" icon={Crosshair} label="Кубики" onClose={onClose} />
             </NavGroup>
 
             <NavGroup title="System">
-              <NavItem to="/settings" icon={Settings} label="Settings" onClose={onClose} />
+              <NavItem to="/settings" icon={Settings} label="Настройки" onClose={onClose} />
               <NavItem to="/gm-tools" icon={Wrench} label="GM Tools" onClose={onClose} />
               <NavItem to="/health" icon={ShieldCheck} label="Vault Control" onClose={onClose} />
               <NavItem to="/foundry" icon={Hammer} label="Foundry Import/Export" onClose={onClose} />
-              <NavItem to="/missing" icon={FileQuestion} label="Missing Articles" onClose={onClose} />
+              <NavItem to="/missing" icon={FileQuestion} label="Недостающие статьи" onClose={onClose} />
               <NavItem to="/player-safety" icon={ShieldAlert} label="Player Safety" onClose={onClose} />
-              <NavItem to="/guide" icon={BookOpen} label="Guide" onClose={onClose} />
+              <NavItem to="/guide" icon={BookOpen} label="Гайд" onClose={onClose} />
             </NavGroup>
           </>
         ) : (
@@ -152,11 +154,11 @@ export default function CodexSidebar({ onClose, canEdit = false, activeWorld = n
               ))}
             </NavGroup>
 
-            <NavGroup title="Campaign Archive">
-              <NavItem to={scopedPath(activeWorld, "/category/worlds")} icon={Globe2} label="Worlds" onClose={onClose} />
-              <NavItem to={scopedPath(activeWorld, "/category/npcs")} icon={UsersRound} label="Known NPC" onClose={onClose} />
-              <NavItem to={scopedPath(activeWorld, "/category/locations")} icon={Map} label="Locations" onClose={onClose} />
-              <NavItem to="/guide" icon={BookOpen} label="Guide" onClose={onClose} />
+            <NavGroup title="Архив кампании">
+              <NavItem to={scopedPath(activeWorld, "/category/worlds")} icon={Globe2} label="Миры" onClose={onClose} />
+              <NavItem to={scopedPath(activeWorld, "/category/npcs")} icon={UsersRound} label="Известные NPC" onClose={onClose} />
+              <NavItem to={scopedPath(activeWorld, "/category/locations")} icon={Map} label="Локации" onClose={onClose} />
+              <NavItem to="/guide" icon={BookOpen} label="Гайд" onClose={onClose} />
             </NavGroup>
           </>
         )}
