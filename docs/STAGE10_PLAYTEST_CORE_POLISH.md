@@ -2,6 +2,8 @@
 
 Branch: `stage10-playtest-core-polish`
 
+Status: **implementation complete, waiting for manual build/browser QA**
+
 ## Goal
 
 Make the application usable for an actual table playtest after Stage 8 identity/portal and Stage 9 archive work.
@@ -18,52 +20,72 @@ This stage focuses on session usability, not SaaS billing/landing/admin.
 
 ## Patch 10.1 — GM Dashboard polish
 
-Planned:
+Status: implemented.
 
-- Campaign status.
-- Quick create actions.
-- Players/invites shortcut.
-- Archive shortcut.
-- Handouts/reveal shortcut.
-- Next session placeholder.
+Changed:
+
+- `apps/web/src/pages/DashboardPage.jsx`
+
+What changed:
+
+- GM dashboard now has playtest-focused quick actions.
+- Added shortcuts for create material, players/invites, archive, handouts/reveal, dice, and missing articles.
+- Dashboard copy is localized and campaign-aware.
+- Removed old MD/Obsidian dashboard shortcut language from the primary dashboard.
 
 ## Patch 10.2 — Player Dashboard polish
 
-Planned:
+Status: implemented.
 
-- Campaign intro.
-- Known lore shortcut.
-- Handouts shortcut.
-- Maps shortcut.
-- Character shortcut.
-- Notes shortcut.
+Changed:
+
+- `apps/web/src/pages/PlayerHomePage.jsx`
+
+What changed:
+
+- Player portal is localized in Russian.
+- Added shortcuts for known archive, handouts, maps, timeline, character, notes, dice, and profile.
+- Player dashboard explains that it only shows GM-opened material.
 
 ## Patch 10.3 — Dice Tray MVP
 
-Planned:
+Status: implemented.
 
-- `/dice` real page instead of placeholder.
-- d20, d12, d10, d8, d6, d4 quick rolls.
-- Formula input like `1d20+7`.
-- Local roll history.
-- No multiplayer sync in MVP.
+Changed:
+
+- `apps/web/src/pages/DiceTrayPage.jsx`
+- `apps/web/src/App.jsx`
+
+What changed:
+
+- `/dice` is now a real page instead of a placeholder.
+- Added quick d20/d12/d10/d8/d6/d4 buttons.
+- Added formula input for simple expressions such as `1d20+7`, `2d6+3`, `d100`.
+- Added local roll history.
+- No multiplayer sync in MVP by design.
 
 ## Patch 10.4 — Core Russian pass
 
-Planned:
+Status: implemented for core playtest routes.
 
-- Sidebar labels.
-- Dashboard labels.
-- Dice labels.
-- Empty states.
-- Playtest flow language.
+Changed:
 
-## Codex QA after implementation
+- `apps/web/src/components/CodexSidebar.jsx`
+- `apps/web/src/pages/DashboardPage.jsx`
+- `apps/web/src/pages/PlayerHomePage.jsx`
+- `apps/web/src/pages/DiceTrayPage.jsx`
 
-Run:
+What changed:
+
+- Sidebar labels were localized for GM/player core flow.
+- Added Dice route to sidebar for both GM and player.
+- Dashboard and player portal language now better matches playtest flow.
+
+## Manual QA
+
+Run locally:
 
 ```bash
-git checkout stage10-playtest-core-polish
 git pull --ff-only origin stage10-playtest-core-polish
 npm run build
 npm run dev
@@ -71,12 +93,16 @@ npm run dev
 
 Check:
 
-1. GM dashboard opens and has useful quick actions.
-2. Player dashboard opens and has useful quick actions.
-3. `/dice` opens as real dice tray, not placeholder.
-4. d20/d12/d10/d8/d6/d4 quick rolls work.
-5. Formula input works for simple expressions like `1d20+7` and `2d6+3`.
-6. Roll history appears locally.
-7. No player-only user sees GM-only dashboard actions.
-8. No duplicate portal shell appears.
-9. Build passes.
+1. Build passes.
+2. GM dashboard opens and has useful quick actions.
+3. Player dashboard opens and has useful quick actions.
+4. `/dice` opens as a real dice tray, not placeholder.
+5. d20/d12/d10/d8/d6/d4 quick rolls work.
+6. Formula input works for `1d20+7`, `2d6+3`, and `d100`.
+7. Roll history appears locally.
+8. Player-only user does not see GM-only dashboard actions.
+9. Sidebar has Dice link for GM and player.
+10. No duplicate portal shell appears.
+11. `/archive`, `/editor`, `/handouts` still work after Stage 10.
+
+If build fails, fix only the smallest build/runtime blocker. Do not add billing, landing, pricing, SaaS admin, or broad redesign in this stage.
