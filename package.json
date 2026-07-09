@@ -5,6 +5,7 @@
   "description": "Archive-first TTRPG campaign workspace with MongoDB source of truth, GM/Player portals, and invitation-based campaign access.",
   "scripts": {
     "dev": "concurrently -n server,web -c magenta,cyan \"npm run dev --workspace apps/server\" \"npm run dev --workspace apps/web\"",
+    "dev:clean": "node scripts/kill-dev-ports.mjs && npm run dev",
     "build": "npm run build --workspace apps/web",
     "prestart": "npm run build",
     "start": "npm run start --workspace apps/server",
