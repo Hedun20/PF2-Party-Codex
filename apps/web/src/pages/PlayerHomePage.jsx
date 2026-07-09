@@ -30,10 +30,12 @@ export default function PlayerHomePage({ session }) {
       </section>
       <section className="workspace-grid">
         {playerCards.map(([title, to, description, Icon], index) => (
-          <Link key={to} to={to} className={`codex-card workspace-card${index === 0 ? " primary-workspace-card" : ""}`}>
+          <Link key={to} to={to} className={`codex-card workspace-card player-portal-card${index === 0 ? " primary-workspace-card" : ""}`}>
             <Icon size={22} />
-            <strong>{title}</strong>
-            <span>{description}</span>
+            <div>
+              <strong>{title}</strong>
+              <span>{description}</span>
+            </div>
           </Link>
         ))}
       </section>
