@@ -2,7 +2,28 @@
 
 Branch: `stage9-campaign-archive-mongo`
 
-Status: **implementation complete, waiting for Codex build/browser QA**
+Status: **Green after Codex build/browser QA**
+
+## Validation result
+
+- `npm run build` passed with only the existing Vite chunk-size warning.
+- `/archive` renders for owner/GM and player.
+- Archive count cards render.
+- Empty archive states are understandable for GM and player.
+- GM sees archive create actions; player does not.
+- Archive card links checked: no 404.
+- `/editor` renders the new create article page for GM.
+- `/editor` player denial copy is membership-based.
+- Public article creation passed.
+- GM-private article creation passed.
+- `/handouts` renders the new Handouts / Reveal page.
+- GM/player handout empty states are understandable.
+- Duplicate `.portal-nav` count is `0`.
+- `/api/campaigns/:campaignId/archive` rejects no-membership user with `403`.
+- Player archive does not expose GM-only Mongo entries.
+- Working tree was clean on `stage9-campaign-archive-mongo` after QA.
+
+Note: dev server used web port `5174` because an existing port was busy; live API was on `3050`. This does not block readiness.
 
 ## Goal
 
@@ -25,7 +46,7 @@ Workspace -> Campaign -> Archive -> Entries / Maps / Timeline / Sessions / Hando
 
 ## Patch 9.1 — Archive page alignment
 
-Status: implemented.
+Status: Green.
 
 Changed:
 
@@ -43,7 +64,7 @@ What changed:
 
 ## Patch 9.2 — Create Article UX polish
 
-Status: implemented.
+Status: Green.
 
 Changed:
 
@@ -64,7 +85,7 @@ What changed:
 
 ## Patch 9.3 — Handouts / Reveal cleanup
 
-Status: implemented.
+Status: Green.
 
 Changed:
 
@@ -82,52 +103,42 @@ What changed:
 
 ## Patch 9.4 — API visibility audit
 
-Status: implementation-side audit complete, needs Codex verification.
+Status: Green.
 
 Finding:
 
-- `apps/server/src/routes/archive.js` already uses `identityContextForCampaign(req.user, campaignId)` before reading archive data.
+- `apps/server/src/routes/archive.js` uses `identityContextForCampaign(req.user, campaignId)` before reading archive data.
 - GM roles are limited to `owner` and `gm`.
 - Non-GM archive queries restrict entries/maps/timeline/sessions to public/revealed style visibility and exclude drafts.
 - Handouts, characters and notes have separate role-aware queries.
 - No backend API contract was changed in this stage, reducing risk before QA.
+- Codex confirmed no-membership archive access returns `403`.
+- Codex confirmed player archive does not expose GM-only Mongo entries.
 
-Needs Codex QA:
+## Merge rule
 
-- Confirm player archive does not expose GM-only entries.
-- Confirm `/api/campaigns/:campaignId/archive` rejects users without membership.
-- Confirm query campaign ids cannot bypass membership.
+This branch is eligible to merge into `main`.
 
-## Codex QA for complete Stage 9
-
-Run after pulling this branch:
+Suggested merge flow:
 
 ```bash
 git checkout stage9-campaign-archive-mongo
 git pull --ff-only origin stage9-campaign-archive-mongo
+git status -sb
+
+git checkout main
+git pull --ff-only origin main
+git merge --no-ff stage9-campaign-archive-mongo
 npm run build
-npm run dev
+git push origin main
 ```
 
-Check:
+After merge, create Stage 10 branch:
 
-1. `/archive` renders for owner/GM.
-2. `/archive` renders for player.
-3. Counts render as cards.
-4. Empty state is understandable when archive is empty.
-5. GM sees archive create actions.
-6. Player does not see archive create actions.
-7. Links from archive cards do not 404.
-8. `/editor` renders the new create article page.
-9. `/editor` access-denied copy is membership-based, not localhost-based.
-10. Create article page can create at least one public article.
-11. Create article page can create at least one GM private article.
-12. `/handouts` renders the new Handouts / Reveal page.
-13. GM and participant empty states are understandable.
-14. Player does not see GM-only archive actions.
-15. No duplicate portal shell appears.
-
-If build fails, fix only the smallest build/runtime blocker. Do not add billing, landing, pricing, SaaS admin, or broad redesign.
+```bash
+git checkout -b stage10-playtest-core-polish
+git push -u origin stage10-playtest-core-polish
+```
 
 ## MD note
 
