@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Copy, MailPlus, ShieldCheck, UserPlus, UsersRound } from "lucide-react";
 import { api } from "../api/client.js";
+import CodexButton from "../components/ui/CodexButton.jsx";
 
 function getId(entity) {
   return entity?.id || entity?._id || "";
@@ -25,7 +26,7 @@ function validEmail(value = "") {
 function dateLabel(value = "") {
   if (!value) return "нет данных";
   try {
-    return new Intl.DateTimeFormat("ru", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+    return new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
   } catch {
     return value;
   }
@@ -37,6 +38,16 @@ function roleLabel(role = "player") {
   return "Игрок";
 }
 
+function statusLabel(status = "active") {
+  const value = String(status || "active").toLowerCase();
+  if (value === "pending") return "Ожидает";
+  if (value === "accepted") return "Принято";
+  if (value === "expired") return "Истекло";
+  if (value === "revoked") return "Отозвано";
+  if (value === "removed") return "Удалён";
+  return "Активен";
+}
+
 function StatusCard({ icon: Icon = AlertTriangle, kicker, children }) {
   return (
     <section className="codex-card workspace-status-card">
@@ -45,6 +56,18 @@ function StatusCard({ icon: Icon = AlertTriangle, kicker, children }) {
       <p>{children}</p>
     </section>
   );
+}
+
+function Badge({ children, tone = "neutral" }) {
+  return <span className={`codex-pill codex-pill--${tone}`}>{children}</span>;
+}
+
+function statusTone(status = "active") {
+  const value = String(status || "active").toLowerCase();
+  if (["active", "accepted"].includes(value)) return "success";
+  if (["pending"].includes(value)) return "warning";
+  if (["expired", "revoked", "removed"].includes(value)) return "danger";
+  return "neutral";
 }
 
 export default function PlayersPageV2({ session }) {
@@ -106,11 +129,11 @@ export default function PlayersPageV2({ session }) {
   }
 
   return (
-    <div className="page-stack players-page players-page-v2">
-      <section className="hero-panel">
-        <span className="kicker">GM Portal</span>
+    <div className="page-stack players-page players-page-v2 players-page-polished">
+      <section className="hero-panel players-hero-panel">
+        <span className="kicker">Management · Campaign Access</span>
         <h1>Игроки и приглашения</h1>
-        <p>Здесь GM управляет участниками кампании и приглашает новых игроков. GM-роль через приглашение не выдаётся.</p>
+        <p>GM управляет участниками кампании и приглашает новых игроков. GM-роль через приглашение не выдаётся.</p>
         <div className="workspace-identity-strip">
           <span>{session?.activeWorkspace?.name || "Workspace"}</span>
           <span>{session?.activeCampaign?.name || "Активная кампания"}</span>
@@ -123,63 +146,90 @@ export default function PlayersPageV2({ session }) {
 
       {manager && activeCampaignId ? (
         <>
-          <section className="codex-card workspace-status-card players-invite-card">
-            <MailPlus size={22} />
-            <span className="kicker">Пригласить игрока</span>
-            <p>Введите email. Система создаст письмо в outbox и отдельную ссылку, которую можно отправить вручную.</p>
-            <form className="character-import-grid" onSubmit={createInvite}>
+          <section className="codex-card players-invite-card players-card-premium">
+            <div className="players-card-head">
+              <div>
+                <span className="kicker">Пригласить игрока</span>
+                <h2>Создать player invite</h2>
+                <p>Введите email. Система создаст письмо в outbox и отдельную ссылку, которую можно отправить вручную.</p>
+              </div>
+              <MailPlus size={24} />
+            </div>
+            <form className="players-invite-form" onSubmit={createInvite}>
               <label>Email игрока
                 <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="player@example.com" autoComplete="email" />
               </label>
-              <button type="submit" className="codex-button codex-button--primary codex-button--md" disabled={submit.loading}>{submit.loading ? "Создаю..." : "Создать приглашение"}</button>
+              <CodexButton type="submit" disabled={submit.loading}><UserPlus size={16} /> {submit.loading ? "Создаю..." : "Создать приглашение"}</CodexButton>
             </form>
             {submit.error ? <div className="status-message danger-message"><AlertTriangle size={16} /> {submit.error}</div> : null}
             {submit.success ? <div className="status-message success-message"><CheckCircle2 size={16} /> {submit.success}</div> : null}
             {submit.link ? (
-              <div className="notes-linked-card">
+              <div className="invite-copy-card">
                 <span>{submit.link}</span>
-                <button type="button" className="codex-button codex-button--secondary codex-button--sm" onClick={() => copy(submit.link)}><Copy size={16} /> {copied === submit.link ? "Скопировано" : "Копировать ссылку"}</button>
+                <CodexButton type="button" variant="secondary" size="sm" onClick={() => copy(submit.link)}><Copy size={16} /> {copied === submit.link ? "Скопировано" : "Копировать ссылку"}</CodexButton>
               </div>
             ) : null}
           </section>
 
-          {members.loading ? <StatusCard icon={UsersRound} kicker="Загрузка">Загружаю участников кампании.</StatusCard> : null}
           {members.error ? <StatusCard kicker="Ошибка участников">{members.error}</StatusCard> : null}
           {invites.error ? <StatusCard kicker="Ошибка приглашений">{invites.error}</StatusCard> : null}
 
-          <section className="archive-recent-grid">
-            <article className="codex-card archive-recent-card">
-              <span className="kicker">Участники</span>
+          <section className="players-management-grid">
+            <article className="codex-card players-card-premium players-table-card">
+              <div className="players-card-head">
+                <div>
+                  <span className="kicker">Участники</span>
+                  <h2>{members.items.length} в кампании</h2>
+                </div>
+                <UsersRound size={22} />
+              </div>
+              {members.loading ? <p className="empty-copy">Загружаю участников кампании...</p> : null}
               {members.items.length ? (
-                <ul>
+                <div className="players-row-list">
                   {members.items.map((member) => (
-                    <li key={member.id || `${member.userId}-${member.role}`}>
-                      <strong>{member.displayName || member.email || "Участник кампании"}</strong>
-                      {member.email ? <span> · {member.email}</span> : null}
-                      <span> · {roleLabel(member.role || "player")}</span>
-                      <small> · С нами: {dateLabel(member.joinedAt || member.createdAt)}</small>
-                    </li>
+                    <div className="players-row" key={member.id || `${member.userId}-${member.role}`}>
+                      <div>
+                        <strong>{member.displayName || member.name || member.email || "Участник кампании"}</strong>
+                        <span>{member.email || member.userId || "email не указан"}</span>
+                      </div>
+                      <div className="players-row-meta">
+                        <Badge>{roleLabel(member.role || "player")}</Badge>
+                        <Badge tone={statusTone(member.status)}>{statusLabel(member.status)}</Badge>
+                        <small>С нами: {dateLabel(member.joinedAt || member.createdAt)}</small>
+                      </div>
+                    </div>
                   ))}
-                </ul>
-              ) : !members.loading && !members.error ? <p>Пока нет участников кампании.</p> : null}
+                </div>
+              ) : !members.loading && !members.error ? <p className="empty-copy">Пока нет участников кампании.</p> : null}
             </article>
 
-            <article className="codex-card archive-recent-card">
-              <span className="kicker">Активные приглашения</span>
-              {invites.loading ? <p>Загружаю приглашения...</p> : null}
+            <article className="codex-card players-card-premium players-table-card">
+              <div className="players-card-head">
+                <div>
+                  <span className="kicker">Активные приглашения</span>
+                  <h2>{invites.items.length} invite links</h2>
+                </div>
+                <MailPlus size={22} />
+              </div>
+              {invites.loading ? <p className="empty-copy">Загружаю приглашения...</p> : null}
               {invites.items.length ? (
-                <ul>
+                <div className="players-row-list">
                   {invites.items.map((invite) => (
-                    <li key={invite.id || invite.email}>
-                      <strong>{invite.email}</strong>
-                      <span> · Игрок</span>
-                      <span> · {invite.status || "pending"}</span>
-                      <small> · Истекает: {dateLabel(invite.expiresAt)}</small>
-                      {invite.inviteUrl ? <button type="button" className="codex-button codex-button--ghost codex-button--sm" onClick={() => copy(invite.inviteUrl)}><Copy size={15} /> {copied === invite.inviteUrl ? "Скопировано" : "Копировать ссылку"}</button> : null}
-                    </li>
+                    <div className="players-row invite-row" key={invite.id || invite.email}>
+                      <div>
+                        <strong>{invite.email}</strong>
+                        <span>Истекает: {dateLabel(invite.expiresAt)}</span>
+                      </div>
+                      <div className="players-row-meta">
+                        <Badge>{roleLabel(invite.role || "player")}</Badge>
+                        <Badge tone={statusTone(invite.status || "pending")}>{statusLabel(invite.status || "pending")}</Badge>
+                        <small>Создано: {dateLabel(invite.createdAt)}</small>
+                        {invite.inviteUrl ? <CodexButton type="button" variant="secondary" size="sm" onClick={() => copy(invite.inviteUrl)}><Copy size={15} /> {copied === invite.inviteUrl ? "Скопировано" : "Копировать"}</CodexButton> : null}
+                      </div>
+                    </div>
                   ))}
-                </ul>
-              ) : !invites.loading && !invites.error ? <p>Нет активных приглашений.</p> : null}
+                </div>
+              ) : !invites.loading && !invites.error ? <p className="empty-copy">Нет активных приглашений.</p> : null}
             </article>
           </section>
         </>
