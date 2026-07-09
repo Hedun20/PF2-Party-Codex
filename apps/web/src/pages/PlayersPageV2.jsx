@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Copy, MailPlus, ShieldCheck, UserPlus, UsersRound } from "lucide-react";
 import { api } from "../api/client.js";
+import CodexButton from "../components/ui/CodexButton.jsx";
 
 function getId(entity) {
   return entity?.id || entity?._id || "";
@@ -127,18 +128,18 @@ export default function PlayersPageV2({ session }) {
             <MailPlus size={22} />
             <span className="kicker">Пригласить игрока</span>
             <p>Введите email. Система создаст письмо в outbox и отдельную ссылку, которую можно отправить вручную.</p>
-            <form className="character-import-grid" onSubmit={createInvite}>
+            <form className="players-invite-form" onSubmit={createInvite}>
               <label>Email игрока
                 <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="player@example.com" autoComplete="email" />
               </label>
-              <button type="submit" className="codex-button codex-button--primary codex-button--md" disabled={submit.loading}>{submit.loading ? "Создаю..." : "Создать приглашение"}</button>
+              <CodexButton type="submit" size="sm" disabled={submit.loading}><UserPlus size={15} /> <span>{submit.loading ? "Создаю..." : "Создать приглашение"}</span></CodexButton>
             </form>
             {submit.error ? <div className="status-message danger-message"><AlertTriangle size={16} /> {submit.error}</div> : null}
             {submit.success ? <div className="status-message success-message"><CheckCircle2 size={16} /> {submit.success}</div> : null}
             {submit.link ? (
               <div className="notes-linked-card">
                 <span>{submit.link}</span>
-                <button type="button" className="codex-button codex-button--secondary codex-button--sm" onClick={() => copy(submit.link)}><Copy size={16} /> {copied === submit.link ? "Скопировано" : "Копировать ссылку"}</button>
+                <CodexButton type="button" variant="secondary" size="sm" onClick={() => copy(submit.link)}><Copy size={16} /> <span>{copied === submit.link ? "Скопировано" : "Копировать ссылку"}</span></CodexButton>
               </div>
             ) : null}
           </section>
