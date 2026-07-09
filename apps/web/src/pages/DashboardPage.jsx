@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Archive, BookOpen, Dices, FileQuestion, MapPinned, NotebookPen, Search, Settings, ShieldCheck, Sparkles, UserRound, UsersRound } from "lucide-react";
-import CodexButton from "../components/ui/CodexButton.jsx";
+import { CodexButton, CodexCard, PageHero, PageShell } from "../components/ui/index.js";
 
 function canManageCampaign(session) {
   const role = String(session?.activeMembership?.role || "").toLowerCase();
@@ -13,7 +13,7 @@ function pageCount(pages, predicate) {
 
 function ProductPathCard({ icon: Icon, kicker, title, description, stats, actions, primaryTo }) {
   return (
-    <article className="codex-card product-path-card">
+    <CodexCard className="product-path-card" as="article">
       <div className="product-path-card__head">
         <span className="product-path-card__icon"><Icon size={24} /></span>
         <div>
@@ -36,7 +36,7 @@ function ProductPathCard({ icon: Icon, kicker, title, description, stats, action
         ))}
       </div>
       <Link className="product-path-card__cover" to={primaryTo} aria-label={title} />
-    </article>
+    </CodexCard>
   );
 }
 
@@ -64,21 +64,10 @@ export default function DashboardPage({ pages = [], dashboard, mode, session }) 
 
   const cards = [
     {
-      icon: UsersRound,
-      kicker: "Management / Campaign Access",
-      title: canEdit ? "Управление и игроки" : "Профиль участника",
-      description: canEdit
-        ? "Рабочая зона владельца или GM: участники, приглашения, настройки кампании и проверка готовности."
-        : "Ваш профиль, локальные настройки и справка без доступа к GM-only инструментам.",
-      stats: [["campaign role", session?.activeMembership?.role || "guest"], ["workspace", session?.activeWorkspace?.name || "not selected"], ["campaign", session?.activeCampaign?.name || "not selected"]],
-      actions: managementActions,
-      primaryTo: canEdit ? "/my" : "/profile"
-    },
-    {
       icon: Archive,
       kicker: "Campaign Archive",
       title: "Архив кампании",
-      description: "Структурированные знания кампании: миры, NPC, локации, квесты, карты и player-visible материалы.",
+      description: "Подготовка кампании: вся база знаний, миры, NPC, локации, квесты, карты и player-visible материалы.",
       stats: [["articles", articleCount], ["worlds", worldCount], ["public", publicCount], ["maps", mapCount]],
       actions: [
         { to: "/archive", label: "Archive", icon: Search },
@@ -92,7 +81,7 @@ export default function DashboardPage({ pages = [], dashboard, mode, session }) 
       icon: Dices,
       kicker: "Active Session / Game Table",
       title: "Игровой стол",
-      description: "Минимальный стол для живой игры: кубики, быстрые заметки, handouts, персонажи и быстрый возврат в архив.",
+      description: "Рабочий стол живой игры: кубики, быстрые заметки, handouts, персонажи и быстрый возврат в архив.",
       stats: [["sessions", sessionCount], ["handouts", handoutCount], ["notes", "personal"], ["dice", "local"]],
       actions: [
         { to: "/session-desk", label: "Session Desk", icon: Dices },
@@ -101,31 +90,42 @@ export default function DashboardPage({ pages = [], dashboard, mode, session }) 
         { to: "/characters", label: "Characters", icon: UserRound }
       ],
       primaryTo: "/session-desk"
+    },
+    {
+      icon: UsersRound,
+      kicker: "Management / Campaign Access",
+      title: canEdit ? "Управление и игроки" : "Профиль участника",
+      description: canEdit
+        ? "Участники, приглашения, настройки кампании, технические проверки и будущие SaaS-лимиты."
+        : "Ваш профиль, локальные настройки и справка без доступа к GM-only инструментам.",
+      stats: [["campaign role", session?.activeMembership?.role || "guest"], ["workspace", session?.activeWorkspace?.name || "not selected"], ["campaign", session?.activeCampaign?.name || "not selected"]],
+      actions: managementActions,
+      primaryTo: canEdit ? "/my" : "/profile"
     }
   ];
 
   return (
-    <div className="page-stack dashboard-product-shell">
-      <section className="hero-panel">
-        <span className="kicker">Campaign Codex</span>
-        <h1>PF2 Party Codex</h1>
-        <p>{dashboard?.summary || "Three working spaces for a Pathfinder 2e campaign: manage access, prepare the archive, and run the active table."}</p>
-      </section>
+    <PageShell className="dashboard-product-shell">
+      <PageHero
+        kicker="Campaign Codex"
+        title="PF2 Party Codex"
+        description={dashboard?.summary || "Choose the work mode first: prepare the archive, run the active table, or manage campaign access. World scope is selected inside the mode."}
+      />
 
       <section className="product-path-grid" aria-label="Product areas">
         {cards.map((card) => <ProductPathCard key={card.kicker} {...card} />)}
       </section>
 
       {canEdit ? (
-        <section className="codex-card workspace-status-card dashboard-product-status">
+        <CodexCard className="workspace-status-card dashboard-product-status" as="section">
           <span className="kicker">GM shortcuts</span>
           <div className="product-path-card__actions">
             <CodexButton as={Link} to="/editor" variant="primary" size="sm"><Sparkles size={15} /><span>Create article</span></CodexButton>
             <CodexButton as={Link} to="/missing" variant="ghost" size="sm"><FileQuestion size={15} /><span>Missing links</span></CodexButton>
             <CodexButton as={Link} to="/players" variant="ghost" size="sm"><UsersRound size={15} /><span>Invite player</span></CodexButton>
           </div>
-        </section>
+        </CodexCard>
       ) : null}
-    </div>
+    </PageShell>
   );
 }
