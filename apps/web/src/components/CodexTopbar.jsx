@@ -1,8 +1,11 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import CommandSearch from "./CommandSearch.jsx";
 import WorldAmbienceControl from "./world/WorldAmbienceControl.jsx";
-import { Archive, LogIn, LogOut, Menu, NotebookPen, PenLine, UserRound } from "lucide-react";
+import { Archive, LogIn, LogOut, Menu, NotebookPen, PenLine, Settings, Swords, UserRound } from "lucide-react";
 import { getWorlds, worldRoute, worldSlug } from "../utils/worldContext.js";
+
+const managementPaths = ["/my", "/players", "/profile", "/settings", "/gm-tools", "/health", "/foundry", "/missing", "/player-safety", "/admin"];
+const gameTablePaths = ["/sessions", "/dice", "/handouts"];
 
 function activeRole(session) {
   return String(session?.activeMembership?.role || "").toLowerCase();
@@ -15,8 +18,25 @@ function roleLabel(role, signedIn) {
   return signedIn ? "No campaign" : "Guest";
 }
 
+function appSection(pathname = "") {
+  if (managementPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`))) return "management";
+  if (gameTablePaths.some((path) => pathname === path || pathname.startsWith(`${path}/`))) return "gameTable";
+  if (/^\/world\/[^/]+\/(session|reveal)/.test(pathname)) return "gameTable";
+  return "campaignArchive";
+}
+
+function sectionMeta(section) {
+  if (section === "management") return { label: "Management", icon: Settings, title: "Workspace, players and campaign settings" };
+  if (section === "gameTable") return { label: "Game Table", icon: Swords, title: "Session tools and live table workspace" };
+  return { label: "Campaign Archive", icon: Archive, title: "Archive, worlds and lore" };
+}
+
 export default function CodexTopbar({ session, pages, allPages, query, setQuery, onSelectPage, sidebarOpen, setSidebarOpen, activeWorld, worldTheme, onLogout }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const section = appSection(location.pathname);
+  const meta = sectionMeta(section);
+  const SectionIcon = meta.icon;
   const hasMembership = Boolean(session?.activeMembership?.id);
   const signedIn = Boolean(session?.user);
   const campaignNavAvailable = !signedIn || hasMembership;
@@ -27,10 +47,11 @@ export default function CodexTopbar({ session, pages, allPages, query, setQuery,
   const publicCount = visiblePages.filter((page) => page.visibility === "public").length;
   const role = activeRole(session);
   const canManage = hasMembership && (role === "owner" || role === "gm");
+  const showWorldSwitcher = campaignNavAvailable && section !== "management";
 
   function changeWorld(event) {
     const value = event.target.value;
-    if (value === "archive") navigate("/");
+    if (value === "archive") navigate("/archive");
     else {
       const world = worlds.find((item) => worldSlug(item) === value);
       if (world) navigate(worldRoute(world));
@@ -42,32 +63,46 @@ export default function CodexTopbar({ session, pages, allPages, query, setQuery,
       <button className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)} title="Open navigation">
         <Menu size={20} />
       </button>
-      {campaignNavAvailable ? (
-        <>
-          <div className="world-context-switcher" title="Switch Archive / World">
-            <Archive size={16} />
-            <select value={activeWorld ? worldSlug(activeWorld) : "archive"} onChange={changeWorld}>
-              <option value="archive">Archive: all worlds</option>
-              {worlds.map((world) => <option key={world.path} value={worldSlug(world)}>{world.title}</option>)}
-            </select>
-          </div>
-          <CommandSearch pages={visiblePages} query={query} setQuery={setQuery} onSelectPage={onSelectPage} />
-          <div className="top-quick-actions">
-            <Link to="/notes" title="Quick note"><NotebookPen size={16} /> <span>Note</span></Link>
-            {canManage && <Link to={activeWorld ? `/editor?world=${encodeURIComponent(activeWorld.title)}` : "/editor"} title="Quick create"><PenLine size={16} /> <span>Create</span></Link>}
-          </div>
-        </>
+
+      <div className="app-section-chip" title={meta.title}>
+        <SectionIcon size={16} />
+        <span>{meta.label}</span>
+      </div>
+
+      {showWorldSwitcher ? (
+        <div className="world-context-switcher" title="Switch Archive / World">
+          <Archive size={16} />
+          <select value={activeWorld ? worldSlug(activeWorld) : "archive"} onChange={changeWorld}>
+            <option value="archive">Archive: all worlds</option>
+            {worlds.map((world) => <option key={world.path} value={worldSlug(world)}>{world.title}</option>)}
+          </select>
+        </div>
+      ) : campaignNavAvailable ? (
+        <div className="world-context-switcher world-context-switcher-static" title="Management does not use active world filters">
+          <Settings size={16} />
+          <span>Management tools</span>
+        </div>
       ) : (
-        <div className="world-context-switcher" title="No active campaign membership">
+        <div className="world-context-switcher world-context-switcher-static" title="No active campaign membership">
           <Archive size={16} />
           <span>No campaign yet</span>
         </div>
       )}
+
+      {campaignNavAvailable && section !== "management" ? <CommandSearch pages={visiblePages} query={query} setQuery={setQuery} onSelectPage={onSelectPage} /> : <div className="topbar-spacer" />}
+
+      {campaignNavAvailable && section !== "management" ? (
+        <div className="top-quick-actions">
+          <Link to="/notes" title="Quick note"><NotebookPen size={16} /> <span>Note</span></Link>
+          {canManage && <Link to={activeWorld ? `/editor?world=${encodeURIComponent(activeWorld.title)}` : "/editor"} title="Quick create"><PenLine size={16} /> <span>Create</span></Link>}
+        </div>
+      ) : null}
+
       <div className="top-info top-info-v2">
-        {campaignNavAvailable ? <WorldAmbienceControl theme={worldTheme} /> : null}
-        {campaignNavAvailable ? <span><strong>{worldCount}</strong> worlds</span> : null}
-        {campaignNavAvailable ? <span><strong>{publicCount}</strong> public</span> : null}
-        <span>{campaignNavAvailable ? activeWorld ? activeWorld.title : "Archive" : "Onboarding"}</span>
+        {showWorldSwitcher ? <WorldAmbienceControl theme={worldTheme} /> : null}
+        {showWorldSwitcher ? <span><strong>{worldCount}</strong> worlds</span> : null}
+        {showWorldSwitcher ? <span><strong>{publicCount}</strong> public</span> : null}
+        <span>{section === "management" ? "No world filter" : activeWorld ? activeWorld.title : "Archive"}</span>
         <span>{roleLabel(role, signedIn)}</span>
       </div>
       <Link to="/profile" className="auth-chip auth-chip-link">
