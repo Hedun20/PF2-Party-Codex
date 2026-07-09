@@ -1,19 +1,18 @@
 import { Link } from "react-router-dom";
-import { BookOpen, Clock3, Dices, MapPinned, NotebookPen, Sparkles, UserRound } from "lucide-react";
+import { BookOpen, Dices, NotebookPen, Sparkles, UserRound } from "lucide-react";
 
 function role(session) {
   return session?.activeMembership?.role || "player";
 }
 
 const playerCards = [
-  ["Известный архив", "/archive", "Лор, статьи и сведения, которые GM уже открыл участникам.", BookOpen],
-  ["Материалы", "/handouts", "Handouts, изображения и подсказки, открытые для группы.", Sparkles],
-  ["Карты", "/maps", "Карты и объекты карты, доступные участнику.", MapPinned],
-  ["Timeline", "/timeline", "Известные события кампании и публичная история.", Clock3],
-  ["Мой персонаж", "/characters", "Рабочее место персонажа кампании.", UserRound],
-  ["Мои заметки", "/notes", "Личные заметки участника.", NotebookPen],
+  ["Мой игровой стол", "/session-desk", "Персонаж, кубики, заметки и открытые GM материалы во время игры.", UserRound],
+  ["Мой персонаж", "/characters", "Рабочее место персонажа и будущий character sheet.", UserRound],
   ["Кубики", "/dice", "Локальный dice tray для быстрых бросков.", Dices],
-  ["Профиль", "/profile", "Сессия, кампания и права доступа.", UserRound]
+  ["Мои заметки", "/notes", "Личные заметки участника.", NotebookPen],
+  ["Известный лор", "/archive", "Лор, NPC, квесты и сведения, которые GM уже открыл участникам.", BookOpen],
+  ["Материалы игрокам", "/handouts", "Письма, картинки, улики и подсказки, открытые для группы.", Sparkles],
+  ["Профиль", "/profile", "Аккаунт, кампания и роль доступа.", UserRound]
 ];
 
 export default function PlayerHomePage({ session }) {
@@ -22,7 +21,7 @@ export default function PlayerHomePage({ session }) {
       <section className="hero-panel">
         <span className="kicker">Player Portal</span>
         <h1>Портал участника</h1>
-        <p>Безопасный доступ к материалам кампании: архив, handouts, карты, timeline, персонаж, заметки и кубики.</p>
+        <p>Минимальный набор для игры: персонаж, кубики, заметки, известный лор и материалы игрокам. Карты не вынесены отдельно — GM открывает нужные изображения как материалы.</p>
         <div className="workspace-identity-strip">
           <span>{session?.user?.name || session?.user?.displayName || session?.user?.email || "Участник"}</span>
           {session?.activeCampaign?.name ? <span>Кампания: {session.activeCampaign.name}</span> : null}
