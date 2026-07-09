@@ -8,6 +8,7 @@ import "./styles/components.css";
 import "./styles/codex-design.css";
 import "./styles/codex-buttons.css";
 import "./styles/stabilization.css";
+import "./styles/shell-context.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
