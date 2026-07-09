@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { ChevronDown, Gem } from "lucide-react";
+import { scopedPath } from "../utils/shellContext.js";
 
 const lore = [
   ["gods", "Gods"],
@@ -14,7 +15,7 @@ const lore = [
   ["timeline", "Timeline"]
 ];
 
-export default function LoreDropdown() {
+export default function LoreDropdown({ activeWorld = null }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="lore-menu">
@@ -26,7 +27,7 @@ export default function LoreDropdown() {
       {open && (
         <div className="lore-children">
           {lore.map(([path, label]) => (
-            <NavLink key={path} to={`/category/lore/${path}`} className="sub-link">
+            <NavLink key={path} to={scopedPath(`/category/lore/${path}`, activeWorld)} className="sub-link">
               {label}
             </NavLink>
           ))}
