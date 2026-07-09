@@ -2,15 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { BookOpen, Clock3, FileText, MapPinned, NotebookPen, Sparkles, UserRound } from "lucide-react";
 import { api } from "../api/client.js";
+import CodexButton from "../components/ui/CodexButton.jsx";
 
 const recentSections = ["entries", "maps", "timelineEvents", "sessions", "handouts"];
+const countSections = ["entries", "maps", "timelineEvents", "sessions", "handouts", "characters", "notes"];
 
 const sectionMeta = {
   entries: { label: "Статьи", icon: FileText, path: "/category/lore", empty: "Статьи архива пока не созданы." },
   maps: { label: "Карты", icon: MapPinned, path: "/maps", empty: "Карты пока не добавлены." },
   timelineEvents: { label: "Timeline", icon: Clock3, path: "/timeline", empty: "События timeline пока не добавлены." },
   sessions: { label: "Сессии", icon: BookOpen, path: "/sessions", empty: "Сессии пока не запланированы." },
-  handouts: { label: "Материалы", icon: Sparkles, path: "/handouts", empty: "Handouts пока не открыты игрокам." },
+  handouts: { label: "Материалы игрокам", icon: Sparkles, path: "/handouts", empty: "Материалы пока не открыты игрокам." },
   characters: { label: "Персонажи", icon: UserRound, path: "/characters", empty: "Персонажи пока не добавлены." },
   notes: { label: "Заметки", icon: NotebookPen, path: "/notes", empty: "Заметки пока не созданы." }
 };
@@ -69,7 +71,7 @@ function RecentSection({ section, items, manager }) {
       ) : (
         <p>{manager ? meta.empty : "Пока нет материалов, доступных игроку."}</p>
       )}
-      <Link className="codex-button codex-button--ghost codex-button--sm" to={meta.path}>Открыть раздел</Link>
+      <CodexButton as={Link} variant="ghost" size="sm" to={meta.path}>Открыть раздел</CodexButton>
     </article>
   );
 }
@@ -101,7 +103,8 @@ export default function CampaignArchivePage({ session }) {
 
   const data = state.data || {};
   const archive = data.archive || {};
-  const counts = archive.counts || {};
+  const rawCounts = archive.counts || {};
+  const counts = Object.fromEntries(countSections.map((section) => [section, rawCounts[section] || 0]));
   const recent = archive.recent || {};
   const availableSections = archive.availableSections || [];
   const campaign = data.campaign || session?.activeCampaign || {};
@@ -115,7 +118,7 @@ export default function CampaignArchivePage({ session }) {
       <section className="hero-panel archive-hero">
         <span className="kicker">Архив кампании</span>
         <h1>{campaign?.name || "Архив кампании"}</h1>
-        <p>{campaignId ? "Единый Mongo-архив активной кампании: статьи, карты, timeline, сессии, handouts, персонажи и заметки." : "Нет активной кампании для текущей сессии."}</p>
+        <p>{campaignId ? "Единый архив активной кампании: статьи, карты, timeline, сессии, материалы игрокам, персонажи и заметки." : "Нет активной кампании для текущей сессии."}</p>
         <div className="workspace-identity-strip">
           {workspace?.name ? <span>Workspace: {workspace.name}</span> : null}
           <span>Роль: {role}</span>
@@ -140,27 +143,27 @@ export default function CampaignArchivePage({ session }) {
       {state.loading ? (
         <section className="codex-card workspace-status-card">
           <span className="kicker">Загрузка архива</span>
-          <p>Получаю Mongo summary активной кампании.</p>
+          <p>Получаю сводку активной кампании.</p>
         </section>
       ) : null}
 
       {state.data ? (
         <>
           <section className="archive-summary-grid" aria-label="Сводка архива">
-            {Object.entries(counts).map(([key, value]) => <ArchiveCountCard key={key} section={key} value={value} />)}
+            {countSections.map((key) => <ArchiveCountCard key={key} section={key} value={counts[key]} />)}
           </section>
 
           <section className="codex-card workspace-status-card">
             <span className="kicker">Состояние архива</span>
-            <p>{availableSections.length ? "В кампании уже есть данные в Mongo-разделах ниже." : manager ? "Mongo-архив пока пустой. Начните с создания статьи, карты или handout." : "Мастер пока не открыл материалы игрокам."}</p>
+            <p>{availableSections.length ? "В кампании уже есть данные в разделах ниже." : manager ? "Архив пока пустой. Начните с создания статьи, карты или материала игрокам." : "Мастер пока не открыл материалы игрокам."}</p>
             <div className="archive-chip-row">
               {availableSections.length ? availableSections.map((section) => <span key={section}>{sectionLabel(section)}</span>) : <span>Нет активных разделов</span>}
             </div>
             {manager ? (
               <div className="workspace-stats-row">
-                <Link className="codex-button codex-button--primary codex-button--sm" to="/editor">Создать статью</Link>
-                <Link className="codex-button codex-button--secondary codex-button--sm" to="/maps">Добавить карту</Link>
-                <Link className="codex-button codex-button--ghost codex-button--sm" to="/handouts">Материалы / Reveal</Link>
+                <CodexButton as={Link} size="sm" to="/editor">Создать статью</CodexButton>
+                <CodexButton as={Link} variant="secondary" size="sm" to="/maps">Добавить карту</CodexButton>
+                <CodexButton as={Link} variant="ghost" size="sm" to="/handouts">Материалы игрокам</CodexButton>
               </div>
             ) : null}
           </section>
