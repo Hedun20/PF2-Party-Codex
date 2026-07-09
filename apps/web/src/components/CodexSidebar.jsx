@@ -68,7 +68,7 @@ function ArchiveTools({ activeWorld, onClose, canEdit }) {
         <NavItem to={scopedPath("/timeline", activeWorld)} icon={Clock3} label={activeWorld ? "World Timeline" : "Timeline"} onClose={onClose} />
         <NavItem to={scopedPath("/handouts", activeWorld)} icon={Sparkles} label="Handouts" onClose={onClose} />
         <NavItem to={scopedPath("/notes", activeWorld)} icon={NotebookPen} label="Notes" onClose={onClose} />
-        {!activeWorld && <LoreDropdown />}
+        <LoreDropdown activeWorld={activeWorld} />
       </NavGroup>
 
       {canEdit ? (
