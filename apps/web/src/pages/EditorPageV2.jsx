@@ -160,7 +160,7 @@ export default function EditorPageV2({ onSaved, session, activeWorld = null }) {
             <h2>{selectedTypeLabel}</h2>
             <p>Выберите, что создаёт GM: мир, город, NPC, квест, лор, карту или событие.</p>
           </div>
-          <div className="type-grid compact-type-grid">
+          <div className="type-grid compact-type-grid create-type-grid">
             {articleTypes.map(([value, label]) => (
               <button key={value} type="button" className={form.type === value ? "type-chip active" : "type-chip"} onClick={() => changeType(value)}>{label}</button>
             ))}
@@ -175,11 +175,11 @@ export default function EditorPageV2({ onSaved, session, activeWorld = null }) {
           </div>
           <div className="codex-field-grid codex-field-grid--four">
             <Field label="Название"><input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="Например: Капитан Варос" /></Field>
-            <Field label="Видимость" hint="Public видно игрокам. GM private скрыто от игроков. Черновик не показывается игрокам.">
+            <Field label="Видимость">
               <select value={form.visibility} onChange={(event) => update("visibility", event.target.value)}>
-                <option value="public">Public · видно игрокам</option>
-                <option value="gm">GM private · только мастеру</option>
-                <option value="draft">Черновик · не показывать игрокам</option>
+                <option value="public">Public</option>
+                <option value="gm">GM private</option>
+                <option value="draft">Черновик</option>
               </select>
             </Field>
             <Field label="Категория"><input value={labelCategory(category)} disabled /></Field>
