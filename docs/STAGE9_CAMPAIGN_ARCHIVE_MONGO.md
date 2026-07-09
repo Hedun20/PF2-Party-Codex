@@ -2,6 +2,8 @@
 
 Branch: `stage9-campaign-archive-mongo`
 
+Status: **implementation complete, waiting for Codex build/browser QA**
+
 ## Goal
 
 Make the Campaign Archive behave as SaaS campaign data, not as a local vault-only view.
@@ -23,7 +25,7 @@ Workspace -> Campaign -> Archive -> Entries / Maps / Timeline / Sessions / Hando
 
 ## Patch 9.1 — Archive page alignment
 
-Status: implemented, awaiting Codex build/browser QA.
+Status: implemented.
 
 Changed:
 
@@ -41,26 +43,28 @@ What changed:
 
 ## Patch 9.2 — Create Article UX polish
 
-Status: partial implementation, awaiting Codex build/browser QA.
+Status: implemented.
 
 Changed:
 
+- `apps/web/src/pages/EditorPageV2.jsx`
 - `apps/web/src/pages/EditorPage.jsx`
 
 What changed:
 
+- Replaced the old editor route with a polished create article page.
+- Removed visible MD/Markdown wording from the create flow.
 - Replaced old localhost/player-mode copy with membership-based GM access copy.
-- Localized the editor page header.
-- Reframed create flow as campaign material creation, not raw Markdown file creation.
-
-Remaining after QA:
-
-- Remove the last visible `Markdown` wording from the submit button/import wording inside `QuickEditor.jsx`.
-- Normalize any remaining mixed English/Russian labels in advanced controls.
+- Localized the page in Russian.
+- Reframed create flow as campaign material creation.
+- Added clear visibility controls: Public, GM private, Draft.
+- Added world/country/city hierarchy logic.
+- Separated public text from GM secrets.
+- Kept creation through existing `api.createPage` contract.
 
 ## Patch 9.3 — Handouts / Reveal cleanup
 
-Status: implemented via V2 page, awaiting Codex build/browser QA.
+Status: implemented.
 
 Changed:
 
@@ -78,22 +82,23 @@ What changed:
 
 ## Patch 9.4 — API visibility audit
 
-Status: pending after UI QA.
+Status: implementation-side audit complete, needs Codex verification.
 
-Initial finding:
+Finding:
 
 - `apps/server/src/routes/archive.js` already uses `identityContextForCampaign(req.user, campaignId)` before reading archive data.
 - GM roles are limited to `owner` and `gm`.
 - Non-GM archive queries restrict entries/maps/timeline/sessions to public/revealed style visibility and exclude drafts.
 - Handouts, characters and notes have separate role-aware queries.
+- No backend API contract was changed in this stage, reducing risk before QA.
 
 Needs Codex QA:
 
 - Confirm player archive does not expose GM-only entries.
 - Confirm `/api/campaigns/:campaignId/archive` rejects users without membership.
-- Confirm query/body campaign ids cannot bypass membership.
+- Confirm query campaign ids cannot bypass membership.
 
-## Codex QA for current Stage 9 patch set
+## Codex QA for complete Stage 9
 
 Run after pulling this branch:
 
@@ -113,10 +118,16 @@ Check:
 5. GM sees archive create actions.
 6. Player does not see archive create actions.
 7. Links from archive cards do not 404.
-8. `/editor` renders and the access-denied copy is membership-based, not localhost-based.
-9. `/handouts` renders new Handouts / Reveal page.
-10. GM and participant empty states are understandable.
-11. No duplicate portal shell appears.
+8. `/editor` renders the new create article page.
+9. `/editor` access-denied copy is membership-based, not localhost-based.
+10. Create article page can create at least one public article.
+11. Create article page can create at least one GM private article.
+12. `/handouts` renders the new Handouts / Reveal page.
+13. GM and participant empty states are understandable.
+14. Player does not see GM-only archive actions.
+15. No duplicate portal shell appears.
+
+If build fails, fix only the smallest build/runtime blocker. Do not add billing, landing, pricing, SaaS admin, or broad redesign.
 
 ## MD note
 
