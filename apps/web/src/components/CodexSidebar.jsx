@@ -36,14 +36,12 @@ const codexSections = [
 ];
 
 const playerSections = [
-  ["Домой", "/player", Home],
-  ["Известный архив", "/archive", BookOpen],
-  ["Материалы", "/handouts", Sparkles],
-  ["Карты", "/maps", MapPinned],
-  ["Timeline", "/timeline", Clock3],
+  ["Игровой стол", "/session-desk", Crosshair],
   ["Мой персонаж", "/characters", UserRound],
-  ["Мои заметки", "/notes", NotebookPen],
   ["Кубики", "/dice", Crosshair],
+  ["Мои заметки", "/notes", NotebookPen],
+  ["Известный лор", "/archive", BookOpen],
+  ["Материалы игрокам", "/handouts", Sparkles],
   ["Профиль", "/profile", UserRound]
 ];
 
@@ -111,35 +109,36 @@ export default function CodexSidebar({ onClose, canEdit = false, activeWorld = n
           </>
         ) : canEdit ? (
           <>
-            <NavGroup title="GM Portal">
+            <NavGroup title="Главное">
               <NavItem to="/" icon={Home} label="Dashboard" onClose={onClose} />
               <NavItem to="/archive" icon={BookOpen} label="Архив кампании" onClose={onClose} />
-              <NavItem to="/my" icon={UserRound} label="Рабочий стол" onClose={onClose} />
-              <NavItem to="/players" icon={UsersRound} label="Игроки" onClose={onClose} />
+              <NavItem to="/session-desk" icon={Crosshair} label="Игровой стол" onClose={onClose} />
             </NavGroup>
 
-            <NavGroup title="World Codex">
+            <NavGroup title="Архив / подготовка">
+              <NavItem to={activeWorld ? `/editor?world=${encodeURIComponent(activeWorld.title)}` : "/editor"} icon={Crosshair} label={activeWorld ? "Создать в мире" : "Создать статью"} onClose={onClose} className="primary-link" />
               {codexSections.map(([label, path, Icon]) => (
                 <NavItem key={path} to={scopedPath(activeWorld, path)} icon={Icon} label={label} onClose={onClose} />
               ))}
-              <NavItem to={scopedPath(activeWorld, "/maps")} icon={MapPinned} label={activeWorld ? "Карты мира" : "Карты"} onClose={onClose} />
               <NavItem to={scopedPath(activeWorld, "/timeline")} icon={Clock3} label={activeWorld ? "Timeline мира" : "Timeline"} onClose={onClose} />
+              <NavItem to={scopedPath(activeWorld, "/maps")} icon={MapPinned} label={activeWorld ? "Карты мира" : "Карты GM"} onClose={onClose} />
               {!activeWorld && <LoreDropdown />}
             </NavGroup>
 
-            <NavGroup title="GM Operations">
-              <NavItem to={activeWorld ? `/editor?world=${encodeURIComponent(activeWorld.title)}` : "/editor"} icon={Crosshair} label={activeWorld ? "Создать в мире" : "Создать статью"} onClose={onClose} className="primary-link" />
-              <NavItem to={activeWorld ? `${worldRoute(activeWorld)}/session` : "/sessions"} icon={BookOpen} label="Сессии" onClose={onClose} />
-              <NavItem to={activeWorld ? `${worldRoute(activeWorld)}/reveal` : "/handouts"} icon={Sparkles} label="Материалы / Reveal" onClose={onClose} />
-              <NavItem to="/characters" icon={UsersRound} label="Персонажи" onClose={onClose} />
-              <NavItem to="/notes" icon={NotebookPen} label="Заметки" onClose={onClose} />
+            <NavGroup title="Во время игры">
               <NavItem to="/dice" icon={Crosshair} label="Кубики" onClose={onClose} />
+              <NavItem to="/notes" icon={NotebookPen} label="Быстрые заметки" onClose={onClose} />
+              <NavItem to={activeWorld ? `${worldRoute(activeWorld)}/reveal` : "/handouts"} icon={Sparkles} label="Материалы игрокам" onClose={onClose} />
+              <NavItem to={activeWorld ? `${worldRoute(activeWorld)}/session` : "/sessions"} icon={BookOpen} label="Сессии" onClose={onClose} />
+              <NavItem to="/characters" icon={UsersRound} label="Персонажи" onClose={onClose} />
             </NavGroup>
 
-            <NavGroup title="System">
+            <NavGroup title="Управление">
+              <NavItem to="/players" icon={UsersRound} label="Игроки" onClose={onClose} />
+              <NavItem to="/profile" icon={UserRound} label="Профиль" onClose={onClose} />
               <NavItem to="/settings" icon={Settings} label="Настройки" onClose={onClose} />
               <NavItem to="/gm-tools" icon={Wrench} label="GM Tools" onClose={onClose} />
-              <NavItem to="/health" icon={ShieldCheck} label="Vault Control" onClose={onClose} />
+              <NavItem to="/health" icon={ShieldCheck} label="Диагностика" onClose={onClose} />
               <NavItem to="/foundry" icon={Hammer} label="Foundry Import/Export" onClose={onClose} />
               <NavItem to="/missing" icon={FileQuestion} label="Недостающие статьи" onClose={onClose} />
               <NavItem to="/player-safety" icon={ShieldAlert} label="Player Safety" onClose={onClose} />
@@ -148,7 +147,7 @@ export default function CodexSidebar({ onClose, canEdit = false, activeWorld = n
           </>
         ) : (
           <>
-            <NavGroup title="Player Portal">
+            <NavGroup title="Игровой стол">
               {playerSections.map(([label, path, Icon]) => (
                 <NavItem key={path} to={scopedPath(activeWorld, path)} icon={Icon} label={label} onClose={onClose} />
               ))}
