@@ -30,6 +30,7 @@ import CampaignArchivePage from "./pages/CampaignArchivePage.jsx";
 import AdminPlaceholderPage from "./pages/AdminPlaceholderPage.jsx";
 import GmHomePage from "./pages/GmHomePage.jsx";
 import PlayerHomePage from "./pages/PlayerHomePage.jsx";
+import SessionDeskPage from "./pages/SessionDeskPage.jsx";
 import SimplePlaceholderPage from "./pages/SimplePlaceholderPage.jsx";
 import DiceTrayPage from "./pages/DiceTrayPage.jsx";
 import PlayersPage from "./pages/PlayersPageV2.jsx";
@@ -97,7 +98,12 @@ export default function App() {
   };
 
   const refresh = async (sessionOverride = session) => {
-    if (sessionOverride?.user && !hasActiveCampaignMembership(sessionOverride)) {
+    if (!sessionOverride?.user) {
+      setPages([]);
+      setCategories([]);
+      return { pages: [], categories: [] };
+    }
+    if (!hasActiveCampaignMembership(sessionOverride)) {
       setPages([]);
       setCategories([]);
       return { pages: [], categories: [] };
@@ -110,7 +116,7 @@ export default function App() {
       return { pages: pageData.pages || [], categories: categoryData.categories || [] };
     } catch (error) {
       if (error.message?.includes("GM access")) setMode("player");
-      if (sessionOverride?.user && !hasActiveCampaignMembership(sessionOverride)) {
+      if (!sessionOverride?.user || !hasActiveCampaignMembership(sessionOverride)) {
         setPages([]);
         setCategories([]);
       }
@@ -150,7 +156,7 @@ export default function App() {
     refresh().catch(() => {});
     const timer = setInterval(() => refresh().catch(() => {}), 10000);
     return () => clearInterval(timer);
-  }, [effectiveMode, canManage, hasMembership]);
+  }, [effectiveMode, canManage, hasMembership, signedIn]);
 
   const dashboard = useMemo(() => pages.find((page) => page.path === "index.md"), [pages]);
   const activeWorldSlug = worldSlugFromPath(location.pathname);
@@ -165,17 +171,30 @@ export default function App() {
 
   const onboardingElement = <OnboardingPage session={session} onCreated={handleOnboardingCreated} />;
   const accessDeniedElement = (
-    <SimplePlaceholderPage title="GM access required" kicker="Campaign permissions">
-      This route requires an active campaign membership with owner or GM role.
+    <SimplePlaceholderPage title="Требуется доступ GM" kicker="Права кампании">
+      Этот раздел доступен только владельцу кампании или GM.
     </SimplePlaceholderPage>
   );
-  const campaignRoute = (element) => (signedIn && !hasMembership ? onboardingElement : element);
+  const campaignRoute = (element) => {
+    if (!signedIn) return <AuthPage onAuth={handleAuth} session={session} />;
+    if (!hasMembership) return onboardingElement;
+    return element;
+  };
   const managerRoute = (element) => {
     if (!signedIn) return <AuthPage onAuth={handleAuth} session={session} />;
     if (!hasMembership) return onboardingElement;
     if (!canManage) return accessDeniedElement;
     return element;
   };
+
+  if (!signedIn) {
+    return (
+      <Routes>
+        <Route path="/invite/:token" element={<InviteAcceptPage session={session} onAccepted={loadSession} />} />
+        <Route path="*" element={<AuthPage onAuth={handleAuth} session={session} />} />
+      </Routes>
+    );
+  }
 
   return (
     <FantasyShell
@@ -198,6 +217,7 @@ export default function App() {
         <Route path="/" element={campaignRoute(<DashboardPage pages={pages} dashboard={dashboard} mode={effectiveMode} session={session} />)} />
         <Route path="/gm" element={managerRoute(<GmHomePage session={session} />)} />
         <Route path="/player" element={campaignRoute(<PlayerHomePage session={session} />)} />
+        <Route path="/session-desk" element={campaignRoute(<SessionDeskPage session={session} />)} />
         <Route path="/archive" element={campaignRoute(<CampaignArchivePage session={session} />)} />
         <Route path="/admin" element={managerRoute(<AdminPlaceholderPage />)} />
         <Route path="/players" element={managerRoute(<PlayersPage session={session} />)} />
