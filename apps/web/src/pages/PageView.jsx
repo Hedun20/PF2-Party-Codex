@@ -28,36 +28,88 @@ function LinkList({ title, items = [] }) {
   );
 }
 
+function shortText(value = "", limit = 120) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "Пустая заметка";
+  return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
+}
+
+function formatDate(value = "") {
+  if (!value) return "—";
+  try {
+    return new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
 function ArticleNotesPanel({ page }) {
-  const { notes, addNote } = usePlayerNotes();
+  const navigate = useNavigate();
+  const { notes, addNote, deleteNote, storageMode, error } = usePlayerNotes();
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
   const linkedNotes = useMemo(() => notesForPage(notes, page.path), [notes, page.path]);
 
-  function addArticleNote() {
-    addNote({ title: `Заметка: ${page.title}`, linkedPath: page.path, linkedTitle: page.title });
+  async function addArticleNote() {
+    setBusy(true);
+    setMessage("");
+    try {
+      const note = await addNote({ title: `Заметка: ${page.title}`, linkedPath: page.path, linkedTitle: page.title, visibility: "private" });
+      navigate(`/notes?note=${encodeURIComponent(note.id)}`);
+    } catch (createError) {
+      setMessage(createError.message || "Не удалось создать заметку.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeArticleNote(note) {
+    if (!window.confirm(`Удалить заметку «${note.title || "Без названия"}»?`)) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      await deleteNote(note.id);
+    } catch (deleteError) {
+      setMessage(deleteError.message || "Не удалось удалить заметку.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <section className="codex-card article-notes-panel">
+    <section className="codex-card article-notes-panel article-notes-panel-v2">
       <div className="article-notes-head">
         <div>
-          <span className="kicker">Personal notes</span>
-          <h2>Мои заметки к статье</h2>
+          <span className="kicker">Personal Notes · {storageMode}</span>
+          <h2>Personal Notes</h2>
+          <p>{linkedNotes.length ? `${linkedNotes.length} linked note${linkedNotes.length === 1 ? "" : "s"}` : "No personal notes linked to this article yet."}</p>
         </div>
         <NotebookPen size={20} />
       </div>
+
+      {(message || error) ? <div className="status-message danger-message"><span>{message || error}</span></div> : null}
+
       {linkedNotes.length ? (
-        <div className="article-notes-list">
-          {linkedNotes.slice(0, 4).map((note) => (
-            <Link key={note.id} to={`/notes?article=${encodeURIComponent(page.path)}`}>
-              <strong>{note.title}</strong>
-              <span>{note.body ? note.body.slice(0, 120) : "Пустая заметка"}</span>
-            </Link>
+        <div className="article-notes-list article-notes-list-v2">
+          {linkedNotes.slice(0, 5).map((note) => (
+            <article key={note.id} className="article-note-row">
+              <div>
+                <strong>{note.title || "Untitled note"}</strong>
+                <span>{shortText(note.body)}</span>
+                <small>{note.visibility || "private"} · {formatDate(note.updatedAt)}</small>
+              </div>
+              <div className="article-note-actions">
+                <CodexButton as={Link} to={`/notes?note=${encodeURIComponent(note.id)}`} variant="secondary" size="sm">Open/Edit</CodexButton>
+                <CodexButton type="button" variant="danger" size="sm" onClick={() => removeArticleNote(note)} disabled={busy}><Trash2 size={14} /> Delete</CodexButton>
+              </div>
+            </article>
           ))}
         </div>
-      ) : <p className="empty-copy">К этой статье пока нет личных заметок.</p>}
+      ) : <p className="empty-copy">No personal notes linked to this article yet.</p>}
+
       <div className="article-notes-actions">
-        <CodexButton type="button" size="sm" onClick={addArticleNote}><Plus size={15} /> Добавить</CodexButton>
-        <CodexButton as={Link} to={`/notes?article=${encodeURIComponent(page.path)}`} variant="secondary" size="sm">Открыть Notes</CodexButton>
+        <CodexButton type="button" size="sm" onClick={addArticleNote} disabled={busy}><Plus size={15} /> Add note</CodexButton>
+        <CodexButton as={Link} to={`/notes?article=${encodeURIComponent(page.path)}`} variant="secondary" size="sm">Open linked notes</CodexButton>
       </div>
     </section>
   );
