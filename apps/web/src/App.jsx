@@ -38,6 +38,7 @@ import ProfilePage from "./pages/ProfilePage.jsx";
 import InviteAcceptPage from "./pages/InviteAcceptPage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
 import { getWorldOwnedPages, getWorldSearchPages, resolveWorldBySlug, resolveWorldForPage } from "./utils/worldContext.js";
+import { worldScopeFromSearch } from "./utils/shellContext.js";
 
 function worldSlugFromPath(pathname = "") {
   const match = pathname.match(/^\/world\/([^/]+)/);
@@ -158,9 +159,11 @@ export default function App() {
   const routeWorld = useMemo(() => resolveWorldBySlug(pages, activeWorldSlug), [pages, activeWorldSlug]);
   const activePagePath = pagePathFromRoute(location.pathname);
   const editorWorldName = editorWorldFromLocation(location);
+  const queryWorldName = worldScopeFromSearch(location.search);
   const pageWorld = useMemo(() => (!routeWorld && activePagePath ? resolveWorldForPage(pages, activePagePath) : null), [pages, routeWorld, activePagePath]);
   const editorWorld = useMemo(() => (!routeWorld && !pageWorld && editorWorldName ? resolveWorldBySlug(pages, editorWorldName) : null), [pages, routeWorld, pageWorld, editorWorldName]);
-  const activeWorld = routeWorld || pageWorld || editorWorld;
+  const queryWorld = useMemo(() => (!routeWorld && !pageWorld && !editorWorld && queryWorldName ? resolveWorldBySlug(pages, queryWorldName) : null), [pages, routeWorld, pageWorld, editorWorld, queryWorldName]);
+  const activeWorld = routeWorld || pageWorld || editorWorld || queryWorld;
   const worldPages = useMemo(() => activeWorld ? getWorldOwnedPages(pages, activeWorld) : pages, [pages, activeWorld]);
   const shellPages = useMemo(() => activeWorld ? getWorldSearchPages(pages, activeWorld) : pages, [pages, activeWorld]);
 
@@ -214,18 +217,18 @@ export default function App() {
         <Route path="/world/:worldSlug/session" element={campaignRoute(gmView ? <SessionModePage pages={pages} mode={effectiveMode} session={session} /> : <PlayerPortalView pages={pages} />)} />
         <Route path="/world/:worldSlug/reveal" element={campaignRoute(gmView ? <PlayerRevealPage pages={pages} session={session} /> : <PlayerPortalView pages={pages} />)} />
         <Route path="/world/:worldSlug/player" element={campaignRoute(<PlayerPortalView pages={pages} />)} />
-        <Route path="/category/:category/*" element={campaignRoute(<CategoryPage pages={pages} mode={effectiveMode} />)} />
+        <Route path="/category/:category/*" element={campaignRoute(<CategoryPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
         <Route path="/page/:path" element={campaignRoute(<PageView mode={effectiveMode} pages={pages} onChanged={refresh} />)} />
         <Route path="/editor" element={managerRoute(<EditorPage onSaved={refresh} session={{ ...session, canEdit: gmView }} activeWorld={activeWorld} />)} />
         <Route path="/edit/:path" element={managerRoute(<RawEditorPage mode="gm" onSaved={refresh} pages={pages} />)} />
         <Route path="/missing" element={managerRoute(<MissingLinksPage mode={effectiveMode} />)} />
-        <Route path="/timeline" element={campaignRoute(<TimelinePage pages={pages} mode={effectiveMode} />)} />
-        <Route path="/maps" element={campaignRoute(<MapsPage pages={pages} mode={effectiveMode} />)} />
+        <Route path="/timeline" element={campaignRoute(<TimelinePage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
+        <Route path="/maps" element={campaignRoute(<MapsPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
         <Route path="/my" element={campaignRoute(<MyWorkspacePage pages={pages} mode={effectiveMode} session={session} />)} />
-        <Route path="/notes" element={campaignRoute(<NotesPage pages={pages} />)} />
-        <Route path="/characters" element={campaignRoute(<CharactersPage pages={pages} />)} />
-        <Route path="/handouts" element={campaignRoute(<HandoutsPage pages={pages} mode={effectiveMode} />)} />
-        <Route path="/sessions" element={campaignRoute(<SessionsPage pages={pages} mode={effectiveMode} />)} />
+        <Route path="/notes" element={campaignRoute(<NotesPage pages={worldPages} />)} />
+        <Route path="/characters" element={campaignRoute(<CharactersPage pages={worldPages} />)} />
+        <Route path="/handouts" element={campaignRoute(<HandoutsPage pages={worldPages} mode={effectiveMode} />)} />
+        <Route path="/sessions" element={campaignRoute(<SessionsPage pages={worldPages} mode={effectiveMode} />)} />
         <Route path="/settings" element={campaignRoute(<SettingsPage session={session} />)} />
         <Route path="/gm-tools" element={managerRoute(<GMToolsPage session={session} />)} />
         <Route path="/health" element={managerRoute(<VaultHealthPage mode={effectiveMode} />)} />
@@ -239,4 +242,3 @@ export default function App() {
     </FantasyShell>
   );
 }
-
