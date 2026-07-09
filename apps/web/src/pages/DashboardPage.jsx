@@ -1,101 +1,131 @@
 import { Link } from "react-router-dom";
-import { Clock3, FileQuestion, FileUp, MapPinned, PenLine } from "lucide-react";
-import EntityCard from "../components/EntityCard.jsx";
-import MarkdownViewer from "../components/MarkdownViewer.jsx";
-
-const blocks = [
-  ["Active quests", "quests"],
-  ["Important NPC", "npcs"],
-  ["Known enemies", "enemies"],
-  ["Fresh lore", "lore"],
-  ["Sessions", "sessions"],
-  ["Locations", "locations"]
-];
+import { Archive, BookOpen, Dices, FileQuestion, MapPinned, NotebookPen, Search, Settings, ShieldCheck, Sparkles, UserRound, UsersRound } from "lucide-react";
+import CodexButton from "../components/ui/CodexButton.jsx";
 
 function canManageCampaign(session) {
   const role = String(session?.activeMembership?.role || "").toLowerCase();
   return role === "owner" || role === "gm";
 }
 
-function MasterWorkbench({ pages, canEdit = false }) {
-  const mapCount = pages.filter((page) => page.mapImage).length;
-  const worldCount = pages.filter((page) => page.category === "worlds" || page.type === "world").length;
-  const publicCount = pages.filter((page) => page.visibility === "public").length;
+function pageCount(pages, predicate) {
+  return pages.filter(predicate).length;
+}
 
+function ProductPathCard({ icon: Icon, kicker, title, description, stats, actions, primaryTo }) {
   return (
-    <section className="workbench-panel">
-      <div className="workbench-copy">
-        <span className="kicker">{canEdit ? "GM desktop" : "Player portal"}</span>
-        <h2>{canEdit ? "Campaign control desk" : "Campaign archive"}</h2>
-        <p>{canEdit
-          ? "Create articles, check missing links, prepare maps, timeline and player-safe handouts from one desktop."
-          : "Browse player-visible worlds, public lore, maps and handouts. GM notes and preparation tools stay hidden."}</p>
+    <article className="codex-card product-path-card">
+      <div className="product-path-card__head">
+        <span className="product-path-card__icon"><Icon size={24} /></span>
+        <div>
+          <span className="kicker">{kicker}</span>
+          <h2>{title}</h2>
+        </div>
       </div>
-
-      <div className="workbench-actions">
-        {canEdit && (
-          <Link to="/missing" className="codex-card workbench-action">
-            <FileQuestion size={20} />
-            <strong>Missing articles</strong>
-            <span>Wiki links that exist in lore but do not yet have a file.</span>
-          </Link>
-        )}
-        {canEdit && (
-          <Link to="/editor" className="codex-card workbench-action">
-            <PenLine size={20} />
-            <strong>Create article</strong>
-            <span>World, country, city, NPC, quest, session, location or timeline event.</span>
-          </Link>
-        )}
-        <Link to="/maps" className="codex-card workbench-action">
-          <MapPinned size={20} />
-          <strong>Maps</strong>
-          <span>{mapCount} maps connected. Player mode shows only player-visible layers.</span>
-        </Link>
-        <Link to="/timeline" className="codex-card workbench-action">
-          <Clock3 size={20} />
-          <strong>Timeline</strong>
-          <span>Public timeline and linked events filtered through player-safe data.</span>
-        </Link>
-        {canEdit && (
-          <Link to="/editor" className="codex-card workbench-action muted-action">
-            <FileUp size={20} />
-            <strong>MD / Obsidian import</strong>
-            <span>Import Markdown files into the vault from the GM workspace.</span>
-          </Link>
-        )}
+      <p>{description}</p>
+      <ul className="product-path-stat-list">
+        {stats.map(([label, value]) => (
+          <li key={label}><strong>{value}</strong><span>{label}</span></li>
+        ))}
+      </ul>
+      <div className="product-path-card__actions">
+        {actions.map((action, index) => (
+          <CodexButton key={action.to} as={Link} to={action.to} variant={index === 0 ? "primary" : "ghost"} size="sm">
+            <action.icon size={15} />
+            <span>{action.label}</span>
+          </CodexButton>
+        ))}
       </div>
-
-      <div className="workbench-stats">
-        <span><strong>{worldCount}</strong> worlds</span>
-        <span><strong>{publicCount}</strong> public</span>
-        <span><strong>{mapCount}</strong> maps</span>
-      </div>
-    </section>
+      <Link className="product-path-card__cover" to={primaryTo} aria-label={title} />
+    </article>
   );
 }
 
-export default function DashboardPage({ pages, dashboard, mode, session }) {
+export default function DashboardPage({ pages = [], dashboard, mode, session }) {
   const canEdit = mode === "gm" && canManageCampaign(session);
+  const worldCount = pageCount(pages, (page) => page.category === "worlds" || page.type === "world");
+  const publicCount = pageCount(pages, (page) => page.visibility === "public");
+  const mapCount = pageCount(pages, (page) => page.mapImage);
+  const sessionCount = pageCount(pages, (page) => page.category === "sessions" || page.type === "session");
+  const handoutCount = pageCount(pages, (page) => page.visibility === "public" && ["handouts", "lore", "quests"].includes(page.category));
+  const articleCount = pages.length;
+
+  const managementActions = canEdit
+    ? [
+        { to: "/players", label: "Players / Invites", icon: UsersRound },
+        { to: "/my", label: "Workspace", icon: UserRound },
+        { to: "/settings", label: "Settings", icon: Settings },
+        { to: "/health", label: "Health", icon: ShieldCheck }
+      ]
+    : [
+        { to: "/profile", label: "Profile", icon: UserRound },
+        { to: "/settings", label: "Settings", icon: Settings },
+        { to: "/guide", label: "Guide", icon: BookOpen }
+      ];
+
+  const cards = [
+    {
+      icon: UsersRound,
+      kicker: "Management / Campaign Access",
+      title: canEdit ? "Управление и игроки" : "Профиль участника",
+      description: canEdit
+        ? "Рабочая зона владельца или GM: участники, приглашения, настройки кампании и проверка готовности."
+        : "Ваш профиль, локальные настройки и справка без доступа к GM-only инструментам.",
+      stats: [["campaign role", session?.activeMembership?.role || "guest"], ["workspace", session?.activeWorkspace?.name || "not selected"], ["campaign", session?.activeCampaign?.name || "not selected"]],
+      actions: managementActions,
+      primaryTo: canEdit ? "/my" : "/profile"
+    },
+    {
+      icon: Archive,
+      kicker: "Campaign Archive",
+      title: "Архив кампании",
+      description: "Структурированные знания кампании: миры, NPC, локации, квесты, карты и player-visible материалы.",
+      stats: [["articles", articleCount], ["worlds", worldCount], ["public", publicCount], ["maps", mapCount]],
+      actions: [
+        { to: "/archive", label: "Archive", icon: Search },
+        { to: "/category/worlds", label: "Worlds", icon: BookOpen },
+        { to: "/maps", label: "Maps", icon: MapPinned },
+        { to: "/handouts", label: "Handouts", icon: Sparkles }
+      ],
+      primaryTo: "/archive"
+    },
+    {
+      icon: Dices,
+      kicker: "Active Session / Game Table",
+      title: "Игровой стол",
+      description: "Минимальный стол для живой игры: кубики, быстрые заметки, handouts, персонажи и быстрый возврат в архив.",
+      stats: [["sessions", sessionCount], ["handouts", handoutCount], ["notes", "personal"], ["dice", "local"]],
+      actions: [
+        { to: "/session-desk", label: "Session Desk", icon: Dices },
+        { to: "/dice", label: "Dice", icon: Dices },
+        { to: "/notes", label: "Notes", icon: NotebookPen },
+        { to: "/characters", label: "Characters", icon: UserRound }
+      ],
+      primaryTo: "/session-desk"
+    }
+  ];
 
   return (
-    <div className="page-stack">
+    <div className="page-stack dashboard-product-shell">
       <section className="hero-panel">
         <span className="kicker">Campaign Codex</span>
         <h1>PF2 Party Codex</h1>
-        <p>{dashboard?.summary || "Local Pathfinder 2e campaign archive for worlds, lore, sessions, GM secrets and Foundry journals."}</p>
+        <p>{dashboard?.summary || "Three working spaces for a Pathfinder 2e campaign: manage access, prepare the archive, and run the active table."}</p>
       </section>
-      <MasterWorkbench pages={pages} canEdit={canEdit} />
-      {dashboard && <MarkdownViewer content={dashboard.content} pages={pages} />}
-      {blocks.map(([title, category]) => {
-        const items = pages.filter((page) => page.category === category || page.category?.startsWith(`${category}/`)).slice(0, 4);
-        return (
-          <section className="section-band" key={category}>
-            <h2>{title}</h2>
-            <div className="codex-card-grid card-grid">{items.map((page) => <EntityCard key={page.path} page={page} mode={mode} />)}</div>
-          </section>
-        );
-      })}
+
+      <section className="product-path-grid" aria-label="Product areas">
+        {cards.map((card) => <ProductPathCard key={card.kicker} {...card} />)}
+      </section>
+
+      {canEdit ? (
+        <section className="codex-card workspace-status-card dashboard-product-status">
+          <span className="kicker">GM shortcuts</span>
+          <div className="product-path-card__actions">
+            <CodexButton as={Link} to="/editor" variant="primary" size="sm"><Sparkles size={15} /><span>Create article</span></CodexButton>
+            <CodexButton as={Link} to="/missing" variant="ghost" size="sm"><FileQuestion size={15} /><span>Missing links</span></CodexButton>
+            <CodexButton as={Link} to="/players" variant="ghost" size="sm"><UsersRound size={15} /><span>Invite player</span></CodexButton>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

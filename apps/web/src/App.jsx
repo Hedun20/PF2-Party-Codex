@@ -31,6 +31,8 @@ import AdminPlaceholderPage from "./pages/AdminPlaceholderPage.jsx";
 import GmHomePage from "./pages/GmHomePage.jsx";
 import PlayerHomePage from "./pages/PlayerHomePage.jsx";
 import SimplePlaceholderPage from "./pages/SimplePlaceholderPage.jsx";
+import DiceTrayPage from "./pages/DiceTrayPage.jsx";
+import SessionDeskPage from "./pages/SessionDeskPage.jsx";
 import PlayersPage from "./pages/PlayersPageV2.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import InviteAcceptPage from "./pages/InviteAcceptPage.jsx";
@@ -168,7 +170,11 @@ export default function App() {
       This route requires an active campaign membership with owner or GM role.
     </SimplePlaceholderPage>
   );
-  const campaignRoute = (element) => (signedIn && !hasMembership ? onboardingElement : element);
+  const campaignRoute = (element) => {
+    if (!signedIn) return <AuthPage onAuth={handleAuth} session={session} />;
+    if (!hasMembership) return onboardingElement;
+    return element;
+  };
   const managerRoute = (element) => {
     if (!signedIn) return <AuthPage onAuth={handleAuth} session={session} />;
     if (!hasMembership) return onboardingElement;
@@ -200,7 +206,7 @@ export default function App() {
         <Route path="/archive" element={campaignRoute(<CampaignArchivePage session={session} />)} />
         <Route path="/admin" element={managerRoute(<AdminPlaceholderPage />)} />
         <Route path="/players" element={managerRoute(<PlayersPage session={session} />)} />
-        <Route path="/profile" element={<ProfilePage session={session} onOnboardingCreated={handleOnboardingCreated} />} />
+        <Route path="/profile" element={campaignRoute(<ProfilePage session={session} onOnboardingCreated={handleOnboardingCreated} />)} />
         <Route path="/world/:worldSlug" element={campaignRoute(<WorldDashboardPage pages={pages} mode={effectiveMode} session={session} />)} />
         <Route path="/world/:worldSlug/category/:category/*" element={campaignRoute(<CategoryPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
         <Route path="/world/:worldSlug/timeline" element={campaignRoute(<TimelinePage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
@@ -224,7 +230,8 @@ export default function App() {
         <Route path="/gm-tools" element={managerRoute(<GMToolsPage session={session} />)} />
         <Route path="/health" element={managerRoute(<VaultHealthPage mode={effectiveMode} />)} />
         <Route path="/player-safety" element={managerRoute(<PlayerSafetyPage pages={pages} />)} />
-        <Route path="/dice" element={campaignRoute(<SimplePlaceholderPage title="Кубики" kicker="Dice tray">Dice tray будет выделен в отдельный модуль. Сейчас это зафиксировано как следующий UX-блок.</SimplePlaceholderPage>)} />
+        <Route path="/session-desk" element={campaignRoute(<SessionDeskPage session={session} />)} />
+        <Route path="/dice" element={campaignRoute(<DiceTrayPage />)} />
         <Route path="/guide" element={<GuidePage canEdit={gmView} />} />
         <Route path="/foundry" element={managerRoute(<FoundryImportExportPage mode={effectiveMode} />)} />
         </Routes>
@@ -232,3 +239,4 @@ export default function App() {
     </FantasyShell>
   );
 }
+

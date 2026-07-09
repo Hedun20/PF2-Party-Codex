@@ -5,7 +5,7 @@ import { Archive, LogIn, LogOut, Menu, NotebookPen, PenLine, Settings, Swords, U
 import { getWorlds, worldRoute, worldSlug } from "../utils/worldContext.js";
 
 const managementPaths = ["/my", "/players", "/profile", "/settings", "/gm-tools", "/health", "/foundry", "/missing", "/player-safety", "/admin"];
-const gameTablePaths = ["/sessions", "/dice", "/handouts"];
+const gameTablePaths = ["/session-desk", "/sessions", "/dice", "/handouts", "/notes", "/characters"];
 
 function activeRole(session) {
   return String(session?.activeMembership?.role || "").toLowerCase();
@@ -39,7 +39,7 @@ export default function CodexTopbar({ session, pages, allPages, query, setQuery,
   const SectionIcon = meta.icon;
   const hasMembership = Boolean(session?.activeMembership?.id);
   const signedIn = Boolean(session?.user);
-  const campaignNavAvailable = !signedIn || hasMembership;
+  const campaignNavAvailable = signedIn && hasMembership;
   const sourcePages = campaignNavAvailable ? allPages || pages : [];
   const visiblePages = campaignNavAvailable ? pages : [];
   const worlds = getWorlds(sourcePages);
