@@ -36,8 +36,7 @@ export const MANAGEMENT_PATHS = [
   "/health",
   "/foundry",
   "/missing",
-  "/player-safety",
-  "/admin"
+  "/player-safety"
 ];
 
 export const TABLE_PATHS = [
@@ -148,23 +147,36 @@ export function scopedPath(path = "/archive", activeWorld = null, extraParams = 
 }
 
 export function clearScopePath(pathname = "/archive", search = "") {
-  const params = new URLSearchParams(search || "");
+  const { pathname: normalizedPathname, params } = normalizedLocation(pathname, search);
   params.delete("world");
   params.delete("scopeWorld");
   const nextSearch = params.toString();
-  return `${normalizeLegacyWorldPath(pathname)}${nextSearch ? `?${nextSearch}` : ""}`;
+  return `${normalizedPathname}${nextSearch ? `?${nextSearch}` : ""}`;
 }
 
 export function changeScopePath(pathname = "/archive", search = "", world = null) {
-  const basePath = normalizeLegacyWorldPath(pathname || "/archive");
-  const params = new URLSearchParams(search || "");
+  const { pathname: normalizedPathname, params } = normalizedLocation(pathname, search);
   if (world) params.set("world", worldSlug(world));
   else {
     params.delete("world");
     params.delete("scopeWorld");
   }
   const nextSearch = params.toString();
-  return `${basePath}${nextSearch ? `?${nextSearch}` : ""}`;
+  return `${normalizedPathname}${nextSearch ? `?${nextSearch}` : ""}`;
+}
+
+function normalizedLocation(pathname = "/archive", search = "") {
+  const normalizedTarget = normalizeLegacyWorldPath(pathname || "/archive");
+  const [normalizedPathname, normalizedSearch = ""] = normalizedTarget.split("?");
+  const params = new URLSearchParams(normalizedSearch);
+  const currentParams = new URLSearchParams(search || "");
+
+  for (const key of new Set(currentParams.keys())) {
+    params.delete(key);
+    for (const value of currentParams.getAll(key)) params.append(key, value);
+  }
+
+  return { pathname: normalizedPathname || "/archive", params };
 }
 
 export function pageToolFromPath(pathname = "") {

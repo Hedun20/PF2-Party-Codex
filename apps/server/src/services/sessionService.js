@@ -64,8 +64,35 @@ export async function sessionInfo(req) {
 }
 
 export async function requireGm(req, res, next) {
-  if ((await resolveRequestMode(req)) !== "gm") {
-    return res.status(403).json({ error: "GM access required. Log in with an owner/GM campaign membership to manage campaign content." });
+  try {
+    if ((await resolveRequestMode(req)) !== "gm") {
+      return res.status(403).json({ error: "GM access required. Log in with an owner/GM campaign membership to manage campaign content." });
+    }
+    next();
+  } catch (error) {
+    next(error);
   }
-  next();
+}
+
+export async function requireCampaignMember(req, res, next) {
+  try {
+    const user = await publicUserForSession(req.user);
+    if (!user) return res.status(401).json({ error: "Login is required to access campaign content." });
+
+    const membership = user.activeMembership || user.membership || null;
+    if (!membership?.id) {
+      return res.status(403).json({ error: "An active campaign membership is required to access campaign content." });
+    }
+
+    req.campaignIdentity = {
+      user,
+      workspace: user.activeWorkspace || null,
+      campaign: user.activeCampaign || null,
+      membership,
+      role: campaignRole(user) || "player"
+    };
+    next();
+  } catch (error) {
+    next(error);
+  }
 }

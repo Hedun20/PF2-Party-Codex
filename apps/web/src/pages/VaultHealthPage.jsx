@@ -1,14 +1,29 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client.js";
+import StatusMessage from "../components/ui/StatusMessage.jsx";
 
 export default function VaultHealthPage({ mode }) {
   const [audit, setAudit] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api.audit(mode).then(setAudit);
+    let active = true;
+    setAudit(null);
+    setError("");
+    api.audit(mode)
+      .then((data) => {
+        if (active) setAudit(data);
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message || "Не удалось проверить vault.");
+      });
+    return () => {
+      active = false;
+    };
   }, [mode]);
 
+  if (error) return <div className="page-stack"><StatusMessage tone="danger" role="alert">{error}</StatusMessage></div>;
   if (!audit) return <div className="list-header"><h1>Проверяем vault</h1></div>;
 
   return (
@@ -24,7 +39,7 @@ export default function VaultHealthPage({ mode }) {
         <div><strong>{audit.info}</strong><span>заметки</span></div>
       </section>
       <section className="audit-list">
-        {audit.issues.map((issue, index) => (
+        {(audit.issues || []).map((issue, index) => (
           <Link key={`${issue.path}-${index}`} className={`audit-item ${issue.level}`} to={`/page/${encodeURIComponent(issue.path)}`}>
             <span>{issue.level}</span>
             <strong>{issue.title}</strong>

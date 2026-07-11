@@ -29,7 +29,7 @@ export default function MyWorkspacePageV2({ session, pages = [] }) {
     ["Карты", "/maps", MapPinned, `${mapCount} карт или страниц с картами.`],
     ["Timeline", "/timeline", Clock3, "Хронология мира и кампании."],
     ["Заметки", "/notes", NotebookPen, "Личные, мастерские и партийные заметки."],
-    ["Кубики", "/dice", Dice5, "Будущий быстрый dice tray для GM и игроков."],
+    ["Кубики", "/dice", Dice5, "Быстрые броски и история результатов для GM и игроков."],
     ["GM Tools", "/gm-tools", UserRound, "Импорт, health-check, Foundry и системные инструменты."]
   ] : [
     ["Мой персонаж", "/characters", UserRound, "Лист персонажа и заметки по герою."],
@@ -38,7 +38,7 @@ export default function MyWorkspacePageV2({ session, pages = [] }) {
     ["Карты", "/maps", MapPinned, "Доступные игрокам карты и локации."],
     ["Timeline", "/timeline", Clock3, "Известные события и история."],
     ["Мои заметки", "/notes", NotebookPen, "Личные заметки игрока."],
-    ["Кубики", "/dice", Dice5, "Будущий быстрый dice tray."],
+    ["Кубики", "/dice", Dice5, "Быстрые броски и история результатов."],
     ["Профиль", "/profile", UserRound, "Аккаунт, кампания и текущая роль."]
   ];
 

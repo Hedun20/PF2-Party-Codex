@@ -21,7 +21,7 @@ const bootstrapDirs = [
 
 const starterFiles = {
   "index.md": `---
-title: PF2 Party Codex
+title: Party Codex
 category: dashboard
 type: dashboard
 visibility: public
@@ -29,7 +29,7 @@ summary: Стартовая страница локального кодекса
 tags: [guide, start]
 ---
 
-# PF2 Party Codex
+# Party Codex
 
 Это чистый vault для твоей кампании. Реальный канон лучше создавать в папках \`worlds/\`, \`cities/\`, \`npcs/\`, \`quests/\`, \`maps/\` и \`timeline/\`.
 
@@ -49,13 +49,13 @@ title: Getting Started
 category: _guides
 type: guide
 visibility: public
-summary: Как начать вести кампанию в PF2 Party Codex.
+summary: Как начать вести кампанию в Party Codex.
 tags: [guide, onboarding]
 ---
 
 # Getting Started
 
-PF2 Party Codex хранит кампанию как обычные Markdown-файлы. Это значит: ты можешь редактировать статьи в приложении, в Obsidian, VS Code или любом текстовом редакторе.
+Party Codex хранит совместимый архив в обычных Markdown-файлах. Это значит: материалы можно импортировать, экспортировать и редактировать в Obsidian, VS Code или любом текстовом редакторе.
 
 ## Рекомендуемый порядок
 

@@ -27,7 +27,6 @@ import HandoutsPage from "./pages/HandoutsPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import SessionsPage from "./pages/SessionsPage.jsx";
 import CampaignArchivePage from "./pages/CampaignArchivePage.jsx";
-import AdminPlaceholderPage from "./pages/AdminPlaceholderPage.jsx";
 import GmHomePage from "./pages/GmHomePage.jsx";
 import PlayerHomePage from "./pages/PlayerHomePage.jsx";
 import SimplePlaceholderPage from "./pages/SimplePlaceholderPage.jsx";
@@ -37,6 +36,7 @@ import PlayersPage from "./pages/PlayersPageV2.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import InviteAcceptPage from "./pages/InviteAcceptPage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
+import NotFoundPage from "./pages/NotFoundPage.jsx";
 import { getWorldOwnedPages, getWorldSearchPages, resolveWorldBySlug, resolveWorldForPage } from "./utils/worldContext.js";
 import { worldScopeFromSearch } from "./utils/shellContext.js";
 
@@ -148,11 +148,25 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!signedIn || !hasMembership) {
+      setPages([]);
+      setCategories([]);
+      return undefined;
+    }
+
     if (canManage) localStorage.setItem("codex-mode", mode);
-    refresh().catch(() => {});
-    const timer = setInterval(() => refresh().catch(() => {}), 10000);
-    return () => clearInterval(timer);
-  }, [effectiveMode, canManage, hasMembership]);
+    const refreshVisibleCampaign = () => {
+      if (document.visibilityState !== "hidden") refresh().catch(() => {});
+    };
+
+    refreshVisibleCampaign();
+    window.addEventListener("focus", refreshVisibleCampaign);
+    document.addEventListener("visibilitychange", refreshVisibleCampaign);
+    return () => {
+      window.removeEventListener("focus", refreshVisibleCampaign);
+      document.removeEventListener("visibilitychange", refreshVisibleCampaign);
+    };
+  }, [effectiveMode, canManage, hasMembership, signedIn]);
 
   const dashboard = useMemo(() => pages.find((page) => page.path === "index.md"), [pages]);
   const activeWorldSlug = worldSlugFromPath(location.pathname);
@@ -207,7 +221,6 @@ export default function App() {
         <Route path="/gm" element={managerRoute(<GmHomePage session={session} />)} />
         <Route path="/player" element={campaignRoute(<PlayerHomePage session={session} />)} />
         <Route path="/archive" element={campaignRoute(<CampaignArchivePage session={session} />)} />
-        <Route path="/admin" element={managerRoute(<AdminPlaceholderPage />)} />
         <Route path="/players" element={managerRoute(<PlayersPage session={session} />)} />
         <Route path="/profile" element={campaignRoute(<ProfilePage session={session} onOnboardingCreated={handleOnboardingCreated} />)} />
         <Route path="/world/:worldSlug" element={campaignRoute(<WorldDashboardPage pages={pages} mode={effectiveMode} session={session} />)} />
@@ -237,6 +250,7 @@ export default function App() {
         <Route path="/dice" element={campaignRoute(<DiceTrayPage />)} />
         <Route path="/guide" element={<GuidePage canEdit={gmView} />} />
         <Route path="/foundry" element={managerRoute(<FoundryImportExportPage mode={effectiveMode} />)} />
+        <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </AppShell>
     </FantasyShell>

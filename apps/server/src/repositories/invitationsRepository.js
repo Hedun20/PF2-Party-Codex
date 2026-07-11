@@ -125,9 +125,9 @@ export async function createCampaignInvitation({ campaign, workspace, invitedBy,
 
   await sendEmail({
     to: email,
-    subject: "PF2 Party Codex: приглашение в кампанию",
-    text: `Вас пригласили в кампанию ${campaign.name || "PF2 Party Codex"} как игрока. Ссылка для входа: ${inviteUrl}`,
-    html: `<p>Вас пригласили в кампанию <strong>${campaign.name || "PF2 Party Codex"}</strong> как <strong>игрока</strong>.</p><p><a href="${inviteUrl}">Принять приглашение</a></p><p>${inviteUrl}</p>`
+    subject: "Party Codex: приглашение в кампанию",
+    text: `Вас пригласили в кампанию ${campaign.name || "Party Codex"} как игрока. Ссылка для входа: ${inviteUrl}`,
+    html: `<p>Вас пригласили в кампанию <strong>${campaign.name || "Party Codex"}</strong> как <strong>игрока</strong>.</p><p><a href="${inviteUrl}">Принять приглашение</a></p><p>${inviteUrl}</p>`
   });
 
   return publicInvitation(saved, { includeInviteUrl: true, inviteUrl });

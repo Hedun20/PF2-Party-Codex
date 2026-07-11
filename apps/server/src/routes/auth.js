@@ -39,7 +39,7 @@ authRouter.post("/auth/register", authAttemptLimiter, async (req, res, next) => 
     const created = await createUser(req.body || {});
     const verifyUrl = `${publicBase(req)}/api/auth/verify-email?token=${encodeURIComponent(created.verifyToken)}`;
     const email = verifyEmailTemplate({ verifyUrl, name: created.user.name });
-    await sendEmail({ to: created.user.email, subject: "Confirm your PF2 Party Codex email", ...email });
+    await sendEmail({ to: created.user.email, subject: "Confirm your Party Codex email", ...email });
     await logAuditEvent({ req, actorUserId: created.user.id, actorEmail: created.user.email, actorRole: created.user.role, campaignId: created.user.activeCampaign?.id, action: "auth.register", entityType: "user", entityId: created.user.id });
     res.status(201).json({ user: created.user, activeWorkspace: created.user.activeWorkspace || null, activeCampaign: created.user.activeCampaign || null, activeMembership: created.user.activeMembership || created.user.membership || null, membership: created.user.membership || created.user.activeMembership || null, role: created.user.role, verificationSent: true, devVerifyUrl: process.env.NODE_ENV === "production" ? undefined : verifyUrl });
   } catch (error) {
@@ -69,9 +69,13 @@ authRouter.post("/auth/login", authAttemptLimiter, async (req, res, next) => {
   }
 });
 
-authRouter.post("/auth/logout", async (req, res) => {
-  await logAuditEvent({ req, action: "auth.logout", entityType: "user", entityId: String(req.user?._id || req.user?.id || "") });
-  res.json({ ok: true });
+authRouter.post("/auth/logout", async (req, res, next) => {
+  try {
+    await logAuditEvent({ req, action: "auth.logout", entityType: "user", entityId: String(req.user?._id || req.user?.id || "") });
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
 });
 
 authRouter.get("/auth/me", async (req, res, next) => {

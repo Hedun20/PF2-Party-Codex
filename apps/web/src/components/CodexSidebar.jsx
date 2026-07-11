@@ -176,7 +176,7 @@ export default function CodexSidebar({ onClose, canEdit = false, activeWorld = n
       <div className="sidebar-head">
         <Link to={brandTarget} className="brand" onClick={onClose}>
           <Castle />
-          <span>{activeWorld ? activeWorld.title : "PF2 Party Codex"}</span>
+          <span>{activeWorld ? activeWorld.title : "Party Codex"}</span>
         </Link>
         <button className="sidebar-close" onClick={onClose} title="Close navigation">
           <X size={18} />

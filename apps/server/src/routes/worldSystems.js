@@ -226,7 +226,7 @@ worldSystemsRouter.get("/timeline-events", async (req, res, next) => {
     assertMongoWorldSystems();
     const context = await currentContext(req);
     const events = await listTimelineEvents({ ...context, worldId: req.query.worldId || "", branch: req.query.branch || "", limit: req.query.limit || 500 });
-    res.json({ events, campaignId: context.campaignId, role: context.role });
+    res.json({ timelineEvents: events, events, campaignId: context.campaignId, role: context.role });
   } catch (error) {
     next(error);
   }

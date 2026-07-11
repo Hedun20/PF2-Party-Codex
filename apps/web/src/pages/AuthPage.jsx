@@ -13,8 +13,6 @@ export default function AuthPage({ onAuth, session }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const initialSetup = session?.authRequiredForGm === false;
-
   const verifiedMessage = useMemo(() => {
     if (params.get("verified") === "1") return "Email confirmed. You can log in now.";
     if (params.get("verified") === "invalid") return "Verification link is invalid or expired.";
@@ -46,9 +44,7 @@ export default function AuthPage({ onAuth, session }) {
       if (mode === "register") {
         const data = await api.register(form);
         setVerifyUrl(data.devVerifyUrl || "");
-        setMessage(initialSetup
-          ? "GM account created. Confirm the email, then log in to unlock the GM desktop."
-          : "Player account created. Confirm the email, then log in to enter the campaign portal.");
+        setMessage("Account created. Confirm the email, then log in to create a campaign workspace or accept an invitation.");
         setMode("login");
       } else {
         await api.login({ email: form.email, password: form.password });
@@ -61,9 +57,7 @@ export default function AuthPage({ onAuth, session }) {
     }
   }
 
-  const statusText = initialSetup
-    ? "No GM exists yet. The first registered account becomes the campaign GM."
-    : "Registration creates a player account. GM access is granted by the existing GM.";
+  const statusText = "Registration creates an account only. Campaign access comes from workspace creation or an invitation.";
 
   return (
     <main className="auth-page">
@@ -71,13 +65,13 @@ export default function AuthPage({ onAuth, session }) {
         <div className="auth-brand">
           <Castle size={30} />
           <div>
-            <span>PF2 Party Codex</span>
-            <strong>{mode === "login" ? "Campaign access" : initialSetup ? "Create GM account" : "Join as player"}</strong>
+            <span>Party Codex</span>
+            <strong>{mode === "login" ? "Campaign access" : "Create account"}</strong>
           </div>
         </div>
         <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
           <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Log in</button>
-          <button type="button" className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>{initialSetup ? "GM setup" : "Register"}</button>
+          <button type="button" className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Register</button>
         </div>
         {(verifiedMessage || message || error) && (
           <div className={`auth-message ${error || params.get("verified") === "invalid" ? "error" : "success"}`}>
@@ -105,13 +99,13 @@ export default function AuthPage({ onAuth, session }) {
             <span><KeyRound size={16} /> Password</span>
             <input type="password" value={form.password} onChange={(event) => update("password", event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={8} required />
           </label>
-          <button className="gold-button" type="submit" disabled={busy}>{busy ? "Working..." : mode === "login" ? "Enter codex" : initialSetup ? "Create GM" : "Create player"}</button>
+          <button className="gold-button" type="submit" disabled={busy}>{busy ? "Working..." : mode === "login" ? "Enter codex" : "Create account"}</button>
         </form>
         <div className="auth-note">
           <ShieldCheck size={18} />
           <span>{statusText}</span>
         </div>
-        <Link className="auth-player-link" to="/">Continue as player preview</Link>
+        <Link className="auth-player-link" to="/guide">Read how Party Codex works</Link>
       </section>
     </main>
   );

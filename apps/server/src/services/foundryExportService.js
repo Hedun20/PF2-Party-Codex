@@ -48,13 +48,13 @@ export async function buildFoundryExport({ mode = "gm", paths = [], category = "
     await fs.mkdir(path.join(config.exportDir, "packs"), { recursive: true });
     await fs.writeFile(path.join(config.exportDir, "module.json"), JSON.stringify({
       id: "pf2-party-codex-export",
-      title: "PF2 Party Codex Export",
+      title: "Party Codex Export",
       version: "0.1.0",
       compatibility: { minimum: "13", verified: "13" },
       packs: []
     }, null, 2), "utf8");
     await fs.writeFile(path.join(config.exportDir, "README_IMPORT.md"), [
-      "# PF2 Party Codex Foundry Export",
+      "# Party Codex Foundry Export",
       "",
       "Import these JSON files into a test world first.",
       "Foundry schemas vary by version, and links or images may need manual adjustment.",

@@ -14,7 +14,7 @@ export default function SettingsPage({ session }) {
       <section className="hero-panel">
         <span className="kicker">Настройки</span>
         <h1>Настройки workspace и кампании</h1>
-        <p>Единое место для кампании, аккаунта, email, MongoDB и будущих SaaS-настроек.</p>
+        <p>Сводка активной кампании, роли, хранения данных и доставки системных уведомлений.</p>
       </section>
 
       <section className="workspace-grid settings-grid">
@@ -43,14 +43,14 @@ export default function SettingsPage({ session }) {
           <Mail size={22} />
           <div>
             <strong>Email</strong>
-            <span>Сейчас outbox; позже SMTP для production-инвайтов.</span>
+            <span>Канал подтверждения аккаунта и доставки приглашений в кампанию.</span>
           </div>
         </article>
       </section>
 
       <section className="codex-card workspace-status-card">
         <ShieldCheck size={20} />
-        <p>Billing, тарифы, домены, роли и админ-панель будут подключаться здесь в SaaS-этапе.</p>
+        <p>Дополнительные настройки появятся здесь только после подключения соответствующих возможностей для текущего workspace.</p>
       </section>
     </div>
   );

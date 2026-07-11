@@ -39,7 +39,7 @@ export default function GuidePage({ canEdit = false }) {
         <Link to="/timeline"><BookOpen size={18} /><strong>Timeline</strong><span>События</span></Link>
         <Link to="/maps"><MapPinned size={18} /><strong>Карты</strong><span>Player-safe</span></Link>
         <Link to="/notes"><NotebookPen size={18} /><strong>Notes</strong><span>Личный блокнот</span></Link>
-        <Link to="/characters"><UserRound size={18} /><strong>Characters</strong><span>PF2e лист</span></Link>
+        <Link to="/characters"><UserRound size={18} /><strong>Characters</strong><span>Лист персонажа</span></Link>
         <Link to="/category/worlds"><Eye size={18} /><strong>Миры</strong><span>Выбор мира</span></Link>
         {canEdit && <Link to="/missing"><FileQuestion size={18} /><strong>Ненаписанные</strong><span>Фантомные ссылки</span></Link>}
       </section>

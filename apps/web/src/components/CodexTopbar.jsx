@@ -49,7 +49,7 @@ export default function CodexTopbar({ session, pages, allPages, sidebarOpen, set
   const worlds = getWorlds(sourcePages);
   const role = activeRole(session);
   const canManage = hasMembership && (role === "owner" || role === "gm");
-  const campaignName = session?.activeCampaign?.name || "PF2 Party Codex";
+  const campaignName = session?.activeCampaign?.name || "Party Codex";
   const accountLabel = session?.user?.name || session?.user?.email || "Guest";
 
   function changeWorld(world = null) {
@@ -68,7 +68,7 @@ export default function CodexTopbar({ session, pages, allPages, sidebarOpen, set
       </button>
 
       <Link to="/" className="topbar-brand-compact" title={campaignName}>
-        <span>PF2 Party Codex</span>
+        <span>Party Codex</span>
         <strong>{campaignName}</strong>
       </Link>
 

@@ -1,7 +1,6 @@
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-import os from "os";
 import path from "path";
 import { config } from "./config.js";
 import { closeMongo, connectMongo } from "./db/mongo.js";
@@ -32,6 +31,7 @@ import { startVaultWatcher } from "./services/fileWatchService.js";
 import { rebuildVaultIndex } from "./services/vaultService.js";
 import { sessionInfo } from "./services/sessionService.js";
 import { logger } from "./utils/logger.js";
+import { localIpv4Addresses } from "./utils/network.js";
 
 const app = express();
 app.use(helmet());
@@ -90,13 +90,6 @@ app.use((error, _req, res, _next) => {
   res.status(status).json({ error: error.message || "Unexpected server error" });
 });
 
-function localIps() {
-  return Object.values(os.networkInterfaces())
-    .flat()
-    .filter((entry) => entry && entry.family === "IPv4" && !entry.internal)
-    .map((entry) => entry.address);
-}
-
 await connectMongo();
 await ensureIdentityIndexes();
 await ensureInvitationIndexes();
@@ -106,13 +99,13 @@ await rebuildVaultIndex();
 startVaultWatcher();
 
 const server = app.listen(config.port, config.host, () => {
-  logger.info(`PF2 Party Codex running at http://localhost:${config.port}`);
-  for (const ip of localIps()) logger.info(`LAN URL: http://${ip}:${config.port}`);
+  logger.info(`Party Codex running at http://localhost:${config.port}`);
+  for (const ip of localIpv4Addresses()) logger.info(`LAN URL: http://${ip}:${config.port}`);
 });
 
 server.on("error", (error) => {
   if (error.code === "EADDRINUSE") {
-    logger.error(`Port ${config.port} is already in use. Stop the existing PF2 Party Codex server or set PORT to another value.`);
+    logger.error(`Port ${config.port} is already in use. Stop the existing Party Codex server or set PORT to another value.`);
     process.exit(1);
   }
   throw error;

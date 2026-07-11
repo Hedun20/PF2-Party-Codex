@@ -82,7 +82,7 @@ export default function DashboardPage({ pages = [], dashboard, mode, session }) 
       kicker: "Active Session / Game Table",
       title: "Игровой стол",
       description: "Рабочий стол живой игры: кубики, быстрые заметки, handouts, персонажи и быстрый возврат в архив.",
-      stats: [["sessions", sessionCount], ["handouts", handoutCount], ["notes", "personal"], ["dice", "local"]],
+      stats: [["sessions", sessionCount], ["handouts", handoutCount], ["notes", "personal"], ["dice", "ready"]],
       actions: [
         { to: "/session-desk", label: "Session Desk", icon: Dices },
         { to: "/dice", label: "Dice", icon: Dices },
@@ -96,8 +96,8 @@ export default function DashboardPage({ pages = [], dashboard, mode, session }) 
       kicker: "Management / Campaign Access",
       title: canEdit ? "Управление и игроки" : "Профиль участника",
       description: canEdit
-        ? "Участники, приглашения, настройки кампании, технические проверки и будущие SaaS-лимиты."
-        : "Ваш профиль, локальные настройки и справка без доступа к GM-only инструментам.",
+        ? "Участники, приглашения, настройки кампании и техническое состояние workspace."
+        : "Ваш профиль, настройки аккаунта и справка без доступа к GM-only инструментам.",
       stats: [["campaign role", session?.activeMembership?.role || "guest"], ["workspace", session?.activeWorkspace?.name || "not selected"], ["campaign", session?.activeCampaign?.name || "not selected"]],
       actions: managementActions,
       primaryTo: canEdit ? "/my" : "/profile"
@@ -108,7 +108,7 @@ export default function DashboardPage({ pages = [], dashboard, mode, session }) 
     <PageShell className="dashboard-product-shell">
       <PageHero
         kicker="Campaign Codex"
-        title="PF2 Party Codex"
+        title="Party Codex"
         description={dashboard?.summary || "Choose the work mode first: prepare the archive, run the active table, or manage campaign access. World scope is selected inside the mode."}
       />
 

@@ -26,32 +26,36 @@ const upload = multer({
 
 export const toolsRouter = Router();
 
-toolsRouter.get("/metadata", async (req, res) => {
-  const pages = listPages(await resolveRequestMode(req, "gm"));
-  const compact = pages.map((page) => ({
-    title: page.title,
-    path: page.path,
-    type: page.type,
-    category: page.category,
-    world: page.world,
-    country: page.country,
-    city: page.city,
-    tags: page.tags,
-    summary: page.summary,
-    visibility: page.visibility
-  }));
-  const tags = [...new Set(pages.flatMap((page) => page.tags || []))].sort((a, b) => a.localeCompare(b));
-  res.json({
-    pages: compact,
-    tags,
-    worlds: compact.filter((page) => page.type === "world" || page.category === "worlds"),
-    countries: compact.filter((page) => page.type === "country" || page.category === "countries"),
-    cities: compact.filter((page) => page.type === "city" || page.category === "cities"),
-    locations: compact.filter((page) => page.category === "locations"),
-    npcs: compact.filter((page) => page.category === "npcs"),
-    enemies: compact.filter((page) => page.category === "enemies"),
-    quests: compact.filter((page) => page.category === "quests")
-  });
+toolsRouter.get("/metadata", requireGm, async (req, res, next) => {
+  try {
+    const pages = listPages(await resolveRequestMode(req, "gm"));
+    const compact = pages.map((page) => ({
+      title: page.title,
+      path: page.path,
+      type: page.type,
+      category: page.category,
+      world: page.world,
+      country: page.country,
+      city: page.city,
+      tags: page.tags,
+      summary: page.summary,
+      visibility: page.visibility
+    }));
+    const tags = [...new Set(pages.flatMap((page) => page.tags || []))].sort((a, b) => a.localeCompare(b));
+    res.json({
+      pages: compact,
+      tags,
+      worlds: compact.filter((page) => page.type === "world" || page.category === "worlds"),
+      countries: compact.filter((page) => page.type === "country" || page.category === "countries"),
+      cities: compact.filter((page) => page.type === "city" || page.category === "cities"),
+      locations: compact.filter((page) => page.category === "locations"),
+      npcs: compact.filter((page) => page.category === "npcs"),
+      enemies: compact.filter((page) => page.category === "enemies"),
+      quests: compact.filter((page) => page.category === "quests")
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 toolsRouter.get("/player-safety", requireGm, (_req, res) => {

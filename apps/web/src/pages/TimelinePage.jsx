@@ -221,7 +221,8 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
     api.timelineEvents()
       .then((data) => {
         if (!active) return;
-        setTimelineState({ loading: false, error: "", events: Array.isArray(data.timelineEvents) ? data.timelineEvents : [], role: data.role || "" });
+        const events = Array.isArray(data.timelineEvents) ? data.timelineEvents : Array.isArray(data.events) ? data.events : [];
+        setTimelineState({ loading: false, error: "", events, role: data.role || "" });
       })
       .catch((error) => {
         if (!active) return;

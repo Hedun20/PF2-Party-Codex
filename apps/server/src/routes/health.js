@@ -21,7 +21,7 @@ function dbHealthPayload() {
 }
 
 healthRouter.get("/health", (_req, res) => {
-  res.json({ ok: true, app: "PF2 Party Codex", db: dbHealthPayload() });
+  res.json({ ok: true, app: "Party Codex", db: dbHealthPayload() });
 });
 
 healthRouter.get("/health/db", (_req, res) => {

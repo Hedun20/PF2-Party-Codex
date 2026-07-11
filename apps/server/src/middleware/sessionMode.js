@@ -1,4 +1,4 @@
-export { isLocalGmRequest, requireGm } from "../services/sessionService.js";
+export { isLocalGmRequest, requireCampaignMember, requireGm } from "../services/sessionService.js";
 
 export async function requestMode(req, fallback = "player") {
   const { resolveRequestMode } = await import("../services/sessionService.js");

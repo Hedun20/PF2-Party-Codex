@@ -13,7 +13,7 @@ import {
   saveRawPage
 } from "../services/vaultService.js";
 import { decodeMarkdownBuffer, repairUploadedFilename } from "../utils/encoding.js";
-import { resolveRequestMode, requireGm } from "../services/sessionService.js";
+import { requireCampaignMember, resolveRequestMode, requireGm } from "../services/sessionService.js";
 import { logAuditEvent } from "../services/auditLogService.js";
 
 export const pagesRouter = Router();
@@ -26,18 +26,30 @@ const mdUpload = multer({
   }
 });
 
-pagesRouter.get("/pages", async (req, res) => {
-  res.json({ pages: listPages(await resolveRequestMode(req, "gm")) });
+pagesRouter.get("/pages", requireCampaignMember, async (req, res, next) => {
+  try {
+    res.json({ pages: listPages(await resolveRequestMode(req, "gm")) });
+  } catch (error) {
+    next(error);
+  }
 });
 
-pagesRouter.get("/missing-links", requireGm, async (req, res) => {
-  res.json({ missingLinks: listMissingLinks(await resolveRequestMode(req, "gm")) });
+pagesRouter.get("/missing-links", requireGm, async (req, res, next) => {
+  try {
+    res.json({ missingLinks: listMissingLinks(await resolveRequestMode(req, "gm")) });
+  } catch (error) {
+    next(error);
+  }
 });
 
-pagesRouter.get("/page", async (req, res) => {
-  const page = getPage(req.query.path, await resolveRequestMode(req, "gm"));
-  if (!page) return res.status(404).json({ error: "Page not found" });
-  res.json({ page });
+pagesRouter.get("/page", requireCampaignMember, async (req, res, next) => {
+  try {
+    const page = getPage(req.query.path, await resolveRequestMode(req, "gm"));
+    if (!page) return res.status(404).json({ error: "Page not found" });
+    res.json({ page });
+  } catch (error) {
+    next(error);
+  }
 });
 
 pagesRouter.get("/page/raw", requireGm, async (req, res, next) => {
@@ -50,10 +62,14 @@ pagesRouter.get("/page/raw", requireGm, async (req, res, next) => {
   }
 });
 
-pagesRouter.get("/preview", async (req, res) => {
-  const page = getPage(req.query.path, await resolveRequestMode(req, req.query.mode || "player"));
-  if (!page) return res.status(404).json({ error: "Page not found" });
-  res.json({ preview: { title: page.title, summary: page.summary, tags: page.tags, category: page.category, links: page.links, modifiedAt: page.modifiedAt } });
+pagesRouter.get("/preview", requireCampaignMember, async (req, res, next) => {
+  try {
+    const page = getPage(req.query.path, await resolveRequestMode(req, req.query.mode || "player"));
+    if (!page) return res.status(404).json({ error: "Page not found" });
+    res.json({ preview: { title: page.title, summary: page.summary, tags: page.tags, category: page.category, links: page.links, modifiedAt: page.modifiedAt } });
+  } catch (error) {
+    next(error);
+  }
 });
 
 pagesRouter.post("/page", requireGm, async (req, res, next) => {
