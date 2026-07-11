@@ -13,7 +13,7 @@ import FoundryImportExportPage from "./pages/FoundryImportExportPage.jsx";
 import GuidePage from "./pages/GuidePage.jsx";
 import MissingLinksPage from "./pages/MissingLinksPage.jsx";
 import RawEditorPage from "./pages/RawEditorPage.jsx";
-import VaultHealthPage from "./pages/VaultHealthPage.jsx";
+import CampaignHealthPage from "./pages/CampaignHealthPage.jsx";
 import PlayerSafetyPage from "./pages/PlayerSafetyPage.jsx";
 import TimelinePage from "./pages/TimelinePage.jsx";
 import MapsPage from "./pages/MapsPage.jsx";
@@ -32,7 +32,7 @@ import PlayerHomePage from "./pages/PlayerHomePage.jsx";
 import SimplePlaceholderPage from "./pages/SimplePlaceholderPage.jsx";
 import DiceTrayPage from "./pages/DiceTrayPage.jsx";
 import SessionDeskPage from "./pages/SessionDeskPage.jsx";
-import PlayersPage from "./pages/PlayersPageV2.jsx";
+import PlayersPage from "./pages/PlayersPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import InviteAcceptPage from "./pages/InviteAcceptPage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
@@ -313,7 +313,7 @@ export default function App() {
         <Route path="/sessions" element={campaignRoute(<SessionsPage pages={worldPages} mode={effectiveMode} />)} />
         <Route path="/settings" element={campaignRoute(<SettingsPage session={session} />)} />
         <Route path="/gm-tools" element={managerRoute(<GMToolsPage session={session} />)} />
-        <Route path="/health" element={managerRoute(<VaultHealthPage mode={effectiveMode} />)} />
+        <Route path="/health" element={managerRoute(<CampaignHealthPage mode={effectiveMode} />)} />
         <Route path="/player-safety" element={managerRoute(<PlayerSafetyPage pages={pages} />)} />
         <Route path="/session-desk" element={campaignRoute(<SessionDeskPage session={session} />)} />
         <Route path="/dice" element={campaignRoute(<DiceTrayPage />)} />

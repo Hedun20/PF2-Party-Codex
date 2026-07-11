@@ -77,7 +77,7 @@ function ArticleNotesPanel({ page }) {
   }
 
   return (
-    <section className="codex-card article-notes-panel article-notes-panel-v2">
+    <section className="codex-card article-notes-panel article-notes-panel-polished">
       <div className="article-notes-head">
         <div>
           <span className="kicker">Personal Notes · {storageMode}</span>
@@ -90,7 +90,7 @@ function ArticleNotesPanel({ page }) {
       {(message || error) ? <div className="status-message danger-message"><span>{message || error}</span></div> : null}
 
       {linkedNotes.length ? (
-        <div className="article-notes-list article-notes-list-v2">
+        <div className="article-notes-list article-notes-list-polished">
           {linkedNotes.slice(0, 5).map((note) => (
             <article key={note.id} className="article-note-row">
               <div>

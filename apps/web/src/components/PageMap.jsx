@@ -62,9 +62,9 @@ function areaCenter(points = []) {
 
 function normalizeMapObjects(page) {
   const currentObjects = Array.isArray(page?.mapObjects) ? page.mapObjects : [];
-  const legacyPins = Array.isArray(page?.pins) ? page.pins : [];
-  const convertedPins = legacyPins.map((pin, index) => ({
-    id: `legacy-pin-${index}-${pin.path || pin.label}`,
+  const entryPins = Array.isArray(page?.pins) ? page.pins : [];
+  const convertedPins = entryPins.map((pin, index) => ({
+    id: `entry-pin-${index}-${pin.path || pin.label}`,
     shape: "pin",
     type: pin.type || "location",
     label: pin.label,

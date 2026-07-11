@@ -14,7 +14,7 @@ export default function GmHomePage({ session }) {
       </section>
       <section className="workspace-grid">
         <Link to="/archive" className="codex-card workspace-card primary-workspace-card"><strong>Campaign Archive</strong><span>Archive summary and section overview.</span></Link>
-        <Link to="/gm-tools" className="codex-card workspace-card"><strong>GM Tools</strong><span>Existing preparation and vault utilities.</span></Link>
+        <Link to="/gm-tools" className="codex-card workspace-card"><strong>GM Tools</strong><span>Preparation, diagnostics, imports and player-safety utilities.</span></Link>
         <Link to="/maps" className="codex-card workspace-card"><strong>Maps</strong><span>Existing map workspace.</span></Link>
         <Link to="/timeline" className="codex-card workspace-card"><strong>Timeline</strong><span>Existing campaign chronology.</span></Link>
       </section>

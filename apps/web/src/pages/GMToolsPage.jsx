@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Database, FileQuestion, FileUp, HeartHandshake, Import, ScrollText, ShieldAlert, ShieldCheck, Wrench } from "lucide-react";
 
 const tools = [
-  ["Vault Control", "/health", ShieldCheck, "Health checks, vault status and migration readiness."],
+  ["Campaign Health", "/health", ShieldCheck, "Content integrity, asset links and player-safety readiness."],
   ["Missing Articles", "/missing", FileQuestion, "Wiki links that need real entries."],
   ["Foundry Import/Export", "/foundry", Import, "Move journals and campaign data between Foundry and Codex."],
   ["Player Safety", "/player-safety", ShieldAlert, "Lines, veils and safety notes for the campaign."],

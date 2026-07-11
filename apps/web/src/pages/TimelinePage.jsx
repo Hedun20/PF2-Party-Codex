@@ -253,7 +253,7 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
     })
     .sort(sortTimeline), [timelineState.events, typeFilter, query]);
 
-  const legacyTimelineItems = useMemo(() => pages
+  const entryTimelineItems = useMemo(() => pages
     .filter(isTimelineCandidate)
     .filter((page) => !world || page.world === world || page.frontmatter?.world === world)
     .map((page) => {
@@ -262,12 +262,12 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
       const visibility = getVisibility(page);
       return {
         ...page,
-        sourceKind: "legacy",
+        sourceKind: "entry",
         typeKey,
         typeConfig: TYPE_CONFIG[typeKey] || TYPE_CONFIG.event,
         year: getYear(page),
         era: getEra(page),
-        branch: page.frontmatter?.branch || page.frontmatter?.arc || "legacy",
+        branch: page.frontmatter?.branch || page.frontmatter?.arc || "entry",
         importance: page.frontmatter?.importance || (page.category === "sessions" ? "session" : "event"),
         relatedPages,
         visibility,
@@ -293,8 +293,8 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
     .sort(sortTimeline), [pages, world, typeFilter, query]);
 
   const usingMongoTimeline = Array.isArray(timelineState.events) && !timelineState.error;
-  const usingLegacyFallback = Boolean(timelineState.error && legacyTimelineItems.length);
-  const allTimelineItems = usingMongoTimeline ? mongoTimelineItems : usingLegacyFallback ? legacyTimelineItems : [];
+  const usingEntryFallback = Boolean(timelineState.error && entryTimelineItems.length);
+  const allTimelineItems = usingMongoTimeline ? mongoTimelineItems : usingEntryFallback ? entryTimelineItems : [];
 
   const timelineItems = useMemo(() => allTimelineItems
     .filter((page) => !effectivePlayerView || page.playerVisible)
@@ -419,15 +419,15 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
         </section>
       )}
 
-      {timelineState.error && usingLegacyFallback && (
+      {timelineState.error && usingEntryFallback && (
         <section className="codex-card workspace-status-card">
           <AlertTriangle size={22} />
-          <span className="kicker">Compatibility fallback</span>
-          <p>Mongo timeline events could not be loaded. Showing legacy vault timeline data instead.</p>
+          <span className="kicker">Entry-backed view</span>
+          <p>The dedicated timeline projection could not be loaded. Showing timeline articles from the same campaign database.</p>
         </section>
       )}
 
-      {timelineState.error && !usingLegacyFallback && (
+      {timelineState.error && !usingEntryFallback && (
         <section className="codex-card workspace-status-card">
           <AlertTriangle size={22} />
           <span className="kicker">Timeline unavailable</span>
@@ -481,7 +481,7 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
             <div className="timeline-empty-state timeline-branch-empty">
               <Clock3 size={30} />
               <strong>{effectivePlayerView ? "Player timeline пустой" : "Timeline пока пустой"}</strong>
-              <p>{usingMongoTimeline ? "No Mongo timeline events are available for this campaign yet." : effectivePlayerView ? "No player-visible legacy timeline events are available." : "No legacy timeline events are available in the compatibility fallback."}</p>
+              <p>{usingMongoTimeline ? "No timeline events are available for this campaign yet." : effectivePlayerView ? "No player-visible timeline articles are available." : "No entry-backed timeline articles are available."}</p>
             </div>
           )}
 

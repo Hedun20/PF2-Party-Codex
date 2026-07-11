@@ -123,7 +123,7 @@ toolsRouter.post("/assets/upload", requireGm, upload.single("file"), async (req,
     }
 
     await fs.writeFile(target, req.file.buffer);
-    await logAuditEvent({ req, action: "vault.asset.upload", entityType: "asset", entityId: fileName, metadata: { size: req.file.size } });
+    await logAuditEvent({ req, action: "campaign.asset.upload", entityType: "asset", entityId: fileName, metadata: { size: req.file.size } });
     res.status(201).json({ fileName, path: fileName, url: `/api/assets/${fileName}` });
   } catch (error) {
     next(error);

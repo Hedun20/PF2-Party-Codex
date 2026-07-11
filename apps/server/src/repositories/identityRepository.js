@@ -549,7 +549,7 @@ export async function identityContextForUser(user) {
 
 export async function identityCounts() {
   if (!isMongoIdentityEnabled()) {
-    return { ok: true, mode: "legacy", usersCount: 0, workspacesCount: 0, campaignsCount: 0, membershipsCount: 0, hasDefaultWorkspace: false, hasDefaultCampaign: false };
+    return { ok: false, mode: "diagnostic", usersCount: 0, workspacesCount: 0, campaignsCount: 0, membershipsCount: 0, hasDefaultWorkspace: false, hasDefaultCampaign: false };
   }
   const [usersCount, workspacesCount, campaignsCount, membershipsCount, defaultWorkspace, defaultCampaign] = await Promise.all([
     users().countDocuments(),

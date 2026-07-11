@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Castle, ClipboardCopy, KeyRound, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { api } from "../api/client.js";
+import CodexButton from "../components/ui/CodexButton.jsx";
 
 export default function AuthPage({ onAuth, session }) {
   const [params] = useSearchParams();
@@ -99,7 +100,7 @@ export default function AuthPage({ onAuth, session }) {
             <span><KeyRound size={16} /> Password</span>
             <input type="password" value={form.password} onChange={(event) => update("password", event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={8} required />
           </label>
-          <button className="gold-button" type="submit" disabled={busy}>{busy ? "Working..." : mode === "login" ? "Enter codex" : "Create account"}</button>
+          <CodexButton type="submit" disabled={busy}>{busy ? "Working..." : mode === "login" ? "Enter codex" : "Create account"}</CodexButton>
         </form>
         <div className="auth-note">
           <ShieldCheck size={18} />

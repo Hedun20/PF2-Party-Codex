@@ -121,13 +121,13 @@ export default function DiceTrayPage() {
         <p>Быстрый локальный бросок для playtest: d20, d12, d10, d8, d6, d4 и простые формулы вроде 1d20+7 или 2d6+3.</p>
       </section>
 
-      <section className="builder-section quick-create-panel dice-roll-panel dice-roll-panel-v2">
+      <section className="builder-section quick-create-panel dice-roll-panel">
         <div className="quick-create-copy">
           <span className="kicker">Быстрый бросок</span>
           <h2>{latest ? `${latest.label} = ${latest.total}` : "Выберите кубик"}</h2>
           <p>{latest ? `${rollLabel(latest)} · ${latest.createdAt}` : "История хранится только локально в браузере и не синхронизируется между игроками."}</p>
         </div>
-        <div className="dice-quick-grid dice-quick-grid-v2">
+        <div className="dice-quick-grid">
           {quickDice.map((sides) => (
             <button key={sides} type="button" className="dice-quick-button" onClick={() => quickRoll(sides)} aria-label={`Бросить d${sides}`}>
               <DiceFace sides={sides} />
@@ -155,7 +155,7 @@ export default function DiceTrayPage() {
         {error ? <p className="save-message">{error}</p> : null}
       </section>
 
-      <section className="roll-history-section roll-history-section-v2">
+      <section className="roll-history-section">
         <div className="roll-history-title-row">
           <div>
             <span className="kicker">История бросков</span>
@@ -164,7 +164,7 @@ export default function DiceTrayPage() {
           <span>{history.length}/{historyLimit}</span>
         </div>
         {history.length ? (
-          <div className="roll-history-grid roll-history-grid-v2">
+          <div className="roll-history-grid">
             {history.map((item) => <RollCard key={item.id} result={item} />)}
           </div>
         ) : (

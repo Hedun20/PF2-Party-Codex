@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { statSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
@@ -97,6 +98,36 @@ async function listSourceFiles(directory) {
   return nested.flat();
 }
 
+async function reachableJavaScript(entryFile) {
+  const seen = new Set();
+  const queue = [entryFile];
+  while (queue.length) {
+    const file = queue.pop();
+    if (seen.has(file)) continue;
+    seen.add(file);
+    const source = await fs.readFile(file, "utf8");
+    const imports = [
+      ...source.matchAll(/(?:import|export)\s+(?:[^"'`]*?\s+from\s+)?["']([^"']+)["']/g),
+      ...source.matchAll(/import\(\s*["']([^"']+)["']\s*\)/g)
+    ].map((match) => match[1]).filter((value) => value.startsWith("."));
+    for (const specifier of imports) {
+      const target = path.resolve(path.dirname(file), specifier);
+      const candidates = [target, `${target}.js`, `${target}.jsx`, path.join(target, "index.js")];
+      const resolved = candidates.find((candidate) => fsSyncExists(candidate));
+      if (resolved && !seen.has(resolved)) queue.push(resolved);
+    }
+  }
+  return seen;
+}
+
+function fsSyncExists(file) {
+  try {
+    return statSync(file).isFile();
+  } catch {
+    return false;
+  }
+}
+
 test("literal frontend transitions resolve to declared routes", async () => {
   const appSource = await fs.readFile(path.join(rootDir, "apps/web/src/App.jsx"), "utf8");
   const routes = [...appSource.matchAll(/<Route\s+path="([^"]+)"/g)]
@@ -136,6 +167,23 @@ test("literal frontend transitions resolve to declared routes", async () => {
   assert.ok(targets.size >= 25, "Transition inventory is unexpectedly small");
 });
 
+test("source tree has one canonical implementation per page and no unreachable runtime modules", async () => {
+  const webSource = path.join(rootDir, "apps/web/src");
+  const serverSource = path.join(rootDir, "apps/server/src");
+  const [webFiles, serverFiles, reachableWeb, reachableServer] = await Promise.all([
+    listSourceFiles(webSource),
+    listSourceFiles(serverSource),
+    reachableJavaScript(path.join(webSource, "main.jsx")),
+    reachableJavaScript(path.join(serverSource, "index.js"))
+  ]);
+  assert.deepEqual(webFiles.filter((file) => !reachableWeb.has(file)), [], "Unreachable web source files should be removed");
+  assert.deepEqual(serverFiles.filter((file) => !reachableServer.has(file)), [], "Unreachable server source files should be removed");
+  assert.deepEqual(webFiles.filter((file) => /V\d+\.jsx$/i.test(file)), [], "Versioned page implementations must be consolidated into canonical files");
+  for (const staleRootFile of ["App.jsx", "index.js", "entriesRepository.js", "characterImportService.js", "reveal.js"]) {
+    assert.equal(fsSyncExists(path.join(rootDir, staleRootFile)), false, `Stale root duplicate remains: ${staleRootFile}`);
+  }
+});
+
 const routerMounts = [
   ["/api", "healthRouter", "health.js", healthRouter],
   ["/api", "authRouter", "auth.js", authRouter],
@@ -167,12 +215,12 @@ function joinMountedPath(prefix, routePath) {
 }
 
 test("all backend route modules are mounted and endpoint signatures stay unique", async () => {
-  const indexSource = await fs.readFile(path.join(rootDir, "apps/server/src/index.js"), "utf8");
+  const appSource = await fs.readFile(path.join(rootDir, "apps/server/src/app.js"), "utf8");
   const signatures = ["GET /api/session"];
 
   for (const [prefix, exportName, , router] of routerMounts) {
     const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    assert.match(indexSource, new RegExp(`app\\.use\\(\\s*["']${escapedPrefix}["']\\s*,\\s*${exportName}\\s*\\)`));
+    assert.match(appSource, new RegExp(`app\\.use\\(\\s*["']${escapedPrefix}["']\\s*,\\s*${exportName}\\s*\\)`));
     for (const layer of router.stack) {
       if (!layer.route) continue;
       const paths = Array.isArray(layer.route.path) ? layer.route.path : [layer.route.path];
@@ -300,13 +348,14 @@ test("player entry serialization removes GM content, private metadata and hidden
 });
 
 test("Mongo is the only live campaign store and browser content fallbacks stay disabled", async () => {
-  const [notesSource, charactersSource, sessionDeskSource, revealSource, serverSource, importSource] = await Promise.all([
+  const [notesSource, charactersSource, sessionDeskSource, revealSource, serverSource, importSource, authStoreSource] = await Promise.all([
     fs.readFile(path.join(rootDir, "apps/web/src/utils/playerNotes.js"), "utf8"),
     fs.readFile(path.join(rootDir, "apps/web/src/utils/playerCharacters.js"), "utf8"),
     fs.readFile(path.join(rootDir, "apps/web/src/pages/SessionModePage.jsx"), "utf8"),
     fs.readFile(path.join(rootDir, "apps/server/src/services/revealService.js"), "utf8"),
     fs.readFile(path.join(rootDir, "apps/server/src/index.js"), "utf8"),
-    fs.readFile(path.join(rootDir, "apps/server/src/routes/import.js"), "utf8")
+    fs.readFile(path.join(rootDir, "apps/server/src/routes/import.js"), "utf8"),
+    fs.readFile(path.join(rootDir, "apps/server/src/services/authStore.js"), "utf8")
   ]);
   assert.doesNotMatch(notesSource, /localStorage|browser fallback/i);
   assert.doesNotMatch(charactersSource, /localStorage|browser fallback/i);
@@ -316,6 +365,8 @@ test("Mongo is the only live campaign store and browser content fallbacks stay d
   assert.match(revealSource, /collections\.handouts/);
   assert.match(serverSource, /if \(!databaseStatus\.connected\)/);
   assert.doesNotMatch(importSource, /Vault remains the source of truth/i);
+  assert.doesNotMatch(authStoreSource, /readJson|writeJson|USERS_FILE|legacyPublicUser|fallbackOnMongoUnavailable/);
+  assert.match(authStoreSource, /requireMongoIdentity/);
 });
 
 test("registration copy matches Identity v2 and has no dead player-preview loop", async () => {

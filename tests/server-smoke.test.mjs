@@ -29,8 +29,8 @@ async function waitForHealth(baseUrl, logs) {
   throw new Error(`Server did not become ready.\n${logs()}`);
 }
 
-async function request(baseUrl, pathname) {
-  const response = await fetch(`${baseUrl}${pathname}`, { redirect: "manual" });
+async function request(baseUrl, pathname, options = {}) {
+  const response = await fetch(`${baseUrl}${pathname}`, { redirect: "manual", ...options });
   return {
     status: response.status,
     contentType: response.headers.get("content-type") || "",
@@ -73,6 +73,18 @@ test("server starts safely and guest campaign reads stay closed", { timeout: 20_
   const health = await request(baseUrl, "/api/health");
   assert.equal(health.status, 200);
   assert.match(health.contentType, /application\/json/);
+  assert.equal(JSON.parse(health.body).ready, false);
+
+  const databaseHealth = await request(baseUrl, "/api/health/db");
+  assert.equal(databaseHealth.status, 503);
+
+  const registration = await request(baseUrl, "/api/auth/register", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: "offline@example.com", password: "not-a-real-password", name: "Offline" })
+  });
+  assert.equal(registration.status, 503);
+  assert.match(registration.body, /Mongo identity storage is not connected/);
 
   for (const pathname of [
     "/api/pages",

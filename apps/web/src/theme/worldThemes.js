@@ -2,7 +2,7 @@ const BUILTIN_WORLD_THEMES = {
   archive: {
     key: "archive",
     label: "Архив",
-    description: "Нейтральный общий vault: библиотека, поиск, мастерский контроль.",
+    description: "Нейтральная библиотека кампании: архив, поиск и мастерский контроль.",
     accent: "#e3b65f",
     accentRgb: "227, 182, 95",
     glow: "rgba(227, 182, 95, 0.22)",

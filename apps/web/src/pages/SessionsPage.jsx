@@ -33,7 +33,7 @@ function SessionCard({ session }) {
       <CalendarDays size={22} />
       <div>
         <strong>{session.title || "Untitled session"}</strong>
-        <span>{[session.status, scheduled].filter(Boolean).join(" · ") || "Session"}</span>
+        <span>{[session.status, scheduled].filter(Boolean).join(" Â· ") || "Session"}</span>
         {summary && <span>{summary}</span>}
         {session.prepNotes && <span>Prep: {compactText(session.prepNotes, 180)}</span>}
         {session.recapGm && <span>GM recap: {compactText(session.recapGm, 180)}</span>}
@@ -42,13 +42,13 @@ function SessionCard({ session }) {
   );
 }
 
-function LegacySessions({ pages, mode }) {
+function EntrySessions({ pages, mode }) {
   return (
     <>
       <section className="codex-card workspace-status-card">
         <AlertTriangle size={22} />
-        <span className="kicker">Compatibility fallback</span>
-        <p>Mongo sessions could not be loaded. Showing legacy vault session pages instead.</p>
+        <span className="kicker">Entry-backed view</span>
+        <p>The dedicated session projection could not be loaded. Showing session articles from the same campaign database.</p>
       </section>
       <section className="workspace-grid">
         {pages.map((page) => (
@@ -67,7 +67,7 @@ function LegacySessions({ pages, mode }) {
 }
 
 export default function SessionsPage({ pages = [], mode = "player" }) {
-  const legacySessions = useMemo(() => pages.filter(isSessionPage).slice(0, 40), [pages]);
+  const entrySessions = useMemo(() => pages.filter(isSessionPage).slice(0, 40), [pages]);
   const [state, setState] = useState({ loading: true, error: "", sessions: null, role: "" });
 
   useEffect(() => {
@@ -106,9 +106,9 @@ export default function SessionsPage({ pages = [], mode = "player" }) {
         </section>
       ) : null}
 
-      {!state.loading && state.error && legacySessions.length ? <LegacySessions pages={legacySessions} mode={mode} /> : null}
+      {!state.loading && state.error && entrySessions.length ? <EntrySessions pages={entrySessions} mode={mode} /> : null}
 
-      {!state.loading && state.error && !legacySessions.length ? (
+      {!state.loading && state.error && !entrySessions.length ? (
         <section className="codex-card workspace-status-card">
           <AlertTriangle size={24} />
           <h2>Sessions unavailable</h2>
@@ -132,7 +132,7 @@ export default function SessionsPage({ pages = [], mode = "player" }) {
 
       <section className="codex-card workspace-status-card">
         <ScrollText size={20} />
-        <p>Sessions are read from the Mongo campaign workspace. Legacy vault pages appear only as a labeled compatibility fallback if the API is unavailable.</p>
+        <p>Sessions are read from the active campaign. Entry-backed session articles remain available if the dedicated projection cannot be loaded.</p>
       </section>
     </div>
   );

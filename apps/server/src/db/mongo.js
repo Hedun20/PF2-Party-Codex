@@ -5,7 +5,7 @@ import { logger } from "../utils/logger.js";
 let client = null;
 let db = null;
 let status = {
-  mode: "legacy",
+  mode: "diagnostic",
   configured: false,
   connected: false,
   database: config.mongoDbName,
@@ -23,7 +23,7 @@ function sanitizeMongoError(error) {
 
 function setDisconnectedStatus(message, error = null) {
   status = {
-    mode: config.mongoUri ? "mongo" : "legacy",
+    mode: config.mongoUri ? "mongo" : "diagnostic",
     configured: Boolean(config.mongoUri),
     connected: false,
     database: config.mongoDbName,

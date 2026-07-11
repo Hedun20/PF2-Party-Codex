@@ -127,7 +127,7 @@ function ManagementTools({ activeWorld, onClose, canEdit }) {
 
       <NavGroup title="GM Tools">
         <NavItem to="/gm-tools" icon={Wrench} label="GM Tools" onClose={onClose} />
-        <NavItem to="/health" icon={ShieldCheck} label="Vault Health" onClose={onClose} />
+        <NavItem to="/health" icon={ShieldCheck} label="Campaign Health" onClose={onClose} />
         <NavItem to="/foundry" icon={Hammer} label="Import / Export" onClose={onClose} />
         <NavItem to="/missing" icon={FileQuestion} label="Missing Articles" onClose={onClose} />
         <NavItem to="/player-safety" icon={ShieldAlert} label="Player Safety" onClose={onClose} />
@@ -175,7 +175,7 @@ export default function CodexSidebar({ onClose, canEdit = false, activeWorld = n
   const showOnboardingNav = signedIn && !hasCampaignMembership;
 
   return (
-    <aside className="sidebar sidebar-v2">
+    <aside className="sidebar sidebar-shell">
       <div className="sidebar-head">
         <Link to={brandTarget} className="brand" onClick={onClose}>
           <Castle />
@@ -195,7 +195,7 @@ export default function CodexSidebar({ onClose, canEdit = false, activeWorld = n
         </div>
       ) : null}
 
-      <nav className="nav-stack nav-stack-v2" aria-label="Main navigation">
+      <nav className="nav-stack nav-stack-shell" aria-label="Main navigation">
         {!signedIn ? (
           <>
             <NavGroup title="Campaign access">

@@ -14,7 +14,7 @@ function characterSubtitle(character = {}) {
   const identity = character.identity || character;
   return [identity.ancestry, identity.heritage, identity.background, identity.className ? `${identity.className}` : "", identity.level ? `Level ${identity.level}` : ""]
     .filter(Boolean)
-    .join(" · ");
+    .join(" Â· ");
 }
 
 function firstNumber(...values) {
@@ -31,7 +31,7 @@ function CharacterCard({ character, selected, onSelect }) {
     <button type="button" className={selected ? "is-active" : ""} onClick={onSelect}>
       <strong>{characterName(character)}</strong>
       <span>{characterSubtitle(character) || "Character identity not filled yet"}</span>
-      <small>{visibility.visibleToParty ? "party visible" : "private"} · {visibility.sharedWithGm === false ? "not shared with GM" : "shared with GM"}</small>
+      <small>{visibility.visibleToParty ? "party visible" : "private"} Â· {visibility.sharedWithGm === false ? "not shared with GM" : "shared with GM"}</small>
     </button>
   );
 }

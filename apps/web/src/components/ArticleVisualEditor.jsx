@@ -560,10 +560,10 @@ export default function ArticleVisualEditor({
               </Field>
             )}
             <div className="controlled-picker">
-              <span className="field-title">Теги из vault</span>
+              <span className="field-title">Теги кампании</span>
               <p className="builder-hint">Без свободного ввода: выбирай существующие теги, чтобы не плодить дубликаты.</p>
               <div className="choice-row">
-                {tagOptions.length === 0 && <span className="empty-inline-hint">В vault пока нет тегов.</span>}
+                {tagOptions.length === 0 && <span className="empty-inline-hint">В кампании пока нет тегов.</span>}
                 {tagOptions.map((tag) => (
                   <button key={tag} type="button" className={asArray(fm.tags).includes(tag) ? "choice-pill active" : "choice-pill"} onClick={() => toggleArrayValue("tags", tag)}>
                     {tag}
@@ -683,7 +683,7 @@ export default function ArticleVisualEditor({
 
           <aside className="story-helper-panel structured-story-helper">
             <strong>Быстрые блоки</strong>
-            <p>Markdown остаётся внутри vault. Просто теперь GM работает не с кашей, а с нормальной структурой.</p>
+            <p>Статья хранится как структурированный контент кампании, а Markdown остаётся совместимым режимом редактирования и обмена.</p>
             <div className="story-helper-actions">
               <button type="button" className="type-chip" onClick={() => updateStructuredStory({ publicNotes: `${String(structuredStory.publicNotes || "").trimEnd()}${structuredStory.publicNotes ? "\n\n" : ""}## Что видят игроки\n\nКороткое описание, которое можно показывать в Handout / Player View.` })}>+ Public section</button>
               <button type="button" className="type-chip" onClick={appendGmSecretsBlock}>+ GM secret</button>

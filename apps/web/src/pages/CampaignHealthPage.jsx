@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client.js";
 import StatusMessage from "../components/ui/StatusMessage.jsx";
 
-export default function VaultHealthPage({ mode }) {
+export default function CampaignHealthPage({ mode }) {
   const [audit, setAudit] = useState(null);
   const [error, setError] = useState("");
 
@@ -16,7 +16,7 @@ export default function VaultHealthPage({ mode }) {
         if (active) setAudit(data);
       })
       .catch((requestError) => {
-        if (active) setError(requestError.message || "Не удалось проверить vault.");
+        if (active) setError(requestError.message || "Не удалось проверить активную кампанию.");
       });
     return () => {
       active = false;
@@ -24,14 +24,14 @@ export default function VaultHealthPage({ mode }) {
   }, [mode]);
 
   if (error) return <div className="page-stack"><StatusMessage tone="danger" role="alert">{error}</StatusMessage></div>;
-  if (!audit) return <div className="list-header"><h1>Проверяем vault</h1></div>;
+  if (!audit) return <div className="list-header"><h1>Проверяем кампанию</h1></div>;
 
   return (
     <div className="page-stack">
       <header className="list-header">
         <span className="kicker">Помощник мастера</span>
-        <h1>Контроль vault</h1>
-        <p>Система ищет битые пины, отсутствующие карты, статьи без связей и нарушенную иерархию.</p>
+        <h1>Контроль кампании</h1>
+        <p>Система проверяет битые пины, отсутствующие ассеты, статьи без связей и нарушенную иерархию активной кампании.</p>
       </header>
       <section className="audit-summary">
         <div><strong>{audit.errors}</strong><span>ошибки</span></div>

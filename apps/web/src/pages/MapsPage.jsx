@@ -31,12 +31,12 @@ function compact(text = "", limit = 170) {
   return value.length > limit ? `${value.slice(0, limit - 3)}...` : value;
 }
 
-function normalizeLegacyObjects(page) {
+function normalizeEntryObjects(page) {
   const mapObjects = Array.isArray(page.mapObjects) ? page.mapObjects : [];
   const pins = Array.isArray(page.pins) ? page.pins : [];
   return [
     ...mapObjects,
-    ...pins.map((pin, index) => ({ ...pin, id: `legacy-${index}`, shape: "pin", visibility: pin.visibility || "public" }))
+    ...pins.map((pin, index) => ({ ...pin, id: `entry-${index}`, shape: "pin", visibility: pin.visibility || "public" }))
   ].filter((item) => item?.label);
 }
 
@@ -119,14 +119,14 @@ function normalizeMongoMap(map = {}, objects = []) {
   };
 }
 
-function normalizeLegacyMap(page, overrides = {}) {
+function normalizeEntryMap(page, overrides = {}) {
   const pageForObjects = overrides[page.path] ? { ...page, mapObjects: overrides[page.path], pins: [] } : page;
-  const objects = normalizeLegacyObjects(pageForObjects);
+  const objects = normalizeEntryObjects(pageForObjects);
   const gm = countGmObjects(objects);
   const linked = countLinkedObjects(objects);
   return {
     ...page,
-    sourceKind: "legacy",
+    sourceKind: "entry",
     objects,
     gm,
     player: objects.length - gm,
@@ -144,7 +144,7 @@ function editorPathForWorld(activeWorld, type = "map") {
 }
 
 function pagePath(page) {
-  return page?.sourceKind === "legacy" && page.path ? `/page/${encodeURIComponent(page.path)}` : "";
+  return page?.sourceKind === "entry" && page.path ? `/page/${encodeURIComponent(page.path)}` : "";
 }
 
 export default function MapsPage({ pages = [], mode = "player", activeWorld = null }) {
@@ -191,11 +191,11 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
   }, [canEdit, layer]);
 
   const usingMongoMaps = Array.isArray(mapsState.maps) && !mapsState.error;
-  const legacyMaps = useMemo(() => pages.filter((page) => page.mapImage).map((page) => normalizeLegacyMap(page, objectOverrides)), [pages, objectOverrides]);
-  const usingLegacyFallback = Boolean(mapsState.error && legacyMaps.length);
+  const entryMaps = useMemo(() => pages.filter((page) => page.mapImage).map((page) => normalizeEntryMap(page, objectOverrides)), [pages, objectOverrides]);
+  const usingEntryFallback = Boolean(mapsState.error && entryMaps.length);
 
   const mongoMaps = useMemo(() => (mapsState.maps || []).map((map) => normalizeMongoMap(map, objectsByMap[map.id || map._id] || [])), [mapsState.maps, objectsByMap]);
-  const allMaps = usingMongoMaps ? mongoMaps : usingLegacyFallback ? legacyMaps : [];
+  const allMaps = usingMongoMaps ? mongoMaps : usingEntryFallback ? entryMaps : [];
 
   const maps = useMemo(() => allMaps
     .filter((page) => {
@@ -247,7 +247,7 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
   const selectedPagePath = pagePath(selectedMap);
 
   async function revealSelectedMap() {
-    if (!selectedMap || selectedMap.sourceKind !== "legacy") return;
+    if (!selectedMap || selectedMap.sourceKind !== "entry") return;
     setRevealBusy(true);
     setRevealStatus(null);
     try {
@@ -280,9 +280,9 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
     <div className="page-stack maps-hub-page maps2-workbench-page">
       <header className="list-header maps-hub-hero article-page-header maps2-workbench-hero">
         <div>
-          <span className="kicker">{canEdit ? "Maps · GM Workbench" : "Maps · Player View"}</span>
+          <span className="kicker">{canEdit ? "Maps Â· GM Workbench" : "Maps Â· Player View"}</span>
           <h1>{activeWorld ? `Maps: ${activeWorld.title}` : "Campaign maps"}</h1>
-          <p>Maps and map objects are loaded from the campaign workspace. Legacy map pages appear only as a labeled compatibility fallback if the Mongo API is unavailable.</p>
+          <p>Maps and map objects are loaded from the campaign workspace. Entry-backed map articles remain available if the dedicated map projection cannot be loaded.</p>
           {mapsState.role && <div className="workspace-identity-strip"><span>Role: {mapsState.role}</span></div>}
         </div>
         <div className="maps-hub-tools">
@@ -293,7 +293,7 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
             ))}
           </div>
           <div className="maps2-hero-actions">
-            {canEdit && usingLegacyFallback && <CodexButton as={Link} to={editorPathForWorld(activeWorld, "map")} variant="secondary">Legacy map article</CodexButton>}
+            {canEdit && usingEntryFallback && <CodexButton as={Link} to={editorPathForWorld(activeWorld, "map")} variant="secondary">New map article</CodexButton>}
             {selectedPagePath && <CodexButton as={Link} to={selectedPagePath} variant="ghost"><Map size={16} /> Open article</CodexButton>}
           </div>
         </div>
@@ -307,15 +307,15 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
         </section>
       )}
 
-      {mapsState.error && usingLegacyFallback && (
+      {mapsState.error && usingEntryFallback && (
         <section className="codex-card workspace-status-card">
           <AlertTriangle size={22} />
-          <span className="kicker">Compatibility fallback</span>
-          <p>Mongo maps could not be loaded. Showing legacy vault map pages instead.</p>
+          <span className="kicker">Entry-backed view</span>
+          <p>The dedicated map projection could not be loaded. Showing map articles from the same campaign database.</p>
         </section>
       )}
 
-      {mapsState.error && !usingLegacyFallback && (
+      {mapsState.error && !usingEntryFallback && (
         <section className="codex-card workspace-status-card">
           <AlertTriangle size={22} />
           <span className="kicker">Maps unavailable</span>
@@ -345,13 +345,13 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
                   {previewMode === "player" ? "Preview as Player" : "GM view"}
                 </button>
               )}
-              {canEdit && selectedMap.sourceKind === "legacy" && (
+              {canEdit && selectedMap.sourceKind === "entry" && (
                 <button type="button" className="maps2-preview-toggle maps2-reveal-action" onClick={revealSelectedMap} disabled={!selectedMapPlayerReady || revealBusy}>
                   <Send size={16} /> {revealBusy ? "Revealing..." : "Reveal map"}
                 </button>
               )}
               {canEdit && <button type="button" className="maps2-preview-toggle" onClick={copyPlayerLink}><Copy size={16} /> Player link</button>}
-              {canEdit && selectedMap.sourceKind === "legacy" && <CodexButton as={Link} to={`/edit/${encodeURIComponent(selectedMap.path)}`} variant="secondary">Edit article</CodexButton>}
+              {canEdit && selectedMap.sourceKind === "entry" && <CodexButton as={Link} to={`/edit/${encodeURIComponent(selectedMap.path)}`} variant="secondary">Edit article</CodexButton>}
             </div>
           </div>
           <div className="maps2-active-meta">
@@ -363,18 +363,18 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
             {objectState.loading && selectedMap.sourceKind === "mongo" && <span>Loading objects...</span>}
             {objectState.error && selectedMap.sourceKind === "mongo" && <span className="warning">{objectState.error}</span>}
           </div>
-          {canEdit && selectedMap.sourceKind === "legacy" && (
+          {canEdit && selectedMap.sourceKind === "entry" && (
             <div className={`maps2-reveal-strip ${revealStatus?.type || "idle"}`}>
               <div>
                 <span className="kicker">Map reveal readiness</span>
                 <strong>{selectedMapPlayerReady ? "Ready for player view" : "Add player-visible content first"}</strong>
               </div>
-              <p>{revealStatus?.text || (selectedMapHasSecrets ? "This legacy map contains a GM-only layer. Use Preview as Player before reveal." : "This legacy map looks safe for handout/reveal.")}</p>
+              <p>{revealStatus?.text || (selectedMapHasSecrets ? "This map article contains a GM-only layer. Use Preview as Player before reveal." : "This map article looks safe for handout/reveal.")}</p>
               <Link to={playerViewUrl} target="_blank" rel="noreferrer">Open player view</Link>
             </div>
           )}
           {selectedMap.mapImage ? (
-            <PageMap page={selectedMap} mode={previewMode} editable={canEdit && selectedMap.sourceKind === "legacy"} availablePages={pages} onObjectsSaved={(path, objects) => setObjectOverrides((current) => ({ ...current, [path]: objects }))} />
+            <PageMap page={selectedMap} mode={previewMode} editable={canEdit && selectedMap.sourceKind === "entry"} availablePages={pages} onObjectsSaved={(path, objects) => setObjectOverrides((current) => ({ ...current, [path]: objects }))} />
           ) : (
             <section className="codex-card workspace-status-card">
               <MapPinned size={24} />
@@ -426,11 +426,11 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
         </section>
       )}
 
-      {canEdit && usingLegacyFallback && unusedAssets.length > 0 && (
+      {canEdit && usingEntryFallback && unusedAssets.length > 0 && (
         <section className="builder-section maps-orphan-assets">
-          <span className="kicker">Legacy map diagnostics</span>
-          <h2>Files exist, but are not linked to legacy map pages</h2>
-          <p>These images are legacy vault assets and are shown only while the compatibility fallback is active.</p>
+          <span className="kicker">Map asset diagnostics</span>
+          <h2>Files exist, but are not linked to map entries</h2>
+          <p>These campaign assets are available to the GM but are not referenced by a map article yet.</p>
           <div className="maps-orphan-grid">
             {unusedAssets.slice(0, 24).map((asset) => (
               <article key={asset.path} className="maps-orphan-card">

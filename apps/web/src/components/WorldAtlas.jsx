@@ -83,7 +83,7 @@ function WorldsEmptyState() {
     <div className="worlds-empty-state">
       <Sparkles size={28} />
       <h3>Реальные миры ещё не созданы</h3>
-      <p>Vault стартует честно пустым. Открой гайды и примеры, потом создай первый мир в папке <code>worlds/</code> или через редактор.</p>
+      <p>Кампания стартует честно пустой. Открой руководство, затем создай первый мир через структурированный редактор.</p>
       <div className="worlds-empty-actions">
         <CodexButton as={Link} to="/category/_guides" variant="secondary"><BookOpen size={16} /> Гайды</CodexButton>
         <CodexButton as={Link} to="/category/_examples" variant="ghost">Примеры</CodexButton>

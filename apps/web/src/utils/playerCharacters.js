@@ -6,7 +6,7 @@ const defaultCharacter = {
   defenses: { ac: 10, hp: 10, maxHp: 10, perception: 0, fortitude: 0, reflex: 0, will: 0 }
 };
 
-export function characterToLegacyShape(character = {}) {
+export function characterToViewModel(character = {}) {
   if (!character.identity && !character.stats) return character;
   const identity = character.identity || {};
   const stats = character.stats || {};
@@ -71,7 +71,7 @@ export function usePlayerCharacters() {
     setError("");
     try {
       const data = await api.characters("mine");
-      setCharacters((data.characters || []).map(characterToLegacyShape));
+      setCharacters((data.characters || []).map(characterToViewModel));
     } catch (loadError) {
       setCharacters([]);
       setError(loadError.message || "Campaign characters are unavailable.");
@@ -88,7 +88,7 @@ export function usePlayerCharacters() {
     setError("");
     try {
       const data = await api.createCharacter(seed);
-      const character = characterToLegacyShape(data.character);
+      const character = characterToViewModel(data.character);
       setCharacters((current) => [character, ...current.filter((item) => item.id !== character.id)]);
       return character;
     } catch (createError) {
@@ -101,7 +101,7 @@ export function usePlayerCharacters() {
     setError("");
     try {
       const data = await api.updateCharacter(id, patch);
-      const character = characterToLegacyShape(data.character);
+      const character = characterToViewModel(data.character);
       setCharacters((current) => current.map((item) => item.id === id ? character : item));
       return character;
     } catch (updateError) {
@@ -123,7 +123,7 @@ export function usePlayerCharacters() {
 
   const importCharacter = useCallback(async ({ adapter = "pathbuilder", rawImport, originalFilename = "" }) => {
     const commit = await api.characterImportCommit(adapter, { rawImport, originalFilename });
-    const character = characterToLegacyShape(commit.character);
+    const character = characterToViewModel(commit.character);
     setCharacters((current) => [character, ...current.filter((item) => item.id !== character.id)]);
     return { ...commit, character };
   }, []);

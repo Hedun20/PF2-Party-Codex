@@ -1,34 +1,51 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Copy, MailPlus, ShieldCheck, UsersRound } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, MailPlus, ShieldCheck, UserPlus, UsersRound } from "lucide-react";
 import { api } from "../api/client.js";
+import CodexButton from "../components/ui/CodexButton.jsx";
 
-function formatDate(value = "") {
-  if (!value) return "Not available";
+function getId(entity) {
+  return entity?.id || entity?._id || "";
+}
+
+function campaignId(session) {
+  return getId(session?.activeCampaign) || session?.activeMembership?.campaignId || "";
+}
+
+function activeRole(session) {
+  return String(session?.activeMembership?.role || "player").toLowerCase();
+}
+
+function canManage(session) {
+  return ["owner", "gm"].includes(activeRole(session));
+}
+
+function validEmail(value = "") {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function dateLabel(value = "") {
+  if (!value) return "нет данных";
   try {
-    return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+    return new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
   } catch {
     return value;
   }
 }
 
-function entityId(entity) {
-  return entity?.id || entity?._id || "";
+function roleLabel(role = "player") {
+  if (role === "owner") return "Владелец";
+  if (role === "gm") return "GM";
+  return "Игрок";
 }
 
-function activeCampaignId(session) {
-  return entityId(session?.activeCampaign) || session?.activeMembership?.campaignId || "";
-}
-
-function roleFromSession(session) {
-  return String(session?.activeMembership?.role || "player").toLowerCase();
-}
-
-function canManagePlayers(session) {
-  return ["owner", "gm"].includes(roleFromSession(session));
-}
-
-function emailLooksValid(email = "") {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+function statusLabel(status = "active") {
+  const value = String(status || "active").toLowerCase();
+  if (value === "pending") return "Ожидает";
+  if (value === "accepted") return "Принято";
+  if (value === "expired") return "Истекло";
+  if (value === "revoked") return "Отозвано";
+  if (value === "removed") return "Удалён";
+  return "Активен";
 }
 
 function StatusCard({ icon: Icon = AlertTriangle, kicker, children }) {
@@ -41,145 +58,179 @@ function StatusCard({ icon: Icon = AlertTriangle, kicker, children }) {
   );
 }
 
-export default function PlayersPage({ session }) {
-  const campaignId = useMemo(() => activeCampaignId(session), [session]);
-  const canManage = canManagePlayers(session);
-  const [membersState, setMembersState] = useState({ loading: false, error: "", memberships: [] });
-  const [invitesState, setInvitesState] = useState({ loading: false, error: "", invitations: [] });
-  const [inviteDraft, setInviteDraft] = useState({ email: "", role: "player" });
-  const [inviteSubmit, setInviteSubmit] = useState({ loading: false, error: "", success: "", inviteUrl: "" });
+function Badge({ children, tone = "neutral" }) {
+  return <span className={`codex-pill codex-pill--${tone}`}>{children}</span>;
+}
 
-  async function loadPlayers() {
-    if (!campaignId || !canManage) return;
-    setMembersState((state) => ({ ...state, loading: true, error: "" }));
-    setInvitesState((state) => ({ ...state, loading: true, error: "" }));
+function statusTone(status = "active") {
+  const value = String(status || "active").toLowerCase();
+  if (["active", "accepted"].includes(value)) return "success";
+  if (["pending"].includes(value)) return "warning";
+  if (["expired", "revoked", "removed"].includes(value)) return "danger";
+  return "neutral";
+}
+
+export default function PlayersPage({ session }) {
+  const activeCampaignId = useMemo(() => campaignId(session), [session]);
+  const manager = canManage(session);
+  const [email, setEmail] = useState("");
+  const [copied, setCopied] = useState("");
+  const [members, setMembers] = useState({ loading: false, error: "", items: [] });
+  const [invites, setInvites] = useState({ loading: false, error: "", items: [] });
+  const [submit, setSubmit] = useState({ loading: false, error: "", success: "", link: "" });
+
+  async function load() {
+    if (!activeCampaignId || !manager) return;
+    setMembers((state) => ({ ...state, loading: true, error: "" }));
+    setInvites((state) => ({ ...state, loading: true, error: "" }));
     try {
-      const data = await api.campaignMemberships(campaignId);
-      setMembersState({ loading: false, error: "", memberships: Array.isArray(data.memberships) ? data.memberships : [] });
+      const data = await api.campaignMemberships(activeCampaignId);
+      setMembers({ loading: false, error: "", items: Array.isArray(data.memberships) ? data.memberships : [] });
     } catch (error) {
-      setMembersState({ loading: false, error: error.message || "Memberships API failed.", memberships: [] });
+      setMembers({ loading: false, error: error.message || "Не удалось загрузить участников.", items: [] });
     }
     try {
-      const data = await api.campaignInvitations(campaignId);
-      setInvitesState({ loading: false, error: "", invitations: Array.isArray(data.invitations) ? data.invitations : [] });
+      const data = await api.campaignInvitations(activeCampaignId);
+      setInvites({ loading: false, error: "", items: Array.isArray(data.invitations) ? data.invitations : [] });
     } catch (error) {
-      setInvitesState({ loading: false, error: error.message || "Invitations API failed.", invitations: [] });
+      setInvites({ loading: false, error: error.message || "Не удалось загрузить приглашения.", items: [] });
     }
   }
 
   useEffect(() => {
-    loadPlayers();
-  }, [campaignId, canManage]);
+    load();
+  }, [activeCampaignId, manager]);
 
-  async function submitInvite(event) {
-    event.preventDefault();
-    setInviteSubmit({ loading: false, error: "", success: "", inviteUrl: "" });
-    if (!emailLooksValid(inviteDraft.email)) {
-      setInviteSubmit({ loading: false, error: "Enter a valid email address.", success: "", inviteUrl: "" });
-      return;
-    }
-    setInviteSubmit({ loading: true, error: "", success: "", inviteUrl: "" });
-    try {
-      const data = await api.createCampaignInvitation(campaignId, inviteDraft);
-      setInviteSubmit({ loading: false, error: "", success: data.emailDelivery === "local-outbox" ? "Invitation queued in local outbox." : "Invitation created.", inviteUrl: data.invitation?.inviteUrl || "" });
-      setInviteDraft({ email: "", role: "player" });
-      await loadPlayers();
-    } catch (error) {
-      setInviteSubmit({ loading: false, error: error.message || "Invitation failed.", success: "", inviteUrl: "" });
-    }
+  async function copy(value = "") {
+    if (!value || !navigator.clipboard) return;
+    await navigator.clipboard.writeText(value);
+    setCopied(value);
   }
 
-  async function copyInviteUrl() {
-    if (!inviteSubmit.inviteUrl || !navigator.clipboard) return;
-    await navigator.clipboard.writeText(inviteSubmit.inviteUrl);
+  async function createInvite(event) {
+    event.preventDefault();
+    const normalized = email.trim();
+    setCopied("");
+    setSubmit({ loading: false, error: "", success: "", link: "" });
+    if (!validEmail(normalized)) {
+      setSubmit({ loading: false, error: "Введите корректный email игрока.", success: "", link: "" });
+      return;
+    }
+    setSubmit({ loading: true, error: "", success: "", link: "" });
+    try {
+      const data = await api.createCampaignInvitation(activeCampaignId, { email: normalized, role: "player" });
+      const link = data.invitation?.inviteUrl || "";
+      setSubmit({ loading: false, error: "", success: "Приглашение создано. Его можно отправить email или скопировать ссылкой.", link });
+      setEmail("");
+      await load();
+    } catch (error) {
+      setSubmit({ loading: false, error: error.message || "Не удалось создать приглашение.", success: "", link: "" });
+    }
   }
 
   return (
-    <div className="page-stack players-page">
-      <section className="hero-panel">
-        <span className="kicker">GM Portal</span>
-        <h1>Players</h1>
-        <p>Campaign members and pending invitations for the active workspace campaign.</p>
+    <div className="page-stack players-page players-page-polished">
+      <section className="hero-panel players-hero-panel">
+        <span className="kicker">Management · Campaign Access</span>
+        <h1>Игроки и приглашения</h1>
+        <p>GM управляет участниками кампании и приглашает новых игроков. GM-роль через приглашение не выдаётся.</p>
         <div className="workspace-identity-strip">
           <span>{session?.activeWorkspace?.name || "Workspace"}</span>
-          <span>{session?.activeCampaign?.name || "Active campaign"}</span>
-          <span>Role: {roleFromSession(session)}</span>
+          <span>{session?.activeCampaign?.name || "Активная кампания"}</span>
+          <span>Ваша роль: {roleLabel(activeRole(session))}</span>
         </div>
       </section>
 
-      {!campaignId ? <StatusCard kicker="No active campaign">Join or create a campaign before managing players.</StatusCard> : null}
-      {!canManage ? <StatusCard icon={ShieldCheck} kicker="Restricted">GM or owner access is required. Backend permissions remain the source of truth.</StatusCard> : null}
+      {!activeCampaignId ? <StatusCard kicker="Нет активной кампании">Создайте или выберите кампанию перед управлением игроками.</StatusCard> : null}
+      {!manager ? <StatusCard icon={ShieldCheck} kicker="Доступ закрыт">Эта страница доступна только владельцу или GM кампании.</StatusCard> : null}
 
-      {canManage && campaignId ? (
+      {manager && activeCampaignId ? (
         <>
-          {membersState.loading ? <StatusCard icon={UsersRound} kicker="Loading members">Fetching campaign memberships.</StatusCard> : null}
-          {membersState.error ? <StatusCard kicker="Members unavailable">{membersState.error}</StatusCard> : null}
-          {invitesState.error ? <StatusCard kicker="Invitations unavailable">{invitesState.error}</StatusCard> : null}
-
-          <section className="archive-recent-grid" aria-label="Campaign members and invitations">
-            <article className="codex-card archive-recent-card">
-              <span className="kicker">Campaign members</span>
-              {membersState.memberships.length ? (
-                <ul>
-                  {membersState.memberships.map((member) => (
-                    <li key={member.id || `${member.userId}-${member.role}`}>
-                      <strong>{member.displayName || member.email || "Campaign member"}</strong>
-                      {member.email ? <span> · {member.email}</span> : null}
-                      <span> · {member.role || "player"}</span>
-                      <span> · {member.status || "active"}</span>
-                      <small> · Joined: {formatDate(member.joinedAt || member.createdAt)}</small>
-                    </li>
-                  ))}
-                </ul>
-              ) : !membersState.loading && !membersState.error ? (
-                <p>No campaign members were returned.</p>
-              ) : null}
-            </article>
-
-            <article className="codex-card archive-recent-card">
-              <span className="kicker">Pending invitations</span>
-              {invitesState.loading ? <p>Loading invitations...</p> : null}
-              {invitesState.invitations.length ? (
-                <ul>
-                  {invitesState.invitations.map((invitation) => (
-                    <li key={invitation.id || invitation.email}>
-                      <strong>{invitation.email}</strong>
-                      <span> · {invitation.role || "player"}</span>
-                      <span> · {invitation.status || "pending"}</span>
-                      <small> · Expires: {formatDate(invitation.expiresAt)}</small>
-                    </li>
-                  ))}
-                </ul>
-              ) : !invitesState.loading && !invitesState.error ? (
-                <p>No pending invitations.</p>
-              ) : null}
-            </article>
-          </section>
-
-          <section className="codex-card workspace-status-card">
-            <MailPlus size={22} />
-            <span className="kicker">Invite player</span>
-            <p>Create a campaign invitation. Delivery is queued through the local outbox; the one-time invite URL is shown only after creation.</p>
-            <form className="character-import-grid" onSubmit={submitInvite}>
-              <label>Email
-                <input value={inviteDraft.email} onChange={(event) => setInviteDraft((draft) => ({ ...draft, email: event.target.value }))} placeholder="player@example.com" />
+          <section className="codex-card players-invite-card players-card-premium">
+            <div className="players-card-head">
+              <div>
+                <span className="kicker">Пригласить игрока</span>
+                <h2>Создать player invite</h2>
+                <p>Введите email. Система создаст письмо в outbox и отдельную ссылку, которую можно отправить вручную.</p>
+              </div>
+              <MailPlus size={24} />
+            </div>
+            <form className="players-invite-form" onSubmit={createInvite}>
+              <label>Email игрока
+                <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="player@example.com" autoComplete="email" />
               </label>
-              <label>Role
-                <select value={inviteDraft.role} onChange={(event) => setInviteDraft((draft) => ({ ...draft, role: event.target.value }))}>
-                  <option value="player">Player</option>
-                  <option value="gm">GM</option>
-                </select>
-              </label>
-              <button type="submit" className="notes-icon-action" disabled={inviteSubmit.loading || !campaignId}>{inviteSubmit.loading ? "Sending..." : "Invite"}</button>
+              <CodexButton type="submit" disabled={submit.loading}><UserPlus size={16} /> {submit.loading ? "Создаю..." : "Создать приглашение"}</CodexButton>
             </form>
-            {inviteSubmit.error ? <div className="status-message danger-message"><AlertTriangle size={16} /> {inviteSubmit.error}</div> : null}
-            {inviteSubmit.success ? <div className="status-message success-message"><CheckCircle2 size={16} /> {inviteSubmit.success}</div> : null}
-            {inviteSubmit.inviteUrl ? (
-              <div className="notes-linked-card">
-                <span>{inviteSubmit.inviteUrl}</span>
-                <button type="button" className="notes-icon-action" onClick={copyInviteUrl} title="Copy invite URL"><Copy size={16} /></button>
+            {submit.error ? <div className="status-message danger-message"><AlertTriangle size={16} /> {submit.error}</div> : null}
+            {submit.success ? <div className="status-message success-message"><CheckCircle2 size={16} /> {submit.success}</div> : null}
+            {submit.link ? (
+              <div className="invite-copy-card">
+                <span>{submit.link}</span>
+                <CodexButton type="button" variant="secondary" size="sm" onClick={() => copy(submit.link)}><Copy size={16} /> {copied === submit.link ? "Скопировано" : "Копировать ссылку"}</CodexButton>
               </div>
             ) : null}
+          </section>
+
+          {members.error ? <StatusCard kicker="Ошибка участников">{members.error}</StatusCard> : null}
+          {invites.error ? <StatusCard kicker="Ошибка приглашений">{invites.error}</StatusCard> : null}
+
+          <section className="players-management-grid">
+            <article className="codex-card players-card-premium players-table-card">
+              <div className="players-card-head">
+                <div>
+                  <span className="kicker">Участники</span>
+                  <h2>{members.items.length} в кампании</h2>
+                </div>
+                <UsersRound size={22} />
+              </div>
+              {members.loading ? <p className="empty-copy">Загружаю участников кампании...</p> : null}
+              {members.items.length ? (
+                <div className="players-row-list">
+                  {members.items.map((member) => (
+                    <div className="players-row" key={member.id || `${member.userId}-${member.role}`}>
+                      <div>
+                        <strong>{member.displayName || member.name || member.email || "Участник кампании"}</strong>
+                        <span>{member.email || member.userId || "email не указан"}</span>
+                      </div>
+                      <div className="players-row-meta">
+                        <Badge>{roleLabel(member.role || "player")}</Badge>
+                        <Badge tone={statusTone(member.status)}>{statusLabel(member.status)}</Badge>
+                        <small>С нами: {dateLabel(member.joinedAt || member.createdAt)}</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : !members.loading && !members.error ? <p className="empty-copy">Пока нет участников кампании.</p> : null}
+            </article>
+
+            <article className="codex-card players-card-premium players-table-card">
+              <div className="players-card-head">
+                <div>
+                  <span className="kicker">Активные приглашения</span>
+                  <h2>{invites.items.length} invite links</h2>
+                </div>
+                <MailPlus size={22} />
+              </div>
+              {invites.loading ? <p className="empty-copy">Загружаю приглашения...</p> : null}
+              {invites.items.length ? (
+                <div className="players-row-list">
+                  {invites.items.map((invite) => (
+                    <div className="players-row invite-row" key={invite.id || invite.email}>
+                      <div>
+                        <strong>{invite.email}</strong>
+                        <span>Истекает: {dateLabel(invite.expiresAt)}</span>
+                      </div>
+                      <div className="players-row-meta">
+                        <Badge>{roleLabel(invite.role || "player")}</Badge>
+                        <Badge tone={statusTone(invite.status || "pending")}>{statusLabel(invite.status || "pending")}</Badge>
+                        <small>Создано: {dateLabel(invite.createdAt)}</small>
+                        {invite.inviteUrl ? <CodexButton type="button" variant="secondary" size="sm" onClick={() => copy(invite.inviteUrl)}><Copy size={15} /> {copied === invite.inviteUrl ? "Скопировано" : "Копировать"}</CodexButton> : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : !invites.loading && !invites.error ? <p className="empty-copy">Нет активных приглашений.</p> : null}
+            </article>
           </section>
         </>
       ) : null}

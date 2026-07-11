@@ -1,0 +1,11 @@
+@layer theme, fantasy, components, design, buttons, stabilization, shell, blocks, campaign;
+
+@import "./theme.css" layer(theme);
+@import "./fantasy.css" layer(fantasy);
+@import "./components.css" layer(components);
+@import "./codex-design.css" layer(design);
+@import "./codex-buttons.css" layer(buttons);
+@import "./stabilization.css" layer(stabilization);
+@import "./shell-context.css" layer(shell);
+@import "./ui-blocks.css" layer(blocks);
+@import "./campaign-context.css" layer(campaign);

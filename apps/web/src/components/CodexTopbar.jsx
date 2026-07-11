@@ -73,7 +73,7 @@ export default function CodexTopbar({
   }
 
   return (
-    <header className="topbar topbar-v2 topbar-clean">
+    <header className="topbar topbar-shell topbar-clean">
       <button className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)} title="Open navigation">
         <Menu size={20} />
       </button>

@@ -7,7 +7,7 @@ export const healthRouter = Router();
 
 function dbHealthPayload() {
   const db = mongoStatus();
-  const ok = db.mode === "legacy" ? true : db.connected;
+  const ok = db.connected;
   return {
     ok,
     mode: db.mode,
@@ -21,7 +21,8 @@ function dbHealthPayload() {
 }
 
 healthRouter.get("/health", (_req, res) => {
-  res.json({ ok: true, app: "Party Codex", db: dbHealthPayload() });
+  const db = dbHealthPayload();
+  res.json({ ok: true, ready: db.ok, app: "Party Codex", db });
 });
 
 healthRouter.get("/health/db", (_req, res) => {

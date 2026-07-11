@@ -141,13 +141,13 @@
 }
 
 /* Article personal notes */
-.article-notes-panel-v2 .article-notes-head p {
+.article-notes-panel-polished .article-notes-head p {
   margin: 0.25rem 0 0;
   color: rgba(245, 239, 255, 0.62);
   font-size: 0.9rem;
 }
 
-.article-notes-list-v2 {
+.article-notes-list-polished {
   display: grid;
   gap: 0.65rem;
   margin: 0.8rem 0 0;

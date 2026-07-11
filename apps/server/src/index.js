@@ -1,125 +1,83 @@
-import cors from "cors";
-import express from "express";
-import helmet from "helmet";
 import path from "path";
+import { fileURLToPath } from "url";
+import { createApp } from "./app.js";
 import { config } from "./config.js";
 import { closeMongo, connectMongo } from "./db/mongo.js";
-import { attachUser } from "./middleware/auth.js";
-import { archiveRouter } from "./routes/archive.js";
-import { assetsRouter } from "./routes/assets.js";
-import { authRouter } from "./routes/auth.js";
-import { categoriesRouter } from "./routes/categories.js";
-import { campaignsRouter } from "./routes/campaigns.js";
-import { charactersRouter } from "./routes/characters.js";
-import { entriesRouter } from "./routes/entries.js";
-import { foundryRouter } from "./routes/foundry.js";
-import { importRouter } from "./routes/import.js";
-import { invitationsRouter, membershipsRouter } from "./routes/memberships.js";
-import { healthRouter } from "./routes/health.js";
-import { notesRouter } from "./routes/notes.js";
-import { onboardingRouter } from "./routes/onboarding.js";
-import { worldSystemsRouter } from "./routes/worldSystems.js";
-import { pagesRouter } from "./routes/pages.js";
-import { pf2Router } from "./routes/pf2.js";
-import { revealRouter } from "./routes/reveal.js";
-import { searchRouter } from "./routes/search.js";
-import { toolsRouter } from "./routes/tools.js";
+import { ensureCodexIndexes } from "./repositories/entriesRepository.js";
 import { ensureIdentityIndexes } from "./repositories/identityRepository.js";
 import { ensureInvitationIndexes } from "./repositories/invitationsRepository.js";
-import { ensureCodexIndexes } from "./repositories/entriesRepository.js";
 import { ensureWorldSystemIndexes } from "./repositories/worldSystemsRepository.js";
 import { startVaultWatcher } from "./services/fileWatchService.js";
 import { rebuildVaultIndex } from "./services/vaultService.js";
-import { sessionInfo } from "./services/sessionService.js";
 import { logger } from "./utils/logger.js";
 import { localIpv4Addresses } from "./utils/network.js";
 
-const app = express();
-app.use(helmet());
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin || config.allowedOrigins.includes(origin)) return callback(null, true);
-    const error = new Error("Origin is not allowed by CORS.");
-    error.status = 403;
-    return callback(error);
+export async function initializeRuntime() {
+  const databaseStatus = await connectMongo();
+  await ensureIdentityIndexes();
+  await ensureInvitationIndexes();
+  await ensureCodexIndexes();
+  await ensureWorldSystemIndexes();
+  if (!databaseStatus.connected) {
+    await rebuildVaultIndex();
+    startVaultWatcher();
+  } else {
+    logger.info("MongoDB is the active content source. Markdown remains available only for explicit import/export compatibility.");
   }
-}));
-app.use(express.json({ limit: "6mb" }));
-app.use(attachUser);
-app.get("/api/session", async (req, res, next) => {
-  try {
-    res.json(await sessionInfo(req));
-  } catch (error) {
-    next(error);
-  }
-});
-
-app.use("/api", healthRouter);
-app.use("/api", authRouter);
-app.use("/api", onboardingRouter);
-app.use("/api", campaignsRouter);
-app.use("/api", membershipsRouter);
-app.use("/api", invitationsRouter);
-app.use("/api", notesRouter);
-app.use("/api", charactersRouter);
-app.use("/api", entriesRouter);
-app.use("/api", worldSystemsRouter);
-app.use("/api", importRouter);
-app.use("/api", pagesRouter);
-app.use("/api", pf2Router);
-app.use("/api", revealRouter);
-app.use("/api", categoriesRouter);
-app.use("/api", searchRouter);
-app.use("/api", foundryRouter);
-app.use("/api", toolsRouter);
-app.use("/api/campaigns/:campaignId/archive", archiveRouter);
-app.use("/api/archive", archiveRouter);
-app.use("/api", assetsRouter);
-app.use("/api", (req, res) => {
-  res.status(404).json({ error: `API route not found: ${req.originalUrl}` });
-});
-
-const webDist = path.join(config.rootDir, "apps", "web", "dist");
-app.use("/fonts", express.static(path.join(webDist, "fonts"), { fallthrough: false, index: false }));
-app.use(express.static(webDist));
-app.get("*", (_req, res, next) => {
-  res.sendFile(path.join(webDist, "index.html"), (error) => error && next());
-});
-
-app.use((error, _req, res, _next) => {
-  const status = error.status || 500;
-  logger.error("Request failed", { status, error: error.message || String(error) });
-  res.status(status).json({ error: error.message || "Unexpected server error" });
-});
-
-const databaseStatus = await connectMongo();
-await ensureIdentityIndexes();
-await ensureInvitationIndexes();
-await ensureCodexIndexes();
-await ensureWorldSystemIndexes();
-if (!databaseStatus.connected) {
-  await rebuildVaultIndex();
-  startVaultWatcher();
-} else {
-  logger.info("MongoDB is the active content source. Markdown vault remains available only for explicit import/export compatibility.");
+  return databaseStatus;
 }
 
-const server = app.listen(config.port, config.host, () => {
-  logger.info(`Party Codex running at http://localhost:${config.port}`);
-  for (const ip of localIpv4Addresses()) logger.info(`LAN URL: http://${ip}:${config.port}`);
-});
-
-server.on("error", (error) => {
-  if (error.code === "EADDRINUSE") {
-    logger.error(`Port ${config.port} is already in use. Stop the existing Party Codex server or set PORT to another value.`);
-    process.exit(1);
-  }
-  throw error;
-});
-
-for (const signal of ["SIGINT", "SIGTERM"]) {
-  process.on(signal, async () => {
-    await closeMongo();
-    server.close(() => process.exit(0));
+function listen(app, port, host) {
+  return new Promise((resolve, reject) => {
+    const server = app.listen(port, host);
+    const onError = (error) => {
+      server.off("listening", onListening);
+      reject(error);
+    };
+    const onListening = () => {
+      server.off("error", onError);
+      resolve(server);
+    };
+    server.once("error", onError);
+    server.once("listening", onListening);
   });
+}
+
+export async function startServer({ port = config.port, host = config.host } = {}) {
+  const databaseStatus = await initializeRuntime();
+  const app = createApp();
+  const server = await listen(app, port, host);
+  logger.info(`Party Codex running at http://localhost:${port}`);
+  for (const ip of localIpv4Addresses()) logger.info(`LAN URL: http://${ip}:${port}`);
+  server.on("error", (error) => logger.error("HTTP server error", { error: error.message || String(error) }));
+  return { app, server, databaseStatus };
+}
+
+export function installShutdownHandlers(server) {
+  let shuttingDown = false;
+  for (const signal of ["SIGINT", "SIGTERM"]) {
+    process.once(signal, async () => {
+      if (shuttingDown) return;
+      shuttingDown = true;
+      await closeMongo();
+      server.close(() => process.exit(0));
+    });
+  }
+}
+
+function isDirectRun() {
+  return Boolean(process.argv[1]) && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+}
+
+if (isDirectRun()) {
+  startServer()
+    .then(({ server }) => installShutdownHandlers(server))
+    .catch((error) => {
+      if (error.code === "EADDRINUSE") {
+        logger.error(`Port ${config.port} is already in use. Stop the existing Party Codex server or set PORT to another value.`);
+      } else {
+        logger.error("Party Codex failed to start", { error: error.message || String(error) });
+      }
+      process.exit(1);
+    });
 }

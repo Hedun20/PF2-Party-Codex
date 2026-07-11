@@ -92,7 +92,7 @@ pagesRouter.post("/page", requireGm, async (req, res, next) => {
   try {
     const context = await requestContentContext(req, "gm");
     const page = await createCampaignPage({ ...context, payload: req.body || {} });
-    await logAuditEvent({ req, action: "vault.page.create", entityType: "page", entityId: page.path, metadata: { title: page.title } });
+    await logAuditEvent({ req, action: "campaign.entry.create", entityType: "entry", entityId: page.path, metadata: { title: page.title } });
     res.status(201).json({ page });
   } catch (error) {
     next(error);
@@ -103,7 +103,7 @@ pagesRouter.put("/page", requireGm, async (req, res, next) => {
   try {
     const context = await requestContentContext(req, "gm");
     const page = await saveCampaignPage({ ...context, ...(req.body || {}) });
-    await logAuditEvent({ req, action: "vault.page.update", entityType: "page", entityId: page.path, metadata: { title: page.title } });
+    await logAuditEvent({ req, action: "campaign.entry.update", entityType: "entry", entityId: page.path, metadata: { title: page.title } });
     res.json({ page });
   } catch (error) {
     next(error);
@@ -114,7 +114,7 @@ pagesRouter.put("/page/raw", requireGm, async (req, res, next) => {
   try {
     const context = await requestContentContext(req, "gm");
     const page = await saveCampaignRawPage({ ...context, ...(req.body || {}) });
-    await logAuditEvent({ req, action: "vault.page.raw_update", entityType: "page", entityId: page.path, metadata: { title: page.title } });
+    await logAuditEvent({ req, action: "campaign.entry.markdown_update", entityType: "entry", entityId: page.path, metadata: { title: page.title } });
     res.json({ page });
   } catch (error) {
     next(error);
@@ -127,7 +127,7 @@ pagesRouter.delete("/page", requireGm, async (req, res, next) => {
     const context = await requestContentContext(req, "gm");
     const deleted = await deleteCampaignPage({ ...context, path });
     if (!deleted) return res.status(404).json({ error: "Page not found" });
-    await logAuditEvent({ req, action: "vault.page.delete", entityType: "page", entityId: path });
+    await logAuditEvent({ req, action: "campaign.entry.archive", entityType: "entry", entityId: path });
     res.json({ deleted });
   } catch (error) {
     next(error);
@@ -151,7 +151,7 @@ pagesRouter.post("/markdown/import/commit", requireGm, async (req, res, next) =>
   try {
     const context = await requestContentContext(req, "gm");
     const result = await commitCampaignMarkdownImports({ ...context, ...(req.body || {}) });
-    await logAuditEvent({ req, action: "vault.markdown_import.commit", entityType: "vault", metadata: { written: result?.written?.length || 0 } });
+    await logAuditEvent({ req, action: "campaign.markdown_import.commit", entityType: "importJob", metadata: { written: result?.written?.length || 0 } });
     res.json(result);
   } catch (error) {
     next(error);

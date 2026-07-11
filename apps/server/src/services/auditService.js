@@ -1,15 +1,14 @@
 import fs from "fs/promises";
 import path from "path";
-import { config } from "../config.js";
-import { listPages } from "./vaultService.js";
 
 function hasPage(titleOrPath, pages) {
   const value = String(titleOrPath || "").toLowerCase();
   return pages.some((page) => page.title.toLowerCase() === value || page.path.toLowerCase() === value);
 }
 
-async function imageExists(image, imagesDir = config.imagesDir) {
+async function imageExists(image, imagesDir) {
   if (!image) return true;
+  if (!imagesDir) return false;
   const file = image.replace(/^\/api\/assets\//, "").replace(/^images\//, "");
   try {
     await fs.access(path.join(imagesDir, file));
@@ -19,7 +18,7 @@ async function imageExists(image, imagesDir = config.imagesDir) {
   }
 }
 
-export async function auditPages(pages = [], { imagesDir = config.imagesDir } = {}) {
+export async function auditPages(pages = [], { imagesDir } = {}) {
   const issues = [];
 
   for (const page of pages) {
@@ -57,8 +56,4 @@ export async function auditPages(pages = [], { imagesDir = config.imagesDir } = 
     info: issues.filter((issue) => issue.level === "info").length,
     issues
   };
-}
-
-export async function auditVault(mode = "gm") {
-  return auditPages(listPages(mode), { imagesDir: config.imagesDir });
 }
