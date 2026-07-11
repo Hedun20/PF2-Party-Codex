@@ -114,6 +114,7 @@ async function main() {
           emailVerifyTokenHash: legacy.emailVerifyTokenHash || "",
           emailVerifyTokenExpiresAt: legacy.emailVerifyTokenExpiresAt || "",
           status: legacy.status || "active",
+          sessionVersion: Number(legacy.sessionVersion || 1),
           legacyUserId: legacy.id || "",
           createdAt: legacy.createdAt || stamp,
           updatedAt: legacy.updatedAt || stamp
@@ -142,7 +143,8 @@ async function main() {
         name: defaultWorkspaceName,
         ownerUserId: owner?._id || null,
         status: "active",
-        plan: "local-dev",
+        plan: "development",
+        subscriptionStatus: "active",
         settings: { billingEnabled: false },
         createdAt: stamp,
         updatedAt: stamp

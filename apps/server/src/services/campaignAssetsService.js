@@ -37,6 +37,29 @@ export function referencedCampaignAssetNames(pages = []) {
   return new Set(values.map(normalizeCampaignAssetName).filter(Boolean));
 }
 
+export async function campaignAssetUsageBytes(campaignId) {
+  const directory = campaignAssetDirectory(campaignId);
+  let entries = [];
+  try {
+    entries = await fs.readdir(directory, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  const sizes = await Promise.all(entries.filter((entry) => entry.isFile()).map(async (entry) => {
+    try {
+      return (await fs.stat(path.join(directory, entry.name))).size;
+    } catch {
+      return 0;
+    }
+  }));
+  return sizes.reduce((sum, size) => sum + size, 0);
+}
+
+export async function workspaceAssetUsageBytes(campaignIds = []) {
+  const sizes = await Promise.all(campaignIds.map(campaignAssetUsageBytes));
+  return sizes.reduce((sum, size) => sum + size, 0);
+}
+
 export async function importLegacyAssetsForCampaign({ campaignId, pages = [] } = {}) {
   const targetDir = campaignAssetDirectory(campaignId);
   await fs.mkdir(targetDir, { recursive: true });

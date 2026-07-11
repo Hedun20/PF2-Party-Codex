@@ -68,6 +68,7 @@ export async function sessionInfo(req) {
     access: role,
     host: requestHost(req),
     user: publicUser,
+    platformAccess: publicUser?.platformAccess || { isAdmin: false },
     activeWorkspace: publicUser?.activeWorkspace || null,
     activeCampaign: publicUser?.activeCampaign || null,
     activeMembership: publicUser?.activeMembership || publicUser?.membership || null,

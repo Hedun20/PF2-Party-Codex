@@ -1,10 +1,5 @@
-import crypto from "crypto";
 import { getDb, mongoStatus } from "../db/mongo.js";
 import { logger } from "../utils/logger.js";
-import { readJson, writeJson } from "./jsonDb.js";
-
-const AUDIT_FILE = "audit-log.json";
-const MAX_EVENTS = Number(process.env.AUDIT_MAX_EVENTS || 5000);
 
 function requestIp(req) {
   const forwarded = String(req?.headers?.["x-forwarded-for"] || "").split(",")[0].trim();
@@ -45,14 +40,11 @@ export async function logAuditEvent(input) {
       metadata: input.metadata || {}
     };
 
-    if (mongoStatus().connected) {
-      await getDb().collection("auditLogs").insertOne(event);
+    if (!mongoStatus().connected) {
+      logger.warn("Audit event skipped because MongoDB is unavailable", { action: input.action });
       return;
     }
-
-    const events = await readJson(AUDIT_FILE, []);
-    events.push({ id: crypto.randomUUID(), ...event });
-    await writeJson(AUDIT_FILE, events.slice(-MAX_EVENTS));
+    await getDb().collection("auditLogs").insertOne(event);
   } catch (error) {
     logger.error("Failed to write audit event", { action: input.action, error: error?.message || String(error) });
   }
@@ -68,6 +60,5 @@ export async function listAuditEvents(input = 200) {
     const events = await getDb().collection("auditLogs").find(query).sort({ createdAt: -1 }).limit(safeLimit).toArray();
     return events.map((event) => ({ ...event, id: String(event._id), _id: undefined }));
   }
-  const events = await readJson(AUDIT_FILE, []);
-  return events.filter((event) => !campaignId || String(event.campaignId || "") === String(campaignId)).slice(-safeLimit).reverse();
+  return [];
 }

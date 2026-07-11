@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+apps/web/dist
+data
+vault
+foundry-export
+.env
+.env.*
+*.log
+*-check.png

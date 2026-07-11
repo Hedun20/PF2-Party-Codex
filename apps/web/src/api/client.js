@@ -52,16 +52,35 @@ async function request(path, options = {}) {
   if (!contentType.includes("application/json")) {
     throw new Error("Server is not returning the expected API response. Restart the local app so the new API routes are available.");
   }
-  if (!response.ok) throw new Error((await response.json()).error || "Request failed");
+  if (!response.ok) {
+    const payload = await response.json();
+    const error = new Error(payload.error || "Request failed");
+    error.code = payload.code || "";
+    error.requestId = payload.requestId || response.headers.get("x-request-id") || "";
+    throw error;
+  }
   return response.json();
 }
 
 async function downloadRequest(path) {
-  const response = await fetch(`${API}${path}`, { headers: authHeaders({}) });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(`${API}${path}`, { headers: authHeaders({}), signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("The download timed out. Please retry.");
+    throw new Error("Party Codex could not reach the download service.");
+  } finally {
+    window.clearTimeout(timeout);
+  }
   if (!response.ok) {
     const contentType = response.headers.get("content-type") || "";
-    const message = contentType.includes("application/json") ? (await response.json()).error : "Download failed";
-    throw new Error(message || "Download failed");
+    const payload = contentType.includes("application/json") ? await response.json() : {};
+    const error = new Error(payload.error || "Download failed");
+    error.code = payload.code || "";
+    error.requestId = payload.requestId || response.headers.get("x-request-id") || "";
+    throw error;
   }
   return response.blob();
 }
@@ -92,6 +111,7 @@ export const api = {
   getToken: () => authToken,
   getActiveCampaignId: () => activeCampaignId,
   register: (payload) => request("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
+  resendVerification: (email) => request("/auth/resend-verification", { method: "POST", body: JSON.stringify({ email }) }),
   login: async (payload) => {
     const data = await request("/auth/login", { method: "POST", body: JSON.stringify(payload) });
     setToken(data.token);
@@ -114,6 +134,7 @@ export const api = {
     return data;
   },
   campaigns: () => request("/campaigns"),
+  subscription: () => request("/subscription"),
   createCampaign: async (payload) => {
     const data = await request("/campaigns", { method: "POST", body: JSON.stringify(payload) });
     setActiveCampaignId(data.activeCampaign?.id || data.campaign?.id || "");

@@ -14,6 +14,15 @@ function now() {
   return new Date().toISOString();
 }
 
+function escapeHtml(value = "") {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function idString(value) {
   if (!value) return "";
   if (typeof value === "string") return value;
@@ -123,14 +132,25 @@ export async function createCampaignInvitation({ campaign, workspace, invitedBy,
   const result = await invitations().insertOne(invitation);
   const saved = { ...invitation, _id: result.insertedId };
 
-  await sendEmail({
-    to: email,
-    subject: "Party Codex: приглашение в кампанию",
-    text: `Вас пригласили в кампанию ${campaign.name || "Party Codex"} как игрока. Ссылка для входа: ${inviteUrl}`,
-    html: `<p>Вас пригласили в кампанию <strong>${campaign.name || "Party Codex"}</strong> как <strong>игрока</strong>.</p><p><a href="${inviteUrl}">Принять приглашение</a></p><p>${inviteUrl}</p>`
-  });
+  let emailDelivery;
+  try {
+    emailDelivery = await sendEmail({
+      campaignId: idString(campaignId),
+      createdByUserId: idString(invitedBy),
+      to: email,
+      subject: "Party Codex: приглашение в кампанию",
+      text: `Вас пригласили в кампанию ${campaign.name || "Party Codex"} как игрока. Ссылка для входа: ${inviteUrl}`,
+      html: `<p>Вас пригласили в кампанию <strong>${escapeHtml(campaign.name || "Party Codex")}</strong> как <strong>игрока</strong>.</p><p><a href="${escapeHtml(inviteUrl)}">Принять приглашение</a></p><p>${escapeHtml(inviteUrl)}</p>`
+    });
+  } catch (error) {
+    await invitations().deleteOne({ _id: saved._id });
+    throw error;
+  }
 
-  return publicInvitation(saved, { includeInviteUrl: true, inviteUrl });
+  return {
+    invitation: publicInvitation(saved, { includeInviteUrl: true, inviteUrl }),
+    emailDelivery
+  };
 }
 
 export async function acceptInvitation({ token, user }) {

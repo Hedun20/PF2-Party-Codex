@@ -1,15 +1,16 @@
 import { Router } from "express";
-import { identityContextForCampaign, isMongoIdentityEnabled, listCampaignMemberships } from "../repositories/identityRepository.js";
+import { identityContextForCampaign, isMongoIdentityEnabled, listCampaignMemberships, workspaceUsage } from "../repositories/identityRepository.js";
 import { acceptInvitation, createCampaignInvitation, listInvitationsForCampaign } from "../repositories/invitationsRepository.js";
 import { toPublicUser } from "../services/authStore.js";
 import { logAuditEvent } from "../services/auditLogService.js";
+import { assertPlanCapacity } from "../services/entitlementsService.js";
+import { config } from "../config.js";
 
 export const membershipsRouter = Router();
 export const invitationsRouter = Router();
 
 function publicBase(req) {
-  const configured = String(process.env.PUBLIC_APP_URL || "").replace(/\/$/, "");
-  if (configured) return configured;
+  if (config.publicAppUrl) return config.publicAppUrl;
   const protocol = req.get("x-forwarded-proto") || req.protocol || "http";
   return `${protocol}://${req.get("host")}`;
 }
@@ -75,7 +76,14 @@ invitationsRouter.post("/campaigns/:campaignId/invitations", async (req, res, ne
   try {
     const context = await campaignManagerContext(req);
     const publicUser = await toPublicUser(req.user);
-    const invitation = await createCampaignInvitation({
+    const usage = await workspaceUsage(context.activeWorkspace.id);
+    assertPlanCapacity({
+      workspace: context.activeWorkspace,
+      resource: "memberSeats",
+      current: usage.memberSeats + usage.pendingInvitations,
+      increase: 1
+    });
+    const { invitation, emailDelivery } = await createCampaignInvitation({
       campaign: context.activeCampaign,
       workspace: context.activeWorkspace,
       invitedBy: publicUser?.id || req.user?._id || req.user?.id,
@@ -83,7 +91,13 @@ invitationsRouter.post("/campaigns/:campaignId/invitations", async (req, res, ne
       inviteUrlForToken: (token) => `${publicBase(req)}/invite/${encodeURIComponent(token)}`
     });
     await logAuditEvent({ req, action: "invitations.create", entityType: "invitation", entityId: invitation.id, campaignId: context.activeCampaign.id, metadata: { email: invitation.email, role: invitation.role } });
-    res.status(201).json({ invitation, emailDelivery: "local-outbox" });
+    res.status(201).json({
+      invitation,
+      emailDelivery: {
+        mode: emailDelivery.deliveryMode,
+        status: emailDelivery.status
+      }
+    });
   } catch (error) {
     next(error);
   }

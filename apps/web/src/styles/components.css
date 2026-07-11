@@ -5310,6 +5310,21 @@ textarea { min-height: 96px; resize: vertical; }
   gap: 12px;
 }
 
+.auth-resend-link {
+  justify-self: start;
+  padding: 4px 0;
+  border: 0;
+  color: var(--gold);
+  background: transparent;
+  cursor: pointer;
+}
+
+.auth-resend-link:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .auth-form label {
   display: grid;
   gap: 7px;

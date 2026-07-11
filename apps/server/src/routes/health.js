@@ -2,6 +2,8 @@ import { Router } from "express";
 import { plannedIndexes } from "../db/indexes.js";
 import { mongoStatus } from "../db/mongo.js";
 import { identityCounts } from "../repositories/identityRepository.js";
+import { requirePlatformAdmin } from "../middleware/platformAccess.js";
+import { emailDeliveryReadiness } from "../services/emailService.js";
 
 export const healthRouter = Router();
 
@@ -22,7 +24,8 @@ function dbHealthPayload() {
 
 healthRouter.get("/health", (_req, res) => {
   const db = dbHealthPayload();
-  res.json({ ok: true, ready: db.ok, app: "Party Codex", db });
+  const email = emailDeliveryReadiness();
+  res.json({ ok: true, ready: db.ok && email.ready, app: "Party Codex", db, email });
 });
 
 healthRouter.get("/health/db", (_req, res) => {
@@ -30,7 +33,7 @@ healthRouter.get("/health/db", (_req, res) => {
   res.status(payload.ok ? 200 : 503).json(payload);
 });
 
-healthRouter.get("/health/identity", async (_req, res, next) => {
+healthRouter.get("/health/identity", requirePlatformAdmin, async (_req, res, next) => {
   try {
     const payload = await identityCounts();
     res.status(payload.ok ? 200 : 503).json(payload);

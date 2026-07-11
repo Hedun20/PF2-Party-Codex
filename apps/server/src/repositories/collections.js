@@ -1,6 +1,7 @@
 export const collections = {
   users: "users",
   profiles: "profiles",
+  workspaces: "workspaces",
   campaigns: "campaigns",
   memberships: "memberships",
   entries: "entries",

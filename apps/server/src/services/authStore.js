@@ -7,12 +7,14 @@ import {
   isMongoIdentityEnabled,
   mongoFindUserByEmail,
   mongoFindUserById,
+  mongoFindUserByVerificationTokenHash,
   mongoHasUsers,
   mongoInsertUser,
   mongoListUsers,
   mongoUpdateUser,
   normalizeEmail
 } from "../repositories/identityRepository.js";
+import { platformAccessForUser } from "./platformAccessService.js";
 
 const scrypt = promisify(crypto.scrypt);
 const VERIFY_TTL_MS = Number(process.env.EMAIL_VERIFY_TTL_MS || 1000 * 60 * 60 * 24);
@@ -42,6 +44,7 @@ export async function publicUser(user, { campaignId = "" } = {}) {
     role,
     emailVerified: Boolean(user.emailVerified),
     status: user.status || "active",
+    platformAccess: platformAccessForUser(user),
     activeWorkspace: context.activeWorkspace,
     activeCampaign: context.activeCampaign,
     activeMembership: context.activeMembership || context.membership,
@@ -53,6 +56,15 @@ export async function publicUser(user, { campaignId = "" } = {}) {
 
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function createEmailVerification() {
+  const token = crypto.randomBytes(32).toString("base64url");
+  return {
+    token,
+    tokenHash: hashToken(token),
+    expiresAt: new Date(Date.now() + VERIFY_TTL_MS).toISOString()
+  };
 }
 
 async function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")) {
@@ -69,6 +81,11 @@ function validateNewUser(input, existingUsers = []) {
   }
   if (String(input.password || "").length < 8) {
     const error = new Error("Password must be at least 8 characters.");
+    error.status = 400;
+    throw error;
+  }
+  if (String(input.password || "").length > 256) {
+    const error = new Error("Password is too long.");
     error.status = 400;
     throw error;
   }
@@ -102,30 +119,59 @@ export async function findUserByEmail(email) {
 
 export async function createUser(input) {
   requireMongoIdentity();
-  const verifyToken = crypto.randomBytes(32).toString("base64url");
-  const password = await hashPassword(input.password);
+  const verification = createEmailVerification();
   const now = new Date().toISOString();
   const existing = await mongoFindUserByEmail(input.email);
   const normalizedEmail = validateNewUser(input, existing ? [existing] : []);
-  const user = await mongoInsertUser({
-    email: normalizedEmail,
-    passwordHash: password.hash,
-    passwordSalt: password.salt,
-    name: String(input.name || "").trim() || normalizedEmail.split("@")[0],
-    emailVerified: false,
-    emailVerifiedAt: "",
-    emailVerifyTokenHash: hashToken(verifyToken),
-    emailVerifyTokenExpiresAt: new Date(Date.now() + VERIFY_TTL_MS).toISOString(),
-    status: "active",
-    createdAt: now,
-    updatedAt: now
-  });
+  const password = await hashPassword(input.password);
+  let user;
+  try {
+    user = await mongoInsertUser({
+      email: normalizedEmail,
+      passwordHash: password.hash,
+      passwordSalt: password.salt,
+      name: (String(input.name || "").trim() || normalizedEmail.split("@")[0]).slice(0, 120),
+      emailVerified: false,
+      emailVerifiedAt: "",
+      emailVerifyTokenHash: verification.tokenHash,
+      emailVerifyTokenExpiresAt: verification.expiresAt,
+      status: "active",
+      sessionVersion: 1,
+      createdAt: now,
+      updatedAt: now
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      const conflict = new Error("This email is already registered.");
+      conflict.status = 409;
+      throw conflict;
+    }
+    throw error;
+  }
   await bootstrapMembershipForNewUser(user);
-  return { user: await publicUser(user), verifyToken };
+  return { user: await publicUser(user), verifyToken: verification.token };
+}
+
+export async function renewEmailVerification(user) {
+  requireMongoIdentity();
+  if (!user || user.emailVerified || user.status !== "active") return null;
+  const verification = createEmailVerification();
+  const updated = await mongoUpdateUser(idString(user), {
+    emailVerifyTokenHash: verification.tokenHash,
+    emailVerifyTokenExpiresAt: verification.expiresAt
+  });
+  return { user: updated, verifyToken: verification.token };
+}
+
+export async function revokeUserSessions(user) {
+  requireMongoIdentity();
+  if (!user) return null;
+  return mongoUpdateUser(idString(user), { sessionVersion: Number(user.sessionVersion || 1) + 1 });
 }
 
 export async function verifyPassword(user, password) {
   if (!user?.passwordHash || !user?.passwordSalt) return false;
+  if (String(password || "").length > 256) return false;
   const attempt = await hashPassword(password, user.passwordSalt);
   const left = Buffer.from(attempt.hash, "hex");
   const right = Buffer.from(user.passwordHash, "hex");
@@ -135,8 +181,7 @@ export async function verifyPassword(user, password) {
 export async function verifyEmailToken(token = "") {
   requireMongoIdentity();
   const tokenHash = hashToken(String(token));
-  const users = await mongoListUsers();
-  const user = users.find((item) => item.emailVerifyTokenHash === tokenHash);
+  const user = await mongoFindUserByVerificationTokenHash(tokenHash);
   if (!user) return null;
   if (new Date(user.emailVerifyTokenExpiresAt || 0).getTime() < Date.now()) return null;
   const updated = await mongoUpdateUser(idString(user), {

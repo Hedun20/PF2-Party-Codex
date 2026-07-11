@@ -31,10 +31,16 @@ import { notesRouter } from "../apps/server/src/routes/notes.js";
 import { onboardingRouter } from "../apps/server/src/routes/onboarding.js";
 import { pagesRouter } from "../apps/server/src/routes/pages.js";
 import { pf2Router } from "../apps/server/src/routes/pf2.js";
+import { platformRouter } from "../apps/server/src/routes/platform.js";
 import { revealRouter } from "../apps/server/src/routes/reveal.js";
 import { searchRouter } from "../apps/server/src/routes/search.js";
+import { subscriptionRouter } from "../apps/server/src/routes/subscription.js";
 import { toolsRouter } from "../apps/server/src/routes/tools.js";
 import { worldSystemsRouter } from "../apps/server/src/routes/worldSystems.js";
+import { productionConfigIssues } from "../apps/server/src/config.js";
+import { assertPlanCapacity, normalizeWorkspacePlan } from "../apps/server/src/services/entitlementsService.js";
+import { platformAccessForUser } from "../apps/server/src/services/platformAccessService.js";
+import { createSessionToken, verifySessionToken } from "../apps/server/src/services/authTokens.js";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -227,6 +233,8 @@ const routerMounts = [
   ["/api", "importRouter", "import.js", importRouter],
   ["/api", "pagesRouter", "pages.js", pagesRouter],
   ["/api", "pf2Router", "pf2.js", pf2Router],
+  ["/api", "subscriptionRouter", "subscription.js", subscriptionRouter],
+  ["/api", "platformRouter", "platform.js", platformRouter],
   ["/api", "revealRouter", "reveal.js", revealRouter],
   ["/api", "categoriesRouter", "categories.js", categoriesRouter],
   ["/api", "searchRouter", "search.js", searchRouter],
@@ -266,7 +274,7 @@ test("all backend route modules are mounted and endpoint signatures stay unique"
     .sort();
   const mountedFiles = [...new Set(routerMounts.map(([, , file]) => file))].sort();
   assert.deepEqual(routeFiles, mountedFiles, "Every route module must be mounted exactly through the route table");
-  assert.equal(signatures.length, 92, "Unexpected backend endpoint count");
+  assert.equal(signatures.length, 97, "Unexpected backend endpoint count");
   assert.equal(new Set(signatures).size, signatures.length, "Backend endpoint signatures must be unique");
 });
 
@@ -279,6 +287,45 @@ test("campaign selection prefers the saved active membership and safely falls ba
   assert.equal(chooseActiveMembership(memberships, "campaign-b")?.id, "m2");
   assert.equal(chooseActiveMembership(memberships, "missing")?.id, "m1");
   assert.equal(chooseActiveMembership([memberships[2]], "campaign-c"), null);
+});
+
+test("production configuration, platform access, and entitlement boundaries fail closed", async () => {
+  const productionEnv = {
+    AUTH_SECRET: "a-unique-production-signing-secret-that-is-long-enough",
+    MONGO_URI: "mongodb://database.example/party_codex",
+    PUBLIC_APP_URL: "https://party.example.com",
+    ALLOWED_ORIGINS: "https://party.example.com",
+    EMAIL_MODE: "webhook",
+    EMAIL_WEBHOOK_URL: "https://mail.example.com/party-codex",
+    EMAIL_WEBHOOK_TOKEN: "webhook-token-with-enough-entropy",
+    EMAIL_FROM: "Party Codex <noreply@example.com>",
+    BILLING_MODE: "disabled"
+  };
+  assert.deepEqual(productionConfigIssues(productionEnv), []);
+  assert.ok(productionConfigIssues({}).length >= 5);
+
+  const ownerOnly = { email: "owner@example.com", emailVerified: true, status: "active", role: "owner" };
+  assert.equal(platformAccessForUser(ownerOnly, { adminEmails: [] }).isAdmin, false);
+  assert.equal(platformAccessForUser(ownerOnly, { adminEmails: ["owner@example.com"] }).isAdmin, true);
+  assert.equal(platformAccessForUser({ ...ownerOnly, emailVerified: false }, { adminEmails: ["owner@example.com"] }).isAdmin, false);
+  assert.equal(platformAccessForUser({ ...ownerOnly, platformRoles: ["admin"] }, { adminEmails: [] }).isAdmin, true);
+
+  const sessionToken = createSessionToken({ id: "user-1", sessionVersion: 4, email: "must-not-leak@example.com", role: "owner" });
+  assert.equal(verifySessionToken(sessionToken)?.sv, 4);
+  assert.equal(verifySessionToken(`${sessionToken}.extra`), null);
+  assert.doesNotMatch(Buffer.from(sessionToken.split(".")[0], "base64url").toString("utf8"), /must-not-leak|owner/);
+
+  assert.equal(normalizeWorkspacePlan("local-dev"), "development");
+  assert.doesNotThrow(() => assertPlanCapacity({ workspace: { plan: "free" }, resource: "campaigns", current: 2, increase: 1 }));
+  assert.throws(
+    () => assertPlanCapacity({ workspace: { plan: "free" }, resource: "campaigns", current: 3, increase: 1 }),
+    (error) => error.code === "ENTITLEMENT_LIMIT" && error.status === 409
+  );
+
+  const emailSource = await fs.readFile(path.join(rootDir, "apps/server/src/services/emailService.js"), "utf8");
+  assert.doesNotMatch(emailSource, /readJson|writeJson|mail-outbox\.json/i);
+  assert.match(emailSource, /collections\.emailOutbox/);
+  assert.match(emailSource, /EMAIL_MODE|emailMode/);
 });
 
 test("campaign context is explicit across API requests and multi-campaign creation stays enabled", async () => {
@@ -327,6 +374,9 @@ test("campaign content reads require membership and GM metadata stays restricted
   }
   assert.ok(middlewareNames(toolsRouter, "/metadata").includes("requireGm"), "/metadata must require GM access");
   assert.ok(middlewareNames(toolsRouter, "/assets/list").includes("requireGm"), "/assets/list must require GM access");
+  assert.ok(middlewareNames(subscriptionRouter, "/subscription").includes("requireCampaignMember"), "/subscription must require campaign membership");
+  assert.ok(middlewareNames(platformRouter, "/platform/status").includes("requirePlatformAdmin"), "/platform/status must require platform admin access");
+  assert.ok(middlewareNames(healthRouter, "/health/identity").includes("requirePlatformAdmin"), "/health/identity must require platform admin access");
 });
 
 test("player entry serialization removes GM content, private metadata and hidden map objects", () => {

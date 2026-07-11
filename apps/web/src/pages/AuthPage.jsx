@@ -58,10 +58,24 @@ export default function AuthPage({ onAuth, session }) {
     }
   }
 
+  async function resendVerification() {
+    if (!form.email || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const data = await api.resendVerification(form.email);
+      setMessage(data.message || "If the account is awaiting confirmation, a new email has been queued.");
+    } catch (err) {
+      setError(err.message || "Could not queue a new confirmation email.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const statusText = "Registration creates an account only. Campaign access comes from workspace creation or an invitation.";
 
   return (
-    <main className="auth-page">
+    <section className="auth-page" aria-label="Party Codex account access">
       <section className="auth-panel">
         <div className="auth-brand">
           <Castle size={30} />
@@ -98,9 +112,14 @@ export default function AuthPage({ onAuth, session }) {
           </label>
           <label>
             <span><KeyRound size={16} /> Password</span>
-            <input type="password" value={form.password} onChange={(event) => update("password", event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={8} required />
+            <input type="password" value={form.password} onChange={(event) => update("password", event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={8} maxLength={256} required />
           </label>
           <CodexButton type="submit" disabled={busy}>{busy ? "Working..." : mode === "login" ? "Enter codex" : "Create account"}</CodexButton>
+          {mode === "login" ? (
+            <button type="button" className="auth-resend-link" disabled={busy || !form.email} onClick={resendVerification}>
+              Resend email confirmation
+            </button>
+          ) : null}
         </form>
         <div className="auth-note">
           <ShieldCheck size={18} />
@@ -108,6 +127,6 @@ export default function AuthPage({ onAuth, session }) {
         </div>
         <Link className="auth-player-link" to="/guide">Read how Party Codex works</Link>
       </section>
-    </main>
+    </section>
   );
 }

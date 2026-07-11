@@ -93,6 +93,7 @@ try {
       emailVerifyTokenHash: "",
       emailVerifyTokenExpiresAt: "",
       status: "active",
+      sessionVersion: 1,
       createdAt: stamp,
       updatedAt: stamp
     });
@@ -107,7 +108,8 @@ try {
       name: workspaceName,
       ownerUserId: userId,
       status: "active",
-      plan: "local-dev",
+      plan: "development",
+      subscriptionStatus: "active",
       settings: { billingEnabled: false },
       createdAt: stamp,
       updatedAt: stamp

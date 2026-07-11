@@ -1,5 +1,6 @@
 export const plannedIndexes = [
   { collection: "users", keys: { email: 1 }, options: { unique: true } },
+  { collection: "users", keys: { emailVerifyTokenHash: 1 } },
   { collection: "profiles", keys: { userId: 1 }, options: { unique: true } },
   { collection: "workspaces", keys: { ownerUserId: 1, status: 1 } },
   { collection: "workspaces", keys: { name: 1 } },
@@ -29,7 +30,10 @@ export const plannedIndexes = [
   { collection: "handouts", keys: { campaignId: 1, visibleToUserIds: 1 } },
   { collection: "assets", keys: { campaignId: 1, originalHash: 1 } },
   { collection: "invitations", keys: { tokenHash: 1 }, options: { unique: true } },
+  { collection: "emailOutbox", keys: { status: 1, nextAttemptAt: 1, createdAt: 1 } },
   { collection: "emailOutbox", keys: { campaignId: 1, createdAt: -1 } },
+  { collection: "emailOutbox", keys: { to: 1, createdAt: -1 } },
+  { collection: "emailOutbox", keys: { purgeAt: 1 }, options: { expireAfterSeconds: 0 } },
   { collection: "auditLogs", keys: { campaignId: 1, createdAt: -1 } },
   { collection: "importJobs", keys: { campaignId: 1, type: 1, createdAt: -1 } }
 ];

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { createUser, findUserByEmail, toPublicUser, verifyEmailToken, verifyPassword } from "../services/authStore.js";
+import { config } from "../config.js";
+import { createUser, findUserByEmail, renewEmailVerification, revokeUserSessions, toPublicUser, verifyEmailToken, verifyPassword } from "../services/authStore.js";
 import { createSessionToken } from "../services/authTokens.js";
 import { sendEmail, verifyEmailTemplate } from "../services/emailService.js";
 import { logAuditEvent } from "../services/auditLogService.js";
@@ -15,10 +16,16 @@ const authAttemptLimiter = rateLimit({
 });
 
 function publicBase(req) {
-  const configured = String(process.env.PUBLIC_APP_URL || "").replace(/\/$/, "");
-  if (configured) return configured;
+  if (config.publicAppUrl) return config.publicAppUrl;
   const protocol = req.get("x-forwarded-proto") || req.protocol || "http";
   return `${protocol}://${req.get("host")}`;
+}
+
+async function queueVerificationEmail(req, user, verifyToken) {
+  const verifyUrl = `${publicBase(req)}/api/auth/verify-email?token=${encodeURIComponent(verifyToken)}`;
+  const email = verifyEmailTemplate({ verifyUrl, name: user.name });
+  const delivery = await sendEmail({ to: user.email, subject: "Confirm your Party Codex email", ...email });
+  return { verifyUrl, delivery };
 }
 
 async function tokenResponse(user) {
@@ -30,18 +37,51 @@ async function tokenResponse(user) {
     activeMembership: publicUser?.activeMembership || publicUser?.membership || null,
     membership: publicUser?.membership || publicUser?.activeMembership || null,
     role: publicUser?.role || "player",
-    token: createSessionToken(publicUser)
+    token: createSessionToken({ id: publicUser.id, sessionVersion: user.sessionVersion || 1 })
   };
 }
 
 authRouter.post("/auth/register", authAttemptLimiter, async (req, res, next) => {
   try {
     const created = await createUser(req.body || {});
-    const verifyUrl = `${publicBase(req)}/api/auth/verify-email?token=${encodeURIComponent(created.verifyToken)}`;
-    const email = verifyEmailTemplate({ verifyUrl, name: created.user.name });
-    await sendEmail({ to: created.user.email, subject: "Confirm your Party Codex email", ...email });
+    const { verifyUrl, delivery } = await queueVerificationEmail(req, created.user, created.verifyToken);
     await logAuditEvent({ req, actorUserId: created.user.id, actorEmail: created.user.email, actorRole: created.user.role, campaignId: created.user.activeCampaign?.id, action: "auth.register", entityType: "user", entityId: created.user.id });
-    res.status(201).json({ user: created.user, activeWorkspace: created.user.activeWorkspace || null, activeCampaign: created.user.activeCampaign || null, activeMembership: created.user.activeMembership || created.user.membership || null, membership: created.user.membership || created.user.activeMembership || null, role: created.user.role, verificationSent: true, devVerifyUrl: process.env.NODE_ENV === "production" ? undefined : verifyUrl });
+    res.status(201).json({
+      user: created.user,
+      activeWorkspace: created.user.activeWorkspace || null,
+      activeCampaign: created.user.activeCampaign || null,
+      activeMembership: created.user.activeMembership || created.user.membership || null,
+      membership: created.user.membership || created.user.activeMembership || null,
+      role: created.user.role,
+      verificationQueued: true,
+      verificationSent: delivery.status === "sent",
+      emailDelivery: { mode: delivery.deliveryMode, status: delivery.status },
+      devVerifyUrl: config.isProduction ? undefined : verifyUrl
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.post("/auth/resend-verification", authAttemptLimiter, async (req, res, next) => {
+  try {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const user = email ? await findUserByEmail(email) : null;
+    if (user && !user.emailVerified && user.status === "active") {
+      const renewed = await renewEmailVerification(user);
+      if (renewed) {
+        await queueVerificationEmail(req, renewed.user, renewed.verifyToken);
+        await logAuditEvent({
+          req,
+          actorUserId: String(user._id || user.id || ""),
+          actorEmail: user.email,
+          action: "auth.email.verification.resent",
+          entityType: "user",
+          entityId: String(user._id || user.id || "")
+        });
+      }
+    }
+    res.status(202).json({ ok: true, message: "If an unverified account exists for this email, a new confirmation message has been queued." });
   } catch (error) {
     next(error);
   }
@@ -72,6 +112,7 @@ authRouter.post("/auth/login", authAttemptLimiter, async (req, res, next) => {
 authRouter.post("/auth/logout", async (req, res, next) => {
   try {
     await logAuditEvent({ req, action: "auth.logout", entityType: "user", entityId: String(req.user?._id || req.user?.id || "") });
+    if (req.user) await revokeUserSessions(req.user);
     res.json({ ok: true });
   } catch (error) {
     next(error);

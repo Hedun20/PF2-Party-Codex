@@ -1,9 +1,11 @@
 import cors from "cors";
 import express from "express";
+import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import path from "path";
 import { config } from "./config.js";
 import { attachUser } from "./middleware/auth.js";
+import { createRequestContext } from "./middleware/requestContext.js";
 import { archiveRouter } from "./routes/archive.js";
 import { assetsRouter } from "./routes/assets.js";
 import { authRouter } from "./routes/auth.js";
@@ -19,8 +21,10 @@ import { notesRouter } from "./routes/notes.js";
 import { onboardingRouter } from "./routes/onboarding.js";
 import { pagesRouter } from "./routes/pages.js";
 import { pf2Router } from "./routes/pf2.js";
+import { platformRouter } from "./routes/platform.js";
 import { revealRouter } from "./routes/reveal.js";
 import { searchRouter } from "./routes/search.js";
+import { subscriptionRouter } from "./routes/subscription.js";
 import { toolsRouter } from "./routes/tools.js";
 import { worldSystemsRouter } from "./routes/worldSystems.js";
 import { sessionInfo } from "./services/sessionService.js";
@@ -29,7 +33,8 @@ import { logger } from "./utils/logger.js";
 export function createApp({ appConfig = config, appLogger = logger } = {}) {
   const app = express();
   app.disable("x-powered-by");
-  app.set("trust proxy", 1);
+  app.set("trust proxy", appConfig.trustProxy ?? false);
+  app.use(createRequestContext(appLogger));
   app.use(helmet());
   app.use(cors({
     origin(origin, callback) {
@@ -39,7 +44,20 @@ export function createApp({ appConfig = config, appLogger = logger } = {}) {
       return callback(error);
     }
   }));
-  app.use(express.json({ limit: "6mb" }));
+  app.use("/api", rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: appConfig.apiRateLimit || 600,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler(req, res) {
+      res.status(429).json({ error: "Too many API requests. Please retry later.", code: "RATE_LIMITED", requestId: req.requestId });
+    }
+  }));
+  app.use("/api", (_req, res, next) => {
+    res.set("cache-control", "no-store");
+    next();
+  });
+  app.use(express.json({ limit: appConfig.jsonBodyLimit || "6mb" }));
   app.use(attachUser);
 
   app.get("/api/session", async (req, res, next) => {
@@ -63,6 +81,8 @@ export function createApp({ appConfig = config, appLogger = logger } = {}) {
   app.use("/api", importRouter);
   app.use("/api", pagesRouter);
   app.use("/api", pf2Router);
+  app.use("/api", subscriptionRouter);
+  app.use("/api", platformRouter);
   app.use("/api", revealRouter);
   app.use("/api", categoriesRouter);
   app.use("/api", searchRouter);
@@ -72,20 +92,41 @@ export function createApp({ appConfig = config, appLogger = logger } = {}) {
   app.use("/api/archive", archiveRouter);
   app.use("/api", assetsRouter);
   app.use("/api", (req, res) => {
-    res.status(404).json({ error: `API route not found: ${req.originalUrl}` });
+    res.status(404).json({ error: `API route not found: ${req.path}`, code: "API_ROUTE_NOT_FOUND", requestId: req.requestId });
   });
 
   const webDist = path.join(appConfig.rootDir, "apps", "web", "dist");
-  app.use("/fonts", express.static(path.join(webDist, "fonts"), { fallthrough: false, index: false }));
-  app.use(express.static(webDist));
+  app.use("/fonts", express.static(path.join(webDist, "fonts"), {
+    fallthrough: false,
+    index: false,
+    maxAge: "30d",
+    immutable: true
+  }));
+  app.use(express.static(webDist, {
+    setHeaders(res, filePath) {
+      if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+        res.setHeader("cache-control", "public, max-age=31536000, immutable");
+      } else {
+        res.setHeader("cache-control", "no-cache");
+      }
+    }
+  }));
   app.get("*", (_req, res, next) => {
     res.sendFile(path.join(webDist, "index.html"), (error) => error && next());
   });
 
-  app.use((error, _req, res, _next) => {
-    const status = error.status || 500;
-    appLogger.error("Request failed", { status, error: error.message || String(error) });
-    res.status(status).json({ error: error.message || "Unexpected server error" });
+  app.use((error, req, res, _next) => {
+    const requestedStatus = Number(error.status || error.statusCode || 500);
+    const status = requestedStatus >= 400 && requestedStatus <= 599 ? requestedStatus : 500;
+    const publicMessage = status >= 500 && appConfig.isProduction
+      ? "Unexpected server error"
+      : (error.message || "Unexpected server error");
+    appLogger.error("Request failed", { requestId: req.requestId, status, error: error.message || String(error) });
+    res.status(status).json({
+      error: publicMessage,
+      ...(error.code ? { code: error.code } : {}),
+      requestId: req.requestId
+    });
   });
   return app;
 }

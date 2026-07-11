@@ -34,6 +34,9 @@ async function request(baseUrl, pathname, options = {}) {
   return {
     status: response.status,
     contentType: response.headers.get("content-type") || "",
+    requestId: response.headers.get("x-request-id") || "",
+    cacheControl: response.headers.get("cache-control") || "",
+    contentSecurityPolicy: response.headers.get("content-security-policy") || "",
     body: await response.text()
   };
 }
@@ -73,6 +76,9 @@ test("server starts safely and guest campaign reads stay closed", { timeout: 20_
   const health = await request(baseUrl, "/api/health");
   assert.equal(health.status, 200);
   assert.match(health.contentType, /application\/json/);
+  assert.match(health.requestId, /^[0-9a-f-]{36}$/i);
+  assert.equal(health.cacheControl, "no-store");
+  assert.ok(health.contentSecurityPolicy);
   assert.equal(JSON.parse(health.body).ready, false);
 
   const databaseHealth = await request(baseUrl, "/api/health/db");
@@ -102,7 +108,10 @@ test("server starts safely and guest campaign reads stay closed", { timeout: 20_
     "/api/characters",
     "/api/maps",
     "/api/sessions",
-    "/api/handouts"
+    "/api/handouts",
+    "/api/subscription",
+    "/api/platform/status",
+    "/api/health/identity"
   ]) {
     const response = await request(baseUrl, pathname);
     assert.ok([401, 403].includes(response.status), `${pathname} returned ${response.status}`);

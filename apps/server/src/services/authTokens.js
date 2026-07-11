@@ -15,19 +15,25 @@ function sign(payload) {
 export function createSessionToken(user) {
   const payload = b64url(JSON.stringify({
     sub: user.id,
-    email: user.email,
-    role: user.role,
+    sv: Number(user.sessionVersion || 1),
+    iat: Date.now(),
+    v: 1,
     exp: Date.now() + SESSION_TTL_MS
   }));
   return `${payload}.${sign(payload)}`;
 }
 
 export function verifySessionToken(token = "") {
-  const [payload, signature] = String(token).split(".");
-  if (!payload || !signature || sign(payload) !== signature) return null;
+  const parts = String(token).split(".");
+  if (parts.length !== 2) return null;
+  const [payload, signature] = parts;
+  if (!payload || !signature) return null;
+  const expected = Buffer.from(sign(payload));
+  const received = Buffer.from(signature);
+  if (expected.length !== received.length || !crypto.timingSafeEqual(expected, received)) return null;
   try {
     const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
-    if (!decoded.exp || decoded.exp < Date.now()) return null;
+    if (!decoded.sub || !decoded.exp || decoded.exp < Date.now()) return null;
     return decoded;
   } catch {
     return null;

@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import { getDb, mongoStatus } from "../db/mongo.js";
+import { assertPlanCapacity, normalizeWorkspacePlan } from "../services/entitlementsService.js";
 
 const DEFAULT_CAMPAIGN_NAME = "PF2 Party Codex";
 const DEFAULT_WORKSPACE_NAME = "PF2 Party Codex Workspace";
@@ -79,7 +80,8 @@ export function publicWorkspace(workspace) {
     name: workspace.name,
     ownerUserId: idString(workspace.ownerUserId),
     status: workspace.status || "active",
-    plan: workspace.plan || "local-dev",
+    plan: normalizeWorkspacePlan(workspace.plan),
+    subscriptionStatus: workspace.subscriptionStatus || "active",
     settings: workspace.settings || {},
     createdAt: workspace.createdAt,
     updatedAt: workspace.updatedAt
@@ -134,7 +136,8 @@ export async function ensureDefaultWorkspace(ownerUserId = null) {
     name: DEFAULT_WORKSPACE_NAME,
     ownerUserId: ownerId,
     status: "active",
-    plan: "local-dev",
+    plan: "development",
+    subscriptionStatus: "active",
     settings: {
       billingEnabled: false
     },
@@ -204,6 +207,7 @@ async function backfillWorkspaceIds() {
 export async function ensureIdentityIndexes() {
   if (!isMongoIdentityEnabled()) return [];
   await users().createIndex({ email: 1 }, { unique: true });
+  await users().createIndex({ emailVerifyTokenHash: 1 });
   await workspaces().createIndex({ ownerUserId: 1, status: 1 });
   await workspaces().createIndex({ name: 1 });
   await campaigns().createIndex({ workspaceId: 1, ownerUserId: 1 });
@@ -216,6 +220,7 @@ export async function ensureIdentityIndexes() {
   await backfillWorkspaceIds();
   return [
     "users.email",
+    "users.emailVerifyTokenHash",
     "workspaces.ownerUserId_status",
     "workspaces.name",
     "campaigns.workspaceId_ownerUserId",
@@ -322,7 +327,8 @@ export async function createWorkspaceCampaignForUser({ userId, workspaceId = "",
       name: cleanName(workspaceName, "My Campaign Workspace"),
       ownerUserId: userObjectId,
       status: "active",
-      plan: "local-dev",
+      plan: "free",
+      subscriptionStatus: "active",
       settings: {
         billingEnabled: false,
         gameSystem: cleanName(gameSystem, "system-agnostic")
@@ -334,6 +340,12 @@ export async function createWorkspaceCampaignForUser({ userId, workspaceId = "",
     savedWorkspace = { ...workspace, _id: workspaceResult.insertedId };
     workspaceCreated = true;
   }
+
+  const campaignCount = await campaigns().countDocuments({
+    workspaceId: savedWorkspace._id,
+    status: { $ne: "archived" }
+  });
+  assertPlanCapacity({ workspace: savedWorkspace, resource: "campaigns", current: campaignCount, increase: 1 });
 
   const campaign = {
     workspaceId: savedWorkspace._id,
@@ -571,6 +583,28 @@ export async function identityCounts() {
   };
 }
 
+export async function workspaceUsage(workspaceId) {
+  if (!isMongoIdentityEnabled() || !workspaceId) {
+    return { campaigns: 0, memberSeats: 0, pendingInvitations: 0 };
+  }
+  const id = workspaceKey(workspaceId);
+  const [campaignDocs, memberUserIds, pendingInvitations] = await Promise.all([
+    campaigns().find({ workspaceId: id, status: { $ne: "archived" } }, { projection: { _id: 1 } }).toArray(),
+    memberships().distinct("userId", { workspaceId: id, status: "active" }),
+    getDb().collection("invitations").countDocuments({
+      workspaceId: id,
+      status: "pending",
+      expiresAt: { $gte: now() }
+    })
+  ]);
+  return {
+    campaigns: campaignDocs.length,
+    campaignIds: campaignDocs.map((campaign) => idString(campaign._id)),
+    memberSeats: memberUserIds.length,
+    pendingInvitations
+  };
+}
+
 export async function mongoListUsers() {
   return users().find({}).sort({ createdAt: 1 }).toArray();
 }
@@ -581,6 +615,10 @@ export async function mongoHasUsers() {
 
 export async function mongoFindUserByEmail(email) {
   return users().findOne({ email: normalizeEmail(email) });
+}
+
+export async function mongoFindUserByVerificationTokenHash(tokenHash) {
+  return users().findOne({ emailVerifyTokenHash: String(tokenHash || "") });
 }
 
 export async function mongoFindUserById(id) {

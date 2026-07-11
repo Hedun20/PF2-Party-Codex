@@ -9,7 +9,9 @@ export async function attachUser(req, _res, next) {
     const token = verifySessionToken(match[1]);
     if (!token?.sub) return next();
     const user = await findUserById(token.sub);
-    if (user?.status === "active") req.user = user;
+    const currentSessionVersion = Number(user?.sessionVersion || 1);
+    const tokenSessionVersion = Number(token.sv || 1);
+    if (user?.status === "active" && currentSessionVersion === tokenSessionVersion) req.user = user;
     next();
   } catch (error) {
     next(error);

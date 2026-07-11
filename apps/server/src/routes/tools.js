@@ -8,11 +8,13 @@ import {
   campaignPlayerSafetyReview,
   listCampaignPages
 } from "../services/campaignContentService.js";
-import { campaignAssetDirectory, referencedCampaignAssetNames } from "../services/campaignAssetsService.js";
+import { campaignAssetDirectory, referencedCampaignAssetNames, workspaceAssetUsageBytes } from "../services/campaignAssetsService.js";
 import { slugify } from "../utils/slugify.js";
 import { requireGm } from "../services/sessionService.js";
 import { repairUploadedFilename } from "../utils/encoding.js";
 import { logAuditEvent, listAuditEvents } from "../services/auditLogService.js";
+import { workspaceUsage } from "../repositories/identityRepository.js";
+import { assertPlanCapacity } from "../services/entitlementsService.js";
 
 const allowedExt = [".png", ".jpg", ".jpeg", ".webp"];
 
@@ -94,6 +96,10 @@ toolsRouter.get("/audit-log", requireGm, async (req, res, next) => {
 toolsRouter.post("/assets/upload", requireGm, upload.single("file"), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No map file received." });
+    const workspace = req.campaignIdentity.workspace;
+    const usage = await workspaceUsage(workspace.id);
+    const assetBytes = await workspaceAssetUsageBytes(usage.campaignIds);
+    assertPlanCapacity({ workspace, resource: "assetBytes", current: assetBytes, increase: req.file.size });
     const assetDir = campaignAssetDirectory(contentContext(req).campaignId);
     await fs.mkdir(assetDir, { recursive: true });
 
@@ -113,16 +119,16 @@ toolsRouter.post("/assets/upload", requireGm, upload.single("file"), async (req,
     let copy = 2;
     while (true) {
       try {
-        await fs.access(target);
+        await fs.writeFile(target, req.file.buffer, { flag: "wx" });
+        break;
+      } catch (error) {
+        if (error?.code !== "EEXIST") throw error;
         fileName = `${base}-${copy}${ext}`;
         target = path.join(assetDir, fileName);
         copy += 1;
-      } catch {
-        break;
       }
     }
 
-    await fs.writeFile(target, req.file.buffer);
     await logAuditEvent({ req, action: "campaign.asset.upload", entityType: "asset", entityId: fileName, metadata: { size: req.file.size } });
     res.status(201).json({ fileName, path: fileName, url: `/api/assets/${fileName}` });
   } catch (error) {
