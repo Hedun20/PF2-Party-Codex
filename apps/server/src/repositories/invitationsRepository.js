@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { getDb, mongoStatus } from "../db/mongo.js";
 import { sendEmail } from "../services/emailService.js";
-import { activateMembershipForInvitation, mongoFindUserById, normalizeEmail, objectIdFrom, publicMembership } from "./identityRepository.js";
+import { activateMembershipForInvitation, mongoFindUserById, normalizeEmail, objectIdFrom, publicMembership, setActiveCampaignForUser } from "./identityRepository.js";
 
 const INVITE_TTL_MS = Number(process.env.INVITATION_TTL_MS || 1000 * 60 * 60 * 24 * 7);
 const INVITE_ROLE = "player";
@@ -177,6 +177,7 @@ export async function acceptInvitation({ token, user }) {
     role: INVITE_ROLE,
     displayName: fullUser.name || fullUser.email || "Campaign member"
   });
+  await setActiveCampaignForUser({ user: fullUser, campaignId: idString(invitation.campaignId) });
 
   const stamp = now();
   await invitations().updateOne(

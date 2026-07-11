@@ -83,7 +83,14 @@ test("server starts safely and guest campaign reads stay closed", { timeout: 20_
     "/api/reveal",
     "/api/assets/list",
     "/api/assets/missing.png",
-    "/api/metadata"
+    "/api/metadata",
+    "/api/campaigns",
+    "/api/entries",
+    "/api/notes",
+    "/api/characters",
+    "/api/maps",
+    "/api/sessions",
+    "/api/handouts"
   ]) {
     const response = await request(baseUrl, pathname);
     assert.ok([401, 403].includes(response.status), `${pathname} returned ${response.status}`);

@@ -137,10 +137,12 @@ export async function listCharactersForUser({ campaignId, userId, role = "player
   return result.map((character) => serializeCharacter(character, { userId, role }));
 }
 
-export async function findCharacterById(id) {
+export async function findCharacterById(id, { campaignId = "" } = {}) {
   const objectId = objectIdFrom(id);
   if (!objectId) return null;
-  return characters().findOne({ _id: objectId });
+  const query = { _id: objectId };
+  if (campaignId) query.campaignId = objectIdFrom(campaignId) || campaignId;
+  return characters().findOne(query);
 }
 
 export function canReadCharacter(character, { userId, role = "player" }) {
@@ -219,17 +221,17 @@ function normalizePatch(input = {}, existing = {}) {
   return patch;
 }
 
-export async function updateCharacter({ id, input, userId = "", role = "player" }) {
-  const existing = await findCharacterById(id);
+export async function updateCharacter({ campaignId, id, input, userId = "", role = "player" }) {
+  const existing = await findCharacterById(id, { campaignId });
   if (!existing) return null;
   const patch = normalizePatch(input, existing);
-  await characters().updateOne({ _id: existing._id }, { $set: patch });
+  await characters().updateOne({ _id: existing._id, campaignId: objectIdFrom(campaignId) || campaignId }, { $set: patch });
   return serializeCharacter({ ...existing, ...patch }, { userId, role });
 }
 
-export async function deleteCharacter(id) {
+export async function deleteCharacter(id, { campaignId = "" } = {}) {
   const objectId = objectIdFrom(id);
   if (!objectId) return false;
-  const result = await characters().deleteOne({ _id: objectId });
+  const result = await characters().deleteOne({ _id: objectId, campaignId: objectIdFrom(campaignId) || campaignId });
   return result.deletedCount > 0;
 }

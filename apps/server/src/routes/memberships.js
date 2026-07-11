@@ -94,8 +94,8 @@ invitationsRouter.post("/invitations/accept", async (req, res, next) => {
     requireMongoIdentity();
     requireUser(req);
     const accepted = await acceptInvitation({ token: req.body?.token || req.query?.token || "", user: req.user });
-    const user = await toPublicUser(req.user);
     const campaignContext = await identityContextForCampaign(req.user, accepted.invitation.campaignId);
+    const user = await toPublicUser(req.user, { campaignId: accepted.invitation.campaignId });
     await logAuditEvent({ req, action: "invitations.accept", entityType: "invitation", entityId: accepted.invitation.id, campaignId: accepted.invitation.campaignId, metadata: { role: accepted.invitation.role } });
     res.json({ ok: true, ...accepted, user, activeWorkspace: campaignContext.activeWorkspace || null, activeCampaign: campaignContext.activeCampaign || null, activeMembership: campaignContext.activeMembership || accepted.membership || null, role: campaignContext.role || accepted.membership?.role || "player" });
   } catch (error) {

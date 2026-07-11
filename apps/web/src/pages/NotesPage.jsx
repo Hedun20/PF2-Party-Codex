@@ -154,8 +154,8 @@ export default function NotesPage({ pages = [] }) {
         <p>Личный блокнот кампании: заметки можно создавать, открывать по ссылке, редактировать, привязывать к статье и удалять.</p>
       </header>
 
-      <div className={`status-message ${storageMode === "mongo" ? "success-message" : "warning-message"}`}>
-        <span>{storageMode === "mongo" ? "Mongo workspace" : "Browser fallback"}{busy ? " · loading..." : ""}</span>
+      <div className={`status-message ${error ? "warning-message" : "success-message"}`}>
+        <span>{storageMode === "mongo" ? "Campaign workspace" : "Campaign storage unavailable"}{busy ? " · loading..." : ""}</span>
         {error ? <small>{error}</small> : null}
       </div>
       {message ? <div className="status-message success-message"><span>{message}</span></div> : null}

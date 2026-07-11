@@ -93,6 +93,71 @@ export function publicEntry(entry) {
   };
 }
 
+function playerVisibleObject(item = {}) {
+  return ["public", "revealed"].includes(String(item.visibility || "public")) && item.type !== "secret";
+}
+
+function playerSafeObjects(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter(playerVisibleObject).map((item) => {
+    const {
+      gmNotes: _gmNotes,
+      gmSecrets: _gmSecrets,
+      gmContent: _gmContent,
+      secret: _secret,
+      secrets: _secrets,
+      privateNotes: _privateNotes,
+      ...safe
+    } = item || {};
+    return safe;
+  });
+}
+
+function playerSafeMetadata(metadata = {}) {
+  const frontmatter = metadata.frontmatter || {};
+  const pins = playerSafeObjects(frontmatter.pins || metadata.pins);
+  const mapObjects = playerSafeObjects(frontmatter.mapObjects || metadata.mapObjects);
+  const safeFrontmatter = {
+    title: frontmatter.title,
+    name: frontmatter.name,
+    type: frontmatter.type,
+    category: frontmatter.category,
+    summary: frontmatter.summary,
+    visibility: frontmatter.visibility,
+    tags: frontmatter.tags,
+    aliases: frontmatter.aliases,
+    related: frontmatter.related,
+    world: frontmatter.world,
+    country: frontmatter.country,
+    city: frontmatter.city,
+    parent: frontmatter.parent,
+    mapImage: frontmatter.mapImage,
+    avatarImage: frontmatter.avatarImage,
+    tokenImage: frontmatter.tokenImage,
+    handoutImage: frontmatter.handoutImage,
+    image: frontmatter.image,
+    pins,
+    mapObjects
+  };
+  return {
+    sourceCategory: metadata.sourceCategory,
+    originalType: metadata.originalType,
+    related: metadata.related,
+    world: metadata.world,
+    country: metadata.country,
+    city: metadata.city,
+    parent: metadata.parent,
+    mapImage: metadata.mapImage,
+    avatarImage: metadata.avatarImage,
+    tokenImage: metadata.tokenImage,
+    handoutImage: metadata.handoutImage,
+    image: metadata.image,
+    pins,
+    mapObjects,
+    frontmatter: safeFrontmatter
+  };
+}
+
 export function publicRelation(relation) {
   if (!relation) return null;
   return {
@@ -113,28 +178,25 @@ export function publicRelation(relation) {
 export function playerSafeEntry(entry) {
   const item = publicEntry(entry);
   if (!item) return null;
-  if (["gmOnly", "hidden", "needsReview"].includes(item.visibility) || item.status === "draft") return null;
+  if (["gmOnly", "hidden", "needsReview"].includes(item.visibility) || ["draft", "archived"].includes(item.status)) return null;
   return {
     ...item,
     gmContent: "",
-    metadata: {
-      ...item.metadata,
-      gmNotes: undefined,
-      gmSecrets: undefined,
-      secret: undefined,
-      secrets: undefined
-    }
+    metadata: playerSafeMetadata(item.metadata),
+    source: undefined,
+    createdBy: undefined,
+    updatedBy: undefined
   };
 }
 
 export async function listEntries({ campaignId, role = "player", type = "", search = "", limit = 200 } = {}) {
   if (!isMongoEntriesEnabled()) return [];
   const campaignObjectId = objectIdFrom(campaignId) || campaignId;
-  const query = { campaignId: campaignObjectId };
+  const query = { campaignId: campaignObjectId, status: { $ne: "archived" } };
   if (type) query.type = type;
   if (!["owner", "gm"].includes(role)) {
     query.visibility = { $in: ["public", "revealed"] };
-    query.status = { $ne: "draft" };
+    query.status = { $nin: ["draft", "archived"] };
   }
   if (search) {
     query.$or = [
@@ -152,7 +214,7 @@ export async function findEntryById({ campaignId, id, role = "player" }) {
   const objectId = objectIdFrom(id);
   if (!objectId) return null;
   const campaignObjectId = objectIdFrom(campaignId) || campaignId;
-  const entry = await entries().findOne({ _id: objectId, campaignId: campaignObjectId });
+  const entry = await entries().findOne({ _id: objectId, campaignId: campaignObjectId, status: { $ne: "archived" } });
   if (!entry) return null;
   return ["owner", "gm"].includes(role) ? publicEntry(entry) : playerSafeEntry(entry);
 }
@@ -160,9 +222,77 @@ export async function findEntryById({ campaignId, id, role = "player" }) {
 export async function findEntryByPath({ campaignId, path, role = "player" }) {
   if (!isMongoEntriesEnabled()) return null;
   const campaignObjectId = objectIdFrom(campaignId) || campaignId;
-  const entry = await entries().findOne({ campaignId: campaignObjectId, path: String(path || "") });
+  const entry = await entries().findOne({ campaignId: campaignObjectId, path: String(path || ""), status: { $ne: "archived" } });
   if (!entry) return null;
   return ["owner", "gm"].includes(role) ? publicEntry(entry) : playerSafeEntry(entry);
+}
+
+export async function findRawEntryByPath({ campaignId, path } = {}) {
+  if (!isMongoEntriesEnabled()) return null;
+  const campaignObjectId = objectIdFrom(campaignId) || campaignId;
+  return entries().findOne({ campaignId: campaignObjectId, path: String(path || ""), status: { $ne: "archived" } });
+}
+
+export async function saveEntryByPath({ campaignId, requestedPath, document, userId = null, createOnly = false } = {}) {
+  if (!isMongoEntriesEnabled()) {
+    const error = new Error("Mongo entries storage is not connected.");
+    error.status = 503;
+    throw error;
+  }
+  const campaignObjectId = objectIdFrom(campaignId) || campaignId;
+  const path = String(requestedPath || document?.path || "").trim();
+  const existing = await entries().findOne({ campaignId: campaignObjectId, path, status: { $ne: "archived" } });
+  if (existing && createOnly) {
+    const error = new Error("An entry with this path already exists in the campaign.");
+    error.status = 409;
+    throw error;
+  }
+
+  const stamp = now();
+  const actorId = objectIdFrom(userId) || userId || null;
+  const next = {
+    ...document,
+    campaignId: campaignObjectId,
+    path,
+    worldId: objectIdFrom(document?.worldId) || document?.worldId || null,
+    updatedBy: actorId,
+    updatedAt: stamp
+  };
+  if (existing) {
+    await entries().updateOne(
+      { _id: existing._id, campaignId: campaignObjectId },
+      { $set: next }
+    );
+    return { entry: await entries().findOne({ _id: existing._id, campaignId: campaignObjectId }), created: false };
+  }
+
+  const created = {
+    ...next,
+    createdBy: actorId,
+    createdAt: stamp
+  };
+  const result = await entries().insertOne(created);
+  return { entry: { ...created, _id: result.insertedId }, created: true };
+}
+
+export async function archiveEntryByPath({ campaignId, path, userId = null } = {}) {
+  if (!isMongoEntriesEnabled()) return null;
+  const campaignObjectId = objectIdFrom(campaignId) || campaignId;
+  const existing = await entries().findOne({ campaignId: campaignObjectId, path: String(path || ""), status: { $ne: "archived" } });
+  if (!existing) return null;
+  const stamp = now();
+  const trashPath = `_trash/${stamp.replace(/[-:.]/g, "")}/${existing.path}`;
+  await entries().updateOne(
+    { _id: existing._id, campaignId: campaignObjectId },
+    { $set: { status: "archived", archivedAt: stamp, archivedBy: objectIdFrom(userId) || userId || null, trashPath, updatedAt: stamp } }
+  );
+  return {
+    title: existing.title,
+    originalPath: existing.path,
+    trashPath,
+    backlinkCount: 0,
+    backlinks: []
+  };
 }
 
 export async function countEntriesByCampaign(campaignId) {
@@ -222,17 +352,21 @@ export async function createImportJob(job) {
   return { ...document, _id: result.insertedId };
 }
 
-export async function updateImportJob(id, patch) {
+export async function updateImportJob(id, patch, { campaignId = "" } = {}) {
   const objectId = objectIdFrom(id);
   if (!objectId) return null;
-  await importJobs().updateOne({ _id: objectId }, { $set: { ...patch, updatedAt: now() } });
-  return importJobs().findOne({ _id: objectId });
+  const query = { _id: objectId };
+  if (campaignId) query.campaignId = objectIdFrom(campaignId) || campaignId;
+  await importJobs().updateOne(query, { $set: { ...patch, updatedAt: now() } });
+  return importJobs().findOne(query);
 }
 
-export async function findImportJob(id) {
+export async function findImportJob(id, { campaignId = "" } = {}) {
   const objectId = objectIdFrom(id);
   if (!objectId) return null;
-  return importJobs().findOne({ _id: objectId });
+  const query = { _id: objectId };
+  if (campaignId) query.campaignId = objectIdFrom(campaignId) || campaignId;
+  return importJobs().findOne(query);
 }
 
 export async function listImportJobs({ campaignId, limit = 20 } = {}) {
@@ -241,15 +375,15 @@ export async function listImportJobs({ campaignId, limit = 20 } = {}) {
   return importJobs().find({ campaignId: campaignObjectId }).sort({ createdAt: -1 }).limit(Math.min(Number(limit) || 20, 100)).toArray();
 }
 
-export async function rollbackImportJob(importJobId) {
-  const job = await findImportJob(importJobId);
+export async function rollbackImportJob(importJobId, { campaignId = "" } = {}) {
+  const job = await findImportJob(importJobId, { campaignId });
   if (!job) return null;
-  const campaignId = job.campaignId;
-  const sourceFilter = { campaignId, "source.importJobId": idString(job._id) };
+  const jobCampaignId = job.campaignId;
+  const sourceFilter = { campaignId: jobCampaignId, "source.importJobId": idString(job._id) };
   const [entryResult, relationResult, mapObjectResult, mapResult] = await Promise.all([
     entries().deleteMany(sourceFilter),
-    relations().deleteMany({ campaignId, "source.importJobId": idString(job._id) }),
-    mapObjects().deleteMany({ campaignId, "source.importJobId": idString(job._id) }),
+    relations().deleteMany({ campaignId: jobCampaignId, "source.importJobId": idString(job._id) }),
+    mapObjects().deleteMany({ campaignId: jobCampaignId, "source.importJobId": idString(job._id) }),
     maps().deleteMany(sourceFilter)
   ]);
   const updated = await updateImportJob(idString(job._id), {
@@ -261,6 +395,6 @@ export async function rollbackImportJob(importJobId) {
       mapObjectsDeleted: mapObjectResult.deletedCount || 0,
       mapsDeleted: mapResult.deletedCount || 0
     }
-  });
+  }, { campaignId: idString(jobCampaignId) });
   return updated;
 }

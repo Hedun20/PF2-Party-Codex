@@ -1,14 +1,17 @@
 const API = "/api";
 const TOKEN_KEY = "pf2-auth-token";
+const CAMPAIGN_KEY = "party-codex-active-campaign";
 
 let authToken = localStorage.getItem(TOKEN_KEY) || "";
+let activeCampaignId = localStorage.getItem(CAMPAIGN_KEY) || "";
 
 function authHeaders(options = {}) {
-  if (options.body instanceof FormData) return authToken ? { Authorization: `Bearer ${authToken}` } : undefined;
-  return {
-    "Content-Type": "application/json",
-    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+  const headers = {
+    ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    ...(activeCampaignId ? { "X-Campaign-Id": activeCampaignId } : {})
   };
+  return Object.keys(headers).length ? headers : undefined;
 }
 
 async function request(path, options = {}) {
@@ -22,6 +25,16 @@ async function request(path, options = {}) {
   }
   if (!response.ok) throw new Error((await response.json()).error || "Request failed");
   return response.json();
+}
+
+async function downloadRequest(path) {
+  const response = await fetch(`${API}${path}`, { headers: authHeaders({}) });
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type") || "";
+    const message = contentType.includes("application/json") ? (await response.json()).error : "Download failed";
+    throw new Error(message || "Download failed");
+  }
+  return response.blob();
 }
 
 
@@ -40,13 +53,22 @@ function setToken(token = "") {
   else localStorage.removeItem(TOKEN_KEY);
 }
 
+function setActiveCampaignId(campaignId = "") {
+  activeCampaignId = String(campaignId || "");
+  if (activeCampaignId) localStorage.setItem(CAMPAIGN_KEY, activeCampaignId);
+  else localStorage.removeItem(CAMPAIGN_KEY);
+}
+
 export const api = {
   setToken,
+  setActiveCampaignId,
   getToken: () => authToken,
+  getActiveCampaignId: () => activeCampaignId,
   register: (payload) => request("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
   login: async (payload) => {
     const data = await request("/auth/login", { method: "POST", body: JSON.stringify(payload) });
     setToken(data.token);
+    setActiveCampaignId(data.activeCampaign?.id || "");
     return data;
   },
   logout: async () => {
@@ -54,11 +76,27 @@ export const api = {
       await request("/auth/logout", { method: "POST", body: JSON.stringify({}) });
     } finally {
       setToken("");
+      setActiveCampaignId("");
     }
   },
   me: () => request("/auth/me"),
   session: () => request("/session"),
-  createWorkspaceOnboarding: (payload) => request("/onboarding/workspace", { method: "POST", body: JSON.stringify(payload) }),
+  createWorkspaceOnboarding: async (payload) => {
+    const data = await request("/onboarding/workspace", { method: "POST", body: JSON.stringify(payload) });
+    setActiveCampaignId(data.activeCampaign?.id || data.campaign?.id || "");
+    return data;
+  },
+  campaigns: () => request("/campaigns"),
+  createCampaign: async (payload) => {
+    const data = await request("/campaigns", { method: "POST", body: JSON.stringify(payload) });
+    setActiveCampaignId(data.activeCampaign?.id || data.campaign?.id || "");
+    return data;
+  },
+  activateCampaign: async (campaignId) => {
+    const data = await request(`/campaigns/${encodeURIComponent(campaignId)}/activate`, { method: "POST", body: JSON.stringify({}) });
+    setActiveCampaignId(data.activeCampaign?.id || campaignId);
+    return data;
+  },
   pages: (mode) => request(`/pages?mode=${mode}`),
   missingLinks: (mode) => request(`/missing-links?mode=${mode}`),
   page: (path, mode) => request(`/page?path=${encodeURIComponent(path)}&mode=${mode}`),
@@ -85,7 +123,11 @@ export const api = {
   campaignMemberships: (campaignId) => request(`/campaigns/${encodeURIComponent(campaignId)}/memberships`),
   campaignInvitations: (campaignId, params = {}) => request(`/campaigns/${encodeURIComponent(campaignId)}/invitations${queryString(params)}`),
   createCampaignInvitation: (campaignId, payload) => request(`/campaigns/${encodeURIComponent(campaignId)}/invitations`, { method: "POST", body: JSON.stringify(payload) }),
-  acceptInvitation: (token) => request("/invitations/accept", { method: "POST", body: JSON.stringify({ token }) }),
+  acceptInvitation: async (token) => {
+    const data = await request("/invitations/accept", { method: "POST", body: JSON.stringify({ token }) });
+    setActiveCampaignId(data.activeCampaign?.id || data.invitation?.campaignId || "");
+    return data;
+  },
 
   maps: (params = {}) => request(`/maps${queryString(params)}`),
   map: (id, params = {}) => request(`/maps/${encodeURIComponent(id)}${queryString(params)}`),
@@ -130,5 +172,6 @@ export const api = {
     form.append("conflictMode", conflictMode);
     return request("/foundry/import", { method: "POST", body: form });
   },
-  foundryExport: (payload) => request("/foundry/export", { method: "POST", body: JSON.stringify(payload) })
+  foundryExport: (payload) => request("/foundry/export", { method: "POST", body: JSON.stringify(payload) }),
+  foundryExportDownload: () => downloadRequest("/foundry/export/download")
 };

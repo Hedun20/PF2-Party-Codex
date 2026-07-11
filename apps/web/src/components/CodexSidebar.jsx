@@ -10,6 +10,7 @@ import {
   Globe2,
   Hammer,
   Home,
+  Layers3,
   Map,
   MapPinned,
   NotebookPen,
@@ -99,6 +100,7 @@ function ManagementTools({ activeWorld, onClose, canEdit }) {
   if (!canEdit) {
     return (
       <NavGroup title="Профиль">
+        <NavItem to="/campaigns" icon={Layers3} label="Campaigns" onClose={onClose} />
         <NavItem to="/profile" icon={UserRound} label="Profile" onClose={onClose} />
         <NavItem to="/settings" icon={Settings} label="Settings" onClose={onClose} />
         <NavItem to="/guide" icon={BookOpen} label="Guide" onClose={onClose} />
@@ -109,6 +111,7 @@ function ManagementTools({ activeWorld, onClose, canEdit }) {
   return (
     <>
       <NavGroup title="Управление кампанией" hint="Campaign-wide by default">
+        <NavItem to="/campaigns" icon={Layers3} label="Campaigns" onClose={onClose} />
         <NavItem to="/my" icon={UserRound} label="My Workspace" onClose={onClose} />
         <NavItem to="/players" icon={UsersRound} label="Players & Invitations" onClose={onClose} />
         <NavItem to="/settings" icon={Settings} label="Campaign Settings" onClose={onClose} />
@@ -208,7 +211,7 @@ export default function CodexSidebar({ onClose, canEdit = false, activeWorld = n
         ) : showOnboardingNav ? (
           <>
             <NavGroup title="Account setup">
-              <NavItem to="/" icon={Sparkles} label="Start or join campaign" onClose={onClose} />
+              <NavItem to="/campaigns" icon={Sparkles} label="Start or join campaign" onClose={onClose} />
               <NavItem to="/profile" icon={UserRound} label="Profile" onClose={onClose} />
             </NavGroup>
             <NavGroup title="Help">

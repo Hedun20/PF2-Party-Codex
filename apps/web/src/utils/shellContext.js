@@ -28,6 +28,7 @@ export const SHELL_MODES = {
 };
 
 export const MANAGEMENT_PATHS = [
+  "/campaigns",
   "/my",
   "/players",
   "/profile",

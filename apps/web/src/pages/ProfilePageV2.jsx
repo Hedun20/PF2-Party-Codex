@@ -13,7 +13,7 @@ function displayName(user = {}) {
   return user.displayName || user.name || user.email || "Пользователь";
 }
 
-export default function ProfilePageV2({ session, onOnboardingCreated }) {
+export default function ProfilePageV2({ session, campaigns = [], onCampaignChange, campaignSwitching = false, onOnboardingCreated }) {
   const user = session?.user || {};
   const membership = session?.activeMembership || {};
   const campaign = session?.activeCampaign || {};
@@ -21,7 +21,7 @@ export default function ProfilePageV2({ session, onOnboardingCreated }) {
   const hasCampaign = Boolean(membership?.id);
 
   if (user?.id && !hasCampaign) {
-    return <OnboardingPage session={session} onCreated={onOnboardingCreated} />;
+    return <OnboardingPage session={session} campaigns={campaigns} onCampaignChange={onCampaignChange} campaignSwitching={campaignSwitching} onCreated={onOnboardingCreated} />;
   }
 
   return (
@@ -59,6 +59,7 @@ export default function ProfilePageV2({ session, onOnboardingCreated }) {
       <section className="codex-card workspace-status-card">
         <span className="kicker">Быстрые действия</span>
         <div className="workspace-stats-row">
+          <Link className="codex-button codex-button--primary codex-button--sm" to="/campaigns">Кампании ({campaigns.length || 1})</Link>
           <Link className="codex-button codex-button--secondary codex-button--sm" to="/my">Открыть workspace</Link>
           <Link className="codex-button codex-button--ghost codex-button--sm" to="/settings">Настройки</Link>
           <Link className="codex-button codex-button--ghost codex-button--sm" to="/archive">Архив кампании</Link>

@@ -1,16 +1,13 @@
 import { Router } from "express";
-import { config } from "../config.js";
 import { requireCampaignMember, resolveRequestMode } from "../services/sessionService.js";
-import { listPages } from "../services/vaultService.js";
+import { listCampaignPages } from "../services/campaignContentService.js";
+import { campaignAssetDirectory, normalizeCampaignAssetName, referencedCampaignAssetNames } from "../services/campaignAssetsService.js";
 import { resolveInside } from "../utils/safePath.js";
 
 export const assetsRouter = Router();
 
 function normalizeAssetName(value = "") {
-  return decodeURIComponent(String(value || ""))
-    .replace(/^\/api\/assets\//, "")
-    .replace(/^images\//, "")
-    .replace(/^[\\/]+/, "");
+  return normalizeCampaignAssetName(value);
 }
 
 function assetNamesFromPage(page = {}) {
@@ -28,8 +25,8 @@ function assetNamesFromPage(page = {}) {
   ].filter(Boolean).map(normalizeAssetName);
 }
 
-function playerVisibleAssetNames() {
-  return new Set(listPages("player").flatMap(assetNamesFromPage));
+function playerVisibleAssetNames(pages = []) {
+  return new Set([...referencedCampaignAssetNames(pages), ...pages.flatMap(assetNamesFromPage)]);
 }
 
 assetsRouter.get("/assets/:file(*)", requireCampaignMember, async (req, res, next) => {
@@ -37,10 +34,13 @@ assetsRouter.get("/assets/:file(*)", requireCampaignMember, async (req, res, nex
     const file = normalizeAssetName(req.params.file);
     if (!file || file.includes("..") || /[\\/]/.test(file)) return res.status(404).json({ error: "Asset not found" });
     const mode = await resolveRequestMode(req, req.query.mode);
-    if (mode !== "gm" && !playerVisibleAssetNames().has(file)) {
+    const campaignId = req.campaignIdentity?.campaign?.id || req.campaignIdentity?.membership?.campaignId || "";
+    const pages = await listCampaignPages({ campaignId, role: mode });
+    if (mode !== "gm" && !playerVisibleAssetNames(pages).has(file)) {
       return res.status(404).json({ error: "Asset not found" });
     }
-    res.sendFile(resolveInside(config.imagesDir, file), (error) => error && next(error));
+    const assetDir = campaignAssetDirectory(campaignId);
+    res.sendFile(resolveInside(assetDir, file), (error) => error && next(error));
   } catch (error) {
     next(error);
   }

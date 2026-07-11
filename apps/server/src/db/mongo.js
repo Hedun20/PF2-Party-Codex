@@ -11,7 +11,7 @@ let status = {
   database: config.mongoDbName,
   driver: "mongodb",
   error: null,
-  message: "MONGO_URI is not configured; using legacy Markdown/JSON storage."
+  message: "MONGO_URI is not configured; campaign data APIs are unavailable. Markdown remains import/export compatibility only."
 };
 
 function sanitizeMongoError(error) {
@@ -36,7 +36,7 @@ function setDisconnectedStatus(message, error = null) {
 
 export async function connectMongo() {
   if (!config.mongoUri) {
-    setDisconnectedStatus("MONGO_URI is not configured; using legacy Markdown/JSON storage.");
+    setDisconnectedStatus("MONGO_URI is not configured; campaign data APIs are unavailable. Markdown remains import/export compatibility only.");
     logger.warn(status.message);
     return status;
   }
@@ -82,7 +82,7 @@ export async function connectMongo() {
       database: config.mongoDbName,
       driver: "mongodb",
       error: sanitized,
-      message: "MongoDB connection failed. Legacy storage remains available."
+      message: "MongoDB connection failed. Campaign data APIs are unavailable; Markdown remains import/export compatibility only."
     };
     logger.warn(`${status.message} ${status.error}`);
     return status;
@@ -112,6 +112,6 @@ export async function closeMongo(options = {}) {
   client = null;
   db = null;
   if (!options.silent) {
-    setDisconnectedStatus(config.mongoUri ? "MongoDB connection closed." : "MONGO_URI is not configured; using legacy Markdown/JSON storage.");
+    setDisconnectedStatus(config.mongoUri ? "MongoDB connection closed." : "MONGO_URI is not configured; campaign data APIs are unavailable. Markdown remains import/export compatibility only.");
   }
 }

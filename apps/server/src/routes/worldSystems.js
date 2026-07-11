@@ -2,6 +2,7 @@ import { Router } from "express";
 import { logAuditEvent } from "../services/auditLogService.js";
 import { identityContextForCampaign } from "../repositories/identityRepository.js";
 import { toPublicUser } from "../services/authStore.js";
+import { requestedCampaignId as campaignIdFromRequest, requireCampaignMember } from "../services/sessionService.js";
 import {
   createCampaignSession,
   createHandout,
@@ -29,12 +30,15 @@ import {
 } from "../repositories/worldSystemsRepository.js";
 
 export const worldSystemsRouter = Router();
+for (const prefix of ["/world-systems", "/maps", "/map-objects", "/timeline-events", "/sessions", "/handouts"]) {
+  worldSystemsRouter.use(prefix, requireCampaignMember);
+}
 
 const GM_ROLES = new Set(["owner", "gm"]);
 
 function assertMongoWorldSystems() {
   if (!isMongoWorldSystemsEnabled()) {
-    const error = new Error("Mongo world systems storage is not connected. Legacy vault/map/timeline pages can still be used.");
+    const error = new Error("Mongo campaign storage is not connected. Maps, timeline, sessions and handouts are unavailable until the database connection is restored.");
     error.status = 503;
     throw error;
   }
@@ -47,9 +51,9 @@ async function currentContext(req) {
     throw error;
   }
 
-  const user = await toPublicUser(req.user);
-  const requestedCampaignId = req.query.campaignId || req.body?.campaignId || "";
-  const campaignId = requestedCampaignId || user?.activeCampaign?.id || user?.activeMembership?.campaignId || user?.membership?.campaignId || "";
+  const selectedCampaignId = campaignIdFromRequest(req);
+  const user = await toPublicUser(req.user, selectedCampaignId ? { campaignId: selectedCampaignId } : {});
+  const campaignId = selectedCampaignId || user?.activeCampaign?.id || user?.activeMembership?.campaignId || user?.membership?.campaignId || "";
   if (!campaignId) {
     const error = new Error("No active campaign membership found for this user.");
     error.status = 403;

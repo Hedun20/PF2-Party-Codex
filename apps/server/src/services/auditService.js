@@ -8,19 +8,18 @@ function hasPage(titleOrPath, pages) {
   return pages.some((page) => page.title.toLowerCase() === value || page.path.toLowerCase() === value);
 }
 
-async function imageExists(image) {
+async function imageExists(image, imagesDir = config.imagesDir) {
   if (!image) return true;
   const file = image.replace(/^\/api\/assets\//, "").replace(/^images\//, "");
   try {
-    await fs.access(path.join(config.imagesDir, file));
+    await fs.access(path.join(imagesDir, file));
     return true;
   } catch {
     return false;
   }
 }
 
-export async function auditVault(mode = "gm") {
-  const pages = listPages(mode);
+export async function auditPages(pages = [], { imagesDir = config.imagesDir } = {}) {
   const issues = [];
 
   for (const page of pages) {
@@ -33,7 +32,7 @@ export async function auditVault(mode = "gm") {
     if (["npc", "enemy", "quest", "location"].includes(page.type) && !page.world) {
       issues.push({ level: "info", path: page.path, title: page.title, message: "Сущность не привязана к миру." });
     }
-    if (page.mapImage && !(await imageExists(page.mapImage))) {
+    if (page.mapImage && !(await imageExists(page.mapImage, imagesDir))) {
       issues.push({ level: "error", path: page.path, title: page.title, message: `PNG/JPG карта не найдена: ${page.mapImage}` });
     }
     for (const pin of page.pins || []) {
@@ -58,4 +57,8 @@ export async function auditVault(mode = "gm") {
     info: issues.filter((issue) => issue.level === "info").length,
     issues
   };
+}
+
+export async function auditVault(mode = "gm") {
+  return auditPages(listPages(mode), { imagesDir: config.imagesDir });
 }

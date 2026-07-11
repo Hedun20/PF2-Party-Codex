@@ -61,6 +61,17 @@ function cleanName(value = "", fallback = "Untitled") {
   return (text || fallback).slice(0, 180);
 }
 
+function emptyIdentityContext() {
+  return { activeCampaign: null, activeWorkspace: null, membership: null, activeMembership: null, role: "user" };
+}
+
+export function chooseActiveMembership(items = [], preferredCampaignId = "") {
+  const activeItems = items.filter((item) => item?.status === "active" && item?.campaignId);
+  if (!activeItems.length) return null;
+  const preferredId = idString(preferredCampaignId);
+  return activeItems.find((item) => idString(item.campaignId) === preferredId) || activeItems[0];
+}
+
 export function publicWorkspace(workspace) {
   if (!workspace) return null;
   return {
@@ -83,6 +94,7 @@ export function publicCampaign(campaign) {
     name: campaign.name,
     description: campaign.description || "",
     ownerUserId: idString(campaign.ownerUserId),
+    status: campaign.status || "active",
     activeWorldId: campaign.activeWorldId || "",
     defaultLanguage: campaign.defaultLanguage || "ru",
     settings: campaign.settings || {},
@@ -281,7 +293,7 @@ export async function ensureMembership({ userId, campaignId, workspaceId = null,
   return { membership: { ...membership, _id: result.insertedId }, created: true };
 }
 
-export async function createWorkspaceCampaignForUser({ userId, workspaceName = "", campaignName = "", gameSystem = "pf2e", displayName = "" } = {}) {
+export async function createWorkspaceCampaignForUser({ userId, workspaceId = "", workspaceName = "", campaignName = "", gameSystem = "system-agnostic", displayName = "" } = {}) {
   if (!isMongoIdentityEnabled()) {
     const error = new Error("Mongo identity is required for workspace onboarding.");
     error.status = 503;
@@ -294,54 +306,73 @@ export async function createWorkspaceCampaignForUser({ userId, workspaceName = "
     throw error;
   }
 
-  const existingMembership = await memberships().findOne({ userId: userObjectId, status: "active" }, { sort: { joinedAt: 1, createdAt: 1 } });
-  if (existingMembership) {
-    const error = new Error("This account already has an active campaign membership.");
-    error.status = 409;
-    throw error;
-  }
-
   const stamp = now();
-  const workspace = {
-    name: cleanName(workspaceName, "My Campaign Workspace"),
-    ownerUserId: userObjectId,
-    status: "active",
-    plan: "local-dev",
-    settings: {
-      billingEnabled: false,
-      gameSystem: cleanName(gameSystem, "pf2e")
-    },
-    createdAt: stamp,
-    updatedAt: stamp
-  };
-  const workspaceResult = await workspaces().insertOne(workspace);
-  const savedWorkspace = { ...workspace, _id: workspaceResult.insertedId };
+  let savedWorkspace = null;
+  let workspaceCreated = false;
+
+  if (workspaceId) {
+    savedWorkspace = await workspaces().findOne({ _id: workspaceKey(workspaceId), status: "active" });
+    if (!savedWorkspace || idString(savedWorkspace.ownerUserId) !== idString(userObjectId)) {
+      const error = new Error("Only the workspace owner can create another campaign in this workspace.");
+      error.status = 403;
+      throw error;
+    }
+  } else {
+    const workspace = {
+      name: cleanName(workspaceName, "My Campaign Workspace"),
+      ownerUserId: userObjectId,
+      status: "active",
+      plan: "local-dev",
+      settings: {
+        billingEnabled: false,
+        gameSystem: cleanName(gameSystem, "system-agnostic")
+      },
+      createdAt: stamp,
+      updatedAt: stamp
+    };
+    const workspaceResult = await workspaces().insertOne(workspace);
+    savedWorkspace = { ...workspace, _id: workspaceResult.insertedId };
+    workspaceCreated = true;
+  }
 
   const campaign = {
     workspaceId: savedWorkspace._id,
     name: cleanName(campaignName, "New Campaign"),
     description: "Campaign workspace created by explicit GM onboarding.",
     ownerUserId: userObjectId,
+    status: "active",
     activeWorldId: "",
     defaultLanguage: "ru",
     settings: {
       allowPublicRegistration: false,
       requireEmailVerification: true,
       defaultPlayerVisibility: "hidden",
-      gameSystem: cleanName(gameSystem, "pf2e")
+      gameSystem: cleanName(gameSystem, "system-agnostic")
     },
     createdAt: stamp,
     updatedAt: stamp
   };
-  const campaignResult = await campaigns().insertOne(campaign);
-  const savedCampaign = { ...campaign, _id: campaignResult.insertedId };
-  const { membership } = await ensureMembership({
-    userId: idString(userObjectId),
-    workspaceId: idString(savedWorkspace._id),
-    campaignId: idString(savedCampaign._id),
-    role: "owner",
-    displayName
-  });
+  let savedCampaign = null;
+  let membership = null;
+  try {
+    const campaignResult = await campaigns().insertOne(campaign);
+    savedCampaign = { ...campaign, _id: campaignResult.insertedId };
+    ({ membership } = await ensureMembership({
+      userId: idString(userObjectId),
+      workspaceId: idString(savedWorkspace._id),
+      campaignId: idString(savedCampaign._id),
+      role: "owner",
+      displayName
+    }));
+    await users().updateOne(
+      { _id: userObjectId },
+      { $set: { activeCampaignId: savedCampaign._id, activeCampaignUpdatedAt: stamp, updatedAt: stamp } }
+    );
+  } catch (error) {
+    if (savedCampaign?._id) await campaigns().deleteOne({ _id: savedCampaign._id });
+    if (workspaceCreated && savedWorkspace?._id) await workspaces().deleteOne({ _id: savedWorkspace._id });
+    throw error;
+  }
 
   return {
     workspace: publicWorkspace(savedWorkspace),
@@ -370,6 +401,71 @@ export async function listCampaignMemberships({ campaignId, includeRemoved = fal
   });
 }
 
+export async function listUserCampaigns(user) {
+  if (!user || !isMongoIdentityEnabled()) return [];
+  const userId = userKey(user._id || user.id);
+  if (!userId) return [];
+
+  const membershipDocs = await memberships()
+    .find({ userId, status: "active" })
+    .sort({ joinedAt: 1, createdAt: 1, _id: 1 })
+    .toArray();
+  const campaignIds = membershipDocs.map((membership) => campaignKey(membership.campaignId)).filter(Boolean);
+  if (!campaignIds.length) return [];
+
+  const campaignDocs = await campaigns().find({ _id: { $in: campaignIds }, status: { $ne: "archived" } }).toArray();
+  const campaignsById = new Map(campaignDocs.map((campaign) => [idString(campaign._id), campaign]));
+  const workspaceIds = campaignDocs.map((campaign) => workspaceKey(campaign.workspaceId)).filter(Boolean);
+  const workspaceDocs = workspaceIds.length
+    ? await workspaces().find({ _id: { $in: workspaceIds }, status: { $ne: "archived" } }).toArray()
+    : [];
+  const workspacesById = new Map(workspaceDocs.map((workspace) => [idString(workspace._id), workspace]));
+
+  return membershipDocs.flatMap((membership) => {
+    const campaign = campaignsById.get(idString(membership.campaignId));
+    if (!campaign) return [];
+    const workspace = workspacesById.get(idString(campaign.workspaceId || membership.workspaceId)) || null;
+    return [{
+      id: idString(campaign._id),
+      campaign: publicCampaign(campaign),
+      workspace: publicWorkspace(workspace),
+      membership: publicMembership(membership),
+      role: membership.role || "player"
+    }];
+  });
+}
+
+export async function setActiveCampaignForUser({ user, campaignId } = {}) {
+  if (!isMongoIdentityEnabled()) {
+    const error = new Error("Mongo identity is required to select a campaign.");
+    error.status = 503;
+    throw error;
+  }
+  if (!user) {
+    const error = new Error("Login is required to select a campaign.");
+    error.status = 401;
+    throw error;
+  }
+
+  const context = await identityContextForCampaign(user, campaignId);
+  if (!context.activeMembership?.id) {
+    const error = new Error("No active membership found for the requested campaign.");
+    error.status = 403;
+    throw error;
+  }
+
+  const selectedCampaignId = campaignKey(context.activeCampaign.id);
+  const userId = userKey(user._id || user.id);
+  const stamp = now();
+  await users().updateOne(
+    { _id: userId },
+    { $set: { activeCampaignId: selectedCampaignId, activeCampaignUpdatedAt: stamp, updatedAt: stamp } }
+  );
+  user.activeCampaignId = selectedCampaignId;
+  user.activeCampaignUpdatedAt = stamp;
+  return context;
+}
+
 export async function activateMembershipForInvitation({ userId, workspaceId, campaignId, role = "player", displayName = "" }) {
   const userObjectId = userKey(userId);
   const campaignObjectId = campaignKey(campaignId);
@@ -393,15 +489,15 @@ export async function activateMembershipForInvitation({ userId, workspaceId, cam
 
 export async function identityContextForCampaign(user, campaignId) {
   if (!user || !isMongoIdentityEnabled() || !campaignId) {
-    return { activeCampaign: null, activeWorkspace: null, membership: null, activeMembership: null, role: "user" };
+    return emptyIdentityContext();
   }
   const userId = userKey(user._id || user.id);
   const campaignObjectId = campaignKey(campaignId);
   const membership = await memberships().findOne({ userId, campaignId: campaignObjectId, status: "active" });
-  if (!membership) return { activeCampaign: null, activeWorkspace: null, membership: null, activeMembership: null, role: "user" };
+  if (!membership) return emptyIdentityContext();
 
   const campaign = await campaigns().findOne({ _id: campaignObjectId });
-  if (!campaign) return { activeCampaign: null, activeWorkspace: null, membership: null, activeMembership: null, role: "user" };
+  if (!campaign || campaign.status === "archived") return emptyIdentityContext();
 
   const workspace = await workspaceForCampaign(campaign, userId);
   if (!membership.workspaceId && workspace?._id) {
@@ -421,12 +517,34 @@ export async function identityContextForCampaign(user, campaignId) {
 
 export async function identityContextForUser(user) {
   if (!user || !isMongoIdentityEnabled()) {
-    return { activeCampaign: null, activeWorkspace: null, membership: null, activeMembership: null, role: "user" };
+    return emptyIdentityContext();
   }
   const userId = userKey(user._id || user.id);
-  const membership = await memberships().findOne({ userId, status: "active" }, { sort: { joinedAt: 1, createdAt: 1 } });
-  if (!membership?.campaignId) return { activeCampaign: null, activeWorkspace: null, membership: null, activeMembership: null, role: "user" };
-  return identityContextForCampaign(user, membership.campaignId);
+  const membershipDocs = await memberships()
+    .find({ userId, status: "active" })
+    .sort({ joinedAt: 1, createdAt: 1, _id: 1 })
+    .toArray();
+  const membership = chooseActiveMembership(membershipDocs, user.activeCampaignId);
+  if (!membership?.campaignId) return emptyIdentityContext();
+
+  const context = await identityContextForCampaign(user, membership.campaignId);
+  if (!context.activeMembership?.id) {
+    for (const fallbackMembership of membershipDocs) {
+      const fallback = await identityContextForCampaign(user, fallbackMembership.campaignId);
+      if (fallback.activeMembership?.id) return fallback;
+    }
+    return emptyIdentityContext();
+  }
+
+  if (idString(user.activeCampaignId) !== idString(membership.campaignId)) {
+    const stamp = now();
+    await users().updateOne(
+      { _id: userId },
+      { $set: { activeCampaignId: campaignKey(membership.campaignId), activeCampaignUpdatedAt: stamp, updatedAt: stamp } }
+    );
+    user.activeCampaignId = campaignKey(membership.campaignId);
+  }
+  return context;
 }
 
 export async function identityCounts() {

@@ -18,10 +18,20 @@ async function hasRegisteredUsers() {
   return hasUsers();
 }
 
-async function publicUserForSession(user) {
+async function publicUserForSession(user, campaignId = "") {
   if (!user) return null;
   const { toPublicUser } = await import("./authStore.js");
-  return toPublicUser(user);
+  return toPublicUser(user, campaignId ? { campaignId } : {});
+}
+
+export function requestedCampaignId(req) {
+  return String(
+    req.params?.campaignId
+    || req.body?.campaignId
+    || req.query?.campaignId
+    || req.get?.("x-campaign-id")
+    || ""
+  ).trim();
 }
 
 function campaignRole(publicUser) {
@@ -39,13 +49,17 @@ export function isLocalGmRequest(_req) {
 export async function resolveRequestMode(req, requestedMode = "") {
   const wantsPlayerPreview = String(requestedMode || req.query?.mode || "").toLowerCase() === "player";
   if (wantsPlayerPreview) return "player";
-  const publicUser = await publicUserForSession(req.user);
+  const publicUser = await publicUserForSession(req.user, requestedCampaignId(req));
   if (canEditRole(campaignRole(publicUser))) return "gm";
   return "player";
 }
 
 export async function sessionInfo(req) {
-  const publicUser = await publicUserForSession(req.user);
+  const selectedCampaignId = requestedCampaignId(req);
+  let publicUser = await publicUserForSession(req.user, selectedCampaignId);
+  if (selectedCampaignId && publicUser && !publicUser.activeMembership?.id) {
+    publicUser = await publicUserForSession(req.user);
+  }
   const role = campaignRole(publicUser) || (publicUser ? "user" : "anonymous");
   const mode = await resolveRequestMode(req);
   return {
@@ -65,9 +79,19 @@ export async function sessionInfo(req) {
 
 export async function requireGm(req, res, next) {
   try {
-    if ((await resolveRequestMode(req)) !== "gm") {
+    const user = await publicUserForSession(req.user, requestedCampaignId(req));
+    const role = campaignRole(user);
+    if (!user || !canEditRole(role)) {
       return res.status(403).json({ error: "GM access required. Log in with an owner/GM campaign membership to manage campaign content." });
     }
+    const membership = user.activeMembership || user.membership || null;
+    req.campaignIdentity = {
+      user,
+      workspace: user.activeWorkspace || null,
+      campaign: user.activeCampaign || null,
+      membership,
+      role
+    };
     next();
   } catch (error) {
     next(error);
@@ -76,7 +100,7 @@ export async function requireGm(req, res, next) {
 
 export async function requireCampaignMember(req, res, next) {
   try {
-    const user = await publicUserForSession(req.user);
+    const user = await publicUserForSession(req.user, requestedCampaignId(req));
     if (!user) return res.status(401).json({ error: "Login is required to access campaign content." });
 
     const membership = user.activeMembership || user.membership || null;

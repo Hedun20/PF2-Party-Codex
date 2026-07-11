@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { logAuditEvent } from "../services/auditLogService.js";
 import { toPublicUser } from "../services/authStore.js";
+import { requestedCampaignId, requireCampaignMember } from "../services/sessionService.js";
 import {
   canReadNote,
   canWriteNote,
@@ -14,10 +15,11 @@ import {
 } from "../repositories/notesRepository.js";
 
 export const notesRouter = Router();
+notesRouter.use("/notes", requireCampaignMember);
 
 function assertMongoNotes() {
   if (!isMongoNotesEnabled()) {
-    const error = new Error("Mongo notes are not available in legacy mode. Browser notebook fallback can still be used.");
+    const error = new Error("Mongo campaign storage is not connected. Notes are unavailable until the database connection is restored.");
     error.status = 503;
     throw error;
   }
@@ -33,7 +35,8 @@ async function currentContext(req) {
     error.status = 401;
     throw error;
   }
-  const user = await toPublicUser(req.user);
+  const campaignId = requestedCampaignId(req);
+  const user = await toPublicUser(req.user, campaignId ? { campaignId } : {});
   if (!user?.activeCampaign?.id || !user?.membership?.id) {
     const error = new Error("No active campaign membership found for this user.");
     error.status = 403;
@@ -74,10 +77,10 @@ notesRouter.patch("/notes/:id", async (req, res, next) => {
   try {
     assertMongoNotes();
     const context = await currentContext(req);
-    const existing = await findNoteById(req.params.id);
+    const existing = await findNoteById(req.params.id, { campaignId: context.campaignId });
     if (!existing || !sameId(existing.campaignId, context.campaignId) || !canReadNote(existing, context)) return res.status(404).json({ error: "Note not found." });
     if (!canWriteNote(existing, context)) return res.status(403).json({ error: "You cannot edit this note." });
-    const note = await updateNote({ id: req.params.id, input: req.body || {} });
+    const note = await updateNote({ campaignId: context.campaignId, id: req.params.id, input: req.body || {} });
     await logAuditEvent({ req, action: "notes.update", entityType: "note", entityId: note.id, campaignId: context.campaignId, metadata: { visibility: note.visibility } });
     res.json({ note });
   } catch (error) {
@@ -89,10 +92,10 @@ notesRouter.delete("/notes/:id", async (req, res, next) => {
   try {
     assertMongoNotes();
     const context = await currentContext(req);
-    const existing = await findNoteById(req.params.id);
+    const existing = await findNoteById(req.params.id, { campaignId: context.campaignId });
     if (!existing || !sameId(existing.campaignId, context.campaignId) || !canReadNote(existing, context)) return res.status(404).json({ error: "Note not found." });
     if (!canWriteNote(existing, context)) return res.status(403).json({ error: "You cannot delete this note." });
-    await deleteNote(req.params.id);
+    await deleteNote(req.params.id, { campaignId: context.campaignId });
     await logAuditEvent({ req, action: "notes.delete", entityType: "note", entityId: req.params.id, campaignId: context.campaignId });
     res.json({ ok: true });
   } catch (error) {

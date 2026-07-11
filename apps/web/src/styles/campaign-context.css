@@ -1,0 +1,200 @@
+/* Stage 11: explicit multi-campaign context and campaign manager. */
+
+.topbar-dropdown--campaign .topbar-dropdown-trigger {
+  min-width: 10.5rem;
+  max-width: 14rem;
+  border-color: rgba(218, 184, 103, 0.28);
+  background: rgba(218, 184, 103, 0.08);
+}
+
+.topbar-dropdown--campaign .topbar-dropdown-menu {
+  left: 0;
+  right: auto;
+  min-width: 18rem;
+}
+
+.topbar-dropdown-menu .campaign-option > span {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
+}
+
+.topbar-dropdown-menu .campaign-option strong,
+.topbar-dropdown-menu .campaign-option small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-dropdown-menu .campaign-option small {
+  color: rgba(245, 239, 255, 0.48);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.campaign-manager-page,
+.campaign-context-section,
+.campaign-context-grid,
+.campaign-context-card,
+.campaign-create-layout,
+.campaign-create-card,
+.campaign-create-form {
+  box-sizing: border-box;
+}
+
+.campaign-context-section {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.campaign-context-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.campaign-context-heading h2,
+.campaign-context-card h3,
+.campaign-create-card h2 {
+  margin: 0.18rem 0 0;
+}
+
+.campaign-context-heading p,
+.campaign-context-card p,
+.campaign-create-card p {
+  margin: 0.42rem 0 0;
+  color: rgba(245, 239, 255, 0.64);
+  line-height: 1.5;
+}
+
+.campaign-active-summary,
+.campaign-security-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  color: rgba(124, 226, 162, 0.84);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.campaign-context-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: 0.8rem;
+}
+
+.campaign-context-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.campaign-context-card.is-active {
+  border-color: rgba(124, 226, 162, 0.35);
+  background: linear-gradient(135deg, rgba(124, 226, 162, 0.1), rgba(255, 255, 255, 0.035));
+}
+
+.campaign-context-card__icon {
+  display: grid;
+  place-items: center;
+  width: 2.55rem;
+  height: 2.55rem;
+  border-radius: 0.85rem;
+  color: var(--accent, #dab867);
+  background: rgba(218, 184, 103, 0.12);
+}
+
+.campaign-context-card__body {
+  min-width: 0;
+}
+
+.campaign-context-card__body h3,
+.campaign-context-card__body p {
+  overflow-wrap: anywhere;
+}
+
+.campaign-create-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(16rem, 0.75fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.campaign-create-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem;
+}
+
+.campaign-create-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.campaign-create-form label {
+  display: grid;
+  gap: 0.38rem;
+  color: rgba(245, 239, 255, 0.72);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.campaign-create-form input,
+.campaign-create-form select {
+  width: 100%;
+  min-height: 2.65rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.8rem;
+  background: rgba(8, 7, 12, 0.62);
+  color: var(--text, #f7f0ff);
+  font: inherit;
+}
+
+.campaign-create-form .codex-button {
+  align-self: end;
+}
+
+.campaign-join-card {
+  align-content: start;
+}
+
+@media (max-width: 900px) {
+  .campaign-create-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .campaign-context-heading,
+  .campaign-context-card {
+    align-items: stretch;
+  }
+
+  .campaign-context-heading {
+    flex-direction: column;
+  }
+
+  .campaign-context-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .campaign-context-card .codex-button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .campaign-create-form {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-dropdown--campaign .topbar-dropdown-menu {
+    left: auto;
+    right: 0;
+  }
+}

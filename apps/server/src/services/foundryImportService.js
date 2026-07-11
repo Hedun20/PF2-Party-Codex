@@ -1,7 +1,8 @@
 import path from "path";
 import TurndownService from "turndown";
 import { slugify } from "../utils/slugify.js";
-import { pageExists, savePage } from "./vaultService.js";
+import { findRawEntryByPath } from "../repositories/entriesRepository.js";
+import { saveCampaignPage } from "./campaignContentService.js";
 
 const turndown = new TurndownService({ headingStyle: "atx", bulletListMarker: "-" });
 
@@ -46,7 +47,7 @@ function pageContent(page, doc) {
   return foundryLinksToWiki(turndown.turndown(html));
 }
 
-export async function previewFoundryImport(files = []) {
+export async function previewFoundryImport(files = [], { campaignId = "" } = {}) {
   const previews = [];
   for (const file of files) {
     const parsed = JSON.parse(file.buffer.toString("utf8"));
@@ -62,7 +63,7 @@ export async function previewFoundryImport(files = []) {
           sourceTitle: title,
           detectedCategory: category,
           targetPath,
-          conflict: await pageExists(targetPath),
+          conflict: Boolean(await findRawEntryByPath({ campaignId, path: targetPath })),
           warnings: [
             !doc.pages && !doc.content && !page.content && !page.text?.content ? "No obvious journal content field found." : null,
             /@UUID\[/.test(JSON.stringify(page)) ? "Contains Foundry UUID links that may need manual cleanup." : null
@@ -76,24 +77,26 @@ export async function previewFoundryImport(files = []) {
   return previews;
 }
 
-export async function commitFoundryImport(items = [], conflictMode = "skip") {
+export async function commitFoundryImport(items = [], conflictMode = "skip", { campaignId = "", userId = "" } = {}) {
   const written = [];
   for (const item of items) {
     let targetPath = item.targetPath;
-    const conflict = await pageExists(targetPath);
+    const conflict = Boolean(await findRawEntryByPath({ campaignId, path: targetPath }));
     if (conflict && conflictMode === "skip") continue;
     if (conflict && conflictMode === "copy") {
       const ext = path.extname(targetPath);
       const base = targetPath.slice(0, -ext.length);
       let index = 2;
-      while (await pageExists(`${base}-${index}${ext}`)) index += 1;
+      while (await findRawEntryByPath({ campaignId, path: `${base}-${index}${ext}` })) index += 1;
       targetPath = `${base}-${index}${ext}`;
     }
     const doc = item.document || {};
     const page = item.page || {};
     const title = item.sourceTitle || page.name || doc.name || "Imported Journal";
     const content = pageContent(page, doc);
-    const saved = await savePage({
+    const saved = await saveCampaignPage({
+      campaignId,
+      userId,
       requestedPath: targetPath,
       frontmatter: {
         title,

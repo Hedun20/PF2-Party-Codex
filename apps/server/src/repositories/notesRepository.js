@@ -129,10 +129,12 @@ export async function createNote({ campaignId, userId, input }) {
   return serializeNote({ ...note, _id: result.insertedId });
 }
 
-export async function findNoteById(id) {
+export async function findNoteById(id, { campaignId = "" } = {}) {
   const objectId = objectIdFrom(id);
   if (!objectId) return null;
-  return notes().findOne({ _id: objectId });
+  const query = { _id: objectId };
+  if (campaignId) query.campaignId = objectIdFrom(campaignId) || campaignId;
+  return notes().findOne(query);
 }
 
 export function canReadNote(note, { userId, role = "player" }) {
@@ -152,20 +154,20 @@ export function canWriteNote(note, { userId, role = "player" }) {
   return isGm && note.visibility === "gmPrivate";
 }
 
-export async function updateNote({ id, input }) {
-  const existing = await findNoteById(id);
+export async function updateNote({ campaignId, id, input }) {
+  const existing = await findNoteById(id, { campaignId });
   if (!existing) return null;
   const patch = {
     ...normalizeNoteInput(input, existing),
     updatedAt: now()
   };
-  await notes().updateOne({ _id: existing._id }, { $set: patch });
+  await notes().updateOne({ _id: existing._id, campaignId: objectIdFrom(campaignId) || campaignId }, { $set: patch });
   return serializeNote({ ...existing, ...patch });
 }
 
-export async function deleteNote(id) {
+export async function deleteNote(id, { campaignId = "" } = {}) {
   const objectId = objectIdFrom(id);
   if (!objectId) return false;
-  const result = await notes().deleteOne({ _id: objectId });
+  const result = await notes().deleteOne({ _id: objectId, campaignId: objectIdFrom(campaignId) || campaignId });
   return result.deletedCount > 0;
 }

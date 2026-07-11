@@ -21,15 +21,13 @@ onboardingRouter.post("/onboarding/workspace", async (req, res, next) => {
     }
 
     const user = await toPublicUser(req.user);
-    if (user?.activeMembership?.id || user?.membership?.id) {
-      return res.status(409).json({ error: "This account already has an active campaign membership." });
-    }
 
     const result = await createWorkspaceCampaignForUser({
       userId: user.id,
+      workspaceId: req.body?.workspaceId || "",
       workspaceName: req.body?.workspaceName || "",
       campaignName: req.body?.campaignName || "",
-      gameSystem: req.body?.gameSystem || "pf2e",
+      gameSystem: req.body?.gameSystem || "system-agnostic",
       displayName: user.name || user.email || "Campaign owner"
     });
 
@@ -45,7 +43,7 @@ onboardingRouter.post("/onboarding/workspace", async (req, res, next) => {
       metadata: { campaignId: result.campaign.id, role: result.role }
     });
 
-    const refreshedUser = await toPublicUser(req.user);
+    const refreshedUser = await toPublicUser(req.user, { campaignId: result.campaign.id });
     res.status(201).json({ ok: true, ...result, user: refreshedUser });
   } catch (error) {
     next(error);

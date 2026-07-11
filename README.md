@@ -71,6 +71,9 @@ The stabilization tests cover:
 - timeline API response compatibility;
 - server startup when LAN interfaces cannot be enumerated;
 - guest access boundaries for campaign content;
+- explicit multi-campaign request context and membership selection;
+- player-safe entry serialization and campaign-scoped CRUD contracts;
+- Mongo-only live notes, characters, session drafts, and reveal state;
 - Identity v2 registration copy;
 - dev owner seed safety.
 
@@ -79,7 +82,7 @@ The stabilization tests cover:
 1. Registration creates a global user only.
 2. The user confirms their email.
 3. A future owner creates a workspace and campaign through onboarding, or a player accepts an invitation.
-4. Backend routes resolve the active membership for the requested campaign.
+4. The client sends the active campaign as `X-Campaign-Id`, and backend routes resolve the membership for that exact campaign.
 5. Only `owner` and `gm` memberships receive management permissions.
 
 Unknown `/api/*` routes always return JSON `404`; they never fall through to the SPA.

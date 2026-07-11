@@ -37,7 +37,7 @@ function assertMongoArchive() {
 }
 
 function requestedCampaignId(req) {
-  return req.params.campaignId || req.query.campaignId || req.body?.campaignId || "";
+  return req.params.campaignId || req.query.campaignId || req.body?.campaignId || req.get?.("x-campaign-id") || "";
 }
 
 function baseQuery(campaignId) {

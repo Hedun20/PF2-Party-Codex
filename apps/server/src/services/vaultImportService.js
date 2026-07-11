@@ -2,7 +2,8 @@ import crypto from "crypto";
 import { slugify } from "../utils/slugify.js";
 import { extractWikiLinks } from "./markdownService.js";
 import { analyzePlayerSafety, redactPlayerContent } from "./visibilityService.js";
-import { listPages } from "./vaultService.js";
+import { importLegacyAssetsForCampaign } from "./campaignAssetsService.js";
+import { listPages, rebuildVaultIndex } from "./vaultService.js";
 import {
   createImportJob,
   idString,
@@ -264,6 +265,7 @@ function summarizePages(pages) {
 }
 
 export async function dryRunVaultImport({ campaignId, createdBy = null } = {}) {
+  await rebuildVaultIndex();
   const pages = listPages("gm");
   const lookup = buildPageLookup(pages);
   const warnings = [];
@@ -306,18 +308,23 @@ export async function commitVaultImport({ campaignId, createdBy = null } = {}) {
 
   const relationBuild = buildRelationCandidates({ pages, entriesByPath, campaignId, importJobId });
   const relationResult = await replaceRelationsForImport({ campaignId, importJobId, relations: relationBuild.relations });
-  const warnings = [...dryRun.warnings, ...relationBuild.warnings];
+  const assets = await importLegacyAssetsForCampaign({ campaignId, pages });
+  const assetWarnings = assets.missing.map((fileName) => ({ code: "missingAsset", severity: "warning", path: fileName, message: `Referenced asset was not found: ${fileName}` }));
+  const warnings = [...dryRun.warnings, ...relationBuild.warnings, ...assetWarnings];
   const committed = await updateImportJob(importJobId, {
     status: "committed",
     summary: {
       ...dryRun.summary,
       inserted,
       updated,
-      relations: relationResult.inserted
+      relations: relationResult.inserted,
+      assetsCopied: assets.copied.length,
+      assetsMissing: assets.missing.length
     },
     warnings,
+    assets,
     completedAt: now()
-  });
+  }, { campaignId });
 
   return {
     importJob: committed,
@@ -328,6 +335,6 @@ export async function commitVaultImport({ campaignId, createdBy = null } = {}) {
   };
 }
 
-export async function rollbackVaultImport(importJobId) {
-  return rollbackImportJob(importJobId);
+export async function rollbackVaultImport(importJobId, options = {}) {
+  return rollbackImportJob(importJobId, options);
 }

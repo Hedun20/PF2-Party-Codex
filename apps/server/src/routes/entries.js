@@ -1,42 +1,28 @@
 import { Router } from "express";
-import { identityContextForCampaign } from "../repositories/identityRepository.js";
-import { toPublicUser } from "../services/authStore.js";
+import { requireCampaignMember } from "../services/sessionService.js";
 import { listEntries, findEntryById, findEntryByPath, isMongoEntriesEnabled } from "../repositories/entriesRepository.js";
 
 export const entriesRouter = Router();
 
-async function requestContext(req) {
-  const user = await toPublicUser(req.user);
-  const campaignId = req.query.campaignId || user?.activeCampaign?.id || user?.activeMembership?.campaignId || user?.membership?.campaignId || "";
-  if (!campaignId) return { user, campaignId: "", role: "player" };
-
-  const context = await identityContextForCampaign(req.user, campaignId);
-  if (!context.activeMembership?.id) {
-    const error = new Error("No active membership found for the requested campaign.");
-    error.status = 403;
-    throw error;
-  }
-
+function requestContext(req) {
   return {
-    user,
-    campaignId: context.activeCampaign?.id || campaignId,
-    role: context.role || "player"
+    campaignId: req.campaignIdentity?.campaign?.id || req.campaignIdentity?.membership?.campaignId || "",
+    role: req.campaignIdentity?.role || "player"
   };
 }
 
 function requireMongoEntries(res) {
   if (!isMongoEntriesEnabled()) {
-    res.status(503).json({ error: "Mongo entries storage is not connected. Vault compatibility routes are still available." });
+    res.status(503).json({ error: "Mongo campaign storage is not connected. Content reads are unavailable until the database connection is restored." });
     return false;
   }
   return true;
 }
 
-entriesRouter.get("/entries", async (req, res, next) => {
+entriesRouter.get("/entries", requireCampaignMember, async (req, res, next) => {
   try {
     if (!requireMongoEntries(res)) return;
-    const context = await requestContext(req);
-    if (!context.campaignId) return res.status(401).json({ error: "Login with a campaign membership to read entries." });
+    const context = requestContext(req);
     const entries = await listEntries({
       campaignId: context.campaignId,
       role: context.role,
@@ -50,11 +36,10 @@ entriesRouter.get("/entries", async (req, res, next) => {
   }
 });
 
-entriesRouter.get("/entries/by-path", async (req, res, next) => {
+entriesRouter.get("/entries/by-path", requireCampaignMember, async (req, res, next) => {
   try {
     if (!requireMongoEntries(res)) return;
-    const context = await requestContext(req);
-    if (!context.campaignId) return res.status(401).json({ error: "Login with a campaign membership to read entries." });
+    const context = requestContext(req);
     const entry = await findEntryByPath({ campaignId: context.campaignId, path: req.query.path || "", role: context.role });
     if (!entry) return res.status(404).json({ error: "Entry not found." });
     res.json({ entry });
@@ -63,11 +48,10 @@ entriesRouter.get("/entries/by-path", async (req, res, next) => {
   }
 });
 
-entriesRouter.get("/entries/:id", async (req, res, next) => {
+entriesRouter.get("/entries/:id", requireCampaignMember, async (req, res, next) => {
   try {
     if (!requireMongoEntries(res)) return;
-    const context = await requestContext(req);
-    if (!context.campaignId) return res.status(401).json({ error: "Login with a campaign membership to read entries." });
+    const context = requestContext(req);
     const entry = await findEntryById({ campaignId: context.campaignId, id: req.params.id, role: context.role });
     if (!entry) return res.status(404).json({ error: "Entry not found." });
     res.json({ entry });

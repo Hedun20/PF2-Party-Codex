@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { promisify } from "util";
 import {
   bootstrapMembershipForNewUser,
+  identityContextForCampaign,
   identityContextForUser,
   isMongoIdentityEnabled,
   mongoFindUserByEmail,
@@ -26,11 +27,13 @@ function legacyRole(user) {
   return user?.role || "player";
 }
 
-export async function publicUser(user) {
+export async function publicUser(user, { campaignId = "" } = {}) {
   if (!user) return null;
   let context = { activeWorkspace: null, activeCampaign: null, activeMembership: null, membership: null, role: legacyRole(user) };
   try {
-    context = await identityContextForUser(user);
+    context = campaignId
+      ? await identityContextForCampaign(user, campaignId)
+      : await identityContextForUser(user);
   } catch (error) {
     if (!isMongoUnavailableError(error)) throw error;
   }
@@ -242,7 +245,7 @@ export async function verifyEmailToken(token = "") {
   return legacyPublicUser(users[index]);
 }
 
-export async function toPublicUser(user) {
-  if (isMongoIdentityEnabled()) return publicUser(user);
+export async function toPublicUser(user, options = {}) {
+  if (isMongoIdentityEnabled()) return publicUser(user, options);
   return legacyPublicUser(user);
 }

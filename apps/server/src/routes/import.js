@@ -9,8 +9,9 @@ import { logAuditEvent } from "../services/auditLogService.js";
 export const importRouter = Router();
 
 async function gmContext(req) {
-  const user = await toPublicUser(req.user);
-  const campaignId = req.body?.campaignId || req.query?.campaignId || user?.activeCampaign?.id || user?.activeMembership?.campaignId || user?.membership?.campaignId || "";
+  const selected = req.campaignIdentity || {};
+  const campaignId = selected.campaign?.id || selected.membership?.campaignId || "";
+  const user = selected.user || await toPublicUser(req.user, campaignId ? { campaignId } : {});
   if (!campaignId) return { user, campaignId: "", actorUserId: user?.id || "", role: "player" };
 
   const context = await identityContextForCampaign(req.user, campaignId);
@@ -35,7 +36,7 @@ async function gmContext(req) {
 
 function requireMongoImport(res) {
   if (!isMongoEntriesEnabled()) {
-    res.status(503).json({ error: "Mongo import storage is not connected. Vault remains the source of truth in legacy mode." });
+    res.status(503).json({ error: "Mongo campaign storage is not connected. Markdown import is unavailable until the database connection is restored." });
     return false;
   }
   return true;
@@ -56,7 +57,8 @@ importRouter.get("/import/jobs", requireGm, async (req, res, next) => {
 importRouter.get("/import/jobs/:id", requireGm, async (req, res, next) => {
   try {
     if (!requireMongoImport(res)) return;
-    const job = await findImportJob(req.params.id);
+    const context = await gmContext(req);
+    const job = await findImportJob(req.params.id, { campaignId: context.campaignId });
     if (!job) return res.status(404).json({ error: "Import job not found." });
     res.json({ job });
   } catch (error) {
@@ -96,7 +98,7 @@ importRouter.post("/import/:importJobId/rollback", requireGm, async (req, res, n
   try {
     if (!requireMongoImport(res)) return;
     const context = await gmContext(req);
-    const job = await rollbackVaultImport(req.params.importJobId);
+    const job = await rollbackVaultImport(req.params.importJobId, { campaignId: context.campaignId });
     if (!job) return res.status(404).json({ error: "Import job not found." });
     await logAuditEvent({ req, actorUserId: context.actorUserId, actorRole: context.role, campaignId: context.campaignId || String(job.campaignId || ""), action: "vault.mongo_import.rollback", entityType: "importJob", entityId: req.params.importJobId, metadata: { rollback: job.rollback } });
     res.json({ job });

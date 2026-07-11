@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { logAuditEvent } from "../services/auditLogService.js";
 import { toPublicUser } from "../services/authStore.js";
+import { requestedCampaignId, requireCampaignMember } from "../services/sessionService.js";
 import { parseCharacterImport } from "../services/characterImportService.js";
 import {
   canReadCharacter,
@@ -17,10 +18,11 @@ import {
 } from "../repositories/charactersRepository.js";
 
 export const charactersRouter = Router();
+charactersRouter.use("/characters", requireCampaignMember);
 
 function assertMongoCharacters() {
   if (!isMongoCharactersEnabled()) {
-    const error = new Error("Mongo characters are not available in legacy mode. Browser character fallback can still be used.");
+    const error = new Error("Mongo campaign storage is not connected. Characters are unavailable until the database connection is restored.");
     error.status = 503;
     throw error;
   }
@@ -36,7 +38,8 @@ async function currentContext(req) {
     error.status = 401;
     throw error;
   }
-  const user = await toPublicUser(req.user);
+  const campaignId = requestedCampaignId(req);
+  const user = await toPublicUser(req.user, campaignId ? { campaignId } : {});
   if (!user?.activeCampaign?.id || !user?.membership?.id) {
     const error = new Error("No active campaign membership found for this user.");
     error.status = 403;
@@ -82,7 +85,7 @@ charactersRouter.get("/characters/:id", async (req, res, next) => {
   try {
     assertMongoCharacters();
     const context = await currentContext(req);
-    const character = await findCharacterById(req.params.id);
+    const character = await findCharacterById(req.params.id, { campaignId: context.campaignId });
     if (!character || !sameId(character.campaignId, context.campaignId) || !canReadCharacter(character, context)) return res.status(404).json({ error: "Character not found." });
     const includeRawImport = sameId(character.ownerUserId, context.userId) || ["owner", "gm"].includes(context.role);
     res.json({ character: serializeCharacter(character, { includeRawImport, userId: context.userId, role: context.role }) });
@@ -95,10 +98,10 @@ charactersRouter.patch("/characters/:id", async (req, res, next) => {
   try {
     assertMongoCharacters();
     const context = await currentContext(req);
-    const existing = await findCharacterById(req.params.id);
+    const existing = await findCharacterById(req.params.id, { campaignId: context.campaignId });
     if (!existing || !sameId(existing.campaignId, context.campaignId) || !canReadCharacter(existing, context)) return res.status(404).json({ error: "Character not found." });
     if (!canWriteCharacter(existing, context)) return res.status(403).json({ error: "You cannot edit this character." });
-    const character = await updateCharacter({ id: req.params.id, userId: context.userId, role: context.role, input: req.body || {} });
+    const character = await updateCharacter({ campaignId: context.campaignId, id: req.params.id, userId: context.userId, role: context.role, input: req.body || {} });
     await logAuditEvent({ req, action: "characters.update", entityType: "character", entityId: character.id, campaignId: context.campaignId });
     res.json({ character });
   } catch (error) {
@@ -110,10 +113,10 @@ charactersRouter.patch("/characters/:id/presentation", async (req, res, next) =>
   try {
     assertMongoCharacters();
     const context = await currentContext(req);
-    const existing = await findCharacterById(req.params.id);
+    const existing = await findCharacterById(req.params.id, { campaignId: context.campaignId });
     if (!existing || !sameId(existing.campaignId, context.campaignId) || !canReadCharacter(existing, context)) return res.status(404).json({ error: "Character not found." });
     if (!canWriteCharacter(existing, context)) return res.status(403).json({ error: "You cannot edit this character." });
-    const character = await updateCharacter({ id: req.params.id, userId: context.userId, role: context.role, input: { text: req.body?.text, visuals: req.body?.visuals, links: req.body?.links, visibility: req.body?.visibility } });
+    const character = await updateCharacter({ campaignId: context.campaignId, id: req.params.id, userId: context.userId, role: context.role, input: { text: req.body?.text, visuals: req.body?.visuals, links: req.body?.links, visibility: req.body?.visibility } });
     await logAuditEvent({ req, action: "characters.presentation.update", entityType: "character", entityId: character.id, campaignId: context.campaignId });
     res.json({ character });
   } catch (error) {
@@ -125,10 +128,10 @@ charactersRouter.delete("/characters/:id", async (req, res, next) => {
   try {
     assertMongoCharacters();
     const context = await currentContext(req);
-    const existing = await findCharacterById(req.params.id);
+    const existing = await findCharacterById(req.params.id, { campaignId: context.campaignId });
     if (!existing || !sameId(existing.campaignId, context.campaignId) || !canReadCharacter(existing, context)) return res.status(404).json({ error: "Character not found." });
     if (!canWriteCharacter(existing, context)) return res.status(403).json({ error: "You cannot delete this character." });
-    await deleteCharacter(req.params.id);
+    await deleteCharacter(req.params.id, { campaignId: context.campaignId });
     await logAuditEvent({ req, action: "characters.delete", entityType: "character", entityId: req.params.id, campaignId: context.campaignId });
     res.json({ ok: true });
   } catch (error) {

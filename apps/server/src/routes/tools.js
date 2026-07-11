@@ -2,11 +2,15 @@ import fs from "fs/promises";
 import multer from "multer";
 import path from "path";
 import { Router } from "express";
-import { config } from "../config.js";
-import { auditVault } from "../services/auditService.js";
-import { getPlayerSafetyReview, listPages } from "../services/vaultService.js";
+import { auditPages } from "../services/auditService.js";
+import {
+  campaignMetadata,
+  campaignPlayerSafetyReview,
+  listCampaignPages
+} from "../services/campaignContentService.js";
+import { campaignAssetDirectory, referencedCampaignAssetNames } from "../services/campaignAssetsService.js";
 import { slugify } from "../utils/slugify.js";
-import { resolveRequestMode, requireGm } from "../services/sessionService.js";
+import { requireGm } from "../services/sessionService.js";
 import { repairUploadedFilename } from "../utils/encoding.js";
 import { logAuditEvent, listAuditEvents } from "../services/auditLogService.js";
 
@@ -26,49 +30,38 @@ const upload = multer({
 
 export const toolsRouter = Router();
 
+function contentContext(req) {
+  return {
+    campaignId: req.campaignIdentity?.campaign?.id || req.campaignIdentity?.membership?.campaignId || "",
+    userId: req.campaignIdentity?.user?.id || req.campaignIdentity?.membership?.userId || "",
+    role: req.campaignIdentity?.role || "player"
+  };
+}
+
 toolsRouter.get("/metadata", requireGm, async (req, res, next) => {
   try {
-    const pages = listPages(await resolveRequestMode(req, "gm"));
-    const compact = pages.map((page) => ({
-      title: page.title,
-      path: page.path,
-      type: page.type,
-      category: page.category,
-      world: page.world,
-      country: page.country,
-      city: page.city,
-      tags: page.tags,
-      summary: page.summary,
-      visibility: page.visibility
-    }));
-    const tags = [...new Set(pages.flatMap((page) => page.tags || []))].sort((a, b) => a.localeCompare(b));
-    res.json({
-      pages: compact,
-      tags,
-      worlds: compact.filter((page) => page.type === "world" || page.category === "worlds"),
-      countries: compact.filter((page) => page.type === "country" || page.category === "countries"),
-      cities: compact.filter((page) => page.type === "city" || page.category === "cities"),
-      locations: compact.filter((page) => page.category === "locations"),
-      npcs: compact.filter((page) => page.category === "npcs"),
-      enemies: compact.filter((page) => page.category === "enemies"),
-      quests: compact.filter((page) => page.category === "quests")
-    });
+    res.json(await campaignMetadata(contentContext(req)));
   } catch (error) {
     next(error);
   }
 });
 
-toolsRouter.get("/player-safety", requireGm, (_req, res) => {
-  res.json(getPlayerSafetyReview());
+toolsRouter.get("/player-safety", requireGm, async (req, res, next) => {
+  try {
+    res.json(await campaignPlayerSafetyReview(contentContext(req)));
+  } catch (error) {
+    next(error);
+  }
 });
 
 toolsRouter.get("/assets/list", requireGm, async (req, res, next) => {
   try {
-    const visiblePages = listPages("gm");
-    const used = new Set(visiblePages.flatMap((page) => [page.mapImage, page.avatarImage, page.tokenImage, page.handoutImage, page.image]).filter(Boolean).map((item) => String(item).replace(/^images\//, "")));
+    const visiblePages = await listCampaignPages(contentContext(req));
+    const used = referencedCampaignAssetNames(visiblePages);
+    const assetDir = campaignAssetDirectory(contentContext(req).campaignId);
     let files = [];
     try {
-      files = await fs.readdir(config.imagesDir, { withFileTypes: true });
+      files = await fs.readdir(assetDir, { withFileTypes: true });
     } catch {
       files = [];
     }
@@ -81,9 +74,10 @@ toolsRouter.get("/assets/list", requireGm, async (req, res, next) => {
   }
 });
 
-toolsRouter.get("/audit", requireGm, async (_req, res, next) => {
+toolsRouter.get("/audit", requireGm, async (req, res, next) => {
   try {
-    res.json(await auditVault("gm"));
+    const pages = await listCampaignPages(contentContext(req));
+    res.json(await auditPages(pages, { imagesDir: campaignAssetDirectory(contentContext(req).campaignId) }));
   } catch (error) {
     next(error);
   }
@@ -91,7 +85,7 @@ toolsRouter.get("/audit", requireGm, async (_req, res, next) => {
 
 toolsRouter.get("/audit-log", requireGm, async (req, res, next) => {
   try {
-    res.json({ events: await listAuditEvents(req.query.limit) });
+    res.json({ events: await listAuditEvents({ limit: req.query.limit, campaignId: contentContext(req).campaignId }) });
   } catch (error) {
     next(error);
   }
@@ -100,7 +94,8 @@ toolsRouter.get("/audit-log", requireGm, async (req, res, next) => {
 toolsRouter.post("/assets/upload", requireGm, upload.single("file"), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No map file received." });
-    await fs.mkdir(config.imagesDir, { recursive: true });
+    const assetDir = campaignAssetDirectory(contentContext(req).campaignId);
+    await fs.mkdir(assetDir, { recursive: true });
 
     const originalName = repairUploadedFilename(req.file.originalname);
     const rawExt = path.extname(originalName).toLowerCase();
@@ -114,13 +109,13 @@ toolsRouter.post("/assets/upload", requireGm, upload.single("file"), async (req,
 
     const base = slugify(path.basename(originalName, rawExt || ext));
     let fileName = `${base}${ext}`;
-    let target = path.join(config.imagesDir, fileName);
+    let target = path.join(assetDir, fileName);
     let copy = 2;
     while (true) {
       try {
         await fs.access(target);
         fileName = `${base}-${copy}${ext}`;
-        target = path.join(config.imagesDir, fileName);
+        target = path.join(assetDir, fileName);
         copy += 1;
       } catch {
         break;

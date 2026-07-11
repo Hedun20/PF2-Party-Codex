@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, ChevronDown, Dices, Globe2, LogIn, LogOut, Menu, Settings, UserRound } from "lucide-react";
+import { Archive, ChevronDown, Dices, Globe2, Layers3, LogIn, LogOut, Menu, Plus, Settings, UserRound } from "lucide-react";
 import { getWorlds, worldSlug } from "../utils/worldContext.js";
 import { changeScopePath, modeHome, modeMeta, shellModeFromLocation } from "../utils/shellContext.js";
 
@@ -35,7 +35,18 @@ function HeaderDropdown({ id, open, setOpen, icon: Icon, label, children, classN
   );
 }
 
-export default function CodexTopbar({ session, pages, allPages, sidebarOpen, setSidebarOpen, activeWorld, onLogout }) {
+export default function CodexTopbar({
+  session,
+  pages,
+  allPages,
+  campaigns = [],
+  campaignSwitching = false,
+  onCampaignChange,
+  sidebarOpen,
+  setSidebarOpen,
+  activeWorld,
+  onLogout
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [openDropdown, setOpenDropdown] = useState("");
@@ -72,23 +83,48 @@ export default function CodexTopbar({ session, pages, allPages, sidebarOpen, set
         <strong>{campaignName}</strong>
       </Link>
 
-      {campaignNavAvailable ? (
+      {signedIn ? (
         <div className="topbar-clean-controls">
-          <HeaderDropdown id="mode" open={openDropdown} setOpen={setOpenDropdown} icon={ModeIcon} label={meta.label} className="topbar-dropdown--mode">
-            <Link to={modeHome("archive", canManage, activeWorld)} onClick={closeDropdown}><Archive size={15} /> Архив</Link>
-            <Link to={modeHome("table", canManage, activeWorld)} onClick={closeDropdown}><Dices size={15} /> Игровой стол</Link>
-            <Link to={modeHome("management", canManage, activeWorld)} onClick={closeDropdown}><Settings size={15} /> {canManage ? "Управление" : "Профиль"}</Link>
+          <HeaderDropdown id="campaign" open={openDropdown} setOpen={setOpenDropdown} icon={Layers3} label={campaignName} className="topbar-dropdown--campaign">
+            {campaigns.map((item) => {
+              const active = item.campaign?.id === session?.activeCampaign?.id;
+              return (
+                <button
+                  key={item.campaign?.id || item.id}
+                  type="button"
+                  disabled={active || campaignSwitching}
+                  className={active ? "is-active campaign-option" : "campaign-option"}
+                  onClick={() => {
+                    closeDropdown();
+                    Promise.resolve(onCampaignChange?.(item.campaign.id)).catch(() => {});
+                  }}
+                >
+                  <span><strong>{item.campaign?.name || "Untitled campaign"}</strong><small>{roleLabel(item.role || item.membership?.role, true)}</small></span>
+                </button>
+              );
+            })}
+            <Link to="/campaigns" onClick={closeDropdown}><Plus size={15} /> Manage campaigns</Link>
           </HeaderDropdown>
 
-          <HeaderDropdown id="world" open={openDropdown} setOpen={setOpenDropdown} icon={Globe2} label={activeWorld?.title || "Вся кампания"} className="topbar-dropdown--world">
-            <button type="button" onClick={() => changeWorld(null)} className={!activeWorld ? "is-active" : ""}>Вся кампания</button>
-            {worlds.map((world) => (
-              <button key={world.path} type="button" onClick={() => changeWorld(world)} className={activeWorld && worldSlug(activeWorld) === worldSlug(world) ? "is-active" : ""}>
-                {world.title}
-              </button>
-            ))}
-            {canManage ? <Link to="/category/worlds" onClick={closeDropdown}>+ Создать / открыть миры</Link> : null}
-          </HeaderDropdown>
+          {campaignNavAvailable ? (
+            <>
+              <HeaderDropdown id="mode" open={openDropdown} setOpen={setOpenDropdown} icon={ModeIcon} label={meta.label} className="topbar-dropdown--mode">
+                <Link to={modeHome("archive", canManage, activeWorld)} onClick={closeDropdown}><Archive size={15} /> Архив</Link>
+                <Link to={modeHome("table", canManage, activeWorld)} onClick={closeDropdown}><Dices size={15} /> Игровой стол</Link>
+                <Link to={modeHome("management", canManage, activeWorld)} onClick={closeDropdown}><Settings size={15} /> {canManage ? "Управление" : "Профиль"}</Link>
+              </HeaderDropdown>
+
+              <HeaderDropdown id="world" open={openDropdown} setOpen={setOpenDropdown} icon={Globe2} label={activeWorld?.title || "Вся кампания"} className="topbar-dropdown--world">
+                <button type="button" onClick={() => changeWorld(null)} className={!activeWorld ? "is-active" : ""}>Вся кампания</button>
+                {worlds.map((world) => (
+                  <button key={world.path} type="button" onClick={() => changeWorld(world)} className={activeWorld && worldSlug(activeWorld) === worldSlug(world) ? "is-active" : ""}>
+                    {world.title}
+                  </button>
+                ))}
+                {canManage ? <Link to="/category/worlds" onClick={closeDropdown}>+ Создать / открыть миры</Link> : null}
+              </HeaderDropdown>
+            </>
+          ) : null}
         </div>
       ) : null}
 

@@ -1,46 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client.js";
 
-const CHARACTERS_KEY = "pf2-player-characters:v1";
-
 const defaultCharacter = {
-  name: "New character",
-  playerName: "",
-  ancestry: "",
-  heritage: "",
-  background: "",
-  className: "",
-  level: 1,
-  alignment: "",
   attributes: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
-  defenses: { ac: 10, hp: 10, maxHp: 10, perception: 0, fortitude: 0, reflex: 0, will: 0 },
-  skillIds: [],
-  featIds: [],
-  publicSummary: "",
-  privateNotes: "",
-  buildNotes: "",
-  gmNotes: "",
-  inventoryText: "",
-  linkedArticles: [],
-  isVisibleToParty: false,
-  isSharedWithGm: true
+  defenses: { ac: 10, hp: 10, maxHp: 10, perception: 0, fortitude: 0, reflex: 0, will: 0 }
 };
-
-function safeParse(value, fallback) {
-  try {
-    return JSON.parse(value) || fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function uid() {
-  return `char-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function now() {
-  return new Date().toISOString();
-}
 
 export function characterToLegacyShape(character = {}) {
   if (!character.identity && !character.stats) return character;
@@ -92,44 +56,15 @@ export function characterToLegacyShape(character = {}) {
   };
 }
 
-export function loadPlayerCharacters() {
-  if (typeof localStorage === "undefined") return [];
-  const characters = safeParse(localStorage.getItem(CHARACTERS_KEY), []);
-  return Array.isArray(characters) ? characters : [];
-}
-
-export function savePlayerCharacters(characters = []) {
-  if (typeof localStorage === "undefined") return;
-  localStorage.setItem(CHARACTERS_KEY, JSON.stringify(characters));
-  window.dispatchEvent(new CustomEvent("pf2-player-characters:changed", { detail: characters }));
-}
-
-export function createPlayerCharacter(seed = {}) {
-  const stamp = now();
-  return {
-    ...defaultCharacter,
-    ...seed,
-    attributes: { ...defaultCharacter.attributes, ...(seed.attributes || {}) },
-    defenses: { ...defaultCharacter.defenses, ...(seed.defenses || {}) },
-    linkedArticles: Array.isArray(seed.linkedArticles) ? seed.linkedArticles : [],
-    skillIds: Array.isArray(seed.skillIds) ? seed.skillIds : [],
-    featIds: Array.isArray(seed.featIds) ? seed.featIds : [],
-    id: uid(),
-    createdAt: stamp,
-    updatedAt: stamp
-  };
-}
-
 export function usePlayerCharacters() {
-  const [characters, setCharacters] = useState(() => loadPlayerCharacters());
-  const [storageMode, setStorageMode] = useState("browser");
+  const [characters, setCharacters] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const loadRemote = useCallback(async () => {
     if (!api.getToken()) {
-      setStorageMode("browser");
-      setCharacters(loadPlayerCharacters());
+      setCharacters([]);
+      setError("Sign in to access campaign characters.");
       return;
     }
     setBusy(true);
@@ -137,11 +72,9 @@ export function usePlayerCharacters() {
     try {
       const data = await api.characters("mine");
       setCharacters((data.characters || []).map(characterToLegacyShape));
-      setStorageMode("mongo");
     } catch (loadError) {
-      setStorageMode("browser");
-      setError(loadError.message || "Characters API unavailable; using browser fallback.");
-      setCharacters(loadPlayerCharacters());
+      setCharacters([]);
+      setError(loadError.message || "Campaign characters are unavailable.");
     } finally {
       setBusy(false);
     }
@@ -151,61 +84,47 @@ export function usePlayerCharacters() {
     loadRemote();
   }, [loadRemote]);
 
-  useEffect(() => {
-    const sync = () => {
-      if (storageMode === "browser") setCharacters(loadPlayerCharacters());
-    };
-    window.addEventListener("storage", sync);
-    window.addEventListener("pf2-player-characters:changed", sync);
-    return () => {
-      window.removeEventListener("storage", sync);
-      window.removeEventListener("pf2-player-characters:changed", sync);
-    };
-  }, [storageMode]);
-
-  const persistLocal = useCallback((next) => {
-    setCharacters(next);
-    savePlayerCharacters(next);
-  }, []);
-
   const addCharacter = useCallback(async (seed = {}) => {
-    if (storageMode === "mongo") {
+    setError("");
+    try {
       const data = await api.createCharacter(seed);
       const character = characterToLegacyShape(data.character);
-      setCharacters((current) => [character, ...current]);
+      setCharacters((current) => [character, ...current.filter((item) => item.id !== character.id)]);
       return character;
+    } catch (createError) {
+      setError(createError.message || "Could not create character.");
+      throw createError;
     }
-    const character = createPlayerCharacter(seed);
-    persistLocal([character, ...characters]);
-    return character;
-  }, [characters, persistLocal, storageMode]);
+  }, []);
 
   const updateCharacter = useCallback(async (id, patch) => {
-    if (storageMode === "mongo") {
+    setError("");
+    try {
       const data = await api.updateCharacter(id, patch);
       const character = characterToLegacyShape(data.character);
       setCharacters((current) => current.map((item) => item.id === id ? character : item));
       return character;
+    } catch (updateError) {
+      setError(updateError.message || "Could not update character.");
+      throw updateError;
     }
-    const next = characters.map((character) => character.id === id ? { ...character, ...patch, updatedAt: now() } : character);
-    persistLocal(next);
-    return next.find((character) => character.id === id);
-  }, [characters, persistLocal, storageMode]);
+  }, []);
 
   const deleteCharacter = useCallback(async (id) => {
-    if (storageMode === "mongo") {
+    setError("");
+    try {
       await api.deleteCharacter(id);
       setCharacters((current) => current.filter((character) => character.id !== id));
-      return;
+    } catch (deleteError) {
+      setError(deleteError.message || "Could not delete character.");
+      throw deleteError;
     }
-    persistLocal(characters.filter((character) => character.id !== id));
-  }, [characters, persistLocal, storageMode]);
+  }, []);
 
   const importCharacter = useCallback(async ({ adapter = "pathbuilder", rawImport, originalFilename = "" }) => {
     const commit = await api.characterImportCommit(adapter, { rawImport, originalFilename });
     const character = characterToLegacyShape(commit.character);
-    setCharacters((current) => [character, ...current]);
-    setStorageMode("mongo");
+    setCharacters((current) => [character, ...current.filter((item) => item.id !== character.id)]);
     return { ...commit, character };
   }, []);
 
@@ -215,5 +134,17 @@ export function usePlayerCharacters() {
 
   const publicCharacters = useMemo(() => characters.filter((character) => character.isVisibleToParty), [characters]);
 
-  return { characters, publicCharacters, addCharacter, updateCharacter, deleteCharacter, importCharacter, dryRunImport, reloadCharacters: loadRemote, storageMode, busy, error };
+  return {
+    characters,
+    publicCharacters,
+    addCharacter,
+    updateCharacter,
+    deleteCharacter,
+    importCharacter,
+    dryRunImport,
+    reloadCharacters: loadRemote,
+    storageMode: "mongo",
+    busy,
+    error
+  };
 }

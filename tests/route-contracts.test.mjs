@@ -12,10 +12,14 @@ import {
 } from "../apps/web/src/utils/shellContext.js";
 import { worldRoute } from "../apps/web/src/utils/worldContext.js";
 import { localIpv4Addresses } from "../apps/server/src/utils/network.js";
+import { chooseActiveMembership } from "../apps/server/src/repositories/identityRepository.js";
+import { playerSafeEntry } from "../apps/server/src/repositories/entriesRepository.js";
+import { entryToCampaignPage } from "../apps/server/src/services/campaignContentService.js";
 import { archiveRouter } from "../apps/server/src/routes/archive.js";
 import { assetsRouter } from "../apps/server/src/routes/assets.js";
 import { authRouter } from "../apps/server/src/routes/auth.js";
 import { categoriesRouter } from "../apps/server/src/routes/categories.js";
+import { campaignsRouter } from "../apps/server/src/routes/campaigns.js";
 import { charactersRouter } from "../apps/server/src/routes/characters.js";
 import { entriesRouter } from "../apps/server/src/routes/entries.js";
 import { foundryRouter } from "../apps/server/src/routes/foundry.js";
@@ -61,14 +65,14 @@ test("frontend route table includes every stabilization entry point and a 404 fa
   const routeList = [...source.matchAll(/<Route\s+path="([^"]+)"/g)].map((match) => match[1]);
   const routes = new Set(routeList);
   const requiredRoutes = [
-    "/", "/login", "/invite/:token", "/archive", "/session-desk", "/dice",
+    "/", "/login", "/invite/:token", "/campaigns", "/archive", "/session-desk", "/dice",
     "/players", "/profile", "/settings", "/notes", "/handouts", "/maps",
     "/timeline", "/characters", "/sessions", "/editor", "/edit/:path",
     "/page/:path", "/category/:category/*", "/world/:worldSlug", "/guide",
     "/gm-tools", "/health", "/foundry", "*"
   ];
   for (const route of requiredRoutes) assert.ok(routes.has(route), `Missing frontend route: ${route}`);
-  assert.equal(routeList.length, 36, "Unexpected frontend route count");
+  assert.equal(routeList.length, 37, "Unexpected frontend route count");
   assert.equal(routes.size, routeList.length, "Frontend route paths must be unique");
 });
 
@@ -136,6 +140,7 @@ const routerMounts = [
   ["/api", "healthRouter", "health.js", healthRouter],
   ["/api", "authRouter", "auth.js", authRouter],
   ["/api", "onboardingRouter", "onboarding.js", onboardingRouter],
+  ["/api", "campaignsRouter", "campaigns.js", campaignsRouter],
   ["/api", "membershipsRouter", "memberships.js", membershipsRouter],
   ["/api", "invitationsRouter", "memberships.js", invitationsRouter],
   ["/api", "notesRouter", "notes.js", notesRouter],
@@ -184,8 +189,32 @@ test("all backend route modules are mounted and endpoint signatures stay unique"
     .sort();
   const mountedFiles = [...new Set(routerMounts.map(([, , file]) => file))].sort();
   assert.deepEqual(routeFiles, mountedFiles, "Every route module must be mounted exactly through the route table");
-  assert.equal(signatures.length, 89, "Unexpected backend endpoint count");
+  assert.equal(signatures.length, 92, "Unexpected backend endpoint count");
   assert.equal(new Set(signatures).size, signatures.length, "Backend endpoint signatures must be unique");
+});
+
+test("campaign selection prefers the saved active membership and safely falls back", () => {
+  const memberships = [
+    { id: "m1", campaignId: "campaign-a", status: "active" },
+    { id: "m2", campaignId: "campaign-b", status: "active" },
+    { id: "m3", campaignId: "campaign-c", status: "removed" }
+  ];
+  assert.equal(chooseActiveMembership(memberships, "campaign-b")?.id, "m2");
+  assert.equal(chooseActiveMembership(memberships, "missing")?.id, "m1");
+  assert.equal(chooseActiveMembership([memberships[2]], "campaign-c"), null);
+});
+
+test("campaign context is explicit across API requests and multi-campaign creation stays enabled", async () => {
+  const [clientSource, sessionSource, identitySource, invitationSource] = await Promise.all([
+    fs.readFile(path.join(rootDir, "apps/web/src/api/client.js"), "utf8"),
+    fs.readFile(path.join(rootDir, "apps/server/src/services/sessionService.js"), "utf8"),
+    fs.readFile(path.join(rootDir, "apps/server/src/repositories/identityRepository.js"), "utf8"),
+    fs.readFile(path.join(rootDir, "apps/server/src/repositories/invitationsRepository.js"), "utf8")
+  ]);
+  assert.match(clientSource, /"X-Campaign-Id"/);
+  assert.match(sessionSource, /x-campaign-id/i);
+  assert.doesNotMatch(identitySource, /already has an active campaign membership/i);
+  assert.match(invitationSource, /setActiveCampaignForUser/);
 });
 
 test("timeline API response keeps the frontend contract and compatibility alias", async () => {
@@ -207,7 +236,7 @@ function middlewareNames(router, routePath, method = "get") {
   return layer.route.stack.map((item) => item.name);
 }
 
-test("legacy campaign reads require membership and GM metadata stays restricted", () => {
+test("campaign content reads require membership and GM metadata stays restricted", () => {
   for (const [router, routePath] of [
     [pagesRouter, "/pages"],
     [pagesRouter, "/page"],
@@ -221,6 +250,72 @@ test("legacy campaign reads require membership and GM metadata stays restricted"
   }
   assert.ok(middlewareNames(toolsRouter, "/metadata").includes("requireGm"), "/metadata must require GM access");
   assert.ok(middlewareNames(toolsRouter, "/assets/list").includes("requireGm"), "/assets/list must require GM access");
+});
+
+test("player entry serialization removes GM content, private metadata and hidden map objects", () => {
+  const raw = {
+    _id: "entry-1",
+    campaignId: "campaign-a",
+    title: "Safe page",
+    path: "lore/safe-page.md",
+    publicContent: "Visible text",
+    gmContent: "The hidden villain",
+    visibility: "public",
+    status: "active",
+    source: { kind: "vaultImport", originalPath: "private/source.md" },
+    createdBy: "gm-user",
+    updatedBy: "gm-user",
+    metadata: {
+      gmNotes: "never expose",
+      frontmatter: {
+        title: "Safe page",
+        gmSecrets: "never expose",
+        customPrivatePayload: { password: "never expose" },
+        pins: [
+          { id: "public-pin", label: "Town", visibility: "public" },
+          { id: "secret-pin", label: "Lair", visibility: "gmOnly", gmNotes: "trap" }
+        ]
+      },
+      mapObjects: [
+        { id: "public-object", label: "Bridge", visibility: "revealed" },
+        { id: "secret-object", label: "Ambush", visibility: "hidden", secret: "bandits" }
+      ]
+    }
+  };
+  const safe = playerSafeEntry(raw);
+  assert.ok(safe);
+  assert.equal(safe.gmContent, "");
+  assert.equal(safe.source, undefined);
+  assert.equal(safe.createdBy, undefined);
+  assert.equal(safe.metadata.gmNotes, undefined);
+  assert.equal(safe.metadata.frontmatter.gmSecrets, undefined);
+  assert.equal(safe.metadata.frontmatter.customPrivatePayload, undefined);
+  assert.deepEqual(safe.metadata.pins.map((item) => item.id), ["public-pin"]);
+  assert.deepEqual(safe.metadata.mapObjects.map((item) => item.id), ["public-object"]);
+
+  const page = entryToCampaignPage(safe, "player");
+  assert.doesNotMatch(JSON.stringify(page), /hidden villain|never expose|Ambush|bandits|private\/source/i);
+  assert.deepEqual(page.pins.map((item) => item.id), ["public-pin"]);
+  assert.deepEqual(page.mapObjects.map((item) => item.id), ["public-object"]);
+});
+
+test("Mongo is the only live campaign store and browser content fallbacks stay disabled", async () => {
+  const [notesSource, charactersSource, sessionDeskSource, revealSource, serverSource, importSource] = await Promise.all([
+    fs.readFile(path.join(rootDir, "apps/web/src/utils/playerNotes.js"), "utf8"),
+    fs.readFile(path.join(rootDir, "apps/web/src/utils/playerCharacters.js"), "utf8"),
+    fs.readFile(path.join(rootDir, "apps/web/src/pages/SessionModePage.jsx"), "utf8"),
+    fs.readFile(path.join(rootDir, "apps/server/src/services/revealService.js"), "utf8"),
+    fs.readFile(path.join(rootDir, "apps/server/src/index.js"), "utf8"),
+    fs.readFile(path.join(rootDir, "apps/server/src/routes/import.js"), "utf8")
+  ]);
+  assert.doesNotMatch(notesSource, /localStorage|browser fallback/i);
+  assert.doesNotMatch(charactersSource, /localStorage|browser fallback/i);
+  assert.doesNotMatch(sessionDeskSource, /localStorage|browser fallback/i);
+  assert.match(sessionDeskSource, /api\.(?:createSession|updateSession)/);
+  assert.doesNotMatch(revealSource, /new Map\s*\(/);
+  assert.match(revealSource, /collections\.handouts/);
+  assert.match(serverSource, /if \(!databaseStatus\.connected\)/);
+  assert.doesNotMatch(importSource, /Vault remains the source of truth/i);
 });
 
 test("registration copy matches Identity v2 and has no dead player-preview loop", async () => {

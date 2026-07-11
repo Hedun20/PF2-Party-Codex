@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, BookOpen, RadioTower, CheckCircle2, ClipboardCopy, Eye, FileText, MapPinned, PenLine, PlayCircle, ScrollText, ShieldAlert, Sparkles, Swords, UsersRound } from "lucide-react";
+import { ArrowLeft, BookOpen, RadioTower, CheckCircle2, ClipboardCopy, Eye, FileText, MapPinned, PenLine, PlayCircle, Save, ScrollText, ShieldAlert, Sparkles, Swords, UsersRound } from "lucide-react";
 import CodexButton from "../components/ui/CodexButton.jsx";
 import { api } from "../api/client.js";
 import { getWorldOwnedPages, resolveWorldBySlug, worldRoute } from "../utils/worldContext.js";
@@ -54,10 +54,6 @@ function editorCreateLink(world, type = "session", title = "") {
   return `/editor?${params.toString()}`;
 }
 
-function sessionStorageKey(world) {
-  return `pf2-session-mode:${world?.path || world?.title || "world"}`;
-}
-
 function ListPanel({ title, kicker, icon: Icon, items = [], empty, cta, onReveal, revealDisabled }) {
   return (
     <section className="codex-card session-panel">
@@ -100,20 +96,36 @@ export default function SessionModePage({ pages = [], mode = "player", session }
   const { worldSlug } = useParams();
   const world = resolveWorldBySlug(pages, worldSlug);
   const [notes, setNotes] = useState("");
+  const [sessionDraftId, setSessionDraftId] = useState("");
+  const [notesBusy, setNotesBusy] = useState(false);
+  const [notesMessage, setNotesMessage] = useState("");
   const [copied, setCopied] = useState(false);
   const [revealMessage, setRevealMessage] = useState("");
   const [revealingPath, setRevealingPath] = useState("");
   const canEdit = mode === "gm" && Boolean(session?.canEdit);
 
   useEffect(() => {
-    if (!world) return;
-    setNotes(localStorage.getItem(sessionStorageKey(world)) || "");
-  }, [world?.path]);
-
-  useEffect(() => {
-    if (!world) return;
-    localStorage.setItem(sessionStorageKey(world), notes);
-  }, [world?.path, notes]);
+    let cancelled = false;
+    setNotes("");
+    setSessionDraftId("");
+    setNotesMessage("");
+    if (!world || !canEdit) return () => { cancelled = true; };
+    setNotesBusy(true);
+    api.sessions()
+      .then((data) => {
+        if (cancelled) return;
+        const draft = (data.sessions || []).find((item) => item.source?.kind === "sessionDesk" && item.source?.worldPath === world.path);
+        setSessionDraftId(draft?.id || "");
+        setNotes(draft?.prepNotes || "");
+      })
+      .catch((error) => {
+        if (!cancelled) setNotesMessage(error.message || "Не удалось загрузить заметки сессии.");
+      })
+      .finally(() => {
+        if (!cancelled) setNotesBusy(false);
+      });
+    return () => { cancelled = true; };
+  }, [canEdit, world?.path]);
 
   const ownedPages = useMemo(() => world ? getWorldOwnedPages(pages, world).filter((page) => page.path !== world.path) : [], [pages, world]);
   const maps = ownedPages.filter((page) => page.mapImage).slice(0, 5);
@@ -161,6 +173,36 @@ export default function SessionModePage({ pages = [], mode = "player", session }
     }
   };
 
+  const saveNotes = async (nextNotes = notes) => {
+    if (!canEdit || !world) return;
+    setNotesBusy(true);
+    setNotesMessage("");
+    const payload = {
+      title: `${world.title}: session desk`,
+      status: "running",
+      visibility: "gmOnly",
+      prepNotes: nextNotes,
+      linkedEntryIds: world.entryId ? [world.entryId] : [],
+      source: { kind: "sessionDesk", worldPath: world.path, worldTitle: world.title }
+    };
+    try {
+      const data = sessionDraftId
+        ? await api.updateSession(sessionDraftId, payload)
+        : await api.createSession(payload);
+      setSessionDraftId(data.session?.id || sessionDraftId);
+      setNotesMessage("Черновик сохранён в кампании.");
+    } catch (error) {
+      setNotesMessage(error.message || "Не удалось сохранить заметки сессии.");
+    } finally {
+      setNotesBusy(false);
+    }
+  };
+
+  const clearNotes = async () => {
+    setNotes("");
+    if (sessionDraftId) await saveNotes("");
+  };
+
   return (
     <div className="page-stack session-mode-page">
       <section className="hero-panel session-hero-panel">
@@ -190,7 +232,7 @@ export default function SessionModePage({ pages = [], mode = "player", session }
       {revealMessage && <div className={`status-message ${revealMessage.includes("нельзя") ? "danger-message" : ""}`}>{revealMessage}</div>}
 
       <section className="session-mode-grid">
-        <section className="codex-card session-notes-panel">
+        {canEdit ? <section className="codex-card session-notes-panel">
           <div className="session-panel-head">
             <div>
               <span className="kicker">Live notes</span>
@@ -204,12 +246,14 @@ export default function SessionModePage({ pages = [], mode = "player", session }
             placeholder={`# ${nextTitle}\n\n## Что произошло\n- \n\n## Кого встретили\n- \n\n## Крючки на следующую игру\n- `}
           />
           <div className="session-notes-actions">
+            <CodexButton type="button" onClick={() => saveNotes()} disabled={notesBusy}><Save size={16} /> {notesBusy ? "Сохранение..." : "Сохранить"}</CodexButton>
             <CodexButton type="button" onClick={copyNotes}><ClipboardCopy size={16} /> {copied ? "Скопировано" : "Скопировать"}</CodexButton>
-            {canEdit && <CodexButton as={Link} to={editorCreateLink(world, "session", nextTitle)} variant="secondary"><FileText size={16} /> Открыть recap</CodexButton>}
-            <CodexButton type="button" variant="ghost" onClick={() => setNotes("")}>Очистить</CodexButton>
+            <CodexButton as={Link} to={editorCreateLink(world, "session", nextTitle)} variant="secondary"><FileText size={16} /> Открыть recap</CodexButton>
+            <CodexButton type="button" variant="ghost" onClick={clearNotes} disabled={notesBusy}>Очистить</CodexButton>
           </div>
-          <p className="session-note-hint">Заметки сохраняются локально в браузере для этого мира. Это черновик, не финальная статья vault — после игры скопируй его в recap.</p>
-        </section>
+          {notesMessage ? <p className="session-note-hint">{notesMessage}</p> : null}
+          <p className="session-note-hint">Черновик хранится в активной кампании и доступен только GM. После игры перенеси итог в публичный recap.</p>
+        </section> : null}
 
         <ListPanel title="Сцены и карты" kicker="Открыть сейчас" icon={MapPinned} items={maps} empty="Карты появятся здесь, когда у статьи есть mapImage." cta={<Link className="small-context-link" to={`${worldRoute(world)}/maps`}>Все карты мира</Link>} />
         <ListPanel title="Активные квесты" kicker="Ставки партии" icon={Swords} items={activeQuests} empty="Создай quest со статусом active/idea — он появится в режиме сессии." cta={canEdit ? <Link className="small-context-link" to={editorCreateLink(world, "quest")}>Создать квест</Link> : null} />

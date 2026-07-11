@@ -9,8 +9,26 @@ export default function FoundryExportPanel({ mode }) {
   const [message, setMessage] = useState("");
 
   async function exportData() {
-    const result = await api.foundryExport({ mode, category, exportMode });
-    setMessage(`Подготовлено журналов: ${result.journals.length}`);
+    try {
+      const result = await api.foundryExport({ mode, category, exportMode });
+      setMessage(`Подготовлено журналов: ${result.journals.length}`);
+    } catch (error) {
+      setMessage(error.message || "Не удалось собрать экспорт.");
+    }
+  }
+
+  async function downloadData() {
+    try {
+      const blob = await api.foundryExportDownload();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "party-codex-journals.json";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setMessage(error.message || "Не удалось скачать экспорт.");
+    }
   }
 
   return (
@@ -19,7 +37,7 @@ export default function FoundryExportPanel({ mode }) {
       <label>Категория<input value={category} onChange={(event) => setCategory(event.target.value)} placeholder="необязательно, например lore/gods" /></label>
       <label>Режим экспорта<select value={exportMode} onChange={(event) => setExportMode(event.target.value)}><option value="single">один JSON</option><option value="per-page">JSON на страницу</option><option value="module">каркас модуля</option></select></label>
       <CodexButton type="button" onClick={exportData}><PackageCheck size={16} /> Собрать экспорт</CodexButton>
-      <CodexButton as="a" href="/api/foundry/export/download" variant="secondary"><Download size={16} /> Скачать JSON</CodexButton>
+      <CodexButton type="button" onClick={downloadData} variant="secondary"><Download size={16} /> Скачать JSON</CodexButton>
       {message && <p className="save-message">{message}</p>}
     </section>
   );

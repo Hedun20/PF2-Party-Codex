@@ -9,6 +9,7 @@ import { archiveRouter } from "./routes/archive.js";
 import { assetsRouter } from "./routes/assets.js";
 import { authRouter } from "./routes/auth.js";
 import { categoriesRouter } from "./routes/categories.js";
+import { campaignsRouter } from "./routes/campaigns.js";
 import { charactersRouter } from "./routes/characters.js";
 import { entriesRouter } from "./routes/entries.js";
 import { foundryRouter } from "./routes/foundry.js";
@@ -56,6 +57,7 @@ app.get("/api/session", async (req, res, next) => {
 app.use("/api", healthRouter);
 app.use("/api", authRouter);
 app.use("/api", onboardingRouter);
+app.use("/api", campaignsRouter);
 app.use("/api", membershipsRouter);
 app.use("/api", invitationsRouter);
 app.use("/api", notesRouter);
@@ -90,13 +92,17 @@ app.use((error, _req, res, _next) => {
   res.status(status).json({ error: error.message || "Unexpected server error" });
 });
 
-await connectMongo();
+const databaseStatus = await connectMongo();
 await ensureIdentityIndexes();
 await ensureInvitationIndexes();
 await ensureCodexIndexes();
 await ensureWorldSystemIndexes();
-await rebuildVaultIndex();
-startVaultWatcher();
+if (!databaseStatus.connected) {
+  await rebuildVaultIndex();
+  startVaultWatcher();
+} else {
+  logger.info("MongoDB is the active content source. Markdown vault remains available only for explicit import/export compatibility.");
+}
 
 const server = app.listen(config.port, config.host, () => {
   logger.info(`Party Codex running at http://localhost:${config.port}`);

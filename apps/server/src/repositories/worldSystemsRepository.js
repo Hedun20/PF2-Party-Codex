@@ -222,6 +222,7 @@ function publicSession(session = {}) {
     linkedNpcIds: (session.linkedNpcIds || []).map(idString),
     linkedQuestIds: (session.linkedQuestIds || []).map(idString),
     attendance: Array.isArray(session.attendance) ? session.attendance.map((item) => ({ userId: idString(item.userId), characterId: idString(item.characterId), status: item.status || "unknown" })) : [],
+    source: session.source || {},
     createdBy: idString(session.createdBy),
     updatedBy: idString(session.updatedBy),
     createdAt: session.createdAt,
@@ -232,7 +233,7 @@ function publicSession(session = {}) {
 function playerSafeSession(session) {
   const item = publicSession(session);
   if (!["public", "revealed"].includes(item.visibility)) return null;
-  return { ...item, prepNotes: "", recapGm: "" };
+  return { ...item, prepNotes: "", recapGm: "", source: undefined };
 }
 
 function publicHandout(handout = {}) {
@@ -351,6 +352,7 @@ function normalizeSessionInput({ campaignId, userId, input = {}, existing = null
     linkedNpcIds: cleanIdArray(input.linkedNpcIds ?? existing?.linkedNpcIds),
     linkedQuestIds: cleanIdArray(input.linkedQuestIds ?? existing?.linkedQuestIds),
     attendance,
+    source: input.source || existing?.source || { kind: "manual" },
     updatedBy: objectIdFrom(userId) || userId || null,
     updatedAt: stamp
   };
@@ -441,7 +443,7 @@ export async function updateMap({ campaignId, id, userId, input }) {
   if (!existing) return null;
   const patch = normalizeMapInput({ campaignId, userId, input, existing });
   await maps().updateOne({ _id, campaignId: campaignKey(campaignId) }, { $set: patch });
-  return publicMap(await maps().findOne({ _id }));
+  return publicMap(await maps().findOne({ _id, campaignId: campaignKey(campaignId) }));
 }
 
 export async function deleteMap({ campaignId, id }) {
@@ -480,7 +482,7 @@ export async function updateMapObject({ campaignId, id, userId, input }) {
   if (!existing) return null;
   const patch = normalizeMapObjectInput({ campaignId, mapId: existing.mapId, userId, input, existing });
   await mapObjects().updateOne({ _id, campaignId: campaignKey(campaignId) }, { $set: patch });
-  return publicMapObject(await mapObjects().findOne({ _id }));
+  return publicMapObject(await mapObjects().findOne({ _id, campaignId: campaignKey(campaignId) }));
 }
 
 export async function deleteMapObject({ campaignId, id }) {
@@ -518,7 +520,7 @@ export async function updateTimelineEvent({ campaignId, id, userId, input }) {
   if (!existing) return null;
   const patch = normalizeTimelineInput({ campaignId, userId, input, existing });
   await timelineEvents().updateOne({ _id, campaignId: campaignKey(campaignId) }, { $set: patch });
-  return publicTimelineEvent(await timelineEvents().findOne({ _id }));
+  return publicTimelineEvent(await timelineEvents().findOne({ _id, campaignId: campaignKey(campaignId) }));
 }
 
 export async function deleteTimelineEvent({ campaignId, id }) {
@@ -555,7 +557,7 @@ export async function updateCampaignSession({ campaignId, id, userId, input }) {
   if (!existing) return null;
   const patch = normalizeSessionInput({ campaignId, userId, input, existing });
   await sessions().updateOne({ _id, campaignId: campaignKey(campaignId) }, { $set: patch });
-  return publicSession(await sessions().findOne({ _id }));
+  return publicSession(await sessions().findOne({ _id, campaignId: campaignKey(campaignId) }));
 }
 
 export async function deleteCampaignSession({ campaignId, id }) {
@@ -597,7 +599,7 @@ export async function updateHandout({ campaignId, id, userId, input }) {
   if (!existing) return null;
   const patch = normalizeHandoutInput({ campaignId, userId, input, existing });
   await handouts().updateOne({ _id, campaignId: campaignKey(campaignId) }, { $set: patch });
-  return publicHandout(await handouts().findOne({ _id }));
+  return publicHandout(await handouts().findOne({ _id, campaignId: campaignKey(campaignId) }));
 }
 
 export async function deleteHandout({ campaignId, id }) {

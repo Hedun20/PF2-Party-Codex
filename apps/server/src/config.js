@@ -16,6 +16,7 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || defaultAllowedOrigins.joi
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+const dataDir = process.env.DATA_DIR || path.join(rootDir, "data");
 
 if (!authSecret) {
   throw new Error("AUTH_SECRET is required when NODE_ENV=production. Refusing to start without a signing secret.");
@@ -40,7 +41,9 @@ export const config = {
   vaultDir: path.join(rootDir, "vault"),
   imagesDir: path.join(rootDir, "vault", "images"),
   exportDir: path.join(rootDir, "foundry-export"),
-  dataDir: process.env.DATA_DIR || path.join(rootDir, "data"),
+  dataDir,
+  campaignAssetsDir: path.join(dataDir, "campaign-assets"),
+  campaignExportsDir: path.join(dataDir, "campaign-exports"),
   mongoUri: String(process.env.MONGO_DISABLED || "").toLowerCase() === "true" ? "" : (process.env.MONGO_URI || ""),
   mongoDbName: process.env.MONGO_DB_NAME || "pf2_party_codex"
 };

@@ -81,6 +81,8 @@ export default function App() {
   const [mode, setMode] = useState("gm");
   const [pages, setPages] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [campaignSwitching, setCampaignSwitching] = useState(false);
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
@@ -93,12 +95,29 @@ export default function App() {
 
   const loadSession = async () => {
     const data = await api.session();
+    api.setActiveCampaignId(data.activeCampaign?.id || "");
     setSession(data);
     if (!canManageCampaign(data)) setMode("player");
     return data;
   };
 
-  const refresh = async (sessionOverride = session) => {
+  const loadCampaigns = async (sessionOverride = session) => {
+    if (!sessionOverride?.user) {
+      setCampaigns([]);
+      return [];
+    }
+    try {
+      const data = await api.campaigns();
+      const items = Array.isArray(data.campaigns) ? data.campaigns : [];
+      setCampaigns(items);
+      return items;
+    } catch {
+      setCampaigns([]);
+      return [];
+    }
+  };
+
+  const refresh = async (sessionOverride = session, modeOverride = "") => {
     if (sessionOverride?.user && !hasActiveCampaignMembership(sessionOverride)) {
       setPages([]);
       setCategories([]);
@@ -106,7 +125,8 @@ export default function App() {
     }
 
     try {
-      const [pageData, categoryData] = await Promise.all([api.pages(effectiveMode), api.categories(effectiveMode)]);
+      const requestedMode = modeOverride || (canManageCampaign(sessionOverride) ? mode : "player");
+      const [pageData, categoryData] = await Promise.all([api.pages(requestedMode), api.categories(requestedMode)]);
       setPages(Array.isArray(pageData.pages) ? pageData.pages : []);
       setCategories(Array.isArray(categoryData.categories) ? categoryData.categories : []);
       return { pages: pageData.pages || [], categories: categoryData.categories || [] };
@@ -122,16 +142,46 @@ export default function App() {
 
   const handleAuth = async () => {
     const nextSession = await loadSession();
-    if (canManageCampaign(nextSession)) setMode("gm");
-    await refresh(nextSession);
+    const nextMode = canManageCampaign(nextSession) ? "gm" : "player";
+    setMode(nextMode);
+    await loadCampaigns(nextSession);
+    await refresh(nextSession, nextMode);
     navigate("/");
   };
 
   const handleOnboardingCreated = async () => {
     const nextSession = await loadSession();
-    if (canManageCampaign(nextSession)) setMode("gm");
-    await refresh(nextSession);
+    const nextMode = canManageCampaign(nextSession) ? "gm" : "player";
+    setMode(nextMode);
+    await loadCampaigns(nextSession);
+    await refresh(nextSession, nextMode);
     navigate("/");
+  };
+
+  const handleInvitationAccepted = async () => {
+    const nextSession = await loadSession();
+    const nextMode = canManageCampaign(nextSession) ? "gm" : "player";
+    setMode(nextMode);
+    await loadCampaigns(nextSession);
+    await refresh(nextSession, nextMode);
+  };
+
+  const handleCampaignChange = async (campaignId) => {
+    if (!campaignId || campaignId === session?.activeCampaign?.id || campaignSwitching) return;
+    setCampaignSwitching(true);
+    try {
+      await api.activateCampaign(campaignId);
+      setPages([]);
+      setCategories([]);
+      const nextSession = await loadSession();
+      const nextMode = canManageCampaign(nextSession) ? "gm" : "player";
+      setMode(nextMode);
+      await loadCampaigns(nextSession);
+      await refresh(nextSession, nextMode);
+      navigate("/");
+    } finally {
+      setCampaignSwitching(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -140,11 +190,14 @@ export default function App() {
     setMode("player");
     setPages([]);
     setCategories([]);
+    setCampaigns([]);
     navigate("/");
   };
 
   useEffect(() => {
-    loadSession().catch(() => {});
+    loadSession()
+      .then((data) => loadCampaigns(data))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -181,7 +234,15 @@ export default function App() {
   const worldPages = useMemo(() => activeWorld ? getWorldOwnedPages(pages, activeWorld) : pages, [pages, activeWorld]);
   const shellPages = useMemo(() => activeWorld ? getWorldSearchPages(pages, activeWorld) : pages, [pages, activeWorld]);
 
-  const onboardingElement = <OnboardingPage session={session} onCreated={handleOnboardingCreated} />;
+  const onboardingElement = (
+    <OnboardingPage
+      session={session}
+      campaigns={campaigns}
+      onCreated={handleOnboardingCreated}
+      onCampaignChange={handleCampaignChange}
+      campaignSwitching={campaignSwitching}
+    />
+  );
   const accessDeniedElement = (
     <SimplePlaceholderPage title="GM access required" kicker="Campaign permissions">
       This route requires an active campaign membership with owner or GM role.
@@ -190,6 +251,10 @@ export default function App() {
   const campaignRoute = (element) => {
     if (!signedIn) return <AuthPage onAuth={handleAuth} session={session} />;
     if (!hasMembership) return onboardingElement;
+    return element;
+  };
+  const accountRoute = (element) => {
+    if (!signedIn) return <AuthPage onAuth={handleAuth} session={session} />;
     return element;
   };
   const managerRoute = (element) => {
@@ -210,19 +275,23 @@ export default function App() {
       query={query}
       setQuery={setQuery}
       activeWorld={activeWorld}
+      campaigns={campaigns}
+      onCampaignChange={handleCampaignChange}
+      campaignSwitching={campaignSwitching}
       onLogout={handleLogout}
       onSelectPage={(path) => navigate(`/page/${encodeURIComponent(path)}`)}
     >
       <AppShell session={session} canManage={canManage}>
         <Routes>
         <Route path="/login" element={<AuthPage onAuth={handleAuth} session={session} />} />
-        <Route path="/invite/:token" element={<InviteAcceptPage session={session} onAccepted={loadSession} />} />
+        <Route path="/invite/:token" element={<InviteAcceptPage session={session} onAccepted={handleInvitationAccepted} />} />
+        <Route path="/campaigns" element={accountRoute(onboardingElement)} />
         <Route path="/" element={campaignRoute(<DashboardPage pages={pages} dashboard={dashboard} mode={effectiveMode} session={session} />)} />
         <Route path="/gm" element={managerRoute(<GmHomePage session={session} />)} />
         <Route path="/player" element={campaignRoute(<PlayerHomePage session={session} />)} />
         <Route path="/archive" element={campaignRoute(<CampaignArchivePage session={session} />)} />
         <Route path="/players" element={managerRoute(<PlayersPage session={session} />)} />
-        <Route path="/profile" element={campaignRoute(<ProfilePage session={session} onOnboardingCreated={handleOnboardingCreated} />)} />
+        <Route path="/profile" element={accountRoute(<ProfilePage session={session} campaigns={campaigns} onCampaignChange={handleCampaignChange} campaignSwitching={campaignSwitching} onOnboardingCreated={handleOnboardingCreated} />)} />
         <Route path="/world/:worldSlug" element={campaignRoute(<WorldDashboardPage pages={pages} mode={effectiveMode} session={session} />)} />
         <Route path="/world/:worldSlug/category/:category/*" element={campaignRoute(<CategoryPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
         <Route path="/world/:worldSlug/timeline" element={campaignRoute(<TimelinePage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
