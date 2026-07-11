@@ -303,7 +303,7 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
         <section className="builder-section maps-empty-state">
           <MapPinned size={28} />
           <h2>Loading maps</h2>
-          <p>Fetching campaign maps from Mongo.</p>
+          <p>Fetching maps from the active campaign.</p>
         </section>
       )}
 
@@ -336,7 +336,7 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
             <div>
               <span className="kicker">Active map</span>
               <h2>{selectedMap.title}</h2>
-              <p>{selectedMap.summary || (selectedMap.mapImage ? "No public map summary yet." : "No map image URL is available for this Mongo map yet.")}</p>
+              <p>{selectedMap.summary || (selectedMap.mapImage ? "No public map summary yet." : "No map image is attached yet.")}</p>
             </div>
             <div className="maps2-active-actions">
               {canEdit && (
@@ -379,7 +379,7 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
             <section className="codex-card workspace-status-card">
               <MapPinned size={24} />
               <h2>No map image available</h2>
-              <p>This Mongo map does not include a usable image URL yet. Image asset resolution is intentionally deferred.</p>
+              <p>Attach a campaign image to make this map available in the visual workbench.</p>
             </section>
           )}
         </section>
@@ -421,8 +421,8 @@ export default function MapsPage({ pages = [], mode = "player", activeWorld = nu
       {!mapsState.loading && maps.length === 0 && !mapsState.error && (
         <section className="builder-section maps-empty-state">
           <MapPinned size={28} />
-          <h2>No Mongo maps yet</h2>
-          <p>No maps are available for this campaign from the Mongo API.</p>
+          <h2>No maps yet</h2>
+          <p>Create a map or attach an image to a map article to start the campaign atlas.</p>
         </section>
       )}
 

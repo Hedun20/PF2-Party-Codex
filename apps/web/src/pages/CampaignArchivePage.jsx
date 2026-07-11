@@ -115,7 +115,7 @@ export default function CampaignArchivePage({ session }) {
       <section className="hero-panel archive-hero">
         <span className="kicker">Архив кампании</span>
         <h1>{campaign?.name || "Архив кампании"}</h1>
-        <p>{campaignId ? "Единый Mongo-архив активной кампании: статьи, карты, timeline, сессии, handouts, персонажи и заметки." : "Нет активной кампании для текущей сессии."}</p>
+        <p>{campaignId ? "Единый архив активной кампании: статьи, карты, timeline, сессии, handouts, персонажи и заметки." : "Нет активной кампании для текущей сессии."}</p>
         <div className="workspace-identity-strip">
           {workspace?.name ? <span>Workspace: {workspace.name}</span> : null}
           <span>Роль: {role}</span>
@@ -140,7 +140,7 @@ export default function CampaignArchivePage({ session }) {
       {state.loading ? (
         <section className="codex-card workspace-status-card">
           <span className="kicker">Загрузка архива</span>
-          <p>Получаю Mongo summary активной кампании.</p>
+          <p>Собираю сводку активной кампании.</p>
         </section>
       ) : null}
 
@@ -152,7 +152,7 @@ export default function CampaignArchivePage({ session }) {
 
           <section className="codex-card workspace-status-card">
             <span className="kicker">Состояние архива</span>
-            <p>{availableSections.length ? "В кампании уже есть данные в Mongo-разделах ниже." : manager ? "Mongo-архив пока пустой. Начните с создания статьи, карты или handout." : "Мастер пока не открыл материалы игрокам."}</p>
+            <p>{availableSections.length ? "В кампании уже есть материалы в разделах ниже." : manager ? "Архив пока пустой. Начните с создания статьи, карты или handout." : "Мастер пока не открыл материалы игрокам."}</p>
             <div className="archive-chip-row">
               {availableSections.length ? availableSections.map((section) => <span key={section}>{sectionLabel(section)}</span>) : <span>Нет активных разделов</span>}
             </div>

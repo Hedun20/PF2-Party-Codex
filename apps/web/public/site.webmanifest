@@ -1,0 +1,16 @@
+{
+  "name": "Party Codex",
+  "short_name": "Party Codex",
+  "description": "Collaborative campaign workspace for archive preparation, live play, and player-safe sharing.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0a14",
+  "theme_color": "#0d0a14",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

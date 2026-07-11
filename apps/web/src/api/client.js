@@ -1,9 +1,27 @@
 const API = "/api";
 const TOKEN_KEY = "pf2-auth-token";
 const CAMPAIGN_KEY = "party-codex-active-campaign";
+const REQUEST_TIMEOUT_MS = 20_000;
 
-let authToken = localStorage.getItem(TOKEN_KEY) || "";
-let activeCampaignId = localStorage.getItem(CAMPAIGN_KEY) || "";
+function readStorage(key) {
+  try {
+    return window.localStorage.getItem(key) || "";
+  } catch {
+    return "";
+  }
+}
+
+function writeStorage(key, value = "") {
+  try {
+    if (value) window.localStorage.setItem(key, value);
+    else window.localStorage.removeItem(key);
+  } catch {
+    // Authentication still works for the current tab when browser storage is blocked.
+  }
+}
+
+let authToken = readStorage(TOKEN_KEY);
+let activeCampaignId = readStorage(CAMPAIGN_KEY);
 
 function authHeaders(options = {}) {
   const headers = {
@@ -15,10 +33,21 @@ function authHeaders(options = {}) {
 }
 
 async function request(path, options = {}) {
-  const response = await fetch(`${API}${path}`, {
-    headers: authHeaders(options),
-    ...options
-  });
+  const controller = options.signal ? null : new AbortController();
+  const timeout = controller ? window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS) : null;
+  let response;
+  try {
+    response = await fetch(`${API}${path}`, {
+      headers: authHeaders(options),
+      ...options,
+      signal: options.signal || controller?.signal
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("The request timed out. Check the Party Codex service, then retry.");
+    throw new Error("Party Codex could not reach the API. Check the server connection and retry.");
+  } finally {
+    if (timeout !== null) window.clearTimeout(timeout);
+  }
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.includes("application/json")) {
     throw new Error("Server is not returning the expected API response. Restart the local app so the new API routes are available.");
@@ -49,14 +78,12 @@ function queryString(params = {}) {
 }
 function setToken(token = "") {
   authToken = token;
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+  writeStorage(TOKEN_KEY, token);
 }
 
 function setActiveCampaignId(campaignId = "") {
   activeCampaignId = String(campaignId || "");
-  if (activeCampaignId) localStorage.setItem(CAMPAIGN_KEY, activeCampaignId);
-  else localStorage.removeItem(CAMPAIGN_KEY);
+  writeStorage(CAMPAIGN_KEY, activeCampaignId);
 }
 
 export const api = {

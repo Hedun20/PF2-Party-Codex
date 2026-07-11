@@ -1,44 +1,47 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api } from "./api/client.js";
 import FantasyShell from "./components/FantasyShell.jsx";
 import AppShell from "./components/AppShell.jsx";
-import AuthPage from "./pages/AuthPage.jsx";
-import DashboardPage from "./pages/DashboardPage.jsx";
-import WorldDashboardPage from "./pages/WorldDashboardPage.jsx";
-import CategoryPage from "./pages/CategoryPage.jsx";
-import PageView from "./pages/PageView.jsx";
-import EditorPage from "./pages/EditorPage.jsx";
-import FoundryImportExportPage from "./pages/FoundryImportExportPage.jsx";
-import GuidePage from "./pages/GuidePage.jsx";
-import MissingLinksPage from "./pages/MissingLinksPage.jsx";
-import RawEditorPage from "./pages/RawEditorPage.jsx";
-import CampaignHealthPage from "./pages/CampaignHealthPage.jsx";
-import PlayerSafetyPage from "./pages/PlayerSafetyPage.jsx";
-import TimelinePage from "./pages/TimelinePage.jsx";
-import MapsPage from "./pages/MapsPage.jsx";
-import NotesPage from "./pages/NotesPage.jsx";
-import CharactersPage from "./pages/CharactersPage.jsx";
-import SessionModePage from "./pages/SessionModePage.jsx";
-import PlayerRevealPage, { PlayerPortalView } from "./pages/PlayerRevealPage.jsx";
-import MyWorkspacePage from "./pages/MyWorkspacePage.jsx";
-import GMToolsPage from "./pages/GMToolsPage.jsx";
-import HandoutsPage from "./pages/HandoutsPage.jsx";
-import SettingsPage from "./pages/SettingsPage.jsx";
-import SessionsPage from "./pages/SessionsPage.jsx";
-import CampaignArchivePage from "./pages/CampaignArchivePage.jsx";
-import GmHomePage from "./pages/GmHomePage.jsx";
-import PlayerHomePage from "./pages/PlayerHomePage.jsx";
-import SimplePlaceholderPage from "./pages/SimplePlaceholderPage.jsx";
-import DiceTrayPage from "./pages/DiceTrayPage.jsx";
-import SessionDeskPage from "./pages/SessionDeskPage.jsx";
-import PlayersPage from "./pages/PlayersPage.jsx";
-import ProfilePage from "./pages/ProfilePage.jsx";
-import InviteAcceptPage from "./pages/InviteAcceptPage.jsx";
-import OnboardingPage from "./pages/OnboardingPage.jsx";
-import NotFoundPage from "./pages/NotFoundPage.jsx";
+import RouteLoading from "./components/RouteLoading.jsx";
 import { getWorldOwnedPages, getWorldSearchPages, resolveWorldBySlug, resolveWorldForPage } from "./utils/worldContext.js";
 import { worldScopeFromSearch } from "./utils/shellContext.js";
+
+const AuthPage = lazy(() => import("./pages/AuthPage.jsx"));
+const CampaignArchivePage = lazy(() => import("./pages/CampaignArchivePage.jsx"));
+const CampaignHealthPage = lazy(() => import("./pages/CampaignHealthPage.jsx"));
+const CategoryPage = lazy(() => import("./pages/CategoryPage.jsx"));
+const CharactersPage = lazy(() => import("./pages/CharactersPage.jsx"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage.jsx"));
+const DiceTrayPage = lazy(() => import("./pages/DiceTrayPage.jsx"));
+const EditorPage = lazy(() => import("./pages/EditorPage.jsx"));
+const FoundryImportExportPage = lazy(() => import("./pages/FoundryImportExportPage.jsx"));
+const GMToolsPage = lazy(() => import("./pages/GMToolsPage.jsx"));
+const GmHomePage = lazy(() => import("./pages/GmHomePage.jsx"));
+const GuidePage = lazy(() => import("./pages/GuidePage.jsx"));
+const HandoutsPage = lazy(() => import("./pages/HandoutsPage.jsx"));
+const InviteAcceptPage = lazy(() => import("./pages/InviteAcceptPage.jsx"));
+const MapsPage = lazy(() => import("./pages/MapsPage.jsx"));
+const MissingLinksPage = lazy(() => import("./pages/MissingLinksPage.jsx"));
+const MyWorkspacePage = lazy(() => import("./pages/MyWorkspacePage.jsx"));
+const NotesPage = lazy(() => import("./pages/NotesPage.jsx"));
+const NotFoundPage = lazy(() => import("./pages/NotFoundPage.jsx"));
+const OnboardingPage = lazy(() => import("./pages/OnboardingPage.jsx"));
+const PageView = lazy(() => import("./pages/PageView.jsx"));
+const PlayerHomePage = lazy(() => import("./pages/PlayerHomePage.jsx"));
+const PlayerRevealPage = lazy(() => import("./pages/PlayerRevealPage.jsx"));
+const PlayerPortalView = lazy(() => import("./pages/PlayerRevealPage.jsx").then((module) => ({ default: module.PlayerPortalView })));
+const PlayerSafetyPage = lazy(() => import("./pages/PlayerSafetyPage.jsx"));
+const PlayersPage = lazy(() => import("./pages/PlayersPage.jsx"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage.jsx"));
+const RawEditorPage = lazy(() => import("./pages/RawEditorPage.jsx"));
+const SessionDeskPage = lazy(() => import("./pages/SessionDeskPage.jsx"));
+const SessionModePage = lazy(() => import("./pages/SessionModePage.jsx"));
+const SessionsPage = lazy(() => import("./pages/SessionsPage.jsx"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage.jsx"));
+const SimplePlaceholderPage = lazy(() => import("./pages/SimplePlaceholderPage.jsx"));
+const TimelinePage = lazy(() => import("./pages/TimelinePage.jsx"));
+const WorldDashboardPage = lazy(() => import("./pages/WorldDashboardPage.jsx"));
 
 function worldSlugFromPath(pathname = "") {
   const match = pathname.match(/^\/world\/([^/]+)/);
@@ -76,8 +79,21 @@ function canManageCampaign(session) {
   return ["owner", "gm"].includes(campaignRole(session));
 }
 
+function SessionUnavailable({ message, onRetry }) {
+  return (
+    <section className="app-error-boundary" role="alert">
+      <span className="kicker">Connection unavailable</span>
+      <h1>Party Codex could not load your session.</h1>
+      <p>{message || "Check that the Party Codex service is available, then retry."}</p>
+      <button type="button" onClick={onRetry}>Retry connection</button>
+    </section>
+  );
+}
+
 export default function App() {
   const [session, setSession] = useState({ mode: "player", canEdit: false, user: null, activeMembership: null, activeCampaign: null, activeWorkspace: null });
+  const [sessionReady, setSessionReady] = useState(false);
+  const [sessionError, setSessionError] = useState("");
   const [mode, setMode] = useState("gm");
   const [pages, setPages] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -97,6 +113,7 @@ export default function App() {
     const data = await api.session();
     api.setActiveCampaignId(data.activeCampaign?.id || "");
     setSession(data);
+    setSessionError("");
     if (!canManageCampaign(data)) setMode("player");
     return data;
   };
@@ -195,10 +212,30 @@ export default function App() {
   };
 
   useEffect(() => {
+    let active = true;
     loadSession()
       .then((data) => loadCampaigns(data))
-      .catch(() => {});
+      .catch((error) => {
+        if (active) setSessionError(error.message || "The Party Codex API is unavailable.");
+      })
+      .finally(() => {
+        if (active) setSessionReady(true);
+      });
+    return () => { active = false; };
   }, []);
+
+  const retrySession = async () => {
+    setSessionReady(false);
+    setSessionError("");
+    try {
+      const data = await loadSession();
+      await loadCampaigns(data);
+    } catch (error) {
+      setSessionError(error.message || "The Party Codex API is unavailable.");
+    } finally {
+      setSessionReady(true);
+    }
+  };
 
   useEffect(() => {
     if (!signedIn || !hasMembership) {
@@ -207,7 +244,6 @@ export default function App() {
       return undefined;
     }
 
-    if (canManage) localStorage.setItem("codex-mode", mode);
     const refreshVisibleCampaign = () => {
       if (document.visibilityState !== "hidden") refresh().catch(() => {});
     };
@@ -282,6 +318,8 @@ export default function App() {
       onSelectPage={(path) => navigate(`/page/${encodeURIComponent(path)}`)}
     >
       <AppShell session={session} canManage={canManage}>
+        <Suspense fallback={<RouteLoading />}>
+        {!sessionReady ? <RouteLoading /> : sessionError ? <SessionUnavailable message={sessionError} onRetry={retrySession} /> : (
         <Routes>
         <Route path="/login" element={<AuthPage onAuth={handleAuth} session={session} />} />
         <Route path="/invite/:token" element={<InviteAcceptPage session={session} onAccepted={handleInvitationAccepted} />} />
@@ -321,6 +359,8 @@ export default function App() {
         <Route path="/foundry" element={managerRoute(<FoundryImportExportPage mode={effectiveMode} />)} />
         <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        )}
+        </Suspense>
       </AppShell>
     </FantasyShell>
   );

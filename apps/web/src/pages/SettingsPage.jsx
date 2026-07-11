@@ -35,8 +35,8 @@ export default function SettingsPage({ session }) {
         <article className="codex-card workspace-card" id="mongo">
           <Database size={22} />
           <div>
-            <strong>MongoDB</strong>
-            <span>Основной источник данных платформы.</span>
+            <strong>Хранилище кампании</strong>
+            <span>Единый защищённый источник статей, ролей и игровых данных.</span>
           </div>
         </article>
         <article className="codex-card workspace-card">

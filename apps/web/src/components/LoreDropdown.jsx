@@ -19,13 +19,13 @@ export default function LoreDropdown({ activeWorld = null }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="lore-menu">
-      <button className="nav-link nav-button" onClick={() => setOpen(!open)}>
+      <button type="button" className="nav-link nav-button" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="lore-navigation-links">
         <Gem size={18} />
         <span>Lore</span>
-        <ChevronDown size={16} className={open ? "turn" : ""} />
+        <ChevronDown size={16} className={open ? "turn" : ""} aria-hidden="true" />
       </button>
       {open && (
-        <div className="lore-children">
+        <div className="lore-children" id="lore-navigation-links">
           {lore.map(([path, label]) => (
             <NavLink key={path} to={scopedPath(`/category/lore/${path}`, activeWorld)} className="sub-link">
               {label}

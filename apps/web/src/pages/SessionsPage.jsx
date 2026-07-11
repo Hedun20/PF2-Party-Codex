@@ -102,7 +102,7 @@ export default function SessionsPage({ pages = [], mode = "player" }) {
         <section className="codex-card workspace-status-card">
           <Clock3 size={24} />
           <h2>Loading sessions</h2>
-          <p>Fetching campaign sessions from Mongo.</p>
+          <p>Fetching sessions from the active campaign.</p>
         </section>
       ) : null}
 
@@ -126,7 +126,7 @@ export default function SessionsPage({ pages = [], mode = "player" }) {
         <section className="codex-card workspace-status-card">
           <Clock3 size={24} />
           <h2>No sessions yet</h2>
-          <p>No Mongo sessions are available for this campaign.</p>
+          <p>Create the first session plan or recap to begin the campaign chronicle.</p>
         </section>
       ) : null}
 

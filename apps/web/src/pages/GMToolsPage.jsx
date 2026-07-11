@@ -9,7 +9,7 @@ const tools = [
   ["Raw Editor", "/edit/index.md", ScrollText, "Technical markdown editor for emergency fixes."],
   ["Create Article", "/editor", FileUp, "Structured editor for worlds, NPC, quests and lore."],
   ["Settings", "/settings", Wrench, "Workspace and platform settings shell."],
-  ["Mongo Systems", "/settings#mongo", Database, "Database-backed platform modules and health notes."]
+  ["Data Systems", "/settings#mongo", Database, "Campaign storage, platform modules and readiness notes."]
 ];
 
 export default function GMToolsPage({ session }) {

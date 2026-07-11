@@ -184,6 +184,35 @@ test("source tree has one canonical implementation per page and no unreachable r
   }
 });
 
+test("frontend performance and baseline accessibility contracts stay enabled", async () => {
+  const webSource = path.join(rootDir, "apps/web/src");
+  const files = (await listSourceFiles(webSource)).filter((file) => file.endsWith(".jsx"));
+  for (const file of files) {
+    const source = await fs.readFile(file, "utf8");
+    for (const match of source.matchAll(/<button\b[\s\S]*?>/g)) {
+      assert.match(match[0], /\btype\s*=/, `${path.relative(rootDir, file)} has a button without an explicit type`);
+    }
+    for (const match of source.matchAll(/<img\b[\s\S]*?>/g)) {
+      assert.match(match[0], /\balt\s*=/, `${path.relative(rootDir, file)} has an image without alt text`);
+    }
+  }
+  const [appSource, shellSource, topbarSource, accessibilitySource, viteSource] = await Promise.all([
+    fs.readFile(path.join(webSource, "App.jsx"), "utf8"),
+    fs.readFile(path.join(webSource, "components/FantasyShell.jsx"), "utf8"),
+    fs.readFile(path.join(webSource, "components/CodexTopbar.jsx"), "utf8"),
+    fs.readFile(path.join(webSource, "styles/accessibility.css"), "utf8"),
+    fs.readFile(path.join(rootDir, "apps/web/vite.config.js"), "utf8")
+  ]);
+  assert.match(appSource, /lazy\(\(\) => import\(/);
+  assert.match(appSource, /<Suspense\b/);
+  assert.doesNotMatch(appSource, /^import\s+\w+\s+from\s+["']\.\/pages\//m);
+  assert.match(shellSource, /className="skip-link"/);
+  assert.match(topbarSource, /aria-controls="campaign-sidebar"/);
+  assert.match(accessibilitySource, /prefers-reduced-motion/);
+  assert.match(accessibilitySource, /:focus-visible/);
+  assert.match(viteSource, /react-vendor/);
+});
+
 const routerMounts = [
   ["/api", "healthRouter", "health.js", healthRouter],
   ["/api", "authRouter", "auth.js", authRouter],

@@ -193,7 +193,7 @@ export default function NotesPage({ pages = [] }) {
             <>
               <div className="notes-editor-head">
                 <NotebookPen size={22} />
-                <input value={draft.title} onChange={(event) => updateDraft({ title: event.target.value })} placeholder="Note title" />
+                <input value={draft.title} onChange={(event) => updateDraft({ title: event.target.value })} placeholder="Note title" aria-label="Note title" />
                 <CodexButton type="button" variant="danger" size="sm" onClick={removeNote} disabled={saving}><Trash2 size={16} /> Delete</CodexButton>
               </div>
               <div className="notes-meta-grid">
@@ -216,7 +216,7 @@ export default function NotesPage({ pages = [] }) {
                   <BookOpen size={16} /> Open linked article: {draft.linkedTitle || draft.linkedPath}
                 </Link>
               ) : null}
-              <textarea value={draft.body} onChange={(event) => updateDraft({ body: event.target.value })} placeholder="Пиши мысли, догадки, обещания NPC, планы на следующую сессию..." />
+              <textarea value={draft.body} onChange={(event) => updateDraft({ body: event.target.value })} placeholder="Пиши мысли, догадки, обещания NPC, планы на следующую сессию..." aria-label="Note body" />
               <div className="notes-editor-actions">
                 <span>Updated: {formatDate(selectedNote.updatedAt)}</span>
                 <CodexButton type="button" onClick={saveDraft} disabled={saving}><Save size={16} /> {saving ? "Saving..." : "Save note"}</CodexButton>

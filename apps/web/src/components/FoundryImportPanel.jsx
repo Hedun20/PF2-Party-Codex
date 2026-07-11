@@ -23,7 +23,10 @@ export default function FoundryImportPanel() {
   return (
     <section className="tool-panel">
       <h2>Импорт Foundry</h2>
-      <input type="file" accept="application/json,.json" multiple onChange={upload} />
+      <label className="codex-field">
+        Foundry JSON files
+        <input type="file" accept="application/json,.json" multiple onChange={upload} />
+      </label>
       {preview.length > 0 && (
         <>
           <label>Конфликты<select value={conflictMode} onChange={(event) => setConflictMode(event.target.value)}><option value="skip">пропустить</option><option value="overwrite">перезаписать</option><option value="copy">создать копию</option></select></label>
@@ -36,10 +39,10 @@ export default function FoundryImportPanel() {
               </div>
             ))}
           </div>
-          <CodexButton type="button" onClick={commit}><Save size={16} /> Записать Markdown-файлы</CodexButton>
+          <CodexButton type="button" onClick={commit}><Save size={16} /> Импортировать в кампанию</CodexButton>
         </>
       )}
-      {message && <p className="save-message">{message}</p>}
+      {message && <p className="save-message" role="status">{message}</p>}
     </section>
   );
 }

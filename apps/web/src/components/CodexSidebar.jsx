@@ -167,7 +167,7 @@ function PlayerTools({ mode, activeWorld, onClose }) {
   );
 }
 
-export default function CodexSidebar({ onClose, canEdit = false, activeWorld = null, signedIn = false, hasCampaignMembership = true }) {
+export default function CodexSidebar({ sidebarRef, isOpen = false, onClose, canEdit = false, activeWorld = null, signedIn = false, hasCampaignMembership = true }) {
   const location = useLocation();
   const mode = shellModeFromLocation(location.pathname, location.search);
   const meta = modeMeta(mode);
@@ -175,13 +175,13 @@ export default function CodexSidebar({ onClose, canEdit = false, activeWorld = n
   const showOnboardingNav = signedIn && !hasCampaignMembership;
 
   return (
-    <aside className="sidebar sidebar-shell">
+    <aside className="sidebar sidebar-shell" id="campaign-sidebar" ref={sidebarRef} aria-label="Campaign navigation" aria-hidden={!isOpen} inert={isOpen ? undefined : ""}>
       <div className="sidebar-head">
         <Link to={brandTarget} className="brand" onClick={onClose}>
           <Castle />
           <span>{activeWorld ? activeWorld.title : "Party Codex"}</span>
         </Link>
-        <button className="sidebar-close" onClick={onClose} title="Close navigation">
+        <button type="button" className="sidebar-close" onClick={onClose} title="Close navigation" aria-label="Close campaign navigation">
           <X size={18} />
         </button>
       </div>

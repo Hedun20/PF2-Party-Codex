@@ -1,4 +1,4 @@
-@layer theme, fantasy, components, design, buttons, stabilization, shell, blocks, campaign;
+@layer theme, fantasy, components, design, buttons, stabilization, shell, blocks, campaign, accessibility;
 
 @import "./theme.css" layer(theme);
 @import "./fantasy.css" layer(fantasy);
@@ -9,3 +9,4 @@
 @import "./shell-context.css" layer(shell);
 @import "./ui-blocks.css" layer(blocks);
 @import "./campaign-context.css" layer(campaign);
+@import "./accessibility.css" layer(accessibility);

@@ -415,7 +415,7 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
         <section className="codex-card workspace-status-card">
           <Clock3 size={22} />
           <span className="kicker">Loading timeline</span>
-          <p>Fetching timeline events from Mongo.</p>
+          <p>Fetching timeline events from the active campaign.</p>
         </section>
       )}
 

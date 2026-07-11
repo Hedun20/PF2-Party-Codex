@@ -86,10 +86,10 @@ export default function CharactersPage() {
       <header className="list-header characters-header">
         <span className="kicker">Player Workspace</span>
         <h1>My Character</h1>
-        <p>Read-only character identity and play reference from the campaign Mongo API. Character building and import are intentionally deferred.</p>
+        <p>A secure character dossier for identity, combat reference, private notes, and the fields shared with your party.</p>
       </header>
 
-      {state.loading ? <div className="status-message success-message"><span>Loading characters from Mongo...</span></div> : null}
+      {state.loading ? <div className="status-message success-message"><span>Loading campaign characters...</span></div> : null}
       {state.error ? <div className="status-message danger-message"><span>{state.error}</span></div> : null}
 
       <section className="characters-layout">
@@ -160,7 +160,7 @@ export default function CharactersPage() {
             <div className="notes-empty-editor character-empty-state">
               <UserRound size={38} />
               <h2>No character has been added to this campaign yet.</h2>
-              <p>Character creation, import, and full PF2e sheet polish are deferred to a future character stage.</p>
+              <p>Once a character is assigned to your account, its player-safe dossier will appear here.</p>
             </div>
           )}
         </section>

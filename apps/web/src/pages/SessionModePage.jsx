@@ -241,6 +241,7 @@ export default function SessionModePage({ pages = [], mode = "player", session }
             <PenLine size={20} />
           </div>
           <textarea
+            aria-label="GM session draft notes"
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
             placeholder={`# ${nextTitle}\n\n## Что произошло\n- \n\n## Кого встретили\n- \n\n## Крючки на следующую игру\n- `}
