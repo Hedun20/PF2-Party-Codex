@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import CodexSidebar from "./CodexSidebar.jsx";
 import CodexTopbar from "./CodexTopbar.jsx";
+import PageBackButton from "./PageBackButton.jsx";
 import CinematicWorldBackground from "./world/CinematicWorldBackground.jsx";
 import { getThemeStyle, getWorldTheme } from "../theme/worldThemes.js";
 
@@ -92,7 +93,10 @@ export default function FantasyShell({ children, ...props }) {
       />
       <main className="main-stage" id="main-content" tabIndex="-1">
         <CodexTopbar {...props} worldTheme={worldTheme} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} sidebarToggleRef={sidebarToggleRef} />
-        <section className="content-stage">{children}</section>
+        <section className="content-stage">
+          <PageBackButton />
+          {children}
+        </section>
       </main>
     </div>
   );
