@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, Eye, Lock, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, Layers3, Sparkles } from "lucide-react";
 import { api } from "../api/client.js";
 import { articleTypes, categoryByType } from "../components/ArticleVisualEditor.jsx";
 import CodexButton from "../components/ui/CodexButton.jsx";
@@ -77,7 +77,6 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
   const cities = citiesForContext(metadata.pages || [], { world: form.world, country: form.country });
   const locationFields = visibleLocationFields(form.type);
   const category = categoryByType[form.type] || form.category || "lore";
-  const selectedTypeLabel = useMemo(() => articleTypes.find(([value]) => value === form.type)?.[1] || "Материал", [form.type]);
 
   function update(key, value) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -154,17 +153,21 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
       </section>
 
       <form className="editor-form builder-form quick-create-shell" onSubmit={submit}>
-        <section className="builder-section quick-create-panel">
-          <div className="quick-create-copy">
+        <section className="builder-section material-type-panel">
+          <div className="material-type-copy">
             <span className="kicker">Тип материала</span>
-            <h2>{selectedTypeLabel}</h2>
-            <p>Выберите, что создаёт GM: мир, город, NPC, квест, лор, карту или событие.</p>
+            <h2>Что создаём?</h2>
           </div>
-          <div className="type-grid compact-type-grid">
-            {articleTypes.map(([value, label]) => (
-              <button key={value} type="button" className={form.type === value ? "type-chip active" : "type-chip"} onClick={() => changeType(value)}>{label}</button>
-            ))}
-          </div>
+          <label className="material-type-select" htmlFor="material-type-select">
+            <span className="material-type-select__label">Выберите тип</span>
+            <span className="material-type-select__control">
+              <Layers3 size={20} aria-hidden="true" />
+              <select id="material-type-select" value={form.type} onChange={(event) => changeType(event.target.value)}>
+                {articleTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+              <ChevronDown className="material-type-select__chevron" size={20} aria-hidden="true" />
+            </span>
+          </label>
         </section>
 
         <section className="builder-section create-flow-section">
@@ -175,11 +178,11 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
           </div>
           <div className="codex-field-grid codex-field-grid--four">
             <Field label="Название"><input value={form.name} onChange={(event) => update("name", event.target.value)} placeholder="Например: Капитан Варос" /></Field>
-            <Field label="Видимость" hint="Public видно игрокам. GM private скрыто от игроков. Черновик не показывается игрокам.">
+            <Field label="Видимость">
               <select value={form.visibility} onChange={(event) => update("visibility", event.target.value)}>
-                <option value="public">Public · видно игрокам</option>
-                <option value="gm">GM private · только мастеру</option>
-                <option value="draft">Черновик · не показывать игрокам</option>
+                <option value="public">Public</option>
+                <option value="gm">GM private</option>
+                <option value="draft">Черновик</option>
               </select>
             </Field>
             <Field label="Категория"><input value={labelCategory(category)} disabled /></Field>
@@ -240,11 +243,7 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
         {state.error ? <div className="status-message danger-message"><AlertTriangle size={16} /> {state.error}</div> : null}
         {state.success ? <div className="status-message success-message"><CheckCircle2 size={16} /> {state.success}</div> : null}
 
-        <div className="article-submit-bar">
-          <div className="article-visibility-status" aria-label="Статус видимости материала">
-            <span className="article-status-chip article-status-chip--public"><Eye size={16} /> Public видно игрокам</span>
-            <span className="article-status-chip article-status-chip--private"><Lock size={16} /> GM private скрыто</span>
-          </div>
+        <div className="article-submit-bar article-submit-bar--simple">
           <CodexButton type="submit" className="quick-submit" size="md" disabled={state.saving}>
             <Sparkles size={17} /> <span>{state.saving ? "Создаю..." : "Создать статью"}</span>
           </CodexButton>
