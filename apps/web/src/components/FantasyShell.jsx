@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import CodexSidebar from "./CodexSidebar.jsx";
 import CodexTopbar from "./CodexTopbar.jsx";
 import PageBackButton from "./PageBackButton.jsx";
+import MagicSelectLayer from "./ui/MagicSelectLayer.jsx";
 import CinematicWorldBackground from "./world/CinematicWorldBackground.jsx";
 import { getThemeStyle, getWorldTheme } from "../theme/worldThemes.js";
 
@@ -70,6 +71,7 @@ export default function FantasyShell({ children, ...props }) {
     <div className={shellClassName} data-world-theme={worldTheme.key} style={getThemeStyle(worldTheme)}>
       <a className="skip-link" href="#main-content">Skip to campaign content</a>
       <CinematicWorldBackground theme={worldTheme} />
+      <MagicSelectLayer />
       {sidebarOpen && (
         <button
           type="button"
