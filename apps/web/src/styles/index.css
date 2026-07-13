@@ -1,4 +1,4 @@
-@layer theme, fantasy, components, design, buttons, stabilization, shell, blocks, campaign, accessibility;
+@layer theme, fantasy, components, design, buttons, stabilization, shell, blocks, campaign, accessibility, stage16a;
 
 @import "./theme.css" layer(theme);
 @import "./fantasy.css" layer(fantasy);
@@ -10,3 +10,4 @@
 @import "./ui-blocks.css" layer(blocks);
 @import "./campaign-context.css" layer(campaign);
 @import "./accessibility.css" layer(accessibility);
+@import "./stage16a-ui.css" layer(stage16a);
