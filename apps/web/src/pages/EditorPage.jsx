@@ -186,7 +186,7 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
             <Field label="Короткое summary"><input value={form.summary} onChange={(event) => update("summary", event.target.value)} placeholder="1–2 строки для списка и поиска" /></Field>
           </div>
 
-          <div className="codex-field-grid codex-field-grid--four">
+          <div className="codex-field-grid codex-field-grid--four article-location-grid">
             {locationFields.world ? (
               <Field label="Мир">
                 <select value={form.world || ""} onChange={(event) => updateWorld(event.target.value)}>
@@ -222,16 +222,16 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
           </div>
           <div className="structured-story-grid">
             <Field label="Публичный текст / что видят игроки" hint="Описание, слухи, внешний вид, публичная история, handout-текст.">
-              <textarea className="story-textarea structured-textarea" rows={16} value={form.publicNotes} onChange={(event) => update("publicNotes", event.target.value)} placeholder="Что можно безопасно показать игрокам." />
+              <textarea className="story-textarea structured-textarea" rows={14} value={form.publicNotes} onChange={(event) => update("publicNotes", event.target.value)} placeholder="Что можно безопасно показать игрокам." />
             </Field>
             <Field label="GM секреты / правда мастера" hint="Скрытая правда, мотивы NPC, ловушки, условия reveal.">
-              <textarea className="story-textarea structured-textarea structured-secret-textarea" rows={12} value={form.gmSecrets} onChange={(event) => update("gmSecrets", event.target.value)} placeholder="Игрокам не показывается." />
+              <textarea className="story-textarea structured-textarea structured-secret-textarea" rows={14} value={form.gmSecrets} onChange={(event) => update("gmSecrets", event.target.value)} placeholder="Игрокам не показывается." />
             </Field>
           </div>
         </section>
 
-        <section className="builder-section">
-          <div className="codex-field-grid codex-field-grid--four">
+        <section className="builder-section article-meta-section">
+          <div className="article-meta-grid">
             <Field label="Теги"><input value={form.tags} onChange={(event) => update("tags", event.target.value)} placeholder="через запятую: культ, порт, тайна" /></Field>
             <Field label="Связанные статьи"><input value={form.related} onChange={(event) => update("related", event.target.value)} placeholder="через запятую: Город, NPC, Квест" /></Field>
           </div>
@@ -240,10 +240,14 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
         {state.error ? <div className="status-message danger-message"><AlertTriangle size={16} /> {state.error}</div> : null}
         {state.success ? <div className="status-message success-message"><CheckCircle2 size={16} /> {state.success}</div> : null}
 
-        <div className="workspace-stats-row">
-          <CodexButton type="submit" className="quick-submit" size="lg" disabled={state.saving}><Sparkles size={17} /> <span>{state.saving ? "Создаю..." : "Создать статью"}</span></CodexButton>
-          <span className="status-message"><Eye size={16} /> Public видно игрокам</span>
-          <span className="status-message"><Lock size={16} /> GM private скрыто</span>
+        <div className="article-submit-bar">
+          <div className="article-visibility-status" aria-label="Статус видимости материала">
+            <span className="article-status-chip article-status-chip--public"><Eye size={16} /> Public видно игрокам</span>
+            <span className="article-status-chip article-status-chip--private"><Lock size={16} /> GM private скрыто</span>
+          </div>
+          <CodexButton type="submit" className="quick-submit" size="md" disabled={state.saving}>
+            <Sparkles size={17} /> <span>{state.saving ? "Создаю..." : "Создать статью"}</span>
+          </CodexButton>
         </div>
       </form>
     </div>
