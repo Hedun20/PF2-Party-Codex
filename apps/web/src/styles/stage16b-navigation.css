@@ -1,0 +1,228 @@
+/* Stage 16B: harden shared controls and add consistent back navigation. */
+
+/* Neutralize legacy descendant span styles inside shared buttons. */
+.codex-button,
+.codex-button > .codex-button__content,
+.codex-button > .codex-button__content > span {
+  box-sizing: border-box;
+}
+
+.codex-button > .codex-button__content,
+.codex-button > .codex-button__content > span {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: inherit !important;
+}
+
+.codex-button > .codex-button__content {
+  position: relative;
+  z-index: 1;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow: visible !important;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: 1;
+  text-transform: inherit;
+  white-space: nowrap;
+}
+
+.codex-button > .codex-button__content > span {
+  display: inline !important;
+  overflow: visible !important;
+  font: inherit !important;
+  letter-spacing: inherit !important;
+  line-height: inherit !important;
+  text-transform: inherit !important;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+}
+
+.codex-button > .codex-button__content > svg {
+  flex: 0 0 auto;
+  margin: 0 !important;
+}
+
+/* Action rows must not inherit the old status-chip layout. */
+.dice-tray-page .dice-action-row,
+.create-article-page .article-submit-bar {
+  position: relative;
+  z-index: 1;
+}
+
+.dice-tray-page .dice-action-row .codex-button,
+.create-article-page .article-submit-bar .codex-button {
+  width: auto !important;
+  min-width: 0 !important;
+  height: 46px !important;
+  min-height: 46px !important;
+  padding: 0 18px !important;
+  border-radius: 10px !important;
+}
+
+.dice-tray-page .dice-action-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Restore a restrained fantasy finish without decorative target rings. */
+.codex-button--primary {
+  background:
+    linear-gradient(180deg, rgba(255, 244, 201, 0.18), transparent 42%),
+    linear-gradient(180deg, #e6c579 0%, #d2a850 100%) !important;
+  border-color: rgba(255, 237, 184, 0.72) !important;
+  box-shadow:
+    0 7px 18px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
+}
+
+.codex-button--ghost,
+.codex-button--secondary {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent),
+    rgba(20, 17, 28, 0.9) !important;
+  border-color: rgba(218, 184, 103, 0.24) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035) !important;
+}
+
+.codex-button:hover {
+  transform: translateY(-1px) !important;
+}
+
+/* Contextual Back button available across deep routes. */
+.page-back-navigation {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  margin: 0 0 2px;
+}
+
+.page-back-navigation .page-back-button {
+  min-height: 38px !important;
+  height: 38px !important;
+  padding: 0 13px !important;
+  border-radius: 9px !important;
+  color: rgba(245, 239, 255, 0.78) !important;
+  background: rgba(16, 13, 24, 0.68) !important;
+  border-color: rgba(218, 184, 103, 0.2) !important;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.page-back-navigation .page-back-button:hover {
+  color: #fff6dc !important;
+  border-color: rgba(218, 184, 103, 0.46) !important;
+  background: rgba(218, 184, 103, 0.1) !important;
+}
+
+/* Editor: keep the current structure polished instead of visually flattened. */
+.create-article-page .quick-create-panel,
+.create-article-page .create-flow-section,
+.create-article-page .article-writing-workspace,
+.create-article-page .article-meta-section,
+.create-article-page .article-submit-bar {
+  background:
+    linear-gradient(145deg, rgba(168, 85, 247, 0.035), transparent 46%),
+    rgba(15, 13, 22, 0.78);
+  border-color: rgba(218, 184, 103, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.create-article-page .type-chip {
+  border-color: rgba(218, 184, 103, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent),
+    rgba(25, 21, 32, 0.84);
+  color: rgba(245, 239, 255, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  transition: transform 140ms ease, border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.create-article-page .type-chip:hover {
+  transform: translateY(-1px);
+  color: #f7f0ff;
+  border-color: rgba(218, 184, 103, 0.42);
+  background: rgba(218, 184, 103, 0.09);
+}
+
+.create-article-page .type-chip.active {
+  color: #17100d;
+  border-color: rgba(255, 236, 177, 0.7);
+  background:
+    linear-gradient(180deg, rgba(255, 247, 217, 0.2), transparent 45%),
+    #ddb865;
+  box-shadow: 0 7px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.create-article-page .codex-field {
+  font-weight: 700;
+  letter-spacing: 0.005em;
+}
+
+.create-article-page .codex-field > input,
+.create-article-page .codex-field > select,
+.create-article-page .article-meta-grid input,
+.create-article-page textarea {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent),
+    rgba(8, 8, 13, 0.76);
+  border-color: rgba(218, 184, 103, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.018);
+}
+
+.create-article-page .codex-field > input:hover,
+.create-article-page .codex-field > select:hover,
+.create-article-page .article-meta-grid input:hover,
+.create-article-page textarea:hover {
+  border-color: rgba(218, 184, 103, 0.3);
+}
+
+.create-article-page .codex-field > input::placeholder,
+.create-article-page .article-meta-grid input::placeholder,
+.create-article-page textarea::placeholder {
+  color: rgba(245, 239, 255, 0.38);
+  opacity: 1;
+}
+
+.create-article-page .codex-field > input:disabled {
+  color: rgba(245, 239, 255, 0.68);
+  opacity: 1;
+}
+
+.create-article-page .article-status-chip {
+  font-weight: 650;
+}
+
+@media (max-width: 560px) {
+  .dice-tray-page .dice-action-row {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .dice-tray-page .dice-action-row .codex-button,
+  .create-article-page .article-submit-bar .codex-button {
+    width: 100% !important;
+  }
+
+  .page-back-navigation {
+    margin-bottom: 0;
+  }
+}
