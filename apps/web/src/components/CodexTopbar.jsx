@@ -1,9 +1,7 @@
-import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, ChevronDown, Dices, Globe2, Layers3, LogIn, LogOut, Menu, Plus, Settings, UserRound } from "lucide-react";
-import FloatingMenu from "./ui/FloatingMenu.jsx";
+import { Archive, Dices, Globe2, Layers3, LogIn, LogOut, Menu, Settings, UserRound } from "lucide-react";
 import { getWorlds, worldSlug } from "../utils/worldContext.js";
-import { changeScopePath, modeHome, modeMeta, shellModeFromLocation } from "../utils/shellContext.js";
+import { changeScopePath, modeHome, shellModeFromLocation } from "../utils/shellContext.js";
 
 function activeRole(session) {
   return String(session?.activeMembership?.role || "").toLowerCase();
@@ -22,30 +20,8 @@ function modeIcon(mode) {
   return Archive;
 }
 
-function HeaderDropdown({ id, open, setOpen, icon: Icon, label, children, className = "" }) {
-  const triggerRef = useRef(null);
-  const expanded = open === id;
-  const menuId = `topbar-menu-${id}`;
-  return (
-    <div className={`topbar-dropdown ${expanded ? "is-open" : ""} ${className}`.trim()}>
-      <button ref={triggerRef} type="button" className="topbar-dropdown-trigger" onClick={() => setOpen(expanded ? "" : id)} aria-expanded={expanded} aria-controls={menuId} aria-haspopup="menu">
-        {Icon ? <Icon size={16} /> : null}
-        <span>{label}</span>
-        <ChevronDown size={14} />
-      </button>
-      <FloatingMenu
-        open={expanded}
-        anchorRef={triggerRef}
-        onClose={() => setOpen("")}
-        id={menuId}
-        className="topbar-dropdown-menu topbar-dropdown-menu--portal"
-        minWidth={id === "account" ? 250 : 270}
-        role="menu"
-      >
-        {children}
-      </FloatingMenu>
-    </div>
-  );
+function closeAccountMenu(event) {
+  event.currentTarget.closest("details")?.removeAttribute("open");
 }
 
 export default function CodexTopbar({
@@ -63,9 +39,7 @@ export default function CodexTopbar({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [openDropdown, setOpenDropdown] = useState("");
   const currentMode = shellModeFromLocation(location.pathname, location.search);
-  const meta = modeMeta(currentMode);
   const ModeIcon = modeIcon(currentMode);
   const hasMembership = Boolean(session?.activeMembership?.id);
   const signedIn = Boolean(session?.user);
@@ -75,19 +49,26 @@ export default function CodexTopbar({
   const role = activeRole(session);
   const canManage = hasMembership && (role === "owner" || role === "gm");
   const campaignName = session?.activeCampaign?.name || "Party Codex";
+  const campaignId = session?.activeCampaign?.id || "";
   const accountLabel = session?.user?.name || session?.user?.email || "Guest";
+  const selectedWorld = activeWorld ? worldSlug(activeWorld) : "";
 
-  useEffect(() => {
-    setOpenDropdown("");
-  }, [location.pathname, location.search]);
-
-  function changeWorld(world = null) {
-    navigate(changeScopePath(location.pathname, location.search, world));
-    setOpenDropdown("");
+  function changeCampaign(event) {
+    const nextCampaignId = event.target.value;
+    if (!nextCampaignId || nextCampaignId === campaignId || campaignSwitching) return;
+    Promise.resolve(onCampaignChange?.(nextCampaignId)).catch(() => {});
   }
 
-  function closeDropdown() {
-    setOpenDropdown("");
+  function changeMode(event) {
+    const nextMode = event.target.value;
+    if (!nextMode || nextMode === currentMode) return;
+    navigate(modeHome(nextMode, canManage, activeWorld));
+  }
+
+  function changeWorld(event) {
+    const nextSlug = event.target.value;
+    const nextWorld = nextSlug ? worlds.find((world) => worldSlug(world) === nextSlug) || null : null;
+    navigate(changeScopePath(location.pathname, location.search, nextWorld));
   }
 
   return (
@@ -103,44 +84,36 @@ export default function CodexTopbar({
 
       {signedIn ? (
         <div className="topbar-clean-controls">
-          <HeaderDropdown id="campaign" open={openDropdown} setOpen={setOpenDropdown} icon={Layers3} label={campaignName} className="topbar-dropdown--campaign">
-            {campaigns.map((item) => {
-              const active = item.campaign?.id === session?.activeCampaign?.id;
-              return (
-                <button
-                  key={item.campaign?.id || item.id}
-                  type="button"
-                  disabled={active || campaignSwitching}
-                  className={active ? "is-active campaign-option" : "campaign-option"}
-                  onClick={() => {
-                    closeDropdown();
-                    Promise.resolve(onCampaignChange?.(item.campaign.id)).catch(() => {});
-                  }}
-                >
-                  <span><strong>{item.campaign?.name || "Untitled campaign"}</strong><small>{roleLabel(item.role || item.membership?.role, true)}</small></span>
-                </button>
-              );
-            })}
-            <Link to="/campaigns" onClick={closeDropdown}><Plus size={15} /> Manage campaigns</Link>
-          </HeaderDropdown>
+          <label className="topbar-native-select topbar-native-select--campaign">
+            <Layers3 size={16} aria-hidden="true" />
+            <select aria-label="Активная кампания" value={campaignId} onChange={changeCampaign} disabled={campaignSwitching || campaigns.length === 0}>
+              {campaigns.length === 0 ? <option value={campaignId}>{campaignName}</option> : null}
+              {campaigns.map((item) => {
+                const itemId = item.campaign?.id || "";
+                const itemRole = roleLabel(item.role || item.membership?.role, true);
+                return <option key={itemId || item.id} value={itemId}>{item.campaign?.name || "Untitled campaign"} · {itemRole}</option>;
+              })}
+            </select>
+          </label>
 
           {campaignNavAvailable ? (
             <>
-              <HeaderDropdown id="mode" open={openDropdown} setOpen={setOpenDropdown} icon={ModeIcon} label={meta.label} className="topbar-dropdown--mode">
-                <Link to={modeHome("archive", canManage, activeWorld)} onClick={closeDropdown}><Archive size={15} /> Архив</Link>
-                <Link to={modeHome("table", canManage, activeWorld)} onClick={closeDropdown}><Dices size={15} /> Игровой стол</Link>
-                <Link to={modeHome("management", canManage, activeWorld)} onClick={closeDropdown}><Settings size={15} /> {canManage ? "Управление" : "Профиль"}</Link>
-              </HeaderDropdown>
+              <label className="topbar-native-select topbar-native-select--mode">
+                <ModeIcon size={16} aria-hidden="true" />
+                <select aria-label="Раздел приложения" value={currentMode} onChange={changeMode}>
+                  <option value="archive">Архив</option>
+                  <option value="table">Игровой стол</option>
+                  <option value="management">{canManage ? "Управление" : "Профиль"}</option>
+                </select>
+              </label>
 
-              <HeaderDropdown id="world" open={openDropdown} setOpen={setOpenDropdown} icon={Globe2} label={activeWorld?.title || "Вся кампания"} className="topbar-dropdown--world">
-                <button type="button" onClick={() => changeWorld(null)} className={!activeWorld ? "is-active" : ""}>Вся кампания</button>
-                {worlds.map((world) => (
-                  <button key={world.path} type="button" onClick={() => changeWorld(world)} className={activeWorld && worldSlug(activeWorld) === worldSlug(world) ? "is-active" : ""}>
-                    {world.title}
-                  </button>
-                ))}
-                {canManage ? <Link to="/category/worlds" onClick={closeDropdown}>+ Создать / открыть миры</Link> : null}
-              </HeaderDropdown>
+              <label className="topbar-native-select topbar-native-select--world">
+                <Globe2 size={16} aria-hidden="true" />
+                <select aria-label="Мир кампании" value={selectedWorld} onChange={changeWorld}>
+                  <option value="">Вся кампания</option>
+                  {worlds.map((world) => <option key={world.path} value={worldSlug(world)}>{world.title}</option>)}
+                </select>
+              </label>
             </>
           ) : null}
         </div>
@@ -148,12 +121,22 @@ export default function CodexTopbar({
 
       <div className="topbar-clean-spacer" />
 
-      <HeaderDropdown id="account" open={openDropdown} setOpen={setOpenDropdown} icon={UserRound} label={accountLabel} className="topbar-dropdown--account">
-        <span className="topbar-account-meta">{roleLabel(role, signedIn)}</span>
-        {session?.user ? <Link to="/profile" onClick={closeDropdown}>Профиль</Link> : null}
-        {session?.user ? <Link to="/settings" onClick={closeDropdown}>Настройки</Link> : null}
-        {session?.user ? <button type="button" onClick={() => { closeDropdown(); onLogout?.(); }}><LogOut size={14} /> Выйти</button> : <Link to="/login" onClick={closeDropdown}><LogIn size={14} /> Войти</Link>}
-      </HeaderDropdown>
+      <details className="topbar-account-details">
+        <summary className="topbar-account-summary">
+          <UserRound size={16} aria-hidden="true" />
+          <span>{accountLabel}</span>
+        </summary>
+        <div className="topbar-account-popover">
+          <span className="topbar-account-meta">{roleLabel(role, signedIn)}</span>
+          {session?.user ? <Link to="/profile" onClick={closeAccountMenu}>Профиль</Link> : null}
+          {session?.user ? <Link to="/settings" onClick={closeAccountMenu}>Настройки</Link> : null}
+          {session?.user ? (
+            <button type="button" onClick={(event) => { closeAccountMenu(event); onLogout?.(); }}><LogOut size={14} /> Выйти</button>
+          ) : (
+            <Link to="/login" onClick={closeAccountMenu}><LogIn size={14} /> Войти</Link>
+          )}
+        </div>
+      </details>
     </header>
   );
 }
