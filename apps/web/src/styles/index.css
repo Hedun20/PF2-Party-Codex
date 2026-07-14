@@ -1,4 +1,4 @@
-@layer theme, fantasy, components, design, buttons, stabilization, shell, blocks, campaign, accessibility, stage16a, stage16b, magicSelect, content, stage17, stage18, stage19;
+@layer theme, fantasy, components, design, buttons, stabilization, shell, blocks, campaign, accessibility, stage16a, stage16b, magicSelect, content, stage17, stage18, stage19, stage20;
 
 @import "./theme.css" layer(theme);
 @import "./fantasy.css" layer(fantasy);
@@ -17,3 +17,4 @@
 @import "./stage17-content-polish.css" layer(stage17);
 @import "./stage18-editor-inspector-selects.css" layer(stage18);
 @import "./stage19-select-archive-hotfix.css" layer(stage19);
+@import "./stage20-native-selects.css" layer(stage20);

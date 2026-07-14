@@ -1,0 +1,195 @@
+/* Stage 20: critical navigation and Timeline filters use real browser selects. */
+
+.topbar-native-select {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 10px 0 13px;
+  border: 1px solid rgba(218, 184, 103, 0.24);
+  border-radius: 14px;
+  color: rgba(245, 239, 255, 0.78);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028), transparent),
+    rgba(17, 14, 24, 0.94);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.topbar-native-select:focus-within,
+.topbar-native-select:hover {
+  border-color: rgba(227, 190, 101, 0.5);
+  color: #fff8e8;
+}
+
+.topbar-native-select > svg {
+  flex: 0 0 auto;
+  color: var(--gold);
+  pointer-events: none;
+}
+
+.topbar-native-select > select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  margin: 0;
+  padding: 0 8px;
+  border: 0 !important;
+  outline: 0;
+  color: inherit;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  font: inherit;
+  font-weight: 820;
+  cursor: pointer;
+}
+
+.topbar-native-select > select:focus-visible {
+  outline: 2px solid rgba(227, 190, 101, 0.6);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.topbar-native-select > select option,
+.timeline-control--native-select > select option {
+  color: #f7f0ff;
+  background: #15111d;
+}
+
+.topbar-native-select--campaign {
+  width: min(19rem, 28vw);
+}
+
+.topbar-native-select--mode {
+  width: min(13rem, 21vw);
+}
+
+.topbar-native-select--world {
+  width: min(16rem, 24vw);
+  border-color: rgba(119, 209, 153, 0.28);
+}
+
+.topbar-account-details {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.topbar-account-summary {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  max-width: min(18rem, 24vw);
+  padding: 0 14px;
+  border: 1px solid rgba(218, 184, 103, 0.24);
+  border-radius: 14px;
+  color: rgba(245, 239, 255, 0.78);
+  background: rgba(17, 14, 24, 0.94);
+  font-weight: 820;
+  cursor: pointer;
+  list-style: none;
+}
+
+.topbar-account-summary::-webkit-details-marker {
+  display: none;
+}
+
+.topbar-account-summary > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-account-popover {
+  position: absolute;
+  z-index: 22000;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  gap: 4px;
+  width: min(18rem, calc(100vw - 24px));
+  padding: 8px;
+  border: 1px solid rgba(227, 190, 101, 0.34);
+  border-radius: 14px;
+  background: rgba(12, 10, 18, 0.99);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.58);
+}
+
+.topbar-account-popover > a,
+.topbar-account-popover > button,
+.topbar-account-popover > span {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 9px;
+  color: rgba(245, 239, 255, 0.78);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+
+.topbar-account-popover > a:hover,
+.topbar-account-popover > button:hover {
+  color: #fff8e8;
+  background: rgba(227, 190, 101, 0.1);
+}
+
+.timeline-control--native-select {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 12px;
+  border: 1px solid rgba(218, 184, 103, 0.28);
+  border-radius: 13px;
+  color: #f7f0ff;
+  background: rgba(10, 8, 15, 0.92);
+}
+
+.timeline-control--native-select > svg {
+  color: var(--gold);
+  pointer-events: none;
+}
+
+.timeline-control--native-select > select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  margin: 0;
+  padding: 0 8px;
+  border: 0 !important;
+  outline: 0;
+  color: inherit;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  font: inherit;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .topbar-native-select--campaign,
+  .topbar-native-select--mode,
+  .topbar-native-select--world {
+    width: max-content;
+    min-width: 11rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar-account-summary {
+    max-width: 11rem;
+  }
+}

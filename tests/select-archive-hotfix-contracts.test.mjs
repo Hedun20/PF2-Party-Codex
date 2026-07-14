@@ -42,21 +42,24 @@ test("archive summary queries canonical entry-backed maps, timeline and sessions
   assert.deepEqual(sessions.$and[0].visibility, { $in: ["public", "revealed"] });
 });
 
-test("critical dropdowns use portal menus instead of clipped header children", async () => {
-  const [topbar, timeline, floatingMenu, select, css] = await Promise.all([
+test("critical header and Timeline controls use browser-native selects", async () => {
+  const [topbar, timeline, css] = await Promise.all([
     source("apps/web/src/components/CodexTopbar.jsx"),
     source("apps/web/src/pages/TimelinePage.jsx"),
-    source("apps/web/src/components/ui/FloatingMenu.jsx"),
-    source("apps/web/src/components/ui/CodexSelect.jsx"),
-    source("apps/web/src/styles/stage19-select-archive-hotfix.css")
+    source("apps/web/src/styles/stage20-native-selects.css")
   ]);
 
-  assert.match(topbar, /<FloatingMenu/);
-  assert.match(topbar, /topbar-dropdown-menu--portal/);
-  assert.match(floatingMenu, /createPortal/);
-  assert.match(select, /role="listbox"/);
-  assert.match(timeline, /<CodexSelect/);
+  assert.match(topbar, /<select aria-label="Активная кампания"/);
+  assert.match(topbar, /<select aria-label="Раздел приложения"/);
+  assert.match(topbar, /<select aria-label="Мир кампании"/);
+  assert.doesNotMatch(topbar, /FloatingMenu|HeaderDropdown|CodexSelect/);
+
+  assert.match(timeline, /<select aria-label="Фильтр мира timeline"/);
+  assert.match(timeline, /<select aria-label="Фильтр типа timeline"/);
+  assert.doesNotMatch(timeline, /CodexSelect|FloatingMenu/);
   assert.match(timeline, /getWorlds\(pages\)/);
-  assert.match(css, /appearance:\s*auto\s*!important/);
-  assert.match(css, /position:\s*fixed/);
+
+  assert.match(css, /topbar-native-select/);
+  assert.match(css, /timeline-control--native-select/);
+  assert.doesNotMatch(css, /position:\s*fixed/);
 });
