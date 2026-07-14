@@ -1,0 +1,47 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import test from "node:test";
+import { calculateSkillModifier, proficiencyBonus } from "../apps/web/src/utils/characterMath.js";
+
+function read(path) {
+  return fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+}
+
+test("PF2e proficiency adds level only for trained ranks", () => {
+  assert.equal(proficiencyBonus("untrained", 6), 0);
+  assert.equal(proficiencyBonus("trained", 6), 8);
+  assert.equal(proficiencyBonus("expert", 6), 10);
+  assert.equal(proficiencyBonus("master", 6), 12);
+  assert.equal(proficiencyBonus("legendary", 6), 14);
+});
+
+test("automatic and manual skill modes produce deterministic modifiers", () => {
+  const context = { level: 6, abilities: { cha: 4 } };
+  assert.equal(calculateSkillModifier({ ability: "cha", rank: "master", itemBonus: 0, otherBonus: 0, calculationMode: "auto" }, context), 16);
+  assert.equal(calculateSkillModifier({ ability: "cha", rank: "master", manualModifier: 19, calculationMode: "manual" }, context), 19);
+});
+
+test("character editor uses separate structured rows instead of pipe-delimited textareas", () => {
+  const editor = read("apps/web/src/components/CharacterEditorView.jsx");
+  assert.match(editor, /Добавить навык/);
+  assert.match(editor, /Добавить атаку/);
+  assert.match(editor, /Добавить способность/);
+  assert.match(editor, /Добавить заклинание или силу/);
+  assert.match(editor, /Добавить предмет/);
+  assert.doesNotMatch(editor, /название \| бонус/);
+  assert.doesNotMatch(editor, /название \| ранг/);
+});
+
+test("global native selects are no longer intercepted by MagicSelectLayer", () => {
+  const shell = read("apps/web/src/components/FantasyShell.jsx");
+  assert.doesNotMatch(shell, /MagicSelectLayer/);
+  assert.match(shell, /CodexTopbar/);
+});
+
+test("timeline uses the shared padded entity detail inspector", () => {
+  const timeline = read("apps/web/src/pages/TimelinePage.jsx");
+  const inspector = read("apps/web/src/components/EntityDetailPanel.jsx");
+  assert.match(timeline, /EntityDetailPanel/);
+  assert.match(inspector, /entity-detail-panel__facts/);
+  assert.match(inspector, /entity-detail-panel__actions/);
+});

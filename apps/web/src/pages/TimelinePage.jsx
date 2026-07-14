@@ -10,13 +10,14 @@ import {
   GitBranch,
   History,
   Link2,
-  MapPin,
+  Pencil,
   Plus,
   Search,
   Send,
   Sparkles
 } from "lucide-react";
 import { api } from "../api/client.js";
+import EntityDetailPanel from "../components/EntityDetailPanel.jsx";
 import CodexButton from "../components/ui/CodexButton.jsx";
 import { labelCategory } from "../utils/labels.js";
 
@@ -27,6 +28,11 @@ function slug(value = "") {
 function compact(value = "", limit = 210) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
+}
+
+function asArray(value) {
+  if (!value) return [];
+  return Array.isArray(value) ? value.filter(Boolean).map(String) : [String(value)];
 }
 
 function timelineYear(page = {}) {
@@ -44,7 +50,7 @@ function visibilityOf(page = {}) {
 }
 
 function isPlayerVisible(value = "public") {
-  return ["public", "revealed", "partyvisible", "partyVisible"].includes(String(value).toLowerCase());
+  return ["public", "revealed", "partyvisible"].includes(String(value).toLowerCase());
 }
 
 function isTimelineEntry(page = {}) {
@@ -54,6 +60,14 @@ function isTimelineEntry(page = {}) {
     || page.category === "lore/timeline"
     || page.category === "sessions"
     || Boolean(fm.year || fm.timelineYear || fm.date || fm.sessionDate);
+}
+
+function relationLabels(page = {}) {
+  const fm = page.frontmatter || {};
+  const links = Array.isArray(page.links) ? page.links.map((item) => item?.label || item?.target).filter(Boolean) : [];
+  return [...new Set([
+    ...asArray(fm.related), ...asArray(fm.relatedPages), ...asArray(fm.linkedPages), ...links
+  ])].slice(0, 8);
 }
 
 function normalizeEntry(page = {}) {
@@ -76,6 +90,7 @@ function normalizeEntry(page = {}) {
     importance: page.frontmatter?.importance || (page.category === "sessions" ? "session" : "event"),
     visibility,
     playerVisible: isPlayerVisible(visibility),
+    related: relationLabels(page),
     relatedCount: [page.links, page.relatedPages, page.backlinks].reduce((sum, items) => sum + (Array.isArray(items) ? items.length : 0), 0),
     updatedAt: page.modifiedAt || page.updatedAt || ""
   };
@@ -101,6 +116,7 @@ function normalizeMongo(event = {}) {
     importance: event.importance || "event",
     visibility,
     playerVisible: isPlayerVisible(visibility),
+    related: asArray(event.relatedEntryIds).slice(0, 8),
     relatedCount: Array.isArray(event.relatedEntryIds) ? event.relatedEntryIds.length : 0,
     updatedAt: event.updatedAt || event.createdAt || ""
   };
@@ -197,6 +213,9 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
   }, [filteredItems, selectedId]);
 
   const selected = filteredItems.find((item) => item.id === selectedId) || filteredItems[0] || null;
+  const selectedIndex = selected ? filteredItems.findIndex((item) => item.id === selected.id) : -1;
+  const previous = selectedIndex > 0 ? filteredItems[selectedIndex - 1] : null;
+  const next = selectedIndex >= 0 && selectedIndex < filteredItems.length - 1 ? filteredItems[selectedIndex + 1] : null;
   const grouped = useMemo(() => {
     const groups = [];
     for (const item of filteredItems) {
@@ -211,8 +230,7 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
     total: mergedItems.length,
     articles: entryItems.length,
     projected: mongoItems.length,
-    player: mergedItems.filter((item) => item.playerVisible).length,
-    hidden: mergedItems.filter((item) => !item.playerVisible).length
+    player: mergedItems.filter((item) => item.playerVisible).length
   }), [mergedItems, entryItems.length, mongoItems.length]);
 
   async function revealSelected() {
@@ -237,33 +255,20 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
     }
   }
 
+  const inspectorActions = selected ? <>
+    <div className="entity-detail-panel__stepper">
+      <button type="button" disabled={!previous} onClick={() => previous && setSelectedId(previous.id)}>← Предыдущее</button>
+      <button type="button" disabled={!next} onClick={() => next && setSelectedId(next.id)}>Следующее →</button>
+    </div>
+    {selected.path ? <CodexButton as={Link} to={`/page/${encodeURIComponent(selected.path)}`} variant="secondary"><Link2 size={15} /><span>Открыть статью</span></CodexButton> : null}
+    {canManage && selected.path ? <CodexButton as={Link} to={`/edit/${encodeURIComponent(selected.path)}`} variant="ghost"><Pencil size={15} /><span>Редактировать</span></CodexButton> : null}
+  </> : null;
+
   return (
     <div className={embedded ? "page-stack timeline-embedded" : "page-stack timeline-branch-page timeline2-page"}>
-      <header className="list-header timeline-branch-hero article-page-header timeline2-hero">
-        <div>
-          <span className="kicker">{activeWorld ? `Мир: ${activeWorld.title}` : "Хроника кампании"}</span>
-          <h1>{activeWorld ? `Timeline: ${activeWorld.title}` : "Timeline"}</h1>
-          <p>Единая временная линия теперь показывает и отдельные Mongo-события, и статьи типа «Событие timeline». Пустой projection больше не скрывает созданные статьи.</p>
-        </div>
-        <div className="timeline-stat-grid" aria-label="Статистика timeline">
-          <span><strong>{stats.total}</strong> всего</span>
-          <span><strong>{stats.articles}</strong> статей</span>
-          <span><strong>{stats.projected}</strong> событий API</span>
-          <span><strong>{stats.player}</strong> для игроков</span>
-        </div>
-      </header>
+      <header className="list-header timeline-branch-hero article-page-header timeline2-hero"><div><span className="kicker">{activeWorld ? `Мир: ${activeWorld.title}` : "Хроника кампании"}</span><h1>{activeWorld ? `Timeline: ${activeWorld.title}` : "Timeline"}</h1><p>События архива и отдельная Mongo-хронология объединены в одну линию. Выбранная точка подробно раскрывается справа.</p></div><div className="timeline-stat-grid"><span><strong>{stats.total}</strong> всего</span><span><strong>{stats.articles}</strong> статей</span><span><strong>{stats.projected}</strong> API</span><span><strong>{stats.player}</strong> игрокам</span></div></header>
 
-      {canManage ? (
-        <section className="timeline2-gm-toolbar codex-card">
-          <div><span className="kicker">GM timeline tools</span><strong>Рабочая хронология мастера</strong><p>Создавай события, проверяй player-safe представление и показывай выбранный момент партии.</p></div>
-          <div className="timeline2-toolbar-actions">
-            <CodexButton as={Link} to={editorPath(activeWorld)}><Plus size={16} /><span>Новое событие</span></CodexButton>
-            <button type="button" className={`timeline2-toggle ${playerPreview ? "active" : ""}`} onClick={() => setPlayerPreview((value) => !value)}>{playerPreview ? <Eye size={16} /> : <EyeOff size={16} />}{playerPreview ? "Вернуть GM view" : "Preview as Player"}</button>
-            <button type="button" className="timeline2-toggle" onClick={revealSelected} disabled={!selected?.path || !selected.playerVisible || revealBusy}><Send size={16} />{revealBusy ? "Показываю..." : "Reveal event"}</button>
-          </div>
-        </section>
-      ) : null}
-
+      {canManage ? <section className="timeline2-gm-toolbar codex-card"><div><span className="kicker">GM timeline tools</span><strong>Рабочая хронология мастера</strong><p>Создавай события, проверяй player-safe представление и показывай выбранный момент партии.</p></div><div className="timeline2-toolbar-actions"><CodexButton as={Link} to={editorPath(activeWorld)}><Plus size={16} /><span>Новое событие</span></CodexButton><button type="button" className={`timeline2-toggle ${playerPreview ? "active" : ""}`} onClick={() => setPlayerPreview((value) => !value)}>{playerPreview ? <Eye size={16} /> : <EyeOff size={16} />}{playerPreview ? "Вернуть GM view" : "Preview as Player"}</button><button type="button" className="timeline2-toggle" onClick={revealSelected} disabled={!selected?.path || !selected.playerVisible || revealBusy}><Send size={16} />{revealBusy ? "Показываю..." : "Reveal event"}</button></div></section> : null}
       {state.error ? <div className="status-message danger-message"><AlertTriangle size={16} /><span>{state.error} Статьи timeline всё равно отображаются из архива.</span></div> : null}
       {revealMessage ? <div className="status-message"><span>{revealMessage}</span></div> : null}
 
@@ -276,38 +281,29 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
       <section className="timeline-branch-layout timeline2-layout">
         <div className="timeline-branch-explorer timeline2-explorer">
           {state.loading ? <div className="timeline-empty-state"><Clock3 size={30} /><strong>Загрузка timeline...</strong></div> : null}
-          {!state.loading && !filteredItems.length ? (
-            <div className="timeline-empty-state timeline-branch-empty"><History size={32} /><strong>{effectivePlayerView ? "Для игроков пока нет событий" : "Timeline пока пустой"}</strong><p>{canManage ? "Создай статью типа «Событие timeline» кнопкой выше." : "Мастер ещё не опубликовал события."}</p></div>
-          ) : null}
-
-          {grouped.map((group) => (
-            <section key={group.era} className="timeline-era-group timeline2-era-group">
-              <div className="timeline-era-marker timeline2-era-marker"><CalendarDays size={16} /><span>{group.era}</span></div>
-              {group.items.map((item, index) => (
-                <article key={`${item.sourceKind}-${item.id}`} className={`timeline-branch-row ${index % 2 ? "right" : "left"} ${selected?.id === item.id ? "active" : ""} ${item.playerVisible ? "player-visible" : "gm-only"}`}>
-                  <button type="button" className="timeline-branch-card codex-card timeline2-card" onClick={() => setSelectedId(item.id)}>
-                    <div className="timeline-branch-card-head"><span className="timeline-branch-year">{item.year}</span><span className="timeline-kind-pill"><Sparkles size={14} /> {eventKind(item)}</span><span className={`timeline2-visibility-pill ${item.playerVisible ? "public" : "gm"}`}>{item.playerVisible ? <Eye size={13} /> : <EyeOff size={13} />}{item.playerVisible ? "Player" : "GM"}</span></div>
-                    <h2>{item.title}</h2><p>{compact(item.summary)}</p>
-                    <div className="timeline-branch-meta"><span>{labelCategory(item.category)}</span><span>{item.sourceKind === "entry" ? "Статья" : "Timeline API"}</span>{item.world ? <span>{item.world}</span> : null}{item.relatedCount ? <span>{item.relatedCount} связей</span> : null}</div>
-                  </button>
-                  <button type="button" className="timeline-branch-node" onClick={() => setSelectedId(item.id)} aria-label={`Выбрать ${item.title}`}><Sparkles size={17} /></button>
-                  <div className="timeline-branch-line" />
-                </article>
-              ))}
-            </section>
-          ))}
+          {!state.loading && !filteredItems.length ? <div className="timeline-empty-state timeline-branch-empty"><History size={32} /><strong>{effectivePlayerView ? "Для игроков пока нет событий" : "Timeline пока пустой"}</strong><p>{canManage ? "Создай статью типа «Событие timeline» кнопкой выше." : "Мастер ещё не опубликовал события."}</p></div> : null}
+          {grouped.map((group) => <section key={group.era} className="timeline-era-group timeline2-era-group"><div className="timeline-era-marker timeline2-era-marker"><CalendarDays size={16} /><span>{group.era}</span></div>{group.items.map((item, index) => <article key={`${item.sourceKind}-${item.id}`} className={`timeline-branch-row ${index % 2 ? "right" : "left"} ${selected?.id === item.id ? "active" : ""} ${item.playerVisible ? "player-visible" : "gm-only"}`}><button type="button" className="timeline-branch-card codex-card timeline2-card" onClick={() => setSelectedId(item.id)}><div className="timeline-branch-card-head"><span className="timeline-branch-year">{item.year}</span><span className="timeline-kind-pill"><Sparkles size={14} /> {eventKind(item)}</span><span className={`timeline2-visibility-pill ${item.playerVisible ? "public" : "gm"}`}>{item.playerVisible ? <Eye size={13} /> : <EyeOff size={13} />}{item.playerVisible ? "Player" : "GM"}</span></div><h2>{item.title}</h2><p>{compact(item.summary)}</p><div className="timeline-branch-meta"><span>{labelCategory(item.category)}</span><span>{item.sourceKind === "entry" ? "Статья" : "Timeline API"}</span>{item.world ? <span>{item.world}</span> : null}{item.relatedCount ? <span>{item.relatedCount} связей</span> : null}</div></button><button type="button" className="timeline-branch-node" onClick={() => setSelectedId(item.id)} aria-label={`Выбрать ${item.title}`}><Sparkles size={17} /></button><div className="timeline-branch-line" /></article>)}</section>)}
         </div>
 
-        <aside className="timeline-inspector timeline2-inspector codex-card">
-          {selected ? (
-            <>
-              <span className="kicker">Выбранное событие</span><h2>{selected.title}</h2><p>{selected.summary || "Описание не заполнено."}</p>
-              <dl><div><dt>Дата</dt><dd>{selected.year}</dd></div><div><dt>Эпоха</dt><dd>{selected.era}</dd></div><div><dt>Видимость</dt><dd>{selected.playerVisible ? "Игрокам" : "Только GM"}</dd></div><div><dt>Источник</dt><dd>{selected.sourceKind === "entry" ? "Статья архива" : "Timeline API"}</dd></div></dl>
-              {selected.world || selected.country || selected.city ? <p className="timeline-inspector-location"><MapPin size={15} /> {[selected.world, selected.country, selected.city].filter(Boolean).join(" · ")}</p> : null}
-              {selected.path ? <CodexButton as={Link} to={`/page/${encodeURIComponent(selected.path)}`} variant="secondary"><Link2 size={15} /><span>Открыть статью</span></CodexButton> : null}
-            </>
-          ) : <><Clock3 size={28} /><strong>Выбери событие</strong><p>Справа появятся детали выбранной точки timeline.</p></>}
-        </aside>
+        <EntityDetailPanel
+          className="timeline-inspector timeline2-inspector"
+          kicker="Выбранное событие"
+          title={selected?.title}
+          description={selected?.summary || selected?.content || ""}
+          badge={selected ? (selected.playerVisible ? "Игрокам" : "Только GM") : null}
+          facts={selected ? [
+            { label: "Дата", value: selected.year },
+            { label: "Эпоха", value: selected.era },
+            { label: "Тип", value: eventKind(selected) },
+            { label: "Источник", value: selected.sourceKind === "entry" ? "Статья архива" : "Timeline API" },
+            { label: "Ветка", value: selected.branch },
+            { label: "Связи", value: selected.relatedCount || "Нет" }
+          ] : []}
+          location={selected ? [selected.world, selected.country, selected.city] : []}
+          related={selected?.related || []}
+          actions={inspectorActions}
+          empty={<><Clock3 size={30} /><strong>Выбери событие</strong><p>Справа появятся подробности выбранной точки timeline.</p></>}
+        />
       </section>
     </div>
   );
