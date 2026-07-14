@@ -191,9 +191,26 @@
 }
 
 /* Players / invitations */
-.players-card-premium {
+.players-page {
+  --players-panel-border: rgba(227, 182, 95, 0.22);
+  --players-soft-border: rgba(255, 255, 255, 0.09);
+  --players-soft-bg: rgba(255, 255, 255, 0.038);
+}
+
+.players-page .players-card-premium {
   display: grid;
   gap: 1rem;
+  min-width: 0;
+  padding: clamp(1.1rem, 2.2vw, 1.55rem);
+  border-color: var(--players-panel-border);
+  border-radius: 0.85rem;
+  overflow: hidden;
+  align-content: start;
+}
+
+.players-page .players-card-premium:hover,
+.players-page .players-card-premium:focus-within {
+  transform: none;
 }
 
 .players-card-head {
@@ -201,103 +218,350 @@
   justify-content: space-between;
   gap: 1rem;
   align-items: flex-start;
+  min-width: 0;
+}
+
+.players-card-head > div {
+  min-width: 0;
 }
 
 .players-card-head h2 {
-  margin: 0.2rem 0;
+  margin: 0.2rem 0 0;
+  color: var(--text, #f7f0ff);
+  font-family: var(--display);
+  font-size: clamp(1.35rem, 2vw, 1.7rem);
+  line-height: 1.08;
 }
 
 .players-card-head p {
-  margin: 0;
+  max-width: 48rem;
+  margin: 0.45rem 0 0;
   color: rgba(245, 239, 255, 0.66);
+  line-height: 1.48;
+}
+
+.players-card-icon {
+  display: grid;
+  flex: 0 0 2.7rem;
+  width: 2.7rem;
+  height: 2.7rem;
+  place-items: center;
+  border: 1px solid rgba(227, 182, 95, 0.25);
+  border-radius: 0.75rem;
+  color: var(--gold);
+  background: linear-gradient(145deg, rgba(227, 182, 95, 0.12), rgba(168, 85, 247, 0.08));
 }
 
 .players-invite-form {
   display: grid;
-  grid-template-columns: minmax(16rem, 1fr) auto;
-  gap: 0.8rem;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 0.9rem;
+  align-items: start;
+  padding-top: 0.15rem;
 }
 
 .players-invite-form label {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.4rem;
+  min-width: 0;
   color: rgba(245, 239, 255, 0.78);
   font-weight: 750;
 }
 
-.players-invite-form input {
-  min-height: 2.75rem;
+.players-invite-form label > span:first-child {
+  color: rgba(245, 239, 255, 0.88);
+  font-size: 0.88rem;
+}
+
+.players-input-shell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  min-height: 3rem;
   border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 0.9rem;
+  border-radius: 0.75rem;
   background: rgba(8, 8, 13, 0.68);
   color: var(--text, #f7f0ff);
-  padding: 0.65rem 0.8rem;
+  padding: 0 0.85rem;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.players-input-shell > svg {
+  color: rgba(227, 182, 95, 0.78);
+}
+
+.players-input-shell:focus-within {
+  border-color: rgba(227, 182, 95, 0.65);
+  background: rgba(13, 10, 20, 0.9);
+  box-shadow: 0 0 0 3px rgba(227, 182, 95, 0.11);
+}
+
+.players-invite-form input {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.9rem;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text, #f7f0ff);
+  font: inherit;
+}
+
+.players-invite-form input::placeholder {
+  color: rgba(245, 239, 255, 0.42);
+}
+
+.players-invite-form small {
+  color: rgba(245, 239, 255, 0.52);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.players-invite-submit {
+  min-height: 3rem;
+  margin-top: 1.55rem;
 }
 
 .invite-copy-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.7rem;
-  padding: 0.75rem;
+  gap: 0.8rem;
+  min-width: 0;
+  padding: 0.85rem;
   border: 1px solid rgba(218, 184, 103, 0.25);
-  border-radius: 1rem;
+  border-radius: 0.8rem;
   background: rgba(218, 184, 103, 0.08);
 }
 
-.invite-copy-card span {
-  flex: 1 1 auto;
+.invite-copy-card > svg {
+  color: var(--gold);
+}
+
+.invite-copy-card > div {
   min-width: 0;
+}
+
+.invite-copy-card strong,
+.invite-copy-card span {
+  display: block;
+}
+
+.invite-copy-card strong {
+  margin-bottom: 0.2rem;
+  color: var(--text, #f7f0ff);
+  font-size: 0.84rem;
+}
+
+.invite-copy-card span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color: rgba(245, 239, 255, 0.78);
+  font-size: 0.82rem;
+}
+
+.players-status-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.players-status-message > svg {
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
 }
 
 .players-management-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
   gap: 1rem;
+  align-items: start;
 }
 
 .players-row-list {
   display: grid;
-  gap: 0.65rem;
+  gap: 0.7rem;
+  min-width: 0;
 }
 
 .players-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1rem;
+  grid-template-columns: minmax(12rem, 1fr) minmax(10.5rem, auto);
+  gap: 0.9rem;
   align-items: center;
-  padding: 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.04);
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--players-soft-border);
+  border-radius: 0.75rem;
+  background: var(--players-soft-bg);
 }
 
-.players-row > div:first-child {
+.players-person {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.players-avatar {
+  display: grid;
+  flex: 0 0 2.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid rgba(227, 182, 95, 0.22);
+  border-radius: 0.75rem;
+  color: #f5d98f;
+  background: linear-gradient(145deg, rgba(227, 182, 95, 0.18), rgba(168, 85, 247, 0.12));
+  font-family: var(--display);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.players-avatar--invite {
+  color: var(--gold);
+  background: rgba(227, 182, 95, 0.08);
+}
+
+.players-row-copy {
   display: grid;
   gap: 0.2rem;
   min-width: 0;
 }
 
-.players-row strong {
+.players-row-copy strong {
+  min-width: 0;
   color: var(--text, #f7f0ff);
+  line-height: 1.28;
+  overflow-wrap: anywhere;
 }
 
-.players-row span,
-.players-row small {
+.players-row-copy span {
+  min-width: 0;
   color: rgba(245, 239, 255, 0.64);
+  font-size: 0.84rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .players-row-meta {
+  display: grid;
+  justify-items: end;
+  gap: 0.5rem;
+  min-width: 10.5rem;
+  max-width: 17rem;
+}
+
+.players-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.players-row-date {
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  color: rgba(245, 239, 255, 0.58);
+  font-size: 0.76rem;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.players-row-date > svg {
+  flex: 0 0 auto;
+  margin-top: 0.05rem;
+  color: rgba(227, 182, 95, 0.7);
+}
+
+.invite-row {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.invite-row .players-row-meta {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  justify-items: start;
+  padding-left: 3.25rem;
+}
+
+.invite-row .players-badges {
+  justify-content: flex-start;
+}
+
+.invite-row .players-row-date {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.players-copy-button {
+  justify-self: start;
+}
+
+.players-loading-state,
+.players-empty-state {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 0.45rem;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px dashed rgba(227, 182, 95, 0.2);
+  border-radius: 0.75rem;
+  color: rgba(245, 239, 255, 0.65);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.players-loading-state > svg,
+.players-empty-state > svg {
+  flex: 0 0 auto;
+  color: var(--gold);
+}
+
+.players-empty-state > div {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.players-empty-state strong {
+  color: var(--text, #f7f0ff);
+}
+
+.players-empty-state span {
+  color: rgba(245, 239, 255, 0.6);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.players-copy-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.players-spinner,
+.players-loading-state > svg {
+  animation: players-spinner 900ms linear infinite;
+}
+
+@keyframes players-spinner {
+  to { transform: rotate(360deg); }
 }
 
 .codex-pill {
@@ -330,10 +594,20 @@
   background: rgba(255, 113, 113, 0.1);
 }
 
-@media (max-width: 980px) {
-  .players-management-grid,
+@media (max-width: 1080px) {
+  .players-management-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
   .players-invite-form {
     grid-template-columns: 1fr;
+  }
+
+  .players-invite-submit {
+    width: 100%;
+    margin-top: 0;
   }
 
   .players-row {
@@ -341,7 +615,48 @@
   }
 
   .players-row-meta {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    justify-items: start;
+  }
+
+  .players-badges {
     justify-content: flex-start;
+  }
+
+  .players-row-date {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .invite-row .players-row-meta {
+    padding-left: 0;
+  }
+
+  .invite-copy-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .invite-copy-card .codex-button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .players-page .players-card-premium {
+    padding: 1rem;
+  }
+
+  .players-card-icon {
+    flex-basis: 2.35rem;
+    width: 2.35rem;
+    height: 2.35rem;
+  }
+
+  .players-person {
+    align-items: flex-start;
   }
 }
 /* Stage 10C: product shell stabilization. */
