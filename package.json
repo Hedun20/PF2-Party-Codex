@@ -10,10 +10,11 @@
     "dev": "concurrently -n server,web -c magenta,cyan \"npm run dev --workspace apps/server\" \"npm run dev --workspace apps/web\"",
     "dev:clean": "node scripts/kill-dev-ports.mjs && npm run dev",
     "build": "npm run build --workspace apps/web",
-    "test": "node --test tests/route-contracts.test.mjs tests/server-smoke.test.mjs",
+    "test": "node --test tests/route-contracts.test.mjs tests/server-smoke.test.mjs tests/content-contracts.test.mjs",
     "check:syntax": "find apps/server/src apps/server/scripts scripts tests -type f \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
     "audit:production": "npm audit --omit=dev --audit-level=high",
     "verify": "npm test && npm run build && npm run check:syntax && npm run audit:production",
+    "demo:seed": "npm run demo:seed --workspace apps/server",
     "prestart": "npm run build",
     "start": "npm run start --workspace apps/server",
     "install:all": "npm install"
