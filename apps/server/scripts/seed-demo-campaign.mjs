@@ -1,11 +1,13 @@
 import { MongoClient, ObjectId } from "mongodb";
 import { config } from "../src/config.js";
 import { DEMO_ARTICLES, DEMO_THAUMATURGE } from "./demoCampaignData.mjs";
+import { linkDemoArticles } from "./demoCampaignRelations.mjs";
 
 const confirmation = String(process.env.DEMO_SEED_CONFIRM || "");
 const requestedCampaignId = String(process.env.DEMO_CAMPAIGN_ID || "").trim();
 const ownerEmail = String(process.env.DEMO_OWNER_EMAIL || process.env.DEV_OWNER_EMAIL || "").trim().toLowerCase();
 const campaignName = String(process.env.DEMO_CAMPAIGN_NAME || process.env.DEV_CAMPAIGN_NAME || "").trim();
+const linkedDemoArticles = linkDemoArticles(DEMO_ARTICLES);
 
 if (config.isProduction || process.env.NODE_ENV === "production") {
   throw new Error("The demo campaign seed is disabled in production.");
@@ -130,7 +132,7 @@ try {
   let articleCreated = 0;
   let articleUpdated = 0;
 
-  for (const article of DEMO_ARTICLES) {
+  for (const article of linkedDemoArticles) {
     const document = articleDocument(article, { campaignId, userId: ownerUserId, stamp });
     const existing = await entries.findOne({
       campaignId,
@@ -182,7 +184,7 @@ try {
     database: config.mongoDbName,
     campaignId: campaignId.toString(),
     campaignName: campaign.name,
-    articles: { total: DEMO_ARTICLES.length, created: articleCreated, updated: articleUpdated },
+    articles: { total: linkedDemoArticles.length, created: articleCreated, updated: articleUpdated },
     character: { name: DEMO_THAUMATURGE.identity.name, action: characterAction }
   });
 } finally {
