@@ -1,0 +1,478 @@
+/* Stage 16A: focused visual stabilization for shared buttons, Dice Tray, Editor and Maps. */
+
+.codex-button {
+  min-width: 0;
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 10px;
+  overflow: hidden;
+  transform: none;
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  line-height: 1;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, filter 150ms ease, transform 150ms ease;
+}
+
+.codex-button::before,
+.codex-button::after,
+.codex-button__ripple {
+  display: none !important;
+  content: none !important;
+  animation: none !important;
+  box-shadow: none !important;
+}
+
+.codex-button:hover {
+  opacity: 1;
+  filter: brightness(1.045);
+  transform: translateY(-1px);
+  box-shadow: 0 9px 22px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+.codex-button:active {
+  transform: translateY(0);
+  filter: brightness(0.98);
+}
+
+.codex-button__content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.codex-button__content > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.codex-button--sm {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 0.8rem;
+}
+
+.codex-button--md,
+.codex-button--lg {
+  min-height: 46px;
+  padding: 0 18px;
+}
+
+.codex-button--primary {
+  background: linear-gradient(180deg, #e3bd6b, #d1a64f);
+  color: #17100d;
+  border-color: rgba(255, 235, 178, 0.7);
+}
+
+.codex-button--secondary {
+  background: rgba(40, 32, 52, 0.92);
+  color: #f6ead0;
+  border-color: rgba(218, 184, 103, 0.34);
+}
+
+.codex-button--ghost {
+  background: rgba(255, 255, 255, 0.045);
+  color: #d8c89f;
+  border-color: rgba(255, 255, 255, 0.13);
+}
+
+.dice-tray-page .dice-roll-form {
+  display: grid;
+  gap: 18px;
+}
+
+.dice-tray-page .dice-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(74px, 1fr));
+  gap: 10px;
+}
+
+.dice-tray-page .dice-quick-button {
+  min-height: 86px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.035);
+  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+.dice-tray-page .dice-quick-button:hover {
+  transform: translateY(-1px);
+}
+
+.dice-tray-page .dice-quick-button--selected {
+  border-color: rgba(227, 182, 95, 0.74);
+  background: rgba(227, 182, 95, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(227, 182, 95, 0.2), 0 8px 20px rgba(0, 0, 0, 0.18);
+}
+
+.dice-tray-page .dice-face {
+  width: auto;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.dice-tray-page .dice-face__icon {
+  display: block;
+  color: #e6dff3;
+}
+
+.dice-tray-page .dice-face__type {
+  margin-top: 4px;
+  color: rgba(245, 239, 255, 0.7);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.dice-tray-page .dice-face__value {
+  color: #fff6dc;
+  font-size: 1.55rem;
+}
+
+.dice-tray-page .dice-selection-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.dice-tray-page .dice-selection-stat {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dice-tray-page .dice-selection-stat dt {
+  margin-bottom: 5px;
+  color: rgba(245, 239, 255, 0.55);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dice-tray-page .dice-selection-stat dd {
+  margin: 0;
+  color: #f7f0ff;
+  font-weight: 800;
+}
+
+.dice-tray-page .dice-formula-grid {
+  grid-template-columns: minmax(0, 440px);
+}
+
+.dice-tray-page .dice-action-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+}
+
+.dice-tray-page .dice-action-row .codex-button {
+  width: auto;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.dice-tray-page .dice-result-live,
+.dice-tray-page .roll-history-grid {
+  min-width: 0;
+}
+
+.dice-tray-page .dice-result-empty,
+.dice-tray-page .roll-history-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  min-height: 0;
+  padding: 24px !important;
+}
+
+.dice-tray-page .dice-result-empty__body,
+.dice-tray-page .roll-history-card-body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dice-tray-page .dice-result-empty h3,
+.dice-tray-page .dice-result-empty p,
+.dice-tray-page .roll-history-card__title,
+.dice-tray-page .roll-history-card__breakdown {
+  margin: 0;
+}
+
+.dice-tray-page .dice-result-empty h3,
+.dice-tray-page .roll-history-card__title {
+  color: #f7f0ff;
+}
+
+.dice-tray-page .dice-result-empty p,
+.dice-tray-page .roll-history-card__breakdown {
+  color: rgba(245, 239, 255, 0.68);
+  line-height: 1.5;
+}
+
+.create-article-page .codex-field-grid--four {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.create-article-page .article-location-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.create-article-page .codex-field,
+.create-article-page .article-meta-grid .codex-field {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-width: 0;
+  color: rgba(245, 239, 255, 0.78);
+  font-weight: 800;
+}
+
+.create-article-page .codex-field > input,
+.create-article-page .codex-field > select,
+.create-article-page .article-meta-grid input {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 13px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 10px;
+  background: rgba(8, 8, 13, 0.68);
+  color: #f7f0ff;
+  font: inherit;
+}
+
+.create-article-page .codex-field > input:focus,
+.create-article-page .codex-field > select:focus,
+.create-article-page .article-meta-grid input:focus,
+.create-article-page textarea:focus {
+  outline: 2px solid rgba(227, 182, 95, 0.5);
+  outline-offset: 2px;
+  border-color: rgba(227, 182, 95, 0.56);
+}
+
+.create-article-page .codex-field > small,
+.create-article-page .codex-field > span:last-child {
+  color: rgba(245, 239, 255, 0.57);
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.create-article-page .structured-story-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+
+.create-article-page .structured-story-grid .codex-field {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.create-article-page .story-textarea,
+.create-article-page .structured-textarea,
+.create-article-page .structured-secret-textarea {
+  width: 100%;
+  min-height: 360px !important;
+  height: 360px;
+  padding: 16px !important;
+  border-radius: 12px;
+  resize: vertical;
+}
+
+.create-article-page .article-meta-section {
+  padding: 18px 20px;
+}
+
+.create-article-page .article-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.create-article-page .article-submit-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(16, 13, 24, 0.72);
+}
+
+.create-article-page .quick-submit {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.maps-hub-tools,
+.maps2-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.maps-hub-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1 1 320px;
+  width: min(360px, 100%);
+  max-width: 360px;
+  min-height: 46px;
+  padding: 0 13px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 12px;
+  background: rgba(10, 9, 14, 0.72);
+  color: rgba(245, 239, 255, 0.64);
+}
+
+.maps-hub-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #f7f0ff;
+  font: inherit;
+}
+
+.maps-hub-layer-tabs {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(72px, 1fr);
+  min-height: 46px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 12px;
+  background: rgba(10, 9, 14, 0.72);
+  overflow: hidden;
+}
+
+.maps-hub-layer-tabs button {
+  min-width: 72px;
+  min-height: 38px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(245, 239, 255, 0.68);
+  font: inherit;
+  cursor: pointer;
+}
+
+.maps-hub-layer-tabs button.active {
+  color: #17100d;
+  background: #e0b962;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+@media (max-width: 1180px) {
+  .create-article-page .codex-field-grid--four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dice-tray-page .dice-quick-grid {
+    grid-template-columns: repeat(4, minmax(74px, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .create-article-page .structured-story-grid,
+  .create-article-page .article-meta-grid,
+  .create-article-page .article-location-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .create-article-page .article-submit-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .create-article-page .quick-submit {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .maps-hub-tools,
+  .maps2-hero-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .maps-hub-search {
+    flex-basis: 100%;
+    width: 100%;
+    max-width: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .codex-button {
+    max-width: 100%;
+  }
+
+  .dice-tray-page .dice-quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dice-tray-page .dice-selection-summary,
+  .create-article-page .codex-field-grid--four {
+    grid-template-columns: 1fr;
+  }
+
+  .dice-tray-page .dice-action-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dice-tray-page .dice-action-row .codex-button {
+    width: 100%;
+  }
+
+  .dice-tray-page .dice-result-empty,
+  .dice-tray-page .roll-history-card {
+    grid-template-columns: 1fr;
+    padding: 16px !important;
+  }
+
+  .create-article-page .story-textarea,
+  .create-article-page .structured-textarea,
+  .create-article-page .structured-secret-textarea {
+    min-height: 260px !important;
+    height: 260px;
+  }
+
+  .maps-hub-layer-tabs {
+    width: 100%;
+    grid-auto-columns: 1fr;
+  }
+
+  .maps-hub-layer-tabs button {
+    min-width: 0;
+  }
+}
