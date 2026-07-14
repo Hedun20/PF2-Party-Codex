@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, Eye, Lock, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, Eye, Layers3, Lock, Sparkles } from "lucide-react";
 import { api } from "../api/client.js";
 import QuickArticleTypeFields from "../components/QuickArticleTypeFields.jsx";
 import CodexButton from "../components/ui/CodexButton.jsx";
@@ -113,26 +113,22 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
       </section>
 
       <form className="editor-form builder-form quick-create-shell" onSubmit={submit}>
-        <section className="builder-section quick-create-panel">
-          <div className="quick-create-copy">
+        <section className="builder-section material-type-panel">
+          <div className="material-type-copy">
             <span className="kicker">Шаг 1 · Тип материала</span>
             <h2>{selectedConfig.label}</h2>
             <p>{selectedConfig.description}</p>
           </div>
-          <div className="article-type-card-grid" role="list" aria-label="Тип статьи">
-            {ARTICLE_TYPE_CONFIG.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                className={form.type === item.value ? "article-type-card is-active" : "article-type-card"}
-                onClick={() => changeType(item.value)}
-                aria-pressed={form.type === item.value}
-              >
-                <strong>{item.label}</strong>
-                <span>{item.description}</span>
-              </button>
-            ))}
-          </div>
+          <label className="material-type-select" htmlFor="material-type-select">
+            <span className="material-type-select__label">Выберите тип</span>
+            <span className="material-type-select__control">
+              <Layers3 size={20} aria-hidden="true" />
+              <select id="material-type-select" value={form.type} onChange={(event) => changeType(event.target.value)}>
+                {ARTICLE_TYPE_CONFIG.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
+              <ChevronDown className="material-type-select__chevron" size={20} aria-hidden="true" />
+            </span>
+          </label>
         </section>
 
         <section className="builder-section create-flow-section">
@@ -154,7 +150,7 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
             <Field label="Короткое описание"><input value={form.summary} onChange={(event) => update("summary", event.target.value)} placeholder="1–2 строки для карточки и поиска" /></Field>
           </div>
 
-          <div className="codex-field-grid codex-field-grid--four hierarchy-field-grid">
+          <div className="codex-field-grid codex-field-grid--four article-location-grid hierarchy-field-grid">
             {locationFields.world ? (
               <Field label={form.type === "country" || form.type === "city" ? "Мир · обязательно" : "Мир"}>
                 <select value={form.world || ""} onChange={(event) => updateWorld(event.target.value)} required={["country", "city"].includes(form.type)}>
@@ -192,20 +188,20 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
           </div>
           <div className="structured-story-grid">
             <Field label="Публичный текст / что видят игроки" hint="Описание, слухи, внешний вид, публичная история и handout-текст.">
-              <textarea className="story-textarea structured-textarea" rows={16} value={form.publicNotes} onChange={(event) => update("publicNotes", event.target.value)} placeholder="Что можно безопасно показать игрокам." />
+              <textarea className="story-textarea structured-textarea" rows={14} value={form.publicNotes} onChange={(event) => update("publicNotes", event.target.value)} placeholder="Что можно безопасно показать игрокам." />
             </Field>
             <Field label="GM секреты / правда мастера" hint="Скрытая правда, мотивы NPC, ловушки и условия reveal.">
-              <textarea className="story-textarea structured-textarea structured-secret-textarea" rows={12} value={form.gmSecrets} onChange={(event) => update("gmSecrets", event.target.value)} placeholder="Игрокам не показывается." />
+              <textarea className="story-textarea structured-textarea structured-secret-textarea" rows={14} value={form.gmSecrets} onChange={(event) => update("gmSecrets", event.target.value)} placeholder="Игрокам не показывается." />
             </Field>
           </div>
         </section>
 
-        <section className="builder-section">
+        <section className="builder-section article-meta-section">
           <div className="visual-editor-section-head">
             <span className="kicker">Шаг 4 · Связи</span>
             <h2>Теги и связанные статьи</h2>
           </div>
-          <div className="codex-field-grid">
+          <div className="article-meta-grid codex-field-grid">
             <Field label="Теги" hint="Разделяйте запятыми."><input value={form.tags} onChange={(event) => update("tags", event.target.value)} placeholder="культ, порт, тайна" /></Field>
             <Field label="Связанные статьи" hint="Можно указать названия существующих записей."><input value={form.related} onChange={(event) => update("related", event.target.value)} placeholder="Ноктгард, Леди Элира, Печать Пустоты" /></Field>
           </div>
@@ -220,8 +216,10 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
           </div>
         ) : null}
 
-        <div className="workspace-stats-row quick-create-submit-row">
-          <CodexButton type="submit" className="quick-submit" size="lg" disabled={state.saving}><Sparkles size={17} /> <span>{state.saving ? "Создаю..." : `Создать: ${selectedConfig.label}`}</span></CodexButton>
+        <div className="article-submit-bar article-submit-bar--simple quick-create-submit-row">
+          <CodexButton type="submit" className="quick-submit" size="md" disabled={state.saving}>
+            <Sparkles size={17} /> <span>{state.saving ? "Создаю..." : `Создать: ${selectedConfig.label}`}</span>
+          </CodexButton>
           <span className="status-message"><Eye size={16} /> Public видно игрокам</span>
           <span className="status-message"><Lock size={16} /> GM private и draft скрыты backend-ом</span>
         </div>
