@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Archive, BookOpen, Dices, FileQuestion, MapPinned, NotebookPen, Search, Settings, ShieldCheck, Sparkles, UserRound, UsersRound } from "lucide-react";
 import { CodexButton, CodexCard, PageHero, PageShell } from "../components/ui/index.js";
+import { getWorlds } from "../utils/worldContext.js";
 
 function canManageCampaign(session) {
   const role = String(session?.activeMembership?.role || "").toLowerCase();
@@ -42,9 +43,9 @@ function ProductPathCard({ icon: Icon, kicker, title, description, stats, action
 
 export default function DashboardPage({ pages = [], dashboard, mode, session }) {
   const canEdit = mode === "gm" && canManageCampaign(session);
-  const worldCount = pageCount(pages, (page) => page.category === "worlds" || page.type === "world");
+  const worldCount = getWorlds(pages).length;
   const publicCount = pageCount(pages, (page) => page.visibility === "public");
-  const mapCount = pageCount(pages, (page) => page.mapImage);
+  const mapCount = pageCount(pages, (page) => page.mapImage || page.category === "maps" || page.type === "map");
   const sessionCount = pageCount(pages, (page) => page.category === "sessions" || page.type === "session");
   const handoutCount = pageCount(pages, (page) => page.visibility === "public" && ["handouts", "lore", "quests"].includes(page.category));
   const articleCount = pages.length;

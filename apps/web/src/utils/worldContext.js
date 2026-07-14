@@ -15,7 +15,12 @@ export function isWorldPage(page) {
   const path = String(page?.path || "");
   if (!page || path.startsWith("_trash/") || path.startsWith("_examples/") || path.startsWith("_templates/")) return false;
   if (truthyMeta(page.frontmatter?.deleted) || truthyMeta(page.frontmatter?.archived) || truthyMeta(page.deleted) || truthyMeta(page.archived)) return false;
-  return page.category === "worlds" || page.type === "world";
+  const category = String(page.category || page.frontmatter?.category || "").toLowerCase();
+  const type = String(page.type || page.frontmatter?.type || "").toLowerCase();
+  return category === "worlds"
+    || category === "world"
+    || type === "world"
+    || /^(?:worlds|миры)[\\/]/i.test(path);
 }
 
 export function getWorlds(pages = []) {

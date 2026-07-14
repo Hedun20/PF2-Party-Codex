@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Archive, ChevronDown, Dices, Globe2, Layers3, LogIn, LogOut, Menu, Plus, Settings, UserRound } from "lucide-react";
+import FloatingMenu from "./ui/FloatingMenu.jsx";
 import { getWorlds, worldSlug } from "../utils/worldContext.js";
 import { changeScopePath, modeHome, modeMeta, shellModeFromLocation } from "../utils/shellContext.js";
 
@@ -22,16 +23,27 @@ function modeIcon(mode) {
 }
 
 function HeaderDropdown({ id, open, setOpen, icon: Icon, label, children, className = "" }) {
+  const triggerRef = useRef(null);
   const expanded = open === id;
   const menuId = `topbar-menu-${id}`;
   return (
     <div className={`topbar-dropdown ${expanded ? "is-open" : ""} ${className}`.trim()}>
-      <button type="button" className="topbar-dropdown-trigger" onClick={() => setOpen(expanded ? "" : id)} aria-expanded={expanded} aria-controls={menuId} aria-haspopup="true">
+      <button ref={triggerRef} type="button" className="topbar-dropdown-trigger" onClick={() => setOpen(expanded ? "" : id)} aria-expanded={expanded} aria-controls={menuId} aria-haspopup="menu">
         {Icon ? <Icon size={16} /> : null}
         <span>{label}</span>
         <ChevronDown size={14} />
       </button>
-      {expanded ? <div className="topbar-dropdown-menu" id={menuId}>{children}</div> : null}
+      <FloatingMenu
+        open={expanded}
+        anchorRef={triggerRef}
+        onClose={() => setOpen("")}
+        id={menuId}
+        className="topbar-dropdown-menu topbar-dropdown-menu--portal"
+        minWidth={id === "account" ? 250 : 270}
+        role="menu"
+      >
+        {children}
+      </FloatingMenu>
     </div>
   );
 }
@@ -52,7 +64,6 @@ export default function CodexTopbar({
   const navigate = useNavigate();
   const location = useLocation();
   const [openDropdown, setOpenDropdown] = useState("");
-  const topbarRef = useRef(null);
   const currentMode = shellModeFromLocation(location.pathname, location.search);
   const meta = modeMeta(currentMode);
   const ModeIcon = modeIcon(currentMode);
@@ -70,25 +81,6 @@ export default function CodexTopbar({
     setOpenDropdown("");
   }, [location.pathname, location.search]);
 
-  useEffect(() => {
-    if (!openDropdown) return undefined;
-    const closeOnPointerDown = (event) => {
-      if (!topbarRef.current?.contains(event.target)) setOpenDropdown("");
-    };
-    const closeOnEscape = (event) => {
-      if (event.key !== "Escape") return;
-      const trigger = topbarRef.current?.querySelector(`[aria-controls="topbar-menu-${openDropdown}"]`);
-      setOpenDropdown("");
-      window.requestAnimationFrame(() => trigger?.focus());
-    };
-    document.addEventListener("pointerdown", closeOnPointerDown);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnPointerDown);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [openDropdown]);
-
   function changeWorld(world = null) {
     navigate(changeScopePath(location.pathname, location.search, world));
     setOpenDropdown("");
@@ -99,7 +91,7 @@ export default function CodexTopbar({
   }
 
   return (
-    <header className="topbar topbar-shell topbar-clean" ref={topbarRef}>
+    <header className="topbar topbar-shell topbar-clean">
       <button ref={sidebarToggleRef} type="button" className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)} title="Open navigation" aria-expanded={sidebarOpen} aria-controls="campaign-sidebar">
         <Menu size={20} />
       </button>
