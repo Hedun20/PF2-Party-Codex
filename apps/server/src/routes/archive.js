@@ -8,6 +8,11 @@ export const archiveRouter = Router({ mergeParams: true });
 const GM_ROLES = new Set(["owner", "gm"]);
 const PUBLIC_VISIBILITIES = ["public", "revealed"];
 const PRIVATE_VISIBILITIES = ["gmOnly", "hidden", "needsReview"];
+const ENTRY_SECTION_MATCHERS = {
+  maps: { $or: [{ type: "map" }, { category: "maps" }] },
+  timelineEvents: { $or: [{ type: "timelineEvent" }, { category: { $in: ["timeline", "lore/timeline"] } }] },
+  sessions: { $or: [{ type: "session" }, { category: "sessions" }] }
+};
 
 function isGm(role = "") {
   return GM_ROLES.has(role);
@@ -51,6 +56,12 @@ function contentVisibilityQuery(campaignId, role) {
     query.status = { $ne: "draft" };
   }
   return query;
+}
+
+export function entrySectionQuery(campaignId, role, section) {
+  const base = contentVisibilityQuery(campaignId, role);
+  const matcher = ENTRY_SECTION_MATCHERS[section];
+  return matcher ? { $and: [base, matcher] } : base;
 }
 
 function handoutQuery(campaignId, role, userId) {
@@ -188,6 +199,9 @@ archiveRouter.get("/", async (req, res, next) => {
     const campaignObjectId = campaignKey(context.activeCampaign?.id || campaignId);
 
     const entriesQuery = contentVisibilityQuery(campaignObjectId, role);
+    const mapEntriesQuery = entrySectionQuery(campaignObjectId, role, "maps");
+    const timelineEntriesQuery = entrySectionQuery(campaignObjectId, role, "timelineEvents");
+    const sessionEntriesQuery = entrySectionQuery(campaignObjectId, role, "sessions");
     const mapsQuery = contentVisibilityQuery(campaignObjectId, role);
     const timelineQuery = contentVisibilityQuery(campaignObjectId, role);
     const sessionsQuery = contentVisibilityQuery(campaignObjectId, role);
@@ -205,19 +219,28 @@ archiveRouter.get("/", async (req, res, next) => {
 
     const [
       entriesCount,
-      mapsCount,
-      timelineEventsCount,
-      sessionsCount,
+      mapEntryCount,
+      timelineEntryCount,
+      sessionEntryCount,
+      projectedMapsCount,
+      projectedTimelineCount,
+      projectedSessionsCount,
       handoutsCount,
       charactersCount,
       notesCount,
       recentEntries,
-      recentMaps,
-      recentTimelineEvents,
-      recentSessions,
+      recentMapEntries,
+      recentTimelineEntries,
+      recentSessionEntries,
+      recentProjectedMaps,
+      recentProjectedTimeline,
+      recentProjectedSessions,
       recentHandouts
     ] = await Promise.all([
       entriesCollection.countDocuments(entriesQuery),
+      entriesCollection.countDocuments(mapEntriesQuery),
+      entriesCollection.countDocuments(timelineEntriesQuery),
+      entriesCollection.countDocuments(sessionEntriesQuery),
       mapsCollection.countDocuments(mapsQuery),
       timelineCollection.countDocuments(timelineQuery),
       sessionsCollection.countDocuments(sessionsQuery),
@@ -225,11 +248,21 @@ archiveRouter.get("/", async (req, res, next) => {
       charactersCollection.countDocuments(charactersQuery),
       notesCollection.countDocuments(notesQuery),
       recent(entriesCollection, entriesQuery, compactEntry),
+      recent(entriesCollection, mapEntriesQuery, compactEntry),
+      recent(entriesCollection, timelineEntriesQuery, compactEntry),
+      recent(entriesCollection, sessionEntriesQuery, compactEntry),
       recent(mapsCollection, mapsQuery, compactMap),
       recent(timelineCollection, timelineQuery, compactTimelineEvent),
       recent(sessionsCollection, sessionsQuery, compactSession),
       recent(handoutsCollection, handoutsQuery, compactHandout)
     ]);
+
+    const mapsCount = mapEntryCount || projectedMapsCount;
+    const timelineEventsCount = timelineEntryCount || projectedTimelineCount;
+    const sessionsCount = sessionEntryCount || projectedSessionsCount;
+    const recentMaps = mapEntryCount ? recentMapEntries : recentProjectedMaps;
+    const recentTimelineEvents = timelineEntryCount ? recentTimelineEntries : recentProjectedTimeline;
+    const recentSessions = sessionEntryCount ? recentSessionEntries : recentProjectedSessions;
 
     const counts = {
       entries: entriesCount,
