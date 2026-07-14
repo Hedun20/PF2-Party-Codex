@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Dices, RotateCcw, Sparkles } from "lucide-react";
+import DiceIcon from "../components/DiceIcon.jsx";
+import CodexButton from "../components/ui/CodexButton.jsx";
 
-const quickDice = [20, 12, 10, 8, 6, 4];
+const quickDice = [4, 6, 8, 10, 12, 20, 100];
 const historyLimit = 20;
 
 function randomInt(max) {
@@ -36,6 +38,10 @@ function rollFormula(input) {
   };
 }
 
+function formatFormula({ count, sides, modifier }) {
+  return `${count}d${sides}${modifier ? `${modifier > 0 ? "+" : ""}${modifier}` : ""}`;
+}
+
 function rollLabel(result) {
   const modifier = result.modifier ? ` ${result.modifier > 0 ? "+" : "-"} ${Math.abs(result.modifier)}` : "";
   return `${result.rolls.join(" + ")}${modifier}`;
@@ -48,16 +54,23 @@ function rollTone(result) {
 }
 
 function diceName(sides) {
-  if ([4, 6, 8, 10, 12, 20, 100].includes(Number(sides))) return `d${sides}`;
+  if (quickDice.includes(Number(sides))) return `d${sides}`;
   return "custom";
+}
+
+function modifierLabel(modifier) {
+  if (!modifier) return "Без модификатора";
+  return `${modifier > 0 ? "+" : ""}${modifier}`;
 }
 
 function DiceFace({ sides, value, large = false, rolling = false }) {
   const shape = diceName(sides);
+  const hasValue = value !== null && value !== undefined;
   return (
-    <div className={`dice-face dice-face--${shape} ${large ? "dice-face--large" : ""} ${rolling ? "dice-face--rolling" : ""}`}>
-      <span>d{sides}</span>
-      <strong>{value || "-"}</strong>
+    <div className={`dice-face dice-face--${shape} ${large ? "dice-face--large" : ""} ${rolling ? "dice-face--rolling" : ""}`} aria-hidden="true">
+      {shape === "custom" ? <Dices className="dice-face__icon" size={large ? 48 : 40} /> : <DiceIcon className="dice-face__icon" sides={sides} size={large ? 52 : 42} />}
+      <span className="dice-face__type">d{sides}</span>
+      {hasValue ? <strong className="dice-face__value">{value}</strong> : null}
     </div>
   );
 }
@@ -65,12 +78,12 @@ function DiceFace({ sides, value, large = false, rolling = false }) {
 function RollCard({ result, latest = false, rolling = false }) {
   const tone = rollTone(result);
   return (
-    <article className={`codex-card roll-history-card roll-history-card--${tone} ${latest ? "roll-history-card--latest" : ""} ${rolling ? "roll-history-card--rolling" : ""}`}>
-      <DiceFace sides={result.sides} value={result.natural || result.total} large={latest} rolling={rolling} />
+    <article className={`codex-card roll-history-card roll-history-card--${tone} ${latest ? "roll-history-card--latest" : ""} ${rolling ? "roll-history-card--rolling" : ""}`} aria-label={`${result.label}: результат ${result.total}`}>
+      <DiceFace sides={result.sides} value={result.natural ?? result.total} large={latest} rolling={rolling} />
       <div className="roll-history-card-body">
         <span className="kicker">{latest ? "Последний бросок" : result.createdAt}</span>
-        <h2>{result.label} = {result.total}</h2>
-        <p>{rollLabel(result)}</p>
+        <h3 className="roll-history-card__title">{result.label} = {result.total}</h3>
+        <p className="roll-history-card__breakdown">{rollLabel(result)}</p>
         {tone === "critical" ? <strong className="roll-badge">Natural 20</strong> : null}
         {tone === "fumble" ? <strong className="roll-badge roll-badge--danger">Natural 1</strong> : null}
       </div>
@@ -107,10 +120,16 @@ export default function DiceTrayPage() {
     }
   }
 
-  function quickRoll(sides) {
-    const nextFormula = `1d${sides}`;
-    setFormula(nextFormula);
-    addRoll(nextFormula);
+  function selectDie(sides) {
+    const current = parsedPreview || { count: 1, modifier: 0 };
+    setFormula(formatFormula({ count: current.count, sides, modifier: current.modifier }));
+    setError("");
+  }
+
+  function clearHistory() {
+    setHistory([]);
+    setError("");
+    setRollingId("");
   }
 
   return (
@@ -118,57 +137,120 @@ export default function DiceTrayPage() {
       <section className="hero-panel">
         <span className="kicker">Кубики</span>
         <h1>Dice Tray</h1>
-        <p>Быстрый локальный бросок для playtest: d20, d12, d10, d8, d6, d4 и простые формулы вроде 1d20+7 или 2d6+3.</p>
+        <p>Выберите тип кубика, настройте формулу и выполните локальный бросок. История хранится только в этом браузере.</p>
       </section>
 
-      <section className="builder-section quick-create-panel dice-roll-panel">
-        <div className="quick-create-copy">
-          <span className="kicker">Быстрый бросок</span>
-          <h2>{latest ? `${latest.label} = ${latest.total}` : "Выберите кубик"}</h2>
-          <p>{latest ? `${rollLabel(latest)} · ${latest.createdAt}` : "История хранится только локально в браузере и не синхронизируется между игроками."}</p>
+      <section className="builder-section create-flow-section dice-formula-panel" aria-labelledby="dice-config-title">
+        <div className="visual-editor-section-head dice-config-head">
+          <span className="kicker">Настройка броска</span>
+          <h2 id="dice-config-title">Выберите кубик</h2>
+          <p id="dice-picker-help">Выбор кубика меняет тип в формуле, но не выполняет бросок.</p>
         </div>
-        <div className="dice-quick-grid">
-          {quickDice.map((sides) => (
-            <button key={sides} type="button" className="dice-quick-button" onClick={() => quickRoll(sides)} aria-label={`Бросить d${sides}`}>
-              <DiceFace sides={sides} />
-            </button>
-          ))}
+
+        <form className="dice-roll-form" onSubmit={(event) => { event.preventDefault(); addRoll(formula); }} noValidate>
+          <fieldset className="dice-picker" aria-describedby="dice-picker-help">
+            <legend className="dice-picker__legend">Тип кубика</legend>
+            <div className="dice-quick-grid">
+              {quickDice.map((sides) => {
+                const selected = parsedPreview?.sides === sides;
+                return (
+                  <button
+                    key={sides}
+                    type="button"
+                    className={`dice-quick-button ${selected ? "dice-quick-button--selected" : ""}`}
+                    onClick={() => selectDie(sides)}
+                    aria-label={`Выбрать кубик d${sides}`}
+                    aria-pressed={selected}
+                  >
+                    <DiceFace sides={sides} />
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <dl className="dice-selection-summary" aria-label="Параметры выбранного броска">
+            <div className="dice-selection-stat dice-selection-stat--type">
+              <dt>Выбранный кубик</dt>
+              <dd>{parsedPreview ? `d${parsedPreview.sides}` : "Не выбран"}</dd>
+            </div>
+            <div className="dice-selection-stat dice-selection-stat--count">
+              <dt>Количество</dt>
+              <dd>{parsedPreview ? parsedPreview.count : "Не задано"}</dd>
+            </div>
+            <div className="dice-selection-stat dice-selection-stat--modifier">
+              <dt>Модификатор</dt>
+              <dd>{parsedPreview ? modifierLabel(parsedPreview.modifier) : "Не задан"}</dd>
+            </div>
+          </dl>
+
+          <div className="codex-field-grid dice-formula-grid">
+            <label className="codex-field" htmlFor="dice-formula-input">
+              Формула
+              <input
+                id="dice-formula-input"
+                value={formula}
+                onChange={(event) => { setFormula(event.target.value); setError(""); }}
+                placeholder="1d20+7"
+                autoComplete="off"
+                spellCheck="false"
+                aria-invalid={!parsedPreview}
+                aria-describedby="dice-formula-help"
+              />
+            </label>
+          </div>
+          <p id="dice-formula-help" className={`dice-formula-help ${parsedPreview ? "" : "dice-formula-help--invalid"}`}>
+            {parsedPreview ? `Готово к броску: ${parsedPreview.label}.` : "Используйте формат 1d20+7, 2d6+3 или d100."}
+          </p>
+
+          <div className="workspace-stats-row dice-action-row">
+            <CodexButton type="submit" disabled={!parsedPreview} aria-describedby="dice-formula-help">
+              <Sparkles size={16} aria-hidden="true" /> <span>Бросить</span>
+            </CodexButton>
+            <CodexButton type="button" variant="ghost" onClick={clearHistory} disabled={!history.length}>
+              <RotateCcw size={16} aria-hidden="true" /> <span>Очистить историю</span>
+            </CodexButton>
+          </div>
+          {error ? <p className="save-message dice-roll-error" role="alert">{error}</p> : null}
+        </form>
+      </section>
+
+      <section className="dice-result-section" aria-labelledby="dice-result-title">
+        <div className="roll-history-title-row dice-result-title-row">
+          <div>
+            <span className="kicker">Результат</span>
+            <h2 id="dice-result-title">Последний бросок</h2>
+          </div>
+        </div>
+        <div className="dice-result-live" aria-live="polite" aria-atomic="true">
+          {latest ? (
+            <RollCard key={latest.id} result={latest} latest rolling={latest.id === rollingId} />
+          ) : (
+            <article className="codex-card dice-result-empty">
+              <DiceIcon className="dice-result-empty__icon" sides={20} size={52} />
+              <div className="dice-result-empty__body">
+                <h3>Бросков ещё нет</h3>
+                <p>Выберите кубик или введите формулу, затем нажмите «Бросить».</p>
+              </div>
+            </article>
+          )}
         </div>
       </section>
 
-      {latest ? <RollCard key={latest.id} result={latest} latest rolling={latest.id === rollingId} /> : null}
-
-      <section className="builder-section create-flow-section dice-formula-panel">
-        <div className="visual-editor-section-head">
-          <span className="kicker">Формула</span>
-          <h2>Ручной бросок</h2>
-          <p>Поддерживаются простые формулы: один тип кубика плюс модификатор. Например: 1d20+7, 2d6+3, d100.</p>
-        </div>
-        <div className="codex-field-grid dice-formula-grid">
-          <label className="codex-field">Формула<input value={formula} onChange={(event) => setFormula(event.target.value)} placeholder="1d20+7" /></label>
-          <label className="codex-field">Предпросмотр<input value={parsedPreview ? parsedPreview.label : "Неверная формула"} disabled /></label>
-        </div>
-        <div className="workspace-stats-row dice-action-row">
-          <button type="button" className="codex-button codex-button--primary" onClick={() => addRoll(formula)}><Sparkles size={16} /> <span>Бросить</span></button>
-          <button type="button" className="codex-button codex-button--ghost" onClick={() => { setHistory([]); setError(""); setRollingId(""); }}><RotateCcw size={16} /> <span>Очистить историю</span></button>
-        </div>
-        {error ? <p className="save-message">{error}</p> : null}
-      </section>
-
-      <section className="roll-history-section">
+      <section className="roll-history-section" aria-labelledby="roll-history-title">
         <div className="roll-history-title-row">
           <div>
             <span className="kicker">История бросков</span>
-            <h2><Dices size={20} /> Последние броски</h2>
+            <h2 id="roll-history-title"><Dices size={20} aria-hidden="true" /> Последние броски</h2>
           </div>
-          <span>{history.length}/{historyLimit}</span>
+          <span aria-label={`${history.length} из ${historyLimit} сохранённых бросков`}>{history.length}/{historyLimit}</span>
         </div>
         {history.length ? (
           <div className="roll-history-grid">
             {history.map((item) => <RollCard key={item.id} result={item} />)}
           </div>
         ) : (
-          <article className="codex-card workspace-status-card"><p>Бросков пока нет. Нажмите d20 или введите формулу.</p></article>
+          <p className="roll-history-empty">История появится после первого броска.</p>
         )}
       </section>
     </div>
