@@ -29,8 +29,26 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Run route, access, and server tests
-        run: npm test
+      - name: Run route and access contracts
+        run: node --test tests/route-contracts.test.mjs
+        env:
+          AUTH_SECRET: ci-only-signing-secret-with-at-least-32-characters
+
+      - name: Run server smoke tests
+        run: node --test tests/server-smoke.test.mjs 2>&1 | tee server-smoke.log
+        env:
+          AUTH_SECRET: ci-only-signing-secret-with-at-least-32-characters
+
+      - name: Upload smoke diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-smoke-log
+          path: server-smoke.log
+          retention-days: 3
+
+      - name: Run content contracts
+        run: node --test tests/content-contracts.test.mjs
         env:
           AUTH_SECRET: ci-only-signing-secret-with-at-least-32-characters
 

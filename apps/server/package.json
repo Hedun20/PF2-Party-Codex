@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "dev:create-owner": "node scripts/dev-create-owner-user.mjs",
+    "demo:seed": "node scripts/seed-demo-campaign.mjs",
     "start": "node src/index.js",
     "mongo:smoke": "node scripts/mongo-smoke-test.mjs",
     "mongo:migrate:auth": "node scripts/migrate-auth-to-mongo.mjs",
