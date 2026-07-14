@@ -1,0 +1,169 @@
+/* Stage 19 hotfix: portal-backed dropdowns and reliable native select fallback. */
+
+/* Restore browser select mechanics everywhere that still uses a native select. */
+select:not([multiple]) {
+  appearance: auto !important;
+  -webkit-appearance: menulist !important;
+  position: relative !important;
+  z-index: auto !important;
+  transform: none !important;
+  pointer-events: auto !important;
+  touch-action: auto !important;
+  background-image: none !important;
+  cursor: pointer !important;
+}
+
+select:not([multiple]):hover,
+select:not([multiple]):focus,
+select:not([multiple]):focus-visible {
+  transform: none !important;
+}
+
+label:has(select) > svg,
+.timeline-control > svg {
+  pointer-events: none !important;
+}
+
+/* Menus live in document.body and therefore cannot be clipped by header or card overflow. */
+.floating-menu-layer {
+  position: fixed;
+  z-index: 20000;
+  box-sizing: border-box;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.topbar-dropdown-menu--portal {
+  position: fixed !important;
+  inset: auto !important;
+  display: grid !important;
+  gap: 4px;
+  margin: 0 !important;
+  padding: 8px !important;
+  overflow: auto !important;
+  border: 1px solid rgba(227, 190, 101, 0.34) !important;
+  border-radius: 14px !important;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(227, 190, 101, 0.13), transparent 34%),
+    linear-gradient(155deg, rgba(26, 21, 34, 0.99), rgba(9, 8, 14, 0.995)) !important;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.topbar-dropdown-menu--portal > a,
+.topbar-dropdown-menu--portal > button,
+.topbar-dropdown-menu--portal > span {
+  position: relative;
+  z-index: 1;
+}
+
+/* Explicit select used by Timeline and future critical filters. */
+.codex-select {
+  min-width: 0;
+}
+
+.codex-select__trigger {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(218, 184, 103, 0.28);
+  border-radius: 13px;
+  color: #f7f0ff;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(218, 184, 103, 0.1), transparent 38%),
+    rgba(10, 8, 15, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 7px 20px rgba(0, 0, 0, 0.16);
+  font: inherit;
+  font-weight: 760;
+  text-align: left;
+  cursor: pointer;
+}
+
+.codex-select__trigger > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codex-select__trigger > svg:first-child {
+  color: var(--gold);
+}
+
+.codex-select__trigger > svg:last-child {
+  transition: transform 140ms ease;
+}
+
+.codex-select.is-open .codex-select__trigger > svg:last-child {
+  transform: rotate(180deg);
+}
+
+.codex-select__trigger:hover,
+.codex-select__trigger:focus-visible {
+  outline: none;
+  border-color: rgba(227, 190, 101, 0.62);
+  box-shadow: 0 0 0 3px rgba(218, 184, 103, 0.09), 0 12px 28px rgba(0, 0, 0, 0.24);
+}
+
+.codex-select__menu {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid rgba(227, 190, 101, 0.42);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(226, 187, 103, 0.15), transparent 34%),
+    linear-gradient(155deg, rgba(27, 21, 35, 0.99), rgba(10, 8, 15, 0.995));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.58), inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.codex-select__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: rgba(245, 239, 255, 0.8);
+  background: transparent;
+  font: inherit;
+  font-weight: 720;
+  text-align: left;
+  cursor: pointer;
+}
+
+.codex-select__option:hover,
+.codex-select__option:focus-visible {
+  outline: none;
+  border-color: rgba(227, 190, 101, 0.2);
+  color: #fff8e8;
+  background: rgba(227, 190, 101, 0.1);
+}
+
+.codex-select__option.is-active {
+  color: #17100d;
+  border-color: rgba(255, 239, 189, 0.72);
+  background: linear-gradient(90deg, #e6c476, #d5ad58);
+}
+
+.timeline2-command-panel .timeline-filter-select {
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .topbar-dropdown-menu--portal,
+  .codex-select__menu {
+    border-radius: 12px;
+  }
+}
