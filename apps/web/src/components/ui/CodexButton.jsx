@@ -26,9 +26,9 @@ export default function CodexButton({
     ...(Component === "button" ? { type, disabled } : { "aria-disabled": disabled || undefined }),
     ...(isDisabledLink ? { onClick: (event) => event.preventDefault(), tabIndex: -1 } : {})
   };
+
   return (
     <Component {...componentProps}>
-      <span className="codex-button__ripple" aria-hidden="true" />
       <span className="codex-button__content">{children}</span>
     </Component>
   );
