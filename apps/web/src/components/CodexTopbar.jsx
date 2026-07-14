@@ -101,6 +101,7 @@ export default function CodexTopbar({
               <label className="topbar-native-select topbar-native-select--mode">
                 <ModeIcon size={16} aria-hidden="true" />
                 <select aria-label="Раздел приложения" value={currentMode} onChange={changeMode}>
+                  <option value="dashboard">Dashboard</option>
                   <option value="archive">Архив</option>
                   <option value="table">Игровой стол</option>
                   <option value="management">{canManage ? "Управление" : "Профиль"}</option>
