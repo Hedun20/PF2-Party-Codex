@@ -15,6 +15,10 @@ $variableNames = @(
 )
 $previousValues = @{}
 
+if ([string]::IsNullOrWhiteSpace($OwnerEmail) -and [string]::IsNullOrWhiteSpace($CampaignId)) {
+  throw 'Specify the Party Codex account: .\scripts\seed-demo.ps1 -OwnerEmail "account@example.com"'
+}
+
 foreach ($name in $variableNames) {
   $previousValues[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
 }
@@ -36,11 +40,11 @@ function Set-Or-ClearProcessVariable {
 Push-Location $repoRoot
 try {
   Set-Or-ClearProcessVariable -Name "DEMO_SEED_CONFIRM" -Value "SEED_PARTY_CODEX_DEMO"
-  Set-Or-ClearProcessVariable -Name "DEMO_OWNER_EMAIL" -Value $OwnerEmail
+  Set-Or-ClearProcessVariable -Name "DEMO_OWNER_EMAIL" -Value $OwnerEmail.ToLowerInvariant()
   Set-Or-ClearProcessVariable -Name "DEMO_CAMPAIGN_NAME" -Value $CampaignName
   Set-Or-ClearProcessVariable -Name "DEMO_CAMPAIGN_ID" -Value $CampaignId
 
-  Write-Host "Party Codex: loading demo campaign data..." -ForegroundColor Cyan
+  Write-Host "Party Codex: loading demo campaign data for $($OwnerEmail.ToLowerInvariant())..." -ForegroundColor Cyan
   npm run demo:seed
 
   if ($LASTEXITCODE -ne 0) {

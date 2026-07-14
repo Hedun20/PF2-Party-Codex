@@ -48,7 +48,7 @@ jobs:
           retention-days: 3
 
       - name: Run content and demo seed contracts
-        run: node --test tests/content-contracts.test.mjs tests/demo-seed-contracts.test.mjs
+        run: node --test tests/content-contracts.test.mjs tests/demo-seed-contracts.test.mjs tests/demo-targeting-contracts.test.mjs
         env:
           AUTH_SECRET: ci-only-signing-secret-with-at-least-32-characters
 
