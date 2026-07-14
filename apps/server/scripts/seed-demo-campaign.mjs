@@ -1,3 +1,5 @@
+import { stdin as input, stdout as output } from "node:process";
+import { createInterface } from "node:readline/promises";
 import { MongoClient, ObjectId } from "mongodb";
 import { config } from "../src/config.js";
 import { DEMO_ARTICLES, DEMO_THAUMATURGE } from "./demoCampaignData.mjs";
@@ -19,10 +21,6 @@ if (confirmation !== "SEED_PARTY_CODEX_DEMO") {
 
 if (!config.mongoUri) {
   throw new Error("MONGO_URI is missing. The demo seed writes only to MongoDB.");
-}
-
-if (!requestedCampaignId && !ownerEmail) {
-  throw new Error("Set DEMO_CAMPAIGN_ID or DEMO_OWNER_EMAIL (DEV_OWNER_EMAIL is also accepted) so the seed cannot target an arbitrary campaign.");
 }
 
 function now() {
@@ -97,24 +95,76 @@ function articleDocument(article, { campaignId, userId, stamp }) {
   };
 }
 
+async function ownerEmailMap(db, campaigns) {
+  const ownerIds = [...new Set(campaigns.map((campaign) => String(campaign.ownerUserId || "")).filter(Boolean))];
+  if (!ownerIds.length) return new Map();
+  const users = await db.collection("users").find({
+    _id: { $in: ownerIds.filter(ObjectId.isValid).map((id) => new ObjectId(id)) }
+  }).project({ email: 1 }).toArray();
+  return new Map(users.map((user) => [String(user._id), user.email || "unknown-owner"]));
+}
+
+async function selectCampaignInteractively(db, campaigns) {
+  if (campaigns.length === 1) return campaigns[0];
+
+  const emailByOwnerId = await ownerEmailMap(db, campaigns);
+  const options = campaigns.map((campaign, index) => ({
+    index: index + 1,
+    campaign,
+    ownerEmail: emailByOwnerId.get(String(campaign.ownerUserId || "")) || "unknown-owner"
+  }));
+
+  console.log("\nMore than one campaign is available. Choose where to load the demo data:\n");
+  for (const option of options) {
+    console.log(`${option.index}. ${option.campaign.name || "Unnamed campaign"} · ${option.ownerEmail} · ${option.campaign._id}`);
+  }
+
+  if (!input.isTTY || !output.isTTY) {
+    throw new Error("More than one campaign is available. Re-run with DEMO_CAMPAIGN_ID, DEMO_CAMPAIGN_NAME, or DEMO_OWNER_EMAIL.");
+  }
+
+  const readline = createInterface({ input, output });
+  try {
+    while (true) {
+      const answer = String(await readline.question(`\nCampaign number (1-${options.length}): `)).trim();
+      const selected = Number(answer);
+      if (Number.isInteger(selected) && selected >= 1 && selected <= options.length) {
+        return options[selected - 1].campaign;
+      }
+      console.log("Enter one of the campaign numbers shown above.");
+    }
+  } finally {
+    readline.close();
+  }
+}
+
 async function resolveCampaign(db) {
   const campaigns = db.collection("campaigns");
+
   if (requestedCampaignId) {
     const campaign = await campaigns.findOne({ _id: asObjectId(requestedCampaignId, "DEMO_CAMPAIGN_ID") });
     if (!campaign) throw new Error("DEMO_CAMPAIGN_ID does not match a campaign in the configured database.");
     return campaign;
   }
 
-  const user = await db.collection("users").findOne({ email: ownerEmail });
-  if (!user) throw new Error(`No user found for DEMO_OWNER_EMAIL=${ownerEmail}. Run the dev owner seed first.`);
-  const query = { ownerUserId: user._id };
+  if (ownerEmail) {
+    const user = await db.collection("users").findOne({ email: ownerEmail });
+    if (!user) throw new Error(`No user found for DEMO_OWNER_EMAIL=${ownerEmail}.`);
+    const query = { ownerUserId: user._id };
+    if (campaignName) query.name = campaignName;
+    const matches = await campaigns.find(query).sort({ updatedAt: -1, createdAt: -1 }).toArray();
+    if (!matches.length) throw new Error(`No campaign owned by ${ownerEmail}${campaignName ? ` with name ${campaignName}` : ""}.`);
+    return selectCampaignInteractively(db, matches);
+  }
+
+  const query = { ownerUserId: { $exists: true, $ne: null } };
   if (campaignName) query.name = campaignName;
   const matches = await campaigns.find(query).sort({ updatedAt: -1, createdAt: -1 }).toArray();
-  if (!matches.length) throw new Error(`No campaign owned by ${ownerEmail}${campaignName ? ` with name ${campaignName}` : ""}.`);
-  if (matches.length > 1 && !campaignName) {
-    throw new Error(`More than one campaign is owned by ${ownerEmail}. Set DEMO_CAMPAIGN_NAME or DEMO_CAMPAIGN_ID.`);
+  if (!matches.length) {
+    throw new Error("No campaign with an owner was found in the configured MongoDB database. Create or select a campaign in Party Codex first.");
   }
-  return matches[0];
+
+  return selectCampaignInteractively(db, matches);
 }
 
 const client = new MongoClient(config.mongoUri);
