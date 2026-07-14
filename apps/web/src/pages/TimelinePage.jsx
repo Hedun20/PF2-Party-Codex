@@ -19,7 +19,6 @@ import {
 import { api } from "../api/client.js";
 import EntityDetailPanel from "../components/EntityDetailPanel.jsx";
 import CodexButton from "../components/ui/CodexButton.jsx";
-import CodexSelect from "../components/ui/CodexSelect.jsx";
 import { labelCategory } from "../utils/labels.js";
 import { getWorlds } from "../utils/worldContext.js";
 
@@ -280,8 +279,24 @@ export default function TimelinePage({ pages = [], mode = "player", embedded = f
 
       <section className="timeline-command-panel timeline2-command-panel" aria-label="Фильтры timeline">
         <label className="timeline-control timeline-control--search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск по событиям, эпохам и мирам..." /></label>
-        {!activeWorld ? <CodexSelect ariaLabel="Фильтр мира timeline" icon={Filter} value={worldFilter} onChange={setWorldFilter} options={[{ value: "", label: "Все миры" }, ...worlds.map((world) => ({ value: world, label: world }))]} className="timeline-filter-select" /> : null}
-        <CodexSelect ariaLabel="Фильтр типа timeline" icon={GitBranch} value={typeFilter} onChange={setTypeFilter} options={[{ value: "", label: "Все типы" }, { value: "event", label: "События" }, { value: "session", label: "Сессии" }, { value: "place", label: "Места" }]} className="timeline-filter-select" />
+        {!activeWorld ? (
+          <label className="timeline-control timeline-control--native-select">
+            <Filter size={16} aria-hidden="true" />
+            <select aria-label="Фильтр мира timeline" value={worldFilter} onChange={(event) => setWorldFilter(event.target.value)}>
+              <option value="">Все миры</option>
+              {worlds.map((world) => <option key={world} value={world}>{world}</option>)}
+            </select>
+          </label>
+        ) : null}
+        <label className="timeline-control timeline-control--native-select">
+          <GitBranch size={16} aria-hidden="true" />
+          <select aria-label="Фильтр типа timeline" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+            <option value="">Все типы</option>
+            <option value="event">События</option>
+            <option value="session">Сессии</option>
+            <option value="place">Места</option>
+          </select>
+        </label>
       </section>
 
       <section className="timeline-branch-layout timeline2-layout">
