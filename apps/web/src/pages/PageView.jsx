@@ -28,7 +28,7 @@ function LinkList({ title, items = [] }) {
   );
 }
 
-function shortText(value = "", limit = 120) {
+function shortText(value = "", limit = 170) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   if (!text) return "Пустая заметка";
   return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
@@ -41,6 +41,10 @@ function formatDate(value = "") {
   } catch {
     return value;
   }
+}
+
+function storageLabel(storageMode = "") {
+  return String(storageMode).toLowerCase() === "mongo" ? "MongoDB" : "локальное хранилище";
 }
 
 function ArticleNotesPanel({ page }) {
@@ -77,40 +81,45 @@ function ArticleNotesPanel({ page }) {
   }
 
   return (
-    <section className="codex-card article-notes-panel article-notes-panel-polished">
-      <div className="article-notes-head">
+    <section className="codex-card article-notes-panel article-notes-workspace">
+      <header className="article-notes-head">
         <div>
-          <span className="kicker">Personal Notes · {storageMode}</span>
-          <h2>Personal Notes</h2>
-          <p>{linkedNotes.length ? `${linkedNotes.length} linked note${linkedNotes.length === 1 ? "" : "s"}` : "No personal notes linked to this article yet."}</p>
+          <span className="kicker">Личные заметки · {storageLabel(storageMode)}</span>
+          <h2>Мои заметки к статье</h2>
+          <p>{linkedNotes.length ? `${linkedNotes.length} связанных заметок` : "Здесь можно вести личные записи, не меняя саму статью и не показывая их другим участникам."}</p>
         </div>
-        <NotebookPen size={20} />
-      </div>
+        <NotebookPen size={24} />
+      </header>
 
       {(message || error) ? <div className="status-message danger-message"><span>{message || error}</span></div> : null}
 
       {linkedNotes.length ? (
         <div className="article-notes-list article-notes-list-polished">
-          {linkedNotes.slice(0, 5).map((note) => (
+          {linkedNotes.slice(0, 6).map((note) => (
             <article key={note.id} className="article-note-row">
               <div>
-                <strong>{note.title || "Untitled note"}</strong>
+                <strong>{note.title || "Без названия"}</strong>
                 <span>{shortText(note.body)}</span>
                 <small>{note.visibility || "private"} · {formatDate(note.updatedAt)}</small>
               </div>
               <div className="article-note-actions">
-                <CodexButton as={Link} to={`/notes?note=${encodeURIComponent(note.id)}`} variant="secondary" size="sm">Open/Edit</CodexButton>
-                <CodexButton type="button" variant="danger" size="sm" onClick={() => removeArticleNote(note)} disabled={busy}><Trash2 size={14} /> Delete</CodexButton>
+                <CodexButton as={Link} to={`/notes?note=${encodeURIComponent(note.id)}`} variant="secondary" size="sm">Открыть и изменить</CodexButton>
+                <CodexButton type="button" variant="danger" size="sm" onClick={() => removeArticleNote(note)} disabled={busy}><Trash2 size={14} /> Удалить</CodexButton>
               </div>
             </article>
           ))}
         </div>
-      ) : <p className="empty-copy">No personal notes linked to this article yet.</p>}
+      ) : (
+        <div className="article-notes-empty">
+          <NotebookPen size={24} />
+          <div><strong>Связанных заметок пока нет</strong><span>Создай первую заметку — она сразу откроется в редакторе.</span></div>
+        </div>
+      )}
 
-      <div className="article-notes-actions">
-        <CodexButton type="button" size="sm" onClick={addArticleNote} disabled={busy}><Plus size={15} /> Add note</CodexButton>
-        <CodexButton as={Link} to={`/notes?article=${encodeURIComponent(page.path)}`} variant="secondary" size="sm">Open linked notes</CodexButton>
-      </div>
+      <footer className="article-notes-actions">
+        <CodexButton type="button" size="sm" onClick={addArticleNote} disabled={busy}><Plus size={15} /> Добавить заметку</CodexButton>
+        <CodexButton as={Link} to={`/notes?article=${encodeURIComponent(page.path)}`} variant="secondary" size="sm">Все заметки статьи</CodexButton>
+      </footer>
     </section>
   );
 }
@@ -176,11 +185,7 @@ export default function PageView({ mode, pages = [], onChanged }) {
           <span className="kicker">Фантомная ссылка</span>
           <h1>{error}</h1>
           <p>{canEdit ? "На эту статью уже есть ссылка, но Markdown-файл ещё не создан." : "Эта ссылка пока не опубликована для игроков."}</p>
-          {canEdit ? (
-            <CodexButton as={Link} to={`/missing?target=${encodeURIComponent(error)}`}>Открыть в ненаписанных статьях</CodexButton>
-          ) : (
-            <CodexButton as={Link} variant="secondary" to="/">Вернуться в архив</CodexButton>
-          )}
+          {canEdit ? <CodexButton as={Link} to={`/missing?target=${encodeURIComponent(error)}`}>Открыть в ненаписанных статьях</CodexButton> : <CodexButton as={Link} variant="secondary" to="/">Вернуться в архив</CodexButton>}
         </header>
       </div>
     );
@@ -208,20 +213,13 @@ export default function PageView({ mode, pages = [], onChanged }) {
       {deleteMessage && <div className="status-message danger-message">{deleteMessage}</div>}
       {canEdit && page.playerSafety && (
         <section className={`codex-card article-safety-banner safety-${page.playerSafety.status}`}>
-          <div>
-            {page.playerSafety.status === "safe" ? <ShieldCheck size={20} /> : <ShieldAlert size={20} />}
-            <strong>{page.playerSafety.status === "safe" ? "Player-safe" : "Требует проверки перед игроками"}</strong>
-            <p>{page.playerSafety.warnings?.[0] || "Секретных блоков не найдено. Игроки получат только public-версию."}</p>
-          </div>
+          <div>{page.playerSafety.status === "safe" ? <ShieldCheck size={20} /> : <ShieldAlert size={20} />}<strong>{page.playerSafety.status === "safe" ? "Player-safe" : "Требует проверки перед игроками"}</strong><p>{page.playerSafety.warnings?.[0] || "Секретных блоков не найдено. Игроки получат только public-версию."}</p></div>
           <CodexButton as={Link} to="/player-safety" variant="ghost" size="sm">Открыть Safety Review</CodexButton>
         </section>
       )}
       {previewMessage && (
         <section className={`codex-card article-player-preview ${playerPreview ? "" : "is-blocked"}`}>
-          <div className="article-player-preview-head">
-            <span className="kicker">Preview as Player</span>
-            <strong>{previewMessage}</strong>
-          </div>
+          <div className="article-player-preview-head"><span className="kicker">Preview as Player</span><strong>{previewMessage}</strong></div>
           {playerPreview?.content && <MarkdownViewer content={playerPreview.content} pages={pages} canEdit={false} />}
         </section>
       )}
@@ -231,11 +229,9 @@ export default function PageView({ mode, pages = [], onChanged }) {
           <HierarchyPanel title="Внутренний слой статьи" items={page.children} />
           <MarkdownViewer content={page.content} pages={pages} canEdit={canEdit} />
         </div>
-        <div className="article-side-stack">
-          <ArticleFactsPanel page={page} mode={mode} />
-          <ArticleNotesPanel page={page} />
-        </div>
+        <aside className="article-side-stack"><ArticleFactsPanel page={page} mode={mode} /></aside>
       </div>
+      <ArticleNotesPanel page={page} />
       <LinkList title="Связанные статьи" items={page.relatedPages} />
       <LinkList title="Обратные ссылки" items={page.backlinks} />
     </div>

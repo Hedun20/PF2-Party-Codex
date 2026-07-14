@@ -24,14 +24,22 @@ export default function CategoryPage({ pages, mode, activeWorld = null }) {
   }
 
   return (
-    <div className="page-stack">
+    <div className="page-stack category-list-page">
       <header className="list-header">
         <span className="kicker">{activeWorld ? `Мир: ${activeWorld.title}` : "Раздел архива"}</span>
         <h1>{title}</h1>
         <p>{items.length} видимых записей {activeWorld ? "в этом мире" : "в общем архиве"} в режиме {mode === "gm" ? "GM" : "игрока"}.</p>
         {activeWorld && <Link className="small-context-link" to={worldRoute(activeWorld)}>← Вернуться на главную мира</Link>}
       </header>
-      <div className="codex-card-grid card-grid">{items.map((page) => <EntityCard key={page.path} page={page} mode={mode} />)}</div>
+      {items.length ? (
+        <div className="codex-card-grid card-grid entity-list">{items.map((page) => <EntityCard key={page.path} page={page} mode={mode} />)}</div>
+      ) : (
+        <section className="codex-card category-empty-state">
+          <strong>В этом разделе пока нет материалов</strong>
+          <p>{mode === "gm" ? "Создай первую статью и она появится здесь широкой строкой." : "Мастер ещё не опубликовал записи этого типа."}</p>
+          {mode === "gm" ? <Link to={`/editor?type=${encodeURIComponent(category)}`}>Создать материал</Link> : null}
+        </section>
+      )}
     </div>
   );
 }

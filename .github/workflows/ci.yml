@@ -47,8 +47,8 @@ jobs:
           path: server-smoke.log
           retention-days: 3
 
-      - name: Run content and demo seed contracts
-        run: node --test tests/content-contracts.test.mjs tests/demo-seed-contracts.test.mjs tests/demo-targeting-contracts.test.mjs
+      - name: Run content, seed and dice contracts
+        run: node --test tests/content-contracts.test.mjs tests/demo-seed-contracts.test.mjs tests/demo-targeting-contracts.test.mjs tests/dice-roll-contracts.test.mjs
         env:
           AUTH_SECRET: ci-only-signing-secret-with-at-least-32-characters
 

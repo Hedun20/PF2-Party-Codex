@@ -346,7 +346,7 @@ export default function App() {
         <Route path="/maps" element={campaignRoute(<MapsPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
         <Route path="/my" element={campaignRoute(<MyWorkspacePage pages={pages} mode={effectiveMode} session={session} />)} />
         <Route path="/notes" element={campaignRoute(<NotesPage pages={worldPages} />)} />
-        <Route path="/characters" element={campaignRoute(<CharactersPage pages={worldPages} />)} />
+        <Route path="/characters" element={campaignRoute(<CharactersPage pages={worldPages} session={session} canManage={canManage} />)} />
         <Route path="/handouts" element={campaignRoute(<HandoutsPage pages={worldPages} mode={effectiveMode} />)} />
         <Route path="/sessions" element={campaignRoute(<SessionsPage pages={worldPages} mode={effectiveMode} />)} />
         <Route path="/settings" element={campaignRoute(<SettingsPage session={session} />)} />
