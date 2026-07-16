@@ -44,6 +44,7 @@ test("serialized character permissions follow exact assignment and manager role"
 test("backend assignment route is campaign scoped and validates active membership", () => {
   const routes = read("apps/server/src/routes/characters.js");
   const repository = read("apps/server/src/repositories/charactersRepository.js");
+  const readGuard = repository.slice(repository.indexOf("export function canReadCharacter"), repository.indexOf("export function canWriteCharacter"));
 
   assert.match(routes, /characterAssignmentRouter = Router\(\{ mergeParams: true \}\)/);
   assert.match(routes, /charactersRouter\.use\("\/characters\/:id\/assignment", characterAssignmentRouter\)/);
@@ -53,7 +54,8 @@ test("backend assignment route is campaign scoped and validates active membershi
   assert.match(repository, /assignCharacterToMembership/);
   assert.match(repository, /assignedMembershipId/);
   assert.match(repository, /assignedUserId: \{ \$exists: false \}, ownerUserId: userObjectId/);
-  assert.doesNotMatch(repository, /visibleToParty[\s\S]*return isAssignedUser/);
+  assert.doesNotMatch(readGuard, /visibleToParty/);
+  assert.match(readGuard, /return isAssignedUser\(character, userId\)/);
 });
 
 test("GM roster and player workspace expose assignment controls safely", () => {
