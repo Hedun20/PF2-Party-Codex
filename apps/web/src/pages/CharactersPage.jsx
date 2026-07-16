@@ -72,9 +72,10 @@ function canManageCharacters(session) {
 
 function CharacterCard({ character, selected, onSelect }) {
   const visibility = character.visibility || {};
+  const portrait = portraitSource(character.visuals || {});
   return (
     <button type="button" className={selected ? "character-roster-card is-active" : "character-roster-card"} onClick={onSelect}>
-      <span className="character-roster-avatar">{initials(characterName(character))}</span>
+      <span className="character-roster-avatar">{portrait ? <img src={portrait} alt="" /> : initials(characterName(character))}</span>
       <span className="character-roster-copy">
         <strong>{characterName(character)}</strong>
         <span>{characterSubtitle(character) || "Данные персонажа не заполнены"}</span>
@@ -95,7 +96,7 @@ function Metric({ label, value, prominent = false, onRoll = null, rollHint = "" 
   return onRoll ? <button type="button" className={className} onClick={onRoll} title={`Бросить ${label}`}>{body}</button> : <div className={className}>{body}</div>;
 }
 
-function CollectionSection({ title, icon: Icon, items, emptyText, rollKind = "", onRoll }) {
+function CollectionSection({ title, icon: Icon, items, emptyText, rollKind = "", onRoll, className = "", compact = false }) {
   const values = listOf(items);
   function rollItem(item) {
     if (rollKind === "attack") return onRoll?.(rollCheck(`${itemName(item)} · атака`, item?.bonus));
@@ -103,8 +104,9 @@ function CollectionSection({ title, icon: Icon, items, emptyText, rollKind = "",
     const formula = extractDiceFormula(item?.formula || item?.roll || item?.damage || "");
     return formula ? onRoll?.(rollFormula(formula, { label: itemName(item) })) : null;
   }
+  const sectionClassName = ["character-dossier-section", compact ? "character-dossier-section--compact" : "", className].filter(Boolean).join(" ");
   return (
-    <section className="character-dossier-section">
+    <section className={sectionClassName}>
       <header><Icon size={19} /><h3>{title}</h3><span>{values.length}</span></header>
       {values.length ? <div className="character-item-grid">{values.map((item, index) => {
         const damageFormula = rollKind === "attack" ? extractDiceFormula(item?.damage || "") : "";
@@ -174,26 +176,43 @@ export default function CharactersPage({ session = null, canManage = false }) {
   const portrait = portraitSource(visuals);
   const feats = [...listOf(progression.feats), ...listOf(progression.classFeatures), ...listOf(progression.ancestryFeatures)];
   const inventoryItems = [...listOf(inventory.weapons), ...listOf(inventory.armor), ...listOf(inventory.worn), ...listOf(inventory.consumables), ...listOf(inventory.treasure)];
+  const showRoster = manager || state.characters.length > 1;
 
   return (
     <div className="page-stack characters-page character-dossier-page">
-      <header className="list-header characters-header article-page-header"><div><span className="kicker">{manager ? "Campaign Character Lab" : "Player Workspace"}</span><h1>{manager ? "Персонажи кампании" : "Мой персонаж"}</h1><p>{manager ? "Создание и редактирование открываются отдельной страницей, а досье остаётся чистым режимом просмотра и бросков." : "Player-safe досье героя с разрешёнными backend полями."}</p></div>{manager ? <div className="editor-actions character-header-actions"><CodexButton type="button" variant="secondary" onClick={openCreate}><Plus size={16} /><span>Создать героя</span></CodexButton><CodexButton type="button" onClick={openEdit} disabled={!selected}><Pencil size={16} /><span>Редактировать</span></CodexButton></div> : null}</header>
+      <header className="list-header characters-header article-page-header"><div><span className="kicker">{manager ? "Campaign Character Lab" : "Player Workspace"}</span><h1>{manager ? "Персонажи кампании" : "Мой персонаж"}</h1><p>{manager ? "Управляй составом кампании, а затем проверяй каждого героя в чистом игровом представлении." : "Досье героя собрано вокруг того, что нужно за столом: бой, проверки, способности и история."}</p></div>{manager ? <div className="editor-actions character-header-actions"><CodexButton type="button" variant="secondary" onClick={openCreate}><Plus size={16} /><span>Создать героя</span></CodexButton><CodexButton type="button" onClick={openEdit} disabled={!selected}><Pencil size={16} /><span>Редактировать</span></CodexButton></div> : null}</header>
       {state.loading ? <div className="status-message success-message">Загружаю персонажей кампании...</div> : null}
       {state.error ? <div className="status-message danger-message" role="alert">{state.error}</div> : null}
 
-      <section className="characters-layout character-dossier-layout">
-        <aside className="character-list-panel character-roster-panel"><div className="notes-list-head"><div><span className="kicker">{manager ? "Доступные герои" : "Мои герои"}</span><h2>{state.characters.length}</h2></div></div><div className="character-list">{state.characters.map((character) => <CharacterCard key={character.id} character={character} selected={selected?.id === character.id} onSelect={() => setSearchParams({ character: character.id })} />)}{!state.loading && !state.error && !state.characters.length ? <p className="empty-copy">{manager ? "В кампании пока нет персонажей." : "В этой кампании пока нет назначенного вам персонажа."}</p> : null}</div></aside>
+      <section className={showRoster ? "characters-layout character-dossier-layout" : "characters-layout character-dossier-layout character-dossier-layout--single"}>
+        {showRoster ? <aside className="character-list-panel character-roster-panel"><div className="notes-list-head"><div><span className="kicker">{manager ? "Доступные герои" : "Мои герои"}</span><h2>{state.characters.length}</h2></div></div><div className="character-list">{state.characters.map((character) => <CharacterCard key={character.id} character={character} selected={selected?.id === character.id} onSelect={() => setSearchParams({ character: character.id })} />)}{!state.loading && !state.error && !state.characters.length ? <p className="empty-copy">{manager ? "В кампании пока нет персонажей." : "В этой кампании пока нет назначенного вам персонажа."}</p> : null}</div></aside> : null}
 
         <section className="character-sheet-panel character-dossier-sheet">{selected ? <>
-          <header className="character-dossier-hero" style={visuals.colorTheme ? { "--character-accent": visuals.colorTheme === "obsidian-gold" ? "#e3b65f" : undefined } : undefined}><div className="character-dossier-portrait">{portrait ? <img src={portrait} alt={`Портрет персонажа ${characterName(selected)}`} /> : <span>{initials(characterName(selected))}</span>}</div><div className="character-dossier-title"><span className="kicker">Character dossier</span><h2>{characterName(selected)}</h2><p>{characterSubtitle(selected) || "Основные данные персонажа не заполнены."}</p><div className="character-identity-chips">{identity.background ? <span>{identity.background}</span> : null}{identity.alignment ? <span>{identity.alignment}</span> : null}{identity.deity ? <span>{identity.deity}</span> : null}{listOf(identity.languages).map((language) => <span key={language}>{language}</span>)}</div></div><div className="character-dossier-vitals"><Metric label="AC" value={stats.armorClass} prominent /><Metric label="HP" value={hp === null ? "—" : `${hp}${maxHp === null ? "" : ` / ${maxHp}`}`} prominent /><Metric label="Скорость" value={stats.speed !== undefined ? `${stats.speed} фт.` : "—"} /><Metric label="Восприятие" value={displayModifier(stats.perception)} onRoll={() => setRoll(rollCheck("Восприятие", stats.perception))} rollHint="d20" /></div></header>
-          <section className="character-core-grid"><article className="character-core-card"><span className="kicker">Спасброски</span><div className="character-save-row"><Metric label="Стойкость" value={displayModifier(saves.fortitude)} onRoll={() => setRoll(rollCheck("Стойкость", saves.fortitude))} rollHint="d20" /><Metric label="Реакция" value={displayModifier(saves.reflex)} onRoll={() => setRoll(rollCheck("Реакция", saves.reflex))} rollHint="d20" /><Metric label="Воля" value={displayModifier(saves.will)} onRoll={() => setRoll(rollCheck("Воля", saves.will))} rollHint="d20" /></div></article><article className="character-core-card"><span className="kicker">Характеристики</span><div className="character-ability-row">{[["str", "СИЛ"], ["dex", "ЛОВ"], ["con", "ТЕЛ"], ["int", "ИНТ"], ["wis", "МДР"], ["cha", "ХАР"]].map(([key, label]) => <Metric key={key} label={label} value={displayModifier(abilities[key])} onRoll={() => setRoll(rollCheck(label, abilities[key]))} rollHint="d20" />)}</div></article></section>
-          <CollectionSection title="Атаки и боевые действия" icon={Swords} items={combat.attacks} emptyText="Атаки пока не добавлены." rollKind="attack" onRoll={setRoll} />
-          <CollectionSection title="Навыки" icon={BrainCircuit} items={stats.skills} emptyText="Навыки пока не добавлены." rollKind="skill" onRoll={setRoll} />
-          <CollectionSection title="Способности и фиты" icon={BookOpenText} items={feats} emptyText="Способности пока не добавлены." />
-          <CollectionSection title="Заклинания и силы" icon={Sparkles} items={magic.spells} emptyText="Заклинания пока не добавлены." rollKind="formula" onRoll={setRoll} />
-          <CollectionSection title="Снаряжение" icon={Backpack} items={inventoryItems} emptyText="Предметы пока не добавлены." />
-          {inventory.text ? <TextBlock label="Инвентарь · заметка" value={inventory.text} /> : null}
-          <section className="character-readonly-blocks character-notes-grid"><TextBlock label="Публичное описание" value={text.publicSummary} /><TextBlock label="Личные заметки" value={text.privateNotes} privateBlock /><TextBlock label="Заметки по билду" value={text.buildNotes} privateBlock /><TextBlock label="Заметки GM" value={text.gmNotes} privateBlock /></section>
+          <header className="character-dossier-hero" style={visuals.colorTheme ? { "--character-accent": visuals.colorTheme === "obsidian-gold" ? "#e3b65f" : undefined } : undefined}>
+            <div className="character-dossier-portrait">{portrait ? <img src={portrait} alt={`Портрет персонажа ${characterName(selected)}`} /> : <span>{initials(characterName(selected))}</span>}</div>
+            <div className="character-dossier-title"><span className="kicker">Character dossier</span><h2>{characterName(selected)}</h2><p>{characterSubtitle(selected) || "Основные данные персонажа не заполнены."}</p><div className="character-identity-chips">{identity.background ? <span>{identity.background}</span> : null}{identity.alignment ? <span>{identity.alignment}</span> : null}{identity.deity ? <span>{identity.deity}</span> : null}{listOf(identity.languages).map((language) => <span key={language}>{language}</span>)}</div></div>
+            <div className="character-dossier-vitals"><Metric label="AC" value={stats.armorClass} prominent /><Metric label="HP" value={hp === null ? "—" : `${hp}${maxHp === null ? "" : ` / ${maxHp}`}`} prominent /><Metric label="Скорость" value={stats.speed !== undefined ? `${stats.speed} фт.` : "—"} /><Metric label="Восприятие" value={displayModifier(stats.perception)} onRoll={() => setRoll(rollCheck("Восприятие", stats.perception))} rollHint="d20" /></div>
+          </header>
+
+          <section className="character-tactical-strip" aria-label="Основные показатели персонажа">
+            <article className="character-tactical-group"><span className="kicker">Спасброски</span><div className="character-save-row"><Metric label="Стойкость" value={displayModifier(saves.fortitude)} onRoll={() => setRoll(rollCheck("Стойкость", saves.fortitude))} rollHint="d20" /><Metric label="Реакция" value={displayModifier(saves.reflex)} onRoll={() => setRoll(rollCheck("Реакция", saves.reflex))} rollHint="d20" /><Metric label="Воля" value={displayModifier(saves.will)} onRoll={() => setRoll(rollCheck("Воля", saves.will))} rollHint="d20" /></div></article>
+            <article className="character-tactical-group character-tactical-group--abilities"><span className="kicker">Характеристики</span><div className="character-ability-row">{[["str", "СИЛ"], ["dex", "ЛОВ"], ["con", "ТЕЛ"], ["int", "ИНТ"], ["wis", "МДР"], ["cha", "ХАР"]].map(([key, label]) => <Metric key={key} label={label} value={displayModifier(abilities[key])} onRoll={() => setRoll(rollCheck(label, abilities[key]))} rollHint="d20" />)}</div></article>
+          </section>
+
+          <section className="character-dossier-main">
+            <div className="character-dossier-primary" data-character-zone="table-play">
+              <CollectionSection className="character-dossier-section--combat" title="Атаки и боевые действия" icon={Swords} items={combat.attacks} emptyText="Атаки пока не добавлены." rollKind="attack" onRoll={setRoll} />
+              <CollectionSection title="Заклинания и силы" icon={Sparkles} items={magic.spells} emptyText="Заклинания пока не добавлены." rollKind="formula" onRoll={setRoll} />
+              <CollectionSection title="Навыки" icon={BrainCircuit} items={stats.skills} emptyText="Навыки пока не добавлены." rollKind="skill" onRoll={setRoll} />
+            </div>
+            <aside className="character-dossier-reference" data-character-zone="reference">
+              <CollectionSection compact title="Способности и фиты" icon={BookOpenText} items={feats} emptyText="Способности пока не добавлены." />
+              <CollectionSection compact title="Снаряжение" icon={Backpack} items={inventoryItems} emptyText="Предметы пока не добавлены." />
+              {inventory.text ? <TextBlock label="Инвентарь · заметка" value={inventory.text} /> : null}
+            </aside>
+          </section>
+
+          <section className="character-story-section"><div className="character-story-section__head"><span className="kicker">История и заметки</span><h3>За пределами чисел</h3></div><div className="character-readonly-blocks character-notes-grid"><TextBlock label="Публичное описание" value={text.publicSummary} /><TextBlock label="Личные заметки" value={text.privateNotes} privateBlock /><TextBlock label="Заметки по билду" value={text.buildNotes} privateBlock /><TextBlock label="Заметки GM" value={text.gmNotes} privateBlock /></div></section>
           <div className="status-message success-message character-safety-note"><ShieldCheck size={16} /><span>Лист показывает только поля, возвращённые backend для текущей membership. Броски выполняются локально.</span></div>
         </> : <div className="notes-empty-editor character-empty-state"><UserRound size={38} /><h2>Персонаж ещё не добавлен</h2><p>{manager ? "Создай тестового героя на отдельной странице редактора." : "После назначения персонажа вашему аккаунту его досье появится здесь."}</p>{manager ? <CodexButton type="button" onClick={openCreate}><Plus size={16} /><span>Создать героя</span></CodexButton> : null}</div>}</section>
       </section>
