@@ -7,6 +7,7 @@ import RouteLoading from "./components/RouteLoading.jsx";
 import { getWorldOwnedPages, getWorldSearchPages, resolveWorldBySlug, resolveWorldForPage } from "./utils/worldContext.js";
 import { worldScopeFromSearch } from "./utils/shellContext.js";
 
+const AccessDeniedPage = lazy(() => import("./pages/AccessDeniedPage.jsx"));
 const AuthPage = lazy(() => import("./pages/AuthPage.jsx"));
 const CampaignArchivePage = lazy(() => import("./pages/CampaignArchivePage.jsx"));
 const CampaignHealthPage = lazy(() => import("./pages/CampaignHealthPage.jsx"));
@@ -39,7 +40,6 @@ const SessionDeskPage = lazy(() => import("./pages/SessionDeskPage.jsx"));
 const SessionModePage = lazy(() => import("./pages/SessionModePage.jsx"));
 const SessionsPage = lazy(() => import("./pages/SessionsPage.jsx"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage.jsx"));
-const SimplePlaceholderPage = lazy(() => import("./pages/SimplePlaceholderPage.jsx"));
 const TimelinePage = lazy(() => import("./pages/TimelinePage.jsx"));
 const WorldDashboardPage = lazy(() => import("./pages/WorldDashboardPage.jsx"));
 
@@ -340,11 +340,7 @@ export default function App() {
       campaignSwitching={campaignSwitching}
     />
   );
-  const accessDeniedElement = (
-    <SimplePlaceholderPage title="GM access required" kicker="Campaign permissions">
-      This route requires an active campaign membership with owner or GM role.
-    </SimplePlaceholderPage>
-  );
+  const accessDeniedElement = <AccessDeniedPage session={session} />;
   const campaignRoute = (element) => {
     if (!signedIn) return <AuthPage onAuth={handleAuth} session={session} />;
     if (!hasMembership) return onboardingElement;
@@ -419,7 +415,7 @@ export default function App() {
         <Route path="/dice" element={campaignRoute(<DiceTrayPage />)} />
         <Route path="/guide" element={<GuidePage canEdit={gmView} />} />
         <Route path="/foundry" element={managerRoute(<FoundryImportExportPage mode={effectiveMode} />)} />
-        <Route path="*" element={<NotFoundPage />} />
+        <Route path="*" element={<NotFoundPage session={session} />} />
         </Routes>
         )}
         </Suspense>

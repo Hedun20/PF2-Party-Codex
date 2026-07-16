@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, Clock3, FileText, MapPinned, NotebookPen, Sparkles, UserRound } from "lucide-react";
+import { BookOpen, Clock3, FileText, MapPinned, NotebookPen, ShieldAlert, Sparkles, UserRound } from "lucide-react";
 import { api } from "../api/client.js";
+import { CodexButton, EmptyState, PageHero, PageShell, StatusMessage } from "../components/ui/index.js";
 
 const recentSections = ["entries", "maps", "timelineEvents", "sessions", "handouts"];
+const countSections = ["entries", "maps", "timelineEvents", "sessions", "handouts", "characters", "notes"];
 
 const sectionMeta = {
   entries: { label: "Статьи", icon: FileText, path: "/category/lore", empty: "Статьи архива пока не созданы." },
@@ -32,6 +34,11 @@ function itemSubline(item = {}) {
   return parts.join(" · ");
 }
 
+function itemTarget(section, item = {}) {
+  if (section === "entries" && item.path) return `/page/${encodeURIComponent(item.path)}`;
+  return sectionMeta[section]?.path || "/archive";
+}
+
 function sectionLabel(section) {
   return sectionMeta[section]?.label || section.replace(/([A-Z])/g, " $1");
 }
@@ -45,7 +52,7 @@ function ArchiveCountCard({ section, value }) {
   const Icon = meta.icon;
   return (
     <Link to={meta.path} className="codex-card archive-count-card">
-      <Icon size={20} />
+      <Icon size={20} aria-hidden="true" />
       <span>{sectionLabel(section)}</span>
       <strong>{Number(value || 0)}</strong>
     </Link>
@@ -61,43 +68,46 @@ function RecentSection({ section, items, manager }) {
         <ul>
           {items.map((item, index) => (
             <li key={item?.id || item?._id || `${section}-${index}`}>
-              <strong>{itemLabel(item)}</strong>
-              {itemSubline(item) ? <span> · {itemSubline(item)}</span> : null}
+              <Link to={itemTarget(section, item)}>
+                <strong>{itemLabel(item)}</strong>
+                {itemSubline(item) ? <span> · {itemSubline(item)}</span> : null}
+              </Link>
             </li>
           ))}
         </ul>
       ) : (
         <p>{manager ? meta.empty : "Пока нет материалов, доступных игроку."}</p>
       )}
-      <Link className="codex-button codex-button--ghost codex-button--sm" to={meta.path}>Открыть раздел</Link>
+      <CodexButton variant="ghost" size="sm" to={meta.path}>Открыть раздел</CodexButton>
     </article>
   );
 }
 
 export default function CampaignArchivePage({ session }) {
   const campaignId = useMemo(() => activeCampaignId(session), [session]);
-  const [state, setState] = useState({ loading: false, data: null, error: "" });
+  const [reloadKey, setReloadKey] = useState(0);
+  const [state, setState] = useState({ loading: false, data: null, error: null });
 
   useEffect(() => {
     if (!campaignId) {
-      setState({ loading: false, data: null, error: "" });
-      return;
+      setState({ loading: false, data: null, error: null });
+      return undefined;
     }
 
     let active = true;
-    setState({ loading: true, data: null, error: "" });
+    setState({ loading: true, data: null, error: null });
     api.campaignArchive(campaignId)
       .then((data) => {
-        if (active) setState({ loading: false, data, error: "" });
+        if (active) setState({ loading: false, data, error: null });
       })
       .catch((error) => {
-        if (active) setState({ loading: false, data: null, error: error.message || "Архив кампании недоступен." });
+        if (active) setState({ loading: false, data: null, error: { status: error.status || 0, message: error.message || "Архив кампании недоступен." } });
       });
 
     return () => {
       active = false;
     };
-  }, [campaignId]);
+  }, [campaignId, reloadKey]);
 
   const data = state.data || {};
   const archive = data.archive || {};
@@ -109,45 +119,52 @@ export default function CampaignArchivePage({ session }) {
   const role = data.role || session?.activeMembership?.role || "player";
   const manager = isManager(role);
   const visibilityLabel = archive.visibility === "gm" ? "GM видит публичные и приватные материалы" : "Игрок видит только публичные и открытые материалы";
+  const accessChanged = state.error && [401, 403].includes(Number(state.error.status));
 
   return (
-    <div className="page-stack archive-page">
-      <section className="hero-panel archive-hero">
-        <span className="kicker">Архив кампании</span>
-        <h1>{campaign?.name || "Архив кампании"}</h1>
-        <p>{campaignId ? "Единый архив активной кампании: статьи, карты, timeline, сессии, handouts, персонажи и заметки." : "Нет активной кампании для текущей сессии."}</p>
+    <PageShell className="archive-page">
+      <PageHero
+        className="archive-hero"
+        kicker="Архив кампании"
+        title={campaign?.name || "Архив кампании"}
+        description={campaignId ? "Единый архив активной кампании: статьи, карты, timeline, сессии, handouts, персонажи и заметки." : "Нет активной кампании для текущей сессии."}
+      >
         <div className="workspace-identity-strip">
           {workspace?.name ? <span>Workspace: {workspace.name}</span> : null}
           <span>Роль: {role}</span>
           <span>{visibilityLabel}</span>
         </div>
-      </section>
+      </PageHero>
 
       {!campaignId ? (
-        <section className="codex-card workspace-status-card">
-          <span className="kicker">Архив недоступен</span>
-          <p>Создайте кампанию или примите приглашение перед открытием архива.</p>
-        </section>
+        <EmptyState
+          icon={ShieldAlert}
+          kicker="Архив недоступен"
+          title="Активная кампания не выбрана"
+          description="Создайте кампанию или примите приглашение перед открытием архива."
+          actionLabel="Выбрать кампанию"
+          actionTo="/campaigns"
+        />
       ) : null}
 
       {state.error ? (
-        <section className="codex-card workspace-status-card">
-          <span className="kicker">Архив недоступен</span>
-          <p>{state.error}</p>
-        </section>
+        <EmptyState
+          icon={ShieldAlert}
+          kicker={accessChanged ? "Доступ изменился" : "Архив недоступен"}
+          title={accessChanged ? "Проверьте активную кампанию" : "Не удалось загрузить архив"}
+          description={state.error.message}
+          actionLabel={accessChanged ? "Выбрать кампанию" : "Повторить"}
+          actionTo={accessChanged ? "/campaigns" : undefined}
+          onAction={accessChanged ? undefined : () => setReloadKey((value) => value + 1)}
+        />
       ) : null}
 
-      {state.loading ? (
-        <section className="codex-card workspace-status-card">
-          <span className="kicker">Загрузка архива</span>
-          <p>Собираю сводку активной кампании.</p>
-        </section>
-      ) : null}
+      {state.loading ? <StatusMessage>Собираю актуальную сводку активной кампании…</StatusMessage> : null}
 
       {state.data ? (
         <>
           <section className="archive-summary-grid" aria-label="Сводка архива">
-            {Object.entries(counts).map(([key, value]) => <ArchiveCountCard key={key} section={key} value={value} />)}
+            {countSections.map((section) => <ArchiveCountCard key={section} section={section} value={counts[section]} />)}
           </section>
 
           <section className="codex-card workspace-status-card">
@@ -158,9 +175,9 @@ export default function CampaignArchivePage({ session }) {
             </div>
             {manager ? (
               <div className="workspace-stats-row">
-                <Link className="codex-button codex-button--primary codex-button--sm" to="/editor">Создать статью</Link>
-                <Link className="codex-button codex-button--secondary codex-button--sm" to="/maps">Добавить карту</Link>
-                <Link className="codex-button codex-button--ghost codex-button--sm" to="/handouts">Материалы / Reveal</Link>
+                <CodexButton to="/editor" size="sm">Создать статью</CodexButton>
+                <CodexButton to="/maps" variant="secondary" size="sm">Добавить карту</CodexButton>
+                <CodexButton to="/handouts" variant="ghost" size="sm">Материалы / Reveal</CodexButton>
               </div>
             ) : null}
           </section>
@@ -170,6 +187,6 @@ export default function CampaignArchivePage({ session }) {
           </section>
         </>
       ) : null}
-    </div>
+    </PageShell>
   );
 }
