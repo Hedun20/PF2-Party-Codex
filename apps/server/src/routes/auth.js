@@ -57,8 +57,11 @@ async function queueVerificationEmail(req, user, verifyToken, returnTo = "") {
   return { verifyUrl, delivery };
 }
 
-async function queuePasswordResetEmail(req, user, resetToken) {
-  const resetUrl = `${publicBase(req)}/?resetToken=${encodeURIComponent(resetToken)}`;
+async function queuePasswordResetEmail(req, user, resetToken, returnTo = "") {
+  const path = safeReturnTo(returnTo);
+  const query = new URLSearchParams({ resetToken });
+  if (path !== "/") query.set("returnTo", path);
+  const resetUrl = `${publicBase(req)}/login?${query.toString()}`;
   const email = passwordResetEmailTemplate({ resetUrl, name: user.name });
   const delivery = await sendEmail({ to: user.email, subject: "Reset your Party Codex password", ...email });
   return { resetUrl, delivery };
@@ -108,8 +111,26 @@ authRouter.use("/profile", profileRouter);
 authRouter.post("/auth/register", authAttemptLimiter, async (req, res, next) => {
   try {
     const created = await createUser(req.body || {});
-    const { verifyUrl, delivery } = await queueVerificationEmail(req, created.user, created.verifyToken, req.body?.returnTo);
-    await logAuditEvent({ req, actorUserId: created.user.id, actorEmail: created.user.email, actorRole: created.user.role, campaignId: created.user.activeCampaign?.id, action: "auth.register", entityType: "user", entityId: created.user.id });
+    let verification = null;
+    try {
+      verification = await queueVerificationEmail(req, created.user, created.verifyToken, req.body?.returnTo);
+    } catch (error) {
+      logger.error("Email verification could not be queued after account creation", {
+        userId: created.user.id,
+        error: String(error?.message || error || "unknown error").slice(0, 300)
+      });
+    }
+    await logAuditEvent({
+      req,
+      actorUserId: created.user.id,
+      actorEmail: created.user.email,
+      actorRole: created.user.role,
+      campaignId: created.user.activeCampaign?.id,
+      action: "auth.register",
+      entityType: "user",
+      entityId: created.user.id,
+      metadata: { verificationQueued: Boolean(verification) }
+    });
     res.status(201).json({
       user: created.user,
       activeWorkspace: created.user.activeWorkspace || null,
@@ -117,10 +138,15 @@ authRouter.post("/auth/register", authAttemptLimiter, async (req, res, next) => 
       activeMembership: created.user.activeMembership || created.user.membership || null,
       membership: created.user.membership || created.user.activeMembership || null,
       role: created.user.role,
-      verificationQueued: true,
-      verificationSent: delivery.status === "sent",
-      emailDelivery: { mode: delivery.deliveryMode, status: delivery.status },
-      devVerifyUrl: config.isProduction ? undefined : verifyUrl
+      verificationQueued: Boolean(verification),
+      verificationSent: verification?.delivery?.status === "sent",
+      emailDelivery: verification
+        ? { mode: verification.delivery.deliveryMode, status: verification.delivery.status }
+        : { mode: "unavailable", status: "failed" },
+      message: verification
+        ? "Account created. Confirm the email, then log in to continue."
+        : "Account created, but the confirmation email could not be queued. Use Resend email confirmation from the login form.",
+      devVerifyUrl: config.isProduction || !verification ? undefined : verification.verifyUrl
     });
   } catch (error) {
     next(error);
@@ -134,15 +160,22 @@ authRouter.post("/auth/resend-verification", authAttemptLimiter, async (req, res
     if (user && !user.emailVerified && user.status === "active") {
       const renewed = await renewEmailVerification(user);
       if (renewed) {
-        await queueVerificationEmail(req, renewed.user, renewed.verifyToken, req.body?.returnTo);
-        await logAuditEvent({
-          req,
-          actorUserId: String(user._id || user.id || ""),
-          actorEmail: user.email,
-          action: "auth.email.verification.resent",
-          entityType: "user",
-          entityId: String(user._id || user.id || "")
-        });
+        try {
+          await queueVerificationEmail(req, renewed.user, renewed.verifyToken, req.body?.returnTo);
+          await logAuditEvent({
+            req,
+            actorUserId: String(user._id || user.id || ""),
+            actorEmail: user.email,
+            action: "auth.email.verification.resent",
+            entityType: "user",
+            entityId: String(user._id || user.id || "")
+          });
+        } catch (error) {
+          logger.error("Email verification resend could not be queued", {
+            userId: String(user._id || user.id || ""),
+            error: String(error?.message || error || "unknown error").slice(0, 300)
+          });
+        }
       }
     }
     res.status(202).json({ ok: true, message: "If an unverified account exists for this email, a new confirmation message has been queued." });
@@ -160,7 +193,7 @@ passwordRecoveryRouter.post("/request", authAttemptLimiter, async (req, res, nex
       try {
         const recovery = await beginPasswordReset(user);
         if (recovery) {
-          const queued = await queuePasswordResetEmail(req, recovery.user, recovery.resetToken);
+          const queued = await queuePasswordResetEmail(req, recovery.user, recovery.resetToken, req.body?.returnTo);
           devResetUrl = queued.resetUrl;
           await logAuditEvent({
             req,
@@ -222,7 +255,7 @@ authRouter.post("/auth/login", authAttemptLimiter, async (req, res, next) => {
     if (!user.emailVerified) {
       const publicUser = await toPublicUser(user);
       await logAuditEvent({ req, actorUserId: publicUser.id, actorEmail: user.email, actorRole: publicUser.role, campaignId: publicUser.activeCampaign?.id, action: "auth.login.failed", entityType: "user", entityId: publicUser.id, metadata: { reason: "email_unverified" } });
-      return res.status(403).json({ error: "Confirm your email before logging in." });
+      return res.status(403).json({ error: "Confirm your email before logging in.", code: "EMAIL_UNVERIFIED" });
     }
     req.user = user;
     await logAuditEvent({ req, action: "auth.login.success", entityType: "user", entityId: String(user._id || user.id || "") });
