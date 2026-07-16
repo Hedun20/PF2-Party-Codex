@@ -89,13 +89,7 @@ export default function CodexTopbar({
         <div className="topbar-clean-controls">
           <label className="topbar-native-select topbar-native-select--campaign" title={campaignSwitching ? "Переключение кампании…" : "Активная кампания"}>
             <Layers3 size={16} aria-hidden="true" />
-            <select
-              aria-label="Активная кампания"
-              aria-busy={campaignSwitching}
-              value={campaignId}
-              onChange={changeCampaign}
-              disabled={campaignSwitching || !hasAlternativeCampaign}
-            >
+            <select aria-label="Активная кампания" aria-busy={campaignSwitching} value={campaignId} onChange={changeCampaign} disabled={campaignSwitching || !hasAlternativeCampaign}>
               {!campaignId && campaignOptions.length === 0 ? <option value="">Нет доступных кампаний</option> : null}
               {campaignId && !currentCampaignListed ? <option value={campaignId}>{campaignName} · {roleLabel(role, true)}</option> : null}
               {campaignOptions.map((item) => {
