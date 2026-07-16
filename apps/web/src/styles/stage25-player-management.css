@@ -1,0 +1,155 @@
+/* Stage 25: campaign membership controls — compact, explicit and safe on all breakpoints. */
+
+.players-management-message {
+  margin: 0;
+}
+
+.players-member-row,
+.players-row.invite-row {
+  align-items: flex-start;
+}
+
+.players-member-row .players-row-meta,
+.players-row.invite-row .players-row-meta {
+  min-width: min(100%, 19rem);
+}
+
+.players-member-actions,
+.players-invite-actions {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  width: 100%;
+  padding-top: 0.35rem;
+}
+
+.players-role-control {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 8.8rem;
+  color: rgba(245, 239, 255, 0.58);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.players-role-control > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.players-role-select {
+  min-height: 2.35rem;
+  width: 100%;
+  padding: 0.45rem 2rem 0.45rem 0.68rem;
+  border: 1px solid rgba(227, 182, 95, 0.2);
+  border-radius: 0.68rem;
+  color: #f7f0ff;
+  background-color: rgba(10, 9, 16, 0.94);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.players-role-select:focus-visible {
+  outline: 2px solid rgba(227, 182, 95, 0.5);
+  outline-offset: 2px;
+}
+
+.players-role-select:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.players-action-note {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.2rem;
+  padding: 0.42rem 0.62rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.68rem;
+  color: rgba(245, 239, 255, 0.46);
+  background: rgba(255, 255, 255, 0.025);
+  font-size: 0.72rem;
+  font-weight: 760;
+}
+
+.players-self-label {
+  display: inline-flex;
+  margin-left: 0.35rem;
+  padding: 0.16rem 0.38rem;
+  border: 1px solid rgba(119, 209, 153, 0.22);
+  border-radius: 999px;
+  color: #a8e9c0;
+  background: rgba(119, 209, 153, 0.07);
+  font-size: 0.64rem;
+  font-weight: 850;
+  vertical-align: middle;
+}
+
+.players-destructive-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.players-danger-action {
+  border-color: rgba(239, 111, 111, 0.24) !important;
+  color: #ffb7b7 !important;
+  background: rgba(170, 45, 45, 0.07) !important;
+}
+
+.players-danger-action:hover,
+.players-danger-action:focus-visible,
+.players-danger-action.is-confirming {
+  border-color: rgba(239, 111, 111, 0.52) !important;
+  color: #ffe2e2 !important;
+  background: rgba(170, 45, 45, 0.2) !important;
+}
+
+.players-spinner {
+  animation: players-spin 850ms linear infinite;
+}
+
+@keyframes players-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 820px) {
+  .players-member-row,
+  .players-row.invite-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .players-member-row .players-row-meta,
+  .players-row.invite-row .players-row-meta {
+    width: 100%;
+    min-width: 0;
+    align-items: stretch;
+  }
+
+  .players-member-actions,
+  .players-invite-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 520px) {
+  .players-member-actions,
+  .players-invite-actions,
+  .players-destructive-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .players-role-control,
+  .players-member-actions .codex-button,
+  .players-invite-actions .codex-button,
+  .players-destructive-actions .codex-button {
+    width: 100%;
+  }
+}
