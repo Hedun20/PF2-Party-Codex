@@ -27,12 +27,44 @@ const RANK_LABELS = {
   legendary: "Легенда"
 };
 
+const RANK_ALIASES = {
+  "необучен": "untrained",
+  "необученный": "untrained",
+  untrained: "untrained",
+  "обучен": "trained",
+  "обученный": "trained",
+  trained: "trained",
+  "эксперт": "expert",
+  expert: "expert",
+  "мастер": "master",
+  master: "master",
+  "легенда": "legendary",
+  "легендарный": "legendary",
+  legendary: "legendary"
+};
+
 function list(value) {
   return Array.isArray(value) ? value.filter(Boolean) : [];
 }
 
 function cleanType(value = "") {
   return String(value || "other").trim().toLowerCase().replace(/[\s_-]+/g, "");
+}
+
+function featTypeMeta(value = "") {
+  const type = cleanType(value);
+  if (FEAT_TYPE_META[type]) return FEAT_TYPE_META[type];
+  if (type.includes("archetype")) return FEAT_TYPE_META.archetype;
+  if (type.includes("skill")) return FEAT_TYPE_META.skill;
+  if (type.includes("general")) return FEAT_TYPE_META.general;
+  if (type.includes("ancestry") || type.includes("heritage")) return FEAT_TYPE_META.ancestry;
+  if (type.includes("class") || type.includes("thaumaturge") || type.includes("fighter") || type.includes("wizard")) return FEAT_TYPE_META.class;
+  if (type.includes("power") || type.includes("mind")) return FEAT_TYPE_META.power;
+  return FEAT_TYPE_META.other;
+}
+
+function rankKey(value = "") {
+  return RANK_ALIASES[String(value || "").trim().toLowerCase()] || "untrained";
 }
 
 export function actionKey(item = {}) {
@@ -50,7 +82,7 @@ export function actionLabel(item = {}) {
 }
 
 export function proficiencyLabel(value = "") {
-  const key = String(value || "").trim().toLowerCase();
+  const key = rankKey(value);
   return RANK_LABELS[key] || value || "";
 }
 
@@ -65,8 +97,7 @@ export function characterAbilities(progression = {}) {
   const groups = new Map();
 
   for (const item of passive) {
-    const type = cleanType(item.type);
-    const meta = FEAT_TYPE_META[type] || FEAT_TYPE_META.other;
+    const meta = featTypeMeta(item.type);
     if (!groups.has(meta.label)) groups.set(meta.label, { ...meta, items: [] });
     groups.get(meta.label).items.push(item);
   }
@@ -119,10 +150,7 @@ export function defensiveCollections(combat = {}) {
 
 export function skillRanks(skills = []) {
   const result = { untrained: 0, trained: 0, expert: 0, master: 0, legendary: 0 };
-  for (const skill of list(skills)) {
-    const key = String(skill?.rank || "untrained").trim().toLowerCase();
-    if (key in result) result[key] += 1;
-  }
+  for (const skill of list(skills)) result[rankKey(skill?.rank)] += 1;
   return Object.entries(result)
     .filter(([, count]) => count > 0)
     .map(([rank, count]) => ({ rank, label: proficiencyLabel(rank), count }));
