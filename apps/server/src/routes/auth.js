@@ -1,6 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { config } from "../config.js";
+import { profileForUser, updateProfileForUser } from "../repositories/profilesRepository.js";
 import { beginPasswordReset, createUser, findUserByEmail, renewEmailVerification, resetPasswordWithToken, revokeUserSessions, toPublicUser, verifyEmailToken, verifyPassword } from "../services/authStore.js";
 import { createSessionToken } from "../services/authTokens.js";
 import { passwordResetEmailTemplate, sendEmail, verifyEmailTemplate } from "../services/emailService.js";
@@ -9,6 +10,7 @@ import { logger } from "../utils/logger.js";
 
 export const authRouter = Router();
 const passwordRecoveryRouter = Router();
+const profileRouter = Router();
 const authAttemptLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
@@ -16,6 +18,13 @@ const authAttemptLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many auth attempts. Please try again later." }
 });
+
+function requireUser(req) {
+  if (req.user) return;
+  const error = new Error("Login is required.");
+  error.status = 401;
+  throw error;
+}
 
 function safeReturnTo(value = "") {
   const path = String(value || "").trim();
@@ -67,6 +76,34 @@ async function tokenResponse(user) {
     token: createSessionToken({ id: publicUser.id, sessionVersion: user.sessionVersion || 1 })
   };
 }
+
+profileRouter.get("/", async (req, res, next) => {
+  try {
+    requireUser(req);
+    res.json({ profile: await profileForUser(req.user) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+profileRouter.patch("/", async (req, res, next) => {
+  try {
+    requireUser(req);
+    const profile = await updateProfileForUser(req.user, req.body || {});
+    await logAuditEvent({
+      req,
+      action: "profile.update",
+      entityType: "profile",
+      entityId: profile.id,
+      metadata: { language: profile.language, theme: profile.theme }
+    });
+    res.json({ profile });
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.use("/profile", profileRouter);
 
 authRouter.post("/auth/register", authAttemptLimiter, async (req, res, next) => {
   try {
