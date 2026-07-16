@@ -355,13 +355,19 @@ export default function PlayersPage({ session }) {
   const plan = subscription.data;
   const seatLimit = plan?.entitlements?.maxMemberSeats;
   const seatUsage = Number(plan?.usage?.memberSeats || 0) + Number(plan?.usage?.pendingInvitations || 0);
-  const finiteSeatLimit = Number.isFinite(Number(seatLimit)) ? Number(seatLimit) : null;
+  const finiteSeatLimit = seatLimit === null || seatLimit === undefined
+    ? null
+    : Number.isFinite(Number(seatLimit))
+      ? Number(seatLimit)
+      : null;
   const seatLimitReached = finiteSeatLimit !== null && seatUsage >= finiteSeatLimit;
   const seatSummary = subscription.loading
     ? "Лимиты загружаются"
-    : finiteSeatLimit === null
-      ? `${seatUsage} мест занято · без лимита`
-      : `${seatUsage} из ${finiteSeatLimit} мест занято`;
+    : subscription.error
+      ? "Лимит недоступен"
+      : finiteSeatLimit === null
+        ? `${seatUsage} мест занято · без лимита`
+        : `${seatUsage} из ${finiteSeatLimit} мест занято`;
 
   return (
     <PageShell className="players-page players-page-polished">
