@@ -1,12 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Castle, ClipboardCopy, KeyRound, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { api } from "../api/client.js";
 import CodexButton from "../components/ui/CodexButton.jsx";
 
+export function safeAuthReturnTo(value = "") {
+  const path = String(value || "").trim();
+  if (!path || path.length > 2048) return "/";
+  if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\") || path.includes("\0")) return "/";
+  if (path === "/login" || path.startsWith("/login?")) return "/";
+  return path;
+}
+
 export default function AuthPage({ onAuth }) {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const resetToken = params.get("resetToken") || "";
+  const returnTo = safeAuthReturnTo(params.get("returnTo"));
   const [mode, setMode] = useState(() => resetToken ? "reset" : "login");
   const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
   const [message, setMessage] = useState("");
@@ -25,6 +35,15 @@ export default function AuthPage({ onAuth }) {
     if (params.get("reset") === "1") return "Password updated. Log in with the new password.";
     return "";
   }, [params]);
+
+  function loginSearchParams(extra = {}) {
+    const next = new URLSearchParams();
+    if (returnTo !== "/") next.set("returnTo", returnTo);
+    for (const [key, value] of Object.entries(extra)) {
+      if (value !== undefined && value !== null && value !== "") next.set(key, String(value));
+    }
+    return next;
+  }
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -59,7 +78,7 @@ export default function AuthPage({ onAuth }) {
     try {
       if (mode === "register") {
         if (form.password !== form.confirmPassword) throw new Error("Passwords do not match.");
-        const data = await api.register(form);
+        const data = await api.register({ name: form.name, email: form.email, password: form.password, returnTo });
         setActionUrl(data.devVerifyUrl || "");
         setMessage("Account created. Confirm the email, then log in to create a campaign workspace or accept an invitation.");
         setMode("login");
@@ -72,11 +91,12 @@ export default function AuthPage({ onAuth }) {
         if (form.password !== form.confirmPassword) throw new Error("Passwords do not match.");
         await api.resetPassword({ token: resetToken, password: form.password });
         setForm((current) => ({ ...current, password: "", confirmPassword: "" }));
-        setParams({ reset: "1" });
+        setParams(loginSearchParams({ reset: "1" }));
         setMode("login");
       } else {
         await api.login({ email: form.email, password: form.password });
         await onAuth?.();
+        navigate(returnTo, { replace: true });
       }
     } catch (err) {
       setError(err.message || "Auth failed");
@@ -90,7 +110,7 @@ export default function AuthPage({ onAuth }) {
     setBusy(true);
     setError("");
     try {
-      const data = await api.resendVerification(form.email);
+      const data = await api.resendVerification(form.email, returnTo);
       setMessage(data.message || "If the account is awaiting confirmation, a new email has been queued.");
     } catch (err) {
       setError(err.message || "Could not queue a new confirmation email.");
@@ -101,7 +121,9 @@ export default function AuthPage({ onAuth }) {
 
   const statusText = mode === "reset"
     ? "Choose a new password. Completing the reset signs out existing sessions for this account."
-    : "Registration creates an account only. Campaign access comes from workspace creation or an invitation.";
+    : returnTo.startsWith("/invite/")
+      ? "Log in or register with the invited email. You will return to the campaign invitation automatically."
+      : "Registration creates an account only. Campaign access comes from workspace creation or an invitation.";
   const title = mode === "register" ? "Create account" : mode === "forgot" ? "Recover account" : mode === "reset" ? "Set new password" : "Campaign access";
   const submitLabel = mode === "register" ? "Create account" : mode === "forgot" ? "Send reset link" : mode === "reset" ? "Update password" : "Enter codex";
 
@@ -165,7 +187,7 @@ export default function AuthPage({ onAuth }) {
             </>
           ) : null}
           {["forgot", "reset"].includes(mode) ? (
-            <button type="button" className="auth-resend-link" disabled={busy} onClick={() => { setParams({}); switchMode("login"); }}>Back to login</button>
+            <button type="button" className="auth-resend-link" disabled={busy} onClick={() => { if (mode === "reset") setParams(loginSearchParams()); switchMode("login"); }}>Back to login</button>
           ) : null}
         </form>
         <div className="auth-note">
