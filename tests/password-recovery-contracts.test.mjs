@@ -27,6 +27,7 @@ test("account recovery endpoints are rate limited and do not disclose account ex
   assert.match(routes, /authRouter\.use\("\/auth\/password-recovery", passwordRecoveryRouter\)/);
   assert.match(routes, /If an active account exists for this email/);
   assert.match(routes, /config\.isProduction \? undefined : devResetUrl/);
+  assert.match(routes, /Password reset request could not be queued/);
   assert.match(routes, /auth\.password\.reset\.requested/);
   assert.match(routes, /auth\.password\.reset\.completed/);
 });
