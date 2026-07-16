@@ -29,8 +29,8 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Run invitation trust-flow contracts
-        run: node --test tests/invitation-trust-flow-contracts.test.mjs
+      - name: Run invitation and auth continuity contracts
+        run: node --test tests/invitation-trust-flow-contracts.test.mjs tests/auth-continuity-contracts.test.mjs
         env:
           AUTH_SECRET: ci-only-signing-secret-with-at-least-32-characters
 
