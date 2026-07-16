@@ -80,10 +80,10 @@ export default function AuthPage({ onAuth }) {
         if (form.password !== form.confirmPassword) throw new Error("Passwords do not match.");
         const data = await api.register({ name: form.name, email: form.email, password: form.password, returnTo });
         setActionUrl(data.devVerifyUrl || "");
-        setMessage("Account created. Confirm the email, then log in to create a campaign workspace or accept an invitation.");
+        setMessage(data.message || "Account created. Confirm the email, then log in to create a campaign workspace or accept an invitation.");
         setMode("login");
       } else if (mode === "forgot") {
-        const data = await api.requestPasswordReset(form.email);
+        const data = await api.requestPasswordReset(form.email, returnTo);
         setActionUrl(data.devResetUrl || "");
         setMessage(data.message || "If the account exists, a password reset message has been queued.");
       } else if (mode === "reset") {
@@ -122,7 +122,7 @@ export default function AuthPage({ onAuth }) {
   const statusText = mode === "reset"
     ? "Choose a new password. Completing the reset signs out existing sessions for this account."
     : returnTo.startsWith("/invite/")
-      ? "Log in or register with the invited email. You will return to the campaign invitation automatically."
+      ? "Log in or register with the invited email. Verification and password recovery will return you to the same invitation."
       : "Registration creates an account only. Campaign access comes from workspace creation or an invitation.";
   const title = mode === "register" ? "Create account" : mode === "forgot" ? "Recover account" : mode === "reset" ? "Set new password" : "Campaign access";
   const submitLabel = mode === "register" ? "Create account" : mode === "forgot" ? "Send reset link" : mode === "reset" ? "Update password" : "Enter codex";
