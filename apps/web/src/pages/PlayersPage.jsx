@@ -10,8 +10,11 @@ import {
   Mail,
   MailPlus,
   ShieldCheck,
+  Trash2,
+  UserCog,
   UserPlus,
-  UsersRound
+  UsersRound,
+  X
 } from "lucide-react";
 import { api } from "../api/client.js";
 import { CodexButton, CodexCard, PageHero, PageShell, StatusMessage } from "../components/ui/index.js";
@@ -125,12 +128,17 @@ function EmptyList({ icon: Icon, title, children }) {
 export default function PlayersPage({ session }) {
   const activeCampaignId = useMemo(() => campaignId(session), [session]);
   const manager = canManage(session);
+  const managerRole = activeRole(session);
+  const actorUserId = getId(session?.user);
+  const actorMembershipId = getId(session?.activeMembership);
   const [email, setEmail] = useState("");
   const [copied, setCopied] = useState("");
   const [copyError, setCopyError] = useState("");
   const [members, setMembers] = useState({ loading: false, error: "", items: [] });
   const [invites, setInvites] = useState({ loading: false, error: "", items: [] });
   const [submit, setSubmit] = useState({ loading: false, error: "", success: "", link: "" });
+  const [managementAction, setManagementAction] = useState({ key: "", loading: false, error: "", success: "" });
+  const [confirmAction, setConfirmAction] = useState("");
 
   async function load() {
     if (!activeCampaignId || !manager) return;
@@ -166,6 +174,8 @@ export default function PlayersPage({ session }) {
   }
 
   useEffect(() => {
+    setConfirmAction("");
+    setManagementAction({ key: "", loading: false, error: "", success: "" });
     load();
   }, [activeCampaignId, manager]);
 
@@ -215,6 +225,71 @@ export default function PlayersPage({ session }) {
     }
   }
 
+  async function runManagementAction(key, work, success) {
+    setManagementAction({ key, loading: true, error: "", success: "" });
+    try {
+      await work();
+      setConfirmAction("");
+      await load();
+      setManagementAction({ key: "", loading: false, error: "", success });
+    } catch (error) {
+      setManagementAction({ key: "", loading: false, error: error.message || "Не удалось выполнить действие.", success: "" });
+    }
+  }
+
+  async function changeMemberRole(member, role) {
+    const membershipId = getId(member);
+    if (!membershipId || role === member.role) return;
+    await runManagementAction(
+      `role:${membershipId}`,
+      () => api.updateCampaignMembership(activeCampaignId, membershipId, { role }),
+      `${memberName(member)}: роль изменена на «${roleLabel(role)}».`
+    );
+  }
+
+  async function removeMember(member) {
+    const membershipId = getId(member);
+    const key = `remove-member:${membershipId}`;
+    if (confirmAction !== key) {
+      setConfirmAction(key);
+      return;
+    }
+    await runManagementAction(
+      key,
+      () => api.removeCampaignMembership(activeCampaignId, membershipId),
+      `${memberName(member)} удалён из кампании.`
+    );
+  }
+
+  async function revokeInvite(invite) {
+    const invitationId = getId(invite);
+    const key = `revoke-invite:${invitationId}`;
+    if (confirmAction !== key) {
+      setConfirmAction(key);
+      return;
+    }
+    await runManagementAction(
+      key,
+      () => api.revokeCampaignInvitation(activeCampaignId, invitationId),
+      `Приглашение для ${invite.email || "игрока"} отозвано.`
+    );
+  }
+
+  function isSelf(member) {
+    return (actorMembershipId && getId(member) === actorMembershipId)
+      || (actorUserId && String(member.userId || "") === actorUserId);
+  }
+
+  function canChangeRole(member) {
+    return managerRole === "owner" && member.role !== "owner";
+  }
+
+  function canRemove(member) {
+    if (member.role === "owner" || isSelf(member)) return false;
+    if (managerRole === "owner") return true;
+    return managerRole === "gm" && member.role === "player";
+  }
+
   const memberCount = members.items.length;
   const inviteCount = invites.items.length;
 
@@ -224,12 +299,12 @@ export default function PlayersPage({ session }) {
         className="players-hero-panel"
         kicker="Кампания · Управление доступом"
         title="Игроки и приглашения"
-        description="Приглашайте игроков в активную кампанию и проверяйте, у кого уже есть доступ. Роль GM через эту форму не выдаётся."
+        description="Приглашайте игроков, назначайте со-GM и управляйте доступом строго внутри активной кампании."
       >
         <div className="workspace-identity-strip">
           <span><Layers3 size={15} aria-hidden="true" /> {session?.activeWorkspace?.name || "Workspace"}</span>
           <span><UsersRound size={15} aria-hidden="true" /> {session?.activeCampaign?.name || "Активная кампания"}</span>
-          <span><ShieldCheck size={15} aria-hidden="true" /> Ваша роль: {roleLabel(activeRole(session))}</span>
+          <span><ShieldCheck size={15} aria-hidden="true" /> Ваша роль: {roleLabel(managerRole)}</span>
         </div>
       </PageHero>
 
@@ -273,7 +348,7 @@ export default function PlayersPage({ session }) {
                     required
                   />
                 </span>
-                <small id="player-invite-help">Приглашение действует 7 дней и создаёт только роль игрока.</small>
+                <small id="player-invite-help">Приглашение действует 7 дней и создаёт роль игрока. Владелец сможет повысить участника до GM после входа.</small>
               </label>
               <CodexButton className="players-invite-submit" type="submit" disabled={submit.loading}>
                 {submit.loading ? <LoaderCircle className="players-spinner" size={17} aria-hidden="true" /> : <UserPlus size={17} aria-hidden="true" />}
@@ -281,12 +356,16 @@ export default function PlayersPage({ session }) {
               </CodexButton>
             </form>
 
-            <StatusMessage tone="danger" className="players-status-message" role="alert">
-              {submit.error ? <><AlertTriangle size={17} aria-hidden="true" /> {submit.error}</> : null}
-            </StatusMessage>
-            <StatusMessage tone="success" className="players-status-message">
-              {submit.success ? <><CheckCircle2 size={17} aria-hidden="true" /> {submit.success}</> : null}
-            </StatusMessage>
+            {submit.error ? (
+              <StatusMessage tone="danger" className="players-status-message" role="alert">
+                <AlertTriangle size={17} aria-hidden="true" /> {submit.error}
+              </StatusMessage>
+            ) : null}
+            {submit.success ? (
+              <StatusMessage tone="success" className="players-status-message">
+                <CheckCircle2 size={17} aria-hidden="true" /> {submit.success}
+              </StatusMessage>
+            ) : null}
 
             {submit.link ? (
               <div className="invite-copy-card">
@@ -312,6 +391,16 @@ export default function PlayersPage({ session }) {
             </span>
           </CodexCard>
 
+          {managementAction.error ? (
+            <StatusMessage tone="danger" className="players-status-message players-management-message" role="alert">
+              <AlertTriangle size={17} aria-hidden="true" /> {managementAction.error}
+            </StatusMessage>
+          ) : null}
+          {managementAction.success ? (
+            <StatusMessage tone="success" className="players-status-message players-management-message">
+              <CheckCircle2 size={17} aria-hidden="true" /> {managementAction.success}
+            </StatusMessage>
+          ) : null}
           {members.error ? <StatusCard kicker="Ошибка участников">{members.error}</StatusCard> : null}
           {invites.error ? <StatusCard kicker="Ошибка приглашений">{invites.error}</StatusCard> : null}
 
@@ -321,7 +410,7 @@ export default function PlayersPage({ session }) {
                 <div>
                   <span className="kicker">Участники</span>
                   <h2>{memberCount} {plural(memberCount, "участник", "участника", "участников")}</h2>
-                  <p>Активные роли в выбранной кампании.</p>
+                  <p>{managerRole === "owner" ? "Назначайте игроков и со-GM, не затрагивая защищённую роль владельца." : "GM может удалить игрока, но не изменять роли и не управлять другими GM."}</p>
                 </div>
                 <span className="players-card-icon" aria-hidden="true"><UsersRound size={21} /></span>
               </div>
@@ -329,27 +418,76 @@ export default function PlayersPage({ session }) {
               {members.loading ? <LoadingState>Загружаю участников кампании...</LoadingState> : null}
               {memberCount ? (
                 <div className="players-row-list">
-                  {members.items.map((member) => (
-                    <div className="players-row" key={member.id || `${member.userId}-${member.role}`}>
-                      <div className="players-person">
-                        <span className="players-avatar" aria-hidden="true">{memberInitial(member)}</span>
-                        <div className="players-row-copy">
-                          <strong>{memberName(member)}</strong>
-                          <span>{member.email || member.userId || "Email не указан"}</span>
+                  {members.items.map((member) => {
+                    const membershipId = getId(member);
+                    const roleActionKey = `role:${membershipId}`;
+                    const removeActionKey = `remove-member:${membershipId}`;
+                    const roleBusy = managementAction.loading && managementAction.key === roleActionKey;
+                    const removeBusy = managementAction.loading && managementAction.key === removeActionKey;
+                    const confirmingRemoval = confirmAction === removeActionKey;
+                    return (
+                      <div className="players-row players-member-row" key={membershipId || `${member.userId}-${member.role}`}>
+                        <div className="players-person">
+                          <span className="players-avatar" aria-hidden="true">{memberInitial(member)}</span>
+                          <div className="players-row-copy">
+                            <strong>{memberName(member)} {isSelf(member) ? <small className="players-self-label">это вы</small> : null}</strong>
+                            <span>{member.email || member.userId || "Email не указан"}</span>
+                          </div>
+                        </div>
+                        <div className="players-row-meta">
+                          <div className="players-badges">
+                            <Badge>{roleLabel(member.role || "player")}</Badge>
+                            <Badge tone={statusTone(member.status)}>{statusLabel(member.status)}</Badge>
+                          </div>
+                          <small className="players-row-date">
+                            <Clock3 size={14} aria-hidden="true" />
+                            С нами с {dateLabel(member.joinedAt || member.createdAt)}
+                          </small>
+                          <div className="players-member-actions">
+                            {canChangeRole(member) ? (
+                              <label className="players-role-control">
+                                <span><UserCog size={14} aria-hidden="true" /> Роль</span>
+                                <select
+                                  className="players-role-select"
+                                  value={member.role || "player"}
+                                  disabled={roleBusy || removeBusy}
+                                  onChange={(event) => changeMemberRole(member, event.target.value)}
+                                  aria-label={`Роль участника ${memberName(member)}`}
+                                >
+                                  <option value="player">Игрок</option>
+                                  <option value="gm">GM</option>
+                                </select>
+                              </label>
+                            ) : (
+                              <span className="players-action-note">
+                                {member.role === "owner" ? "Владелец защищён" : isSelf(member) ? "Собственная роль" : "Роль меняет владелец"}
+                              </span>
+                            )}
+                            {canRemove(member) ? (
+                              <div className="players-destructive-actions">
+                                {confirmingRemoval ? (
+                                  <CodexButton type="button" variant="ghost" size="sm" onClick={() => setConfirmAction("")} disabled={removeBusy}>
+                                    <X size={14} aria-hidden="true" /> Отмена
+                                  </CodexButton>
+                                ) : null}
+                                <CodexButton
+                                  type="button"
+                                  variant="secondary"
+                                  size="sm"
+                                  className={confirmingRemoval ? "players-danger-action is-confirming" : "players-danger-action"}
+                                  onClick={() => removeMember(member)}
+                                  disabled={roleBusy || removeBusy}
+                                >
+                                  {removeBusy ? <LoaderCircle className="players-spinner" size={14} aria-hidden="true" /> : <Trash2 size={14} aria-hidden="true" />}
+                                  {removeBusy ? "Удаляю..." : confirmingRemoval ? "Подтвердить" : "Удалить"}
+                                </CodexButton>
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
-                      <div className="players-row-meta">
-                        <div className="players-badges">
-                          <Badge>{roleLabel(member.role || "player")}</Badge>
-                          <Badge tone={statusTone(member.status)}>{statusLabel(member.status)}</Badge>
-                        </div>
-                        <small className="players-row-date">
-                          <Clock3 size={14} aria-hidden="true" />
-                          С нами с {dateLabel(member.joinedAt || member.createdAt)}
-                        </small>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : !members.loading && !members.error ? (
                 <EmptyList icon={UsersRound} title="Пока никого нет">
@@ -363,7 +501,7 @@ export default function PlayersPage({ session }) {
                 <div>
                   <span className="kicker">Ожидают ответа</span>
                   <h2>{inviteCount} {plural(inviteCount, "приглашение", "приглашения", "приглашений")}</h2>
-                  <p>Ссылки, которые ещё можно принять.</p>
+                  <p>Ссылки можно скопировать или отозвать до принятия.</p>
                 </div>
                 <span className="players-card-icon" aria-hidden="true"><MailPlus size={21} /></span>
               </div>
@@ -371,41 +509,57 @@ export default function PlayersPage({ session }) {
               {invites.loading ? <LoadingState>Загружаю приглашения...</LoadingState> : null}
               {inviteCount ? (
                 <div className="players-row-list">
-                  {invites.items.map((invite) => (
-                    <div className="players-row invite-row" key={invite.id || `${invite.email}-${invite.createdAt || ""}`}>
-                      <div className="players-person">
-                        <span className="players-avatar players-avatar--invite" aria-hidden="true"><Mail size={17} /></span>
-                        <div className="players-row-copy">
-                          <strong>{invite.email || "Email не указан"}</strong>
-                          <span>Действует до {dateLabel(invite.expiresAt)}</span>
+                  {invites.items.map((invite) => {
+                    const invitationId = getId(invite);
+                    const revokeActionKey = `revoke-invite:${invitationId}`;
+                    const revokeBusy = managementAction.loading && managementAction.key === revokeActionKey;
+                    const confirmingRevoke = confirmAction === revokeActionKey;
+                    return (
+                      <div className="players-row invite-row" key={invitationId || `${invite.email}-${invite.createdAt || ""}`}>
+                        <div className="players-person">
+                          <span className="players-avatar players-avatar--invite" aria-hidden="true"><Mail size={17} /></span>
+                          <div className="players-row-copy">
+                            <strong>{invite.email || "Email не указан"}</strong>
+                            <span>Действует до {dateLabel(invite.expiresAt)}</span>
+                          </div>
+                        </div>
+                        <div className="players-row-meta">
+                          <div className="players-badges">
+                            <Badge>{roleLabel(invite.role || "player")}</Badge>
+                            <Badge tone={statusTone(invite.status || "pending")}>{statusLabel(invite.status || "pending")}</Badge>
+                          </div>
+                          <small className="players-row-date">
+                            <Clock3 size={14} aria-hidden="true" />
+                            Создано {dateLabel(invite.createdAt)}
+                          </small>
+                          <div className="players-invite-actions">
+                            {invite.inviteUrl ? (
+                              <CodexButton className="players-copy-button" type="button" variant="secondary" size="sm" onClick={() => copy(invite.inviteUrl)} disabled={revokeBusy}>
+                                <Copy size={15} aria-hidden="true" />
+                                {copied === invite.inviteUrl ? "Скопировано" : "Копировать"}
+                              </CodexButton>
+                            ) : null}
+                            {confirmingRevoke ? (
+                              <CodexButton type="button" variant="ghost" size="sm" onClick={() => setConfirmAction("")} disabled={revokeBusy}>
+                                <X size={14} aria-hidden="true" /> Отмена
+                              </CodexButton>
+                            ) : null}
+                            <CodexButton
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className={confirmingRevoke ? "players-danger-action is-confirming" : "players-danger-action"}
+                              onClick={() => revokeInvite(invite)}
+                              disabled={revokeBusy}
+                            >
+                              {revokeBusy ? <LoaderCircle className="players-spinner" size={14} aria-hidden="true" /> : <Trash2 size={14} aria-hidden="true" />}
+                              {revokeBusy ? "Отзываю..." : confirmingRevoke ? "Подтвердить" : "Отозвать"}
+                            </CodexButton>
+                          </div>
                         </div>
                       </div>
-                      <div className="players-row-meta">
-                        <div className="players-badges">
-                          <Badge>{roleLabel(invite.role || "player")}</Badge>
-                          <Badge tone={statusTone(invite.status || "pending")}>
-                            {statusLabel(invite.status || "pending")}
-                          </Badge>
-                        </div>
-                        <small className="players-row-date">
-                          <Clock3 size={14} aria-hidden="true" />
-                          Создано {dateLabel(invite.createdAt)}
-                        </small>
-                        {invite.inviteUrl ? (
-                          <CodexButton
-                            className="players-copy-button"
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => copy(invite.inviteUrl)}
-                          >
-                            <Copy size={15} aria-hidden="true" />
-                            {copied === invite.inviteUrl ? "Скопировано" : "Копировать ссылку"}
-                          </CodexButton>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : !invites.loading && !invites.error ? (
                 <EmptyList icon={MailPlus} title="Нет ожидающих приглашений">
