@@ -55,6 +55,7 @@ async function request(path, options = {}) {
   if (!response.ok) {
     const payload = await response.json();
     const error = new Error(payload.error || "Request failed");
+    error.status = response.status;
     error.code = payload.code || "";
     error.requestId = payload.requestId || response.headers.get("x-request-id") || "";
     throw error;
@@ -78,6 +79,7 @@ async function downloadRequest(path) {
     const contentType = response.headers.get("content-type") || "";
     const payload = contentType.includes("application/json") ? await response.json() : {};
     const error = new Error(payload.error || "Download failed");
+    error.status = response.status;
     error.code = payload.code || "";
     error.requestId = payload.requestId || response.headers.get("x-request-id") || "";
     throw error;
