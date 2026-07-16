@@ -79,6 +79,11 @@ function canManageCampaign(session) {
   return ["owner", "gm"].includes(campaignRole(session));
 }
 
+function shouldReconcileCampaign(error) {
+  const status = Number(error?.status || 0);
+  return status === 401 || status === 403;
+}
+
 function SessionUnavailable({ message, onRetry }) {
   return (
     <section className="app-error-boundary" role="alert">
@@ -99,6 +104,7 @@ export default function App() {
   const [categories, setCategories] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [campaignSwitching, setCampaignSwitching] = useState(false);
+  const [campaignNotice, setCampaignNotice] = useState(null);
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
@@ -134,6 +140,43 @@ export default function App() {
     }
   };
 
+  const reconcileCampaignContext = async (previousSession = session) => {
+    const previousCampaignId = previousSession?.activeCampaign?.id || "";
+    const previousRole = campaignRole(previousSession);
+    const nextSession = await loadSession();
+    const nextMode = canManageCampaign(nextSession) ? "gm" : "player";
+    setMode(nextMode);
+    await loadCampaigns(nextSession);
+    setPages([]);
+    setCategories([]);
+
+    if (!nextSession?.user) {
+      setCampaigns([]);
+      setCampaignNotice({ tone: "danger", message: "Сессия завершилась. Войдите снова, чтобы продолжить работу с кампаниями." });
+      if (location.pathname !== "/login") navigate("/login", { replace: true });
+      return nextSession;
+    }
+
+    if (!hasActiveCampaignMembership(nextSession)) {
+      setCampaignNotice({ tone: "warning", message: "Доступ к активной кампании изменился. Выберите другую кампанию, примите приглашение или создайте новую." });
+      if (!["/campaigns", "/profile"].includes(location.pathname)) navigate("/campaigns", { replace: true });
+      return nextSession;
+    }
+
+    const nextCampaignId = nextSession.activeCampaign?.id || "";
+    const nextRole = campaignRole(nextSession);
+    if (previousCampaignId && nextCampaignId !== previousCampaignId) {
+      setCampaignNotice({ tone: "warning", message: `Предыдущая кампания больше недоступна. Активирована кампания «${nextSession.activeCampaign?.name || "другая кампания"}».` });
+      navigate("/", { replace: true });
+    } else if (previousRole && nextRole !== previousRole) {
+      setCampaignNotice({ tone: "warning", message: `Ваша роль в кампании изменилась: теперь ${nextRole || "участник"}. Доступные разделы обновлены.` });
+      navigate("/", { replace: true });
+    } else {
+      setCampaignNotice({ tone: "danger", message: "Не удалось подтвердить доступ к выбранной кампании. Повторите действие или выберите другую кампанию." });
+    }
+    return nextSession;
+  };
+
   const refresh = async (sessionOverride = session, modeOverride = "") => {
     if (sessionOverride?.user && !hasActiveCampaignMembership(sessionOverride)) {
       setPages([]);
@@ -148,7 +191,11 @@ export default function App() {
       setCategories(Array.isArray(categoryData.categories) ? categoryData.categories : []);
       return { pages: pageData.pages || [], categories: categoryData.categories || [] };
     } catch (error) {
-      if (error.message?.includes("GM access")) setMode("player");
+      if (shouldReconcileCampaign(error) && sessionOverride?.user) {
+        await reconcileCampaignContext(sessionOverride);
+      } else if (error.message?.includes("GM access")) {
+        setMode("player");
+      }
       if (sessionOverride?.user && !hasActiveCampaignMembership(sessionOverride)) {
         setPages([]);
         setCategories([]);
@@ -158,6 +205,7 @@ export default function App() {
   };
 
   const handleAuth = async () => {
+    setCampaignNotice(null);
     const nextSession = await loadSession();
     const nextMode = canManageCampaign(nextSession) ? "gm" : "player";
     setMode(nextMode);
@@ -167,6 +215,7 @@ export default function App() {
   };
 
   const handleOnboardingCreated = async () => {
+    setCampaignNotice(null);
     const nextSession = await loadSession();
     const nextMode = canManageCampaign(nextSession) ? "gm" : "player";
     setMode(nextMode);
@@ -176,6 +225,7 @@ export default function App() {
   };
 
   const handleInvitationAccepted = async () => {
+    setCampaignNotice(null);
     const nextSession = await loadSession();
     const nextMode = canManageCampaign(nextSession) ? "gm" : "player";
     setMode(nextMode);
@@ -186,6 +236,7 @@ export default function App() {
   const handleCampaignChange = async (campaignId) => {
     if (!campaignId || campaignId === session?.activeCampaign?.id || campaignSwitching) return;
     setCampaignSwitching(true);
+    setCampaignNotice(null);
     try {
       await api.activateCampaign(campaignId);
       setPages([]);
@@ -196,6 +247,15 @@ export default function App() {
       await loadCampaigns(nextSession);
       await refresh(nextSession, nextMode);
       navigate("/");
+    } catch (error) {
+      setCampaignNotice({ tone: "danger", message: `Не удалось переключить кампанию. ${error.message || "Повторите попытку."}` });
+      if (shouldReconcileCampaign(error)) {
+        try {
+          await reconcileCampaignContext(session);
+        } catch (reconcileError) {
+          setSessionError(reconcileError.message || "Не удалось обновить состояние кампаний.");
+        }
+      }
     } finally {
       setCampaignSwitching(false);
     }
@@ -208,6 +268,7 @@ export default function App() {
     setPages([]);
     setCategories([]);
     setCampaigns([]);
+    setCampaignNotice(null);
     navigate("/");
   };
 
@@ -314,6 +375,7 @@ export default function App() {
       campaigns={campaigns}
       onCampaignChange={handleCampaignChange}
       campaignSwitching={campaignSwitching}
+      campaignNotice={campaignNotice}
       onLogout={handleLogout}
       onSelectPage={(path) => navigate(`/page/${encodeURIComponent(path)}`)}
     >
