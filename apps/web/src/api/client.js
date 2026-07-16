@@ -111,7 +111,7 @@ export const api = {
   getToken: () => authToken,
   getActiveCampaignId: () => activeCampaignId,
   register: (payload) => request("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
-  resendVerification: (email) => request("/auth/resend-verification", { method: "POST", body: JSON.stringify({ email }) }),
+  resendVerification: (email, returnTo = "") => request("/auth/resend-verification", { method: "POST", body: JSON.stringify({ email, returnTo }) }),
   requestPasswordReset: (email) => request("/auth/password-recovery/request", { method: "POST", body: JSON.stringify({ email }) }),
   resetPassword: (payload) => request("/auth/password-recovery/complete", { method: "POST", body: JSON.stringify(payload) }),
   login: async (payload) => {
