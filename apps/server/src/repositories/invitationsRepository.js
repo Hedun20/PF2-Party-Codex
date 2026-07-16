@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { getDb, mongoStatus } from "../db/mongo.js";
 import { sendEmail } from "../services/emailService.js";
 import { activateMembershipForInvitation, identityContextForCampaign, mongoFindUserById, normalizeEmail, objectIdFrom, publicMembership, setActiveCampaignForUser } from "./identityRepository.js";
+import { collections } from "./collections.js";
 
 const INVITE_TTL_MS = Number(process.env.INVITATION_TTL_MS || 1000 * 60 * 60 * 24 * 7);
 const INVITE_ROLE = "player";
@@ -16,6 +17,10 @@ function campaigns() {
 
 function workspaces() {
   return getDb().collection("workspaces");
+}
+
+function emailOutbox() {
+  return getDb().collection(collections.emailOutbox);
 }
 
 function now() {
@@ -50,6 +55,27 @@ function invitationError(message, status) {
   const error = new Error(message);
   error.status = status;
   return error;
+}
+
+function publicInvitationDelivery(delivery) {
+  if (!delivery) return null;
+  return {
+    id: idString(delivery._id || delivery.id),
+    status: delivery.status || "queued",
+    mode: delivery.deliveryMode || "",
+    attempts: Number(delivery.attempts || 0),
+    sentAt: delivery.sentAt || "",
+    updatedAt: delivery.updatedAt || "",
+    nextAttemptAt: delivery.nextAttemptAt || "",
+    lastError: delivery.lastError || ""
+  };
+}
+
+async function deliveryMapForInvitations(invitationDocs = []) {
+  const ids = invitationDocs.map((invitation) => key(invitation.emailDeliveryId)).filter(Boolean);
+  if (!ids.length) return new Map();
+  const deliveries = await emailOutbox().find({ _id: { $in: ids } }).toArray();
+  return new Map(deliveries.map((delivery) => [idString(delivery._id), publicInvitationDelivery(delivery)]));
 }
 
 export function isMongoInvitationsEnabled() {
@@ -91,7 +117,7 @@ export async function ensureInvitationIndexes() {
   return ["invitations.tokenHash", "invitations.campaignId_email_status", "invitations.campaignId_status_createdAt"];
 }
 
-export function publicInvitation(invitation, { includeInviteUrl = false, inviteUrl = "" } = {}) {
+export function publicInvitation(invitation, { includeInviteUrl = false, inviteUrl = "", delivery = null } = {}) {
   if (!invitation) return null;
   return {
     id: idString(invitation._id),
@@ -106,6 +132,9 @@ export function publicInvitation(invitation, { includeInviteUrl = false, inviteU
     invitedBy: idString(invitation.invitedBy),
     acceptedBy: idString(invitation.acceptedBy),
     acceptedAt: invitation.acceptedAt || "",
+    resendCount: Number(invitation.resendCount || 0),
+    lastResentAt: invitation.lastResentAt || "",
+    delivery: publicInvitationDelivery(delivery || invitation.delivery),
     createdAt: invitation.createdAt,
     updatedAt: invitation.updatedAt,
     ...(includeInviteUrl && inviteUrl ? { inviteUrl } : {})
@@ -172,6 +201,17 @@ async function existingAcceptedMembership(invitation, fullUser) {
   return context.activeMembership;
 }
 
+async function queueInvitationEmail({ invitation, inviteUrl, createdByUserId }) {
+  return sendEmail({
+    campaignId: idString(invitation.campaignId),
+    createdByUserId: idString(createdByUserId),
+    to: invitation.email,
+    subject: "Party Codex: приглашение в кампанию",
+    text: `Вас пригласили в кампанию ${invitation.campaignName || "Party Codex"} как игрока. Ссылка для входа: ${inviteUrl}`,
+    html: `<p>Вас пригласили в кампанию <strong>${escapeHtml(invitation.campaignName || "Party Codex")}</strong> как <strong>игрока</strong>.</p><p><a href="${escapeHtml(inviteUrl)}">Принять приглашение</a></p><p>${escapeHtml(inviteUrl)}</p>`
+  });
+}
+
 export async function getInvitationPreview({ token, user = null } = {}) {
   if (!token || String(token).length < 16) throw invitationError("Invitation link is invalid or no longer available.", 404);
   let invitation = await invitations().findOne({ tokenHash: hashInvitationToken(token) });
@@ -208,7 +248,11 @@ export async function listInvitationsForCampaign({ campaignId, status = "pending
   const query = { campaignId: key(campaignId) };
   if (status) query.status = status;
   const docs = await invitations().find(query).sort({ createdAt: -1 }).toArray();
-  return Promise.all(docs.map(async (invitation) => publicInvitation(await expireInvitation(invitation))));
+  const normalized = await Promise.all(docs.map((invitation) => expireInvitation(invitation)));
+  const deliveries = await deliveryMapForInvitations(normalized);
+  return normalized.map((invitation) => publicInvitation(invitation, {
+    delivery: deliveries.get(idString(invitation.emailDeliveryId)) || null
+  }));
 }
 
 export async function createCampaignInvitation({ campaign, workspace, invitedBy, input, inviteUrlForToken }) {
@@ -239,29 +283,105 @@ export async function createCampaignInvitation({ campaign, workspace, invitedBy,
     invitedBy: key(invitedBy),
     acceptedBy: null,
     acceptedAt: "",
+    resendCount: 0,
+    lastResentAt: "",
+    emailDeliveryId: null,
     createdAt: stamp,
     updatedAt: stamp
   };
   const result = await invitations().insertOne(invitation);
-  const saved = { ...invitation, _id: result.insertedId };
+  let saved = { ...invitation, _id: result.insertedId };
 
   let emailDelivery;
   try {
-    emailDelivery = await sendEmail({
-      campaignId: idString(campaignId),
-      createdByUserId: idString(invitedBy),
-      to: email,
-      subject: "Party Codex: приглашение в кампанию",
-      text: `Вас пригласили в кампанию ${campaign.name || "Party Codex"} как игрока. Ссылка для входа: ${inviteUrl}`,
-      html: `<p>Вас пригласили в кампанию <strong>${escapeHtml(campaign.name || "Party Codex")}</strong> как <strong>игрока</strong>.</p><p><a href="${escapeHtml(inviteUrl)}">Принять приглашение</a></p><p>${escapeHtml(inviteUrl)}</p>`
-    });
+    emailDelivery = await queueInvitationEmail({ invitation: saved, inviteUrl, createdByUserId: invitedBy });
+    const updatedAt = now();
+    await invitations().updateOne(
+      { _id: saved._id },
+      { $set: { emailDeliveryId: key(emailDelivery.id), emailDeliveryQueuedAt: updatedAt, updatedAt } }
+    );
+    saved = { ...saved, emailDeliveryId: key(emailDelivery.id), emailDeliveryQueuedAt: updatedAt, updatedAt };
   } catch (error) {
     await invitations().deleteOne({ _id: saved._id });
     throw error;
   }
 
   return {
-    invitation: publicInvitation(saved, { includeInviteUrl: true, inviteUrl }),
+    invitation: publicInvitation(saved, { includeInviteUrl: true, inviteUrl, delivery: emailDelivery }),
+    emailDelivery
+  };
+}
+
+export async function resendCampaignInvitation({ campaignId, invitationId, requestedBy, inviteUrlForToken }) {
+  const campaignObjectId = key(campaignId);
+  const invitationObjectId = key(invitationId);
+  let invitation = await invitations().findOne({ _id: invitationObjectId, campaignId: campaignObjectId });
+  if (!invitation) throw invitationError("Campaign invitation was not found.", 404);
+  invitation = await expireInvitation(invitation);
+  if (invitationState(invitation) !== "pending") {
+    throw invitationError("Only a pending invitation can be sent again.", 409);
+  }
+
+  const token = createInvitationToken();
+  const inviteUrl = inviteUrlForToken(token);
+  const tokenHash = hashInvitationToken(token);
+  const stamp = now();
+  const expiresAt = new Date(Date.now() + INVITE_TTL_MS).toISOString();
+  const previous = {
+    tokenHash: invitation.tokenHash,
+    expiresAt: invitation.expiresAt,
+    emailDeliveryId: invitation.emailDeliveryId || null,
+    lastResentAt: invitation.lastResentAt || "",
+    resendCount: Number(invitation.resendCount || 0)
+  };
+
+  const claimed = await invitations().updateOne(
+    { _id: invitation._id, campaignId: campaignObjectId, status: "pending", tokenHash: invitation.tokenHash },
+    {
+      $set: { tokenHash, expiresAt, lastResentAt: stamp, updatedAt: stamp },
+      $inc: { resendCount: 1 }
+    }
+  );
+  if (!claimed.modifiedCount) {
+    throw invitationError("Invitation changed before it could be sent again. Refresh and retry.", 409);
+  }
+
+  let emailDelivery;
+  try {
+    emailDelivery = await queueInvitationEmail({ invitation, inviteUrl, createdByUserId: requestedBy });
+  } catch (error) {
+    const rollbackSet = {
+      tokenHash: previous.tokenHash,
+      expiresAt: previous.expiresAt,
+      lastResentAt: previous.lastResentAt,
+      resendCount: previous.resendCount,
+      updatedAt: now()
+    };
+    const rollback = { $set: rollbackSet };
+    if (previous.emailDeliveryId) rollbackSet.emailDeliveryId = previous.emailDeliveryId;
+    else rollback.$unset = { emailDeliveryId: "" };
+    await invitations().updateOne({ _id: invitation._id, tokenHash }, rollback);
+    throw error;
+  }
+
+  const updatedAt = now();
+  await invitations().updateOne(
+    { _id: invitation._id, tokenHash },
+    { $set: { emailDeliveryId: key(emailDelivery.id), emailDeliveryQueuedAt: updatedAt, updatedAt } }
+  );
+  invitation = {
+    ...invitation,
+    tokenHash,
+    expiresAt,
+    lastResentAt: stamp,
+    resendCount: previous.resendCount + 1,
+    emailDeliveryId: key(emailDelivery.id),
+    emailDeliveryQueuedAt: updatedAt,
+    updatedAt
+  };
+
+  return {
+    invitation: publicInvitation(invitation, { includeInviteUrl: true, inviteUrl, delivery: emailDelivery }),
     emailDelivery
   };
 }

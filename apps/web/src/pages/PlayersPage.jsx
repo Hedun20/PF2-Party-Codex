@@ -4,11 +4,13 @@ import {
   CheckCircle2,
   Clock3,
   Copy,
+  Gauge,
   Layers3,
   Link2,
   LoaderCircle,
   Mail,
   MailPlus,
+  RefreshCw,
   ShieldCheck,
   Trash2,
   UserCog,
@@ -69,6 +71,24 @@ function statusTone(status = "active") {
   if (["active", "accepted"].includes(value)) return "success";
   if (value === "pending") return "warning";
   if (["expired", "revoked", "removed"].includes(value)) return "danger";
+  return "neutral";
+}
+
+function deliveryLabel(delivery) {
+  const status = String(delivery?.status || "").toLowerCase();
+  if (status === "sent") return "Письмо отправлено";
+  if (status === "delivering") return "Письмо отправляется";
+  if (status === "retry") return "Повторная доставка";
+  if (status === "failed") return "Ошибка доставки";
+  if (status === "queued") return "Письмо в очереди";
+  return "Статус письма неизвестен";
+}
+
+function deliveryTone(delivery) {
+  const status = String(delivery?.status || "").toLowerCase();
+  if (status === "sent") return "success";
+  if (["queued", "delivering", "retry"].includes(status)) return "warning";
+  if (status === "failed") return "danger";
   return "neutral";
 }
 
@@ -136,6 +156,7 @@ export default function PlayersPage({ session }) {
   const [copyError, setCopyError] = useState("");
   const [members, setMembers] = useState({ loading: false, error: "", items: [] });
   const [invites, setInvites] = useState({ loading: false, error: "", items: [] });
+  const [subscription, setSubscription] = useState({ loading: false, error: "", data: null });
   const [submit, setSubmit] = useState({ loading: false, error: "", success: "", link: "" });
   const [managementAction, setManagementAction] = useState({ key: "", loading: false, error: "", success: "" });
   const [confirmAction, setConfirmAction] = useState("");
@@ -144,10 +165,12 @@ export default function PlayersPage({ session }) {
     if (!activeCampaignId || !manager) return;
     setMembers((state) => ({ ...state, loading: true, error: "" }));
     setInvites((state) => ({ ...state, loading: true, error: "" }));
+    setSubscription((state) => ({ ...state, loading: true, error: "" }));
 
-    const [memberResult, inviteResult] = await Promise.allSettled([
+    const [memberResult, inviteResult, subscriptionResult] = await Promise.allSettled([
       api.campaignMemberships(activeCampaignId),
-      api.campaignInvitations(activeCampaignId)
+      api.campaignInvitations(activeCampaignId),
+      api.subscription()
     ]);
 
     if (memberResult.status === "fulfilled") {
@@ -169,6 +192,16 @@ export default function PlayersPage({ session }) {
         loading: false,
         error: inviteResult.reason?.message || "Не удалось загрузить приглашения.",
         items: []
+      });
+    }
+
+    if (subscriptionResult.status === "fulfilled") {
+      setSubscription({ loading: false, error: "", data: subscriptionResult.value.subscription || null });
+    } else {
+      setSubscription({
+        loading: false,
+        error: subscriptionResult.reason?.message || "Не удалось загрузить лимиты workspace.",
+        data: null
       });
     }
   }
@@ -202,15 +235,20 @@ export default function PlayersPage({ session }) {
       setSubmit({ loading: false, error: "Введите корректный email игрока.", success: "", link: "" });
       return;
     }
+    if (seatLimitReached) {
+      setSubmit({ loading: false, error: "Лимит мест workspace исчерпан. Освободите место или смените тариф.", success: "", link: "" });
+      return;
+    }
 
     setSubmit({ loading: true, error: "", success: "", link: "" });
     try {
       const data = await api.createCampaignInvitation(activeCampaignId, { email: normalized, role: "player" });
       const link = data.invitation?.inviteUrl || "";
+      const delivery = data.invitation?.delivery || data.emailDelivery || null;
       setSubmit({
         loading: false,
         error: "",
-        success: `Приглашение для ${normalized} создано.`,
+        success: `Приглашение для ${normalized} создано. ${deliveryLabel(delivery)}.`,
         link
       });
       setEmail("");
@@ -261,6 +299,28 @@ export default function PlayersPage({ session }) {
     );
   }
 
+  async function resendInvite(invite) {
+    const invitationId = getId(invite);
+    const key = `resend-invite:${invitationId}`;
+    setCopied("");
+    setCopyError("");
+    setManagementAction({ key, loading: true, error: "", success: "" });
+    try {
+      const data = await api.resendCampaignInvitation(activeCampaignId, invitationId);
+      const link = data.invitation?.inviteUrl || "";
+      setSubmit({
+        loading: false,
+        error: "",
+        success: `Новая ссылка для ${invite.email || "игрока"} создана. Предыдущая ссылка больше не действует.`,
+        link
+      });
+      await load();
+      setManagementAction({ key: "", loading: false, error: "", success: `Письмо для ${invite.email || "игрока"} поставлено в очередь повторно.` });
+    } catch (error) {
+      setManagementAction({ key: "", loading: false, error: error.message || "Не удалось отправить приглашение повторно.", success: "" });
+    }
+  }
+
   async function revokeInvite(invite) {
     const invitationId = getId(invite);
     const key = `revoke-invite:${invitationId}`;
@@ -292,6 +352,22 @@ export default function PlayersPage({ session }) {
 
   const memberCount = members.items.length;
   const inviteCount = invites.items.length;
+  const plan = subscription.data;
+  const seatLimit = plan?.entitlements?.maxMemberSeats;
+  const seatUsage = Number(plan?.usage?.memberSeats || 0) + Number(plan?.usage?.pendingInvitations || 0);
+  const finiteSeatLimit = seatLimit === null || seatLimit === undefined
+    ? null
+    : Number.isFinite(Number(seatLimit))
+      ? Number(seatLimit)
+      : null;
+  const seatLimitReached = finiteSeatLimit !== null && seatUsage >= finiteSeatLimit;
+  const seatSummary = subscription.loading
+    ? "Лимиты загружаются"
+    : subscription.error
+      ? "Лимит недоступен"
+      : finiteSeatLimit === null
+        ? `${seatUsage} мест занято · без лимита`
+        : `${seatUsage} из ${finiteSeatLimit} мест занято`;
 
   return (
     <PageShell className="players-page players-page-polished">
@@ -305,6 +381,7 @@ export default function PlayersPage({ session }) {
           <span><Layers3 size={15} aria-hidden="true" /> {session?.activeWorkspace?.name || "Workspace"}</span>
           <span><UsersRound size={15} aria-hidden="true" /> {session?.activeCampaign?.name || "Активная кампания"}</span>
           <span><ShieldCheck size={15} aria-hidden="true" /> Ваша роль: {roleLabel(managerRole)}</span>
+          <span><Gauge size={15} aria-hidden="true" /> {seatSummary}</span>
         </div>
       </PageHero>
 
@@ -326,7 +403,7 @@ export default function PlayersPage({ session }) {
               <div>
                 <span className="kicker">Новое приглашение</span>
                 <h2>Пригласить игрока</h2>
-                <p>Введите email — мы создадим письмо и ссылку, которую при необходимости можно отправить вручную.</p>
+                <p>Введите email — мы создадим письмо и одноразово покажем ссылку для ручной отправки.</p>
               </div>
               <span className="players-card-icon" aria-hidden="true"><MailPlus size={22} /></span>
             </div>
@@ -348,11 +425,13 @@ export default function PlayersPage({ session }) {
                     required
                   />
                 </span>
-                <small id="player-invite-help">Приглашение действует 7 дней и создаёт роль игрока. Владелец сможет повысить участника до GM после входа.</small>
+                <small id="player-invite-help">
+                  Приглашение действует 7 дней и занимает место workspace до принятия или отзыва. {seatSummary}.
+                </small>
               </label>
-              <CodexButton className="players-invite-submit" type="submit" disabled={submit.loading}>
+              <CodexButton className="players-invite-submit" type="submit" disabled={submit.loading || seatLimitReached}>
                 {submit.loading ? <LoaderCircle className="players-spinner" size={17} aria-hidden="true" /> : <UserPlus size={17} aria-hidden="true" />}
-                {submit.loading ? "Создаю..." : "Создать приглашение"}
+                {submit.loading ? "Создаю..." : seatLimitReached ? "Лимит мест исчерпан" : "Создать приглашение"}
               </CodexButton>
             </form>
 
@@ -371,7 +450,7 @@ export default function PlayersPage({ session }) {
               <div className="invite-copy-card">
                 <Link2 size={19} aria-hidden="true" />
                 <div>
-                  <strong>Ссылка готова</strong>
+                  <strong>Новая ссылка готова</strong>
                   <span title={submit.link}>{submit.link}</span>
                 </div>
                 <CodexButton type="button" variant="secondary" size="sm" onClick={() => copy(submit.link)}>
@@ -403,6 +482,7 @@ export default function PlayersPage({ session }) {
           ) : null}
           {members.error ? <StatusCard kicker="Ошибка участников">{members.error}</StatusCard> : null}
           {invites.error ? <StatusCard kicker="Ошибка приглашений">{invites.error}</StatusCard> : null}
+          {subscription.error ? <StatusCard kicker="Ошибка лимитов">{subscription.error}</StatusCard> : null}
 
           <section className="players-management-grid" aria-label="Участники и приглашения кампании">
             <CodexCard className="players-card-premium players-table-card">
@@ -501,7 +581,7 @@ export default function PlayersPage({ session }) {
                 <div>
                   <span className="kicker">Ожидают ответа</span>
                   <h2>{inviteCount} {plural(inviteCount, "приглашение", "приглашения", "приглашений")}</h2>
-                  <p>Ссылки можно скопировать или отозвать до принятия.</p>
+                  <p>Повторная отправка создаёт новый токен и сразу отключает предыдущую ссылку.</p>
                 </div>
                 <span className="players-card-icon" aria-hidden="true"><MailPlus size={21} /></span>
               </div>
@@ -511,8 +591,11 @@ export default function PlayersPage({ session }) {
                 <div className="players-row-list">
                   {invites.items.map((invite) => {
                     const invitationId = getId(invite);
+                    const resendActionKey = `resend-invite:${invitationId}`;
                     const revokeActionKey = `revoke-invite:${invitationId}`;
+                    const resendBusy = managementAction.loading && managementAction.key === resendActionKey;
                     const revokeBusy = managementAction.loading && managementAction.key === revokeActionKey;
+                    const actionBusy = resendBusy || revokeBusy;
                     const confirmingRevoke = confirmAction === revokeActionKey;
                     return (
                       <div className="players-row invite-row" key={invitationId || `${invite.email}-${invite.createdAt || ""}`}>
@@ -527,20 +610,26 @@ export default function PlayersPage({ session }) {
                           <div className="players-badges">
                             <Badge>{roleLabel(invite.role || "player")}</Badge>
                             <Badge tone={statusTone(invite.status || "pending")}>{statusLabel(invite.status || "pending")}</Badge>
+                            <Badge tone={deliveryTone(invite.delivery)}>{deliveryLabel(invite.delivery)}</Badge>
                           </div>
                           <small className="players-row-date">
                             <Clock3 size={14} aria-hidden="true" />
-                            Создано {dateLabel(invite.createdAt)}
+                            {invite.lastResentAt ? `Повторно отправлено ${dateLabel(invite.lastResentAt)}` : `Создано ${dateLabel(invite.createdAt)}`}
                           </small>
+                          {invite.delivery?.lastError ? <small className="players-action-note">{invite.delivery.lastError}</small> : null}
                           <div className="players-invite-actions">
-                            {invite.inviteUrl ? (
-                              <CodexButton className="players-copy-button" type="button" variant="secondary" size="sm" onClick={() => copy(invite.inviteUrl)} disabled={revokeBusy}>
-                                <Copy size={15} aria-hidden="true" />
-                                {copied === invite.inviteUrl ? "Скопировано" : "Копировать"}
-                              </CodexButton>
-                            ) : null}
+                            <CodexButton
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => resendInvite(invite)}
+                              disabled={actionBusy}
+                            >
+                              {resendBusy ? <LoaderCircle className="players-spinner" size={14} aria-hidden="true" /> : <RefreshCw size={14} aria-hidden="true" />}
+                              {resendBusy ? "Отправляю..." : "Отправить снова"}
+                            </CodexButton>
                             {confirmingRevoke ? (
-                              <CodexButton type="button" variant="ghost" size="sm" onClick={() => setConfirmAction("")} disabled={revokeBusy}>
+                              <CodexButton type="button" variant="ghost" size="sm" onClick={() => setConfirmAction("")} disabled={actionBusy}>
                                 <X size={14} aria-hidden="true" /> Отмена
                               </CodexButton>
                             ) : null}
@@ -550,7 +639,7 @@ export default function PlayersPage({ session }) {
                               size="sm"
                               className={confirmingRevoke ? "players-danger-action is-confirming" : "players-danger-action"}
                               onClick={() => revokeInvite(invite)}
-                              disabled={revokeBusy}
+                              disabled={actionBusy}
                             >
                               {revokeBusy ? <LoaderCircle className="players-spinner" size={14} aria-hidden="true" /> : <Trash2 size={14} aria-hidden="true" />}
                               {revokeBusy ? "Отзываю..." : confirmingRevoke ? "Подтвердить" : "Отозвать"}
