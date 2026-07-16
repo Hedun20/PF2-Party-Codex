@@ -43,12 +43,12 @@ test("profile page remains available without campaign membership and saves accou
   assert.doesNotMatch(page, /return <OnboardingPage/);
 });
 
-test("editable profile workspace has responsive form styling", () => {
-  const styles = read("apps/web/src/styles/stage26-profile.css");
+test("editable profile workspace reuses established responsive layout primitives", () => {
+  const page = read("apps/web/src/pages/ProfilePage.jsx");
   const index = read("apps/web/src/styles/index.css");
 
-  assert.match(styles, /\.profile-workspace-grid/);
-  assert.match(styles, /\.profile-field-grid/);
-  assert.match(styles, /@media \(max-width: 680px\)/);
-  assert.match(index, /stage26-profile\.css/);
+  assert.match(page, /workspace-grid settings-grid/);
+  assert.match(page, /editor-form profile-editor-card/);
+  assert.match(page, /builder-section two-col/);
+  assert.doesNotMatch(index, /stage26-profile\.css/);
 });
