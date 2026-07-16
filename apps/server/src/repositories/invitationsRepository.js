@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { getDb, mongoStatus } from "../db/mongo.js";
 import { sendEmail } from "../services/emailService.js";
-import { activateMembershipForInvitation, mongoFindUserById, normalizeEmail, objectIdFrom, publicMembership, setActiveCampaignForUser } from "./identityRepository.js";
+import { activateMembershipForInvitation, identityContextForCampaign, mongoFindUserById, normalizeEmail, objectIdFrom, publicMembership, setActiveCampaignForUser } from "./identityRepository.js";
 
 const INVITE_TTL_MS = Number(process.env.INVITATION_TTL_MS || 1000 * 60 * 60 * 24 * 7);
 const INVITE_ROLE = "player";
@@ -163,6 +163,15 @@ async function activateInvitationMembership(invitation, fullUser) {
   return membership;
 }
 
+async function existingAcceptedMembership(invitation, fullUser) {
+  const context = await identityContextForCampaign(fullUser, idString(invitation.campaignId));
+  if (!context.activeMembership?.id) {
+    throw invitationError("Invitation has already been used and campaign access is no longer active.", 410);
+  }
+  await setActiveCampaignForUser({ user: fullUser, campaignId: idString(invitation.campaignId) });
+  return context.activeMembership;
+}
+
 export async function getInvitationPreview({ token, user = null } = {}) {
   if (!token || String(token).length < 16) throw invitationError("Invitation link is invalid or no longer available.", 404);
   let invitation = await invitations().findOne({ tokenHash: hashInvitationToken(token) });
@@ -173,6 +182,11 @@ export async function getInvitationPreview({ token, user = null } = {}) {
   const status = invitationState(invitation);
   const emailMatchesCurrentUser = fullUser ? normalizeEmail(fullUser.email) === invitation.email : null;
   const acceptedByCurrentUser = Boolean(fullUser && status === "accepted" && sameId(invitation.acceptedBy, fullUser._id));
+  let membershipActive = null;
+  if (acceptedByCurrentUser) {
+    const membershipContext = await identityContextForCampaign(fullUser, idString(invitation.campaignId));
+    membershipActive = Boolean(membershipContext.activeMembership?.id);
+  }
 
   return {
     invitation: {
@@ -184,6 +198,7 @@ export async function getInvitationPreview({ token, user = null } = {}) {
       emailHint: maskInvitationEmail(invitation.email),
       emailMatchesCurrentUser,
       acceptedByCurrentUser,
+      membershipActive,
       canAccept: status === "pending" && Boolean(fullUser) && emailMatchesCurrentUser === true
     }
   };
@@ -270,7 +285,7 @@ export async function acceptInvitation({ token, user }) {
     if (!sameId(invitation.acceptedBy, fullUser._id)) {
       throw invitationError("Invitation has already been accepted by another account.", 409);
     }
-    const membership = await activateInvitationMembership(invitation, fullUser);
+    const membership = await existingAcceptedMembership(invitation, fullUser);
     return {
       invitation: publicInvitation(invitation),
       membership: publicMembership(membership),
