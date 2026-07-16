@@ -180,6 +180,7 @@ export const api = {
   campaignInvitations: (campaignId, params = {}) => request(`/campaigns/${encodeURIComponent(campaignId)}/invitations${queryString(params)}`),
   createCampaignInvitation: (campaignId, payload) => request(`/campaigns/${encodeURIComponent(campaignId)}/invitations`, { method: "POST", body: JSON.stringify(payload) }),
   revokeCampaignInvitation: (campaignId, invitationId) => request(`/campaigns/${encodeURIComponent(campaignId)}/invitations/${encodeURIComponent(invitationId)}`, { method: "DELETE" }),
+  invitationPreview: (token) => request(`/invitations/${encodeURIComponent(token)}/preview`),
   acceptInvitation: async (token) => {
     const data = await request("/invitations/accept", { method: "POST", body: JSON.stringify({ token }) });
     setActiveCampaignId(data.activeCampaign?.id || data.invitation?.campaignId || "");
