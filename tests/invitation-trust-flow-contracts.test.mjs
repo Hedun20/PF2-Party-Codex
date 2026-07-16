@@ -32,15 +32,16 @@ test("new invitations persist only a token hash and scrub legacy plaintext invit
   assert.match(repository, /includeInviteUrl && inviteUrl/);
 });
 
-test("public preview route does not require login and exposes only the preview contract", () => {
+test("public preview subrouter does not require login and exposes only the preview contract", () => {
   const routes = read("apps/server/src/routes/memberships.js");
-  const previewStart = routes.indexOf('invitationsRouter.get("/invitations/:token/preview"');
-  const previewEnd = routes.indexOf('invitationsRouter.post("/invitations/accept"', previewStart);
+  const previewStart = routes.indexOf('invitationPreviewRouter.get("/"');
+  const previewEnd = routes.indexOf('invitationsRouter.use("/invitations/:token/preview"', previewStart);
   const previewRoute = routes.slice(previewStart, previewEnd);
 
   assert.ok(previewStart >= 0);
   assert.match(previewRoute, /getInvitationPreview\(\{ token: req\.params\.token \|\| "", user: req\.user \|\| null \}\)/);
   assert.doesNotMatch(previewRoute, /requireUser\(req\)/);
+  assert.match(routes, /invitationsRouter\.use\("\/invitations\/:token\/preview", invitationPreviewRouter\)/);
   assert.match(routes, /if \(!accepted\.idempotent\)/);
 });
 
