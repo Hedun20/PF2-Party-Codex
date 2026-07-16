@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { identityContextForCampaign, isMongoIdentityEnabled, listCampaignMemberships, workspaceUsage } from "../repositories/identityRepository.js";
-import { acceptInvitation, createCampaignInvitation, getInvitationPreview, listInvitationsForCampaign } from "../repositories/invitationsRepository.js";
+import { acceptInvitation, createCampaignInvitation, getInvitationPreview, listInvitationsForCampaign, resendCampaignInvitation } from "../repositories/invitationsRepository.js";
 import { changeCampaignMembershipRole, findCampaignMembership, removeCampaignMembership, revokeCampaignInvitation } from "../repositories/membershipManagementRepository.js";
 import { toPublicUser } from "../services/authStore.js";
 import { logAuditEvent } from "../services/auditLogService.js";
@@ -172,6 +172,37 @@ invitationsRouter.post("/campaigns/:campaignId/invitations", async (req, res, ne
     });
     await logAuditEvent({ req, action: "invitations.create", entityType: "invitation", entityId: invitation.id, campaignId: context.activeCampaign.id, metadata: { email: invitation.email, role: invitation.role } });
     res.status(201).json({
+      invitation,
+      emailDelivery: {
+        mode: emailDelivery.deliveryMode,
+        status: emailDelivery.status
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+invitationActionsRouter.post("/resend", async (req, res, next) => {
+  try {
+    const context = await campaignManagerContext(req);
+    const publicUser = await toPublicUser(req.user);
+    const { invitation, emailDelivery } = await resendCampaignInvitation({
+      campaignId: context.activeCampaign.id,
+      invitationId: req.params.invitationId,
+      requestedBy: publicUser?.id || req.user?._id || req.user?.id,
+      inviteUrlForToken: (token) => `${publicBase(req)}/invite/${encodeURIComponent(token)}`
+    });
+    await logAuditEvent({
+      req,
+      action: "invitations.resend",
+      entityType: "invitation",
+      entityId: invitation.id,
+      campaignId: context.activeCampaign.id,
+      metadata: { email: invitation.email, resendCount: invitation.resendCount }
+    });
+    res.json({
+      ok: true,
       invitation,
       emailDelivery: {
         mode: emailDelivery.deliveryMode,
