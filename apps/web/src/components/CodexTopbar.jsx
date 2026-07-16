@@ -52,6 +52,9 @@ export default function CodexTopbar({
   const campaignId = session?.activeCampaign?.id || "";
   const accountLabel = session?.user?.name || session?.user?.email || "Guest";
   const selectedWorld = activeWorld ? worldSlug(activeWorld) : "";
+  const campaignOptions = campaigns.filter((item) => item?.campaign?.id);
+  const currentCampaignListed = campaignOptions.some((item) => item.campaign.id === campaignId);
+  const hasAlternativeCampaign = campaignOptions.some((item) => item.campaign.id !== campaignId);
 
   function changeCampaign(event) {
     const nextCampaignId = event.target.value;
@@ -84,14 +87,21 @@ export default function CodexTopbar({
 
       {signedIn ? (
         <div className="topbar-clean-controls">
-          <label className="topbar-native-select topbar-native-select--campaign">
+          <label className="topbar-native-select topbar-native-select--campaign" title={campaignSwitching ? "Переключение кампании…" : "Активная кампания"}>
             <Layers3 size={16} aria-hidden="true" />
-            <select aria-label="Активная кампания" value={campaignId} onChange={changeCampaign} disabled={campaignSwitching || campaigns.length === 0}>
-              {campaigns.length === 0 ? <option value={campaignId}>{campaignName}</option> : null}
-              {campaigns.map((item) => {
-                const itemId = item.campaign?.id || "";
+            <select
+              aria-label="Активная кампания"
+              aria-busy={campaignSwitching}
+              value={campaignId}
+              onChange={changeCampaign}
+              disabled={campaignSwitching || !hasAlternativeCampaign}
+            >
+              {!campaignId && campaignOptions.length === 0 ? <option value="">Нет доступных кампаний</option> : null}
+              {campaignId && !currentCampaignListed ? <option value={campaignId}>{campaignName} · {roleLabel(role, true)}</option> : null}
+              {campaignOptions.map((item) => {
+                const itemId = item.campaign.id;
                 const itemRole = roleLabel(item.role || item.membership?.role, true);
-                return <option key={itemId || item.id} value={itemId}>{item.campaign?.name || "Untitled campaign"} · {itemRole}</option>;
+                return <option key={itemId} value={itemId}>{item.campaign?.name || "Untitled campaign"} · {itemRole}</option>;
               })}
             </select>
           </label>
@@ -130,7 +140,7 @@ export default function CodexTopbar({
         <div className="topbar-account-popover">
           <span className="topbar-account-meta">{roleLabel(role, signedIn)}</span>
           {session?.user ? <Link to="/profile" onClick={closeAccountMenu}>Профиль</Link> : null}
-          {session?.user ? <Link to="/settings" onClick={closeAccountMenu}>Настройки</Link> : null}
+          {hasMembership ? <Link to="/settings" onClick={closeAccountMenu}>Настройки кампании</Link> : null}
           {session?.user ? (
             <button type="button" onClick={(event) => { closeAccountMenu(event); onLogout?.(); }}><LogOut size={14} /> Выйти</button>
           ) : (
