@@ -1,12 +1,14 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { config } from "../config.js";
-import { createUser, findUserByEmail, renewEmailVerification, revokeUserSessions, toPublicUser, verifyEmailToken, verifyPassword } from "../services/authStore.js";
+import { beginPasswordReset, createUser, findUserByEmail, renewEmailVerification, resetPasswordWithToken, revokeUserSessions, toPublicUser, verifyEmailToken, verifyPassword } from "../services/authStore.js";
 import { createSessionToken } from "../services/authTokens.js";
-import { sendEmail, verifyEmailTemplate } from "../services/emailService.js";
+import { passwordResetEmailTemplate, sendEmail, verifyEmailTemplate } from "../services/emailService.js";
 import { logAuditEvent } from "../services/auditLogService.js";
+import { logger } from "../utils/logger.js";
 
 export const authRouter = Router();
+const passwordRecoveryRouter = Router();
 const authAttemptLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
@@ -26,6 +28,13 @@ async function queueVerificationEmail(req, user, verifyToken) {
   const email = verifyEmailTemplate({ verifyUrl, name: user.name });
   const delivery = await sendEmail({ to: user.email, subject: "Confirm your Party Codex email", ...email });
   return { verifyUrl, delivery };
+}
+
+async function queuePasswordResetEmail(req, user, resetToken) {
+  const resetUrl = `${publicBase(req)}/?resetToken=${encodeURIComponent(resetToken)}`;
+  const email = passwordResetEmailTemplate({ resetUrl, name: user.name });
+  const delivery = await sendEmail({ to: user.email, subject: "Reset your Party Codex password", ...email });
+  return { resetUrl, delivery };
 }
 
 async function tokenResponse(user) {
@@ -86,6 +95,65 @@ authRouter.post("/auth/resend-verification", authAttemptLimiter, async (req, res
     next(error);
   }
 });
+
+passwordRecoveryRouter.post("/request", authAttemptLimiter, async (req, res, next) => {
+  try {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const user = email ? await findUserByEmail(email) : null;
+    let devResetUrl = "";
+    if (user?.status === "active") {
+      try {
+        const recovery = await beginPasswordReset(user);
+        if (recovery) {
+          const queued = await queuePasswordResetEmail(req, recovery.user, recovery.resetToken);
+          devResetUrl = queued.resetUrl;
+          await logAuditEvent({
+            req,
+            actorUserId: String(user._id || user.id || ""),
+            actorEmail: user.email,
+            action: "auth.password.reset.requested",
+            entityType: "user",
+            entityId: String(user._id || user.id || "")
+          });
+        }
+      } catch (error) {
+        logger.error("Password reset request could not be queued", {
+          userId: String(user._id || user.id || ""),
+          error: String(error?.message || error || "unknown error").slice(0, 300)
+        });
+      }
+    }
+    res.status(202).json({
+      ok: true,
+      message: "If an active account exists for this email, a password reset message has been queued.",
+      devResetUrl: config.isProduction ? undefined : devResetUrl
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+passwordRecoveryRouter.post("/complete", authAttemptLimiter, async (req, res, next) => {
+  try {
+    const user = await resetPasswordWithToken(req.body?.token || "", req.body?.password || "");
+    if (!user) return res.status(400).json({ error: "Password reset link is invalid or expired." });
+    await logAuditEvent({
+      req,
+      actorUserId: user.id,
+      actorEmail: user.email,
+      actorRole: user.role,
+      campaignId: user.activeCampaign?.id,
+      action: "auth.password.reset.completed",
+      entityType: "user",
+      entityId: user.id
+    });
+    res.json({ ok: true, message: "Password updated. Log in with the new password." });
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.use("/auth/password-recovery", passwordRecoveryRouter);
 
 authRouter.post("/auth/login", authAttemptLimiter, async (req, res, next) => {
   try {

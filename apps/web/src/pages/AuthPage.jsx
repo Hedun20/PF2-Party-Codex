@@ -1,22 +1,28 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Castle, ClipboardCopy, KeyRound, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { api } from "../api/client.js";
 import CodexButton from "../components/ui/CodexButton.jsx";
 
-export default function AuthPage({ onAuth, session }) {
-  const [params] = useSearchParams();
-  const [mode, setMode] = useState("login");
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+export default function AuthPage({ onAuth }) {
+  const [params, setParams] = useSearchParams();
+  const resetToken = params.get("resetToken") || "";
+  const [mode, setMode] = useState(() => resetToken ? "reset" : "login");
+  const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
   const [message, setMessage] = useState("");
-  const [verifyUrl, setVerifyUrl] = useState("");
+  const [actionUrl, setActionUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (resetToken) setMode("reset");
+  }, [resetToken]);
+
   const verifiedMessage = useMemo(() => {
     if (params.get("verified") === "1") return "Email confirmed. You can log in now.";
     if (params.get("verified") === "invalid") return "Verification link is invalid or expired.";
+    if (params.get("reset") === "1") return "Password updated. Log in with the new password.";
     return "";
   }, [params]);
 
@@ -24,10 +30,19 @@ export default function AuthPage({ onAuth, session }) {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
-  async function copyVerifyUrl() {
-    if (!verifyUrl) return;
+  function switchMode(nextMode) {
+    setMode(nextMode);
+    setError("");
+    setMessage("");
+    setActionUrl("");
+    setCopied(false);
+    setForm((current) => ({ ...current, password: "", confirmPassword: "" }));
+  }
+
+  async function copyActionUrl() {
+    if (!actionUrl) return;
     try {
-      await navigator.clipboard.writeText(verifyUrl);
+      await navigator.clipboard.writeText(actionUrl);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
@@ -40,12 +55,24 @@ export default function AuthPage({ onAuth, session }) {
     setBusy(true);
     setError("");
     setMessage("");
-    setVerifyUrl("");
+    setActionUrl("");
     try {
       if (mode === "register") {
+        if (form.password !== form.confirmPassword) throw new Error("Passwords do not match.");
         const data = await api.register(form);
-        setVerifyUrl(data.devVerifyUrl || "");
+        setActionUrl(data.devVerifyUrl || "");
         setMessage("Account created. Confirm the email, then log in to create a campaign workspace or accept an invitation.");
+        setMode("login");
+      } else if (mode === "forgot") {
+        const data = await api.requestPasswordReset(form.email);
+        setActionUrl(data.devResetUrl || "");
+        setMessage(data.message || "If the account exists, a password reset message has been queued.");
+      } else if (mode === "reset") {
+        if (!resetToken) throw new Error("Password reset link is missing or invalid.");
+        if (form.password !== form.confirmPassword) throw new Error("Passwords do not match.");
+        await api.resetPassword({ token: resetToken, password: form.password });
+        setForm((current) => ({ ...current, password: "", confirmPassword: "" }));
+        setParams({ reset: "1" });
         setMode("login");
       } else {
         await api.login({ email: form.email, password: form.password });
@@ -72,7 +99,11 @@ export default function AuthPage({ onAuth, session }) {
     }
   }
 
-  const statusText = "Registration creates an account only. Campaign access comes from workspace creation or an invitation.";
+  const statusText = mode === "reset"
+    ? "Choose a new password. Completing the reset signs out existing sessions for this account."
+    : "Registration creates an account only. Campaign access comes from workspace creation or an invitation.";
+  const title = mode === "register" ? "Create account" : mode === "forgot" ? "Recover account" : mode === "reset" ? "Set new password" : "Campaign access";
+  const submitLabel = mode === "register" ? "Create account" : mode === "forgot" ? "Send reset link" : mode === "reset" ? "Update password" : "Enter codex";
 
   return (
     <section className="auth-page" aria-label="Party Codex account access">
@@ -81,20 +112,22 @@ export default function AuthPage({ onAuth, session }) {
           <Castle size={30} />
           <div>
             <span>Party Codex</span>
-            <strong>{mode === "login" ? "Campaign access" : "Create account"}</strong>
+            <strong>{title}</strong>
           </div>
         </div>
-        <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
-          <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Log in</button>
-          <button type="button" className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Register</button>
-        </div>
+        {mode !== "reset" ? (
+          <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
+            <button type="button" className={mode === "login" ? "active" : ""} onClick={() => switchMode("login")}>Log in</button>
+            <button type="button" className={mode === "register" ? "active" : ""} onClick={() => switchMode("register")}>Register</button>
+          </div>
+        ) : null}
         {(verifiedMessage || message || error) && (
           <div className={`auth-message ${error || params.get("verified") === "invalid" ? "error" : "success"}`}>
             {error || message || verifiedMessage}
-            {verifyUrl && (
+            {actionUrl && (
               <div className="auth-verify-link-row">
-                <a href={verifyUrl}>{verifyUrl}</a>
-                <button type="button" onClick={copyVerifyUrl}><ClipboardCopy size={15} /> {copied ? "Copied" : "Copy"}</button>
+                <a href={actionUrl}>{actionUrl}</a>
+                <button type="button" onClick={copyActionUrl}><ClipboardCopy size={15} /> {copied ? "Copied" : "Copy"}</button>
               </div>
             )}
           </div>
@@ -106,19 +139,33 @@ export default function AuthPage({ onAuth, session }) {
               <input value={form.name} onChange={(event) => update("name", event.target.value)} autoComplete="name" />
             </label>
           )}
-          <label>
-            <span><Mail size={16} /> Email</span>
-            <input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} autoComplete="email" required />
-          </label>
-          <label>
-            <span><KeyRound size={16} /> Password</span>
-            <input type="password" value={form.password} onChange={(event) => update("password", event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={8} maxLength={256} required />
-          </label>
-          <CodexButton type="submit" disabled={busy}>{busy ? "Working..." : mode === "login" ? "Enter codex" : "Create account"}</CodexButton>
+          {mode !== "reset" ? (
+            <label>
+              <span><Mail size={16} /> Email</span>
+              <input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} autoComplete="email" required />
+            </label>
+          ) : null}
+          {mode !== "forgot" ? (
+            <label>
+              <span><KeyRound size={16} /> {mode === "reset" ? "New password" : "Password"}</span>
+              <input type="password" value={form.password} onChange={(event) => update("password", event.target.value)} autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={8} maxLength={256} required />
+            </label>
+          ) : null}
+          {["register", "reset"].includes(mode) ? (
+            <label>
+              <span><KeyRound size={16} /> Confirm password</span>
+              <input type="password" value={form.confirmPassword} onChange={(event) => update("confirmPassword", event.target.value)} autoComplete="new-password" minLength={8} maxLength={256} required />
+            </label>
+          ) : null}
+          <CodexButton type="submit" disabled={busy}>{busy ? "Working..." : submitLabel}</CodexButton>
           {mode === "login" ? (
-            <button type="button" className="auth-resend-link" disabled={busy || !form.email} onClick={resendVerification}>
-              Resend email confirmation
-            </button>
+            <>
+              <button type="button" className="auth-resend-link" disabled={busy || !form.email} onClick={resendVerification}>Resend email confirmation</button>
+              <button type="button" className="auth-resend-link" disabled={busy} onClick={() => switchMode("forgot")}>Forgot password?</button>
+            </>
+          ) : null}
+          {["forgot", "reset"].includes(mode) ? (
+            <button type="button" className="auth-resend-link" disabled={busy} onClick={() => { setParams({}); switchMode("login"); }}>Back to login</button>
           ) : null}
         </form>
         <div className="auth-note">

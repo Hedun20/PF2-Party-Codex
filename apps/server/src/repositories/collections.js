@@ -16,6 +16,7 @@ export const collections = {
   assets: "assets",
   invitations: "invitations",
   emailOutbox: "emailOutbox",
+  passwordResetTokens: "passwordResetTokens",
   auditLogs: "auditLogs",
   importJobs: "importJobs"
 };

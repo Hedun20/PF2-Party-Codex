@@ -293,7 +293,7 @@ function baseHtml(content) {
         ${content}
       </div>
       <div style="padding:18px 30px 24px;border-top:1px solid rgba(227,182,95,.18);background:rgba(0,0,0,.18);">
-        <p style="margin:0;color:#a99ab0;font-size:12px;">Party Codex protects GM notes from player view. Never forward verification links to other players.</p>
+        <p style="margin:0;color:#a99ab0;font-size:12px;">Party Codex protects GM notes from player view. Never forward account security links to other people.</p>
       </div>
     </div>
   </div>
@@ -310,5 +310,18 @@ export function verifyEmailTemplate({ verifyUrl, name }) {
     <p style="margin:0;color:#9e8fab;font-size:12px;word-break:break-all;">Or copy this link: ${escapeHtml(verifyUrl)}</p>
   `);
   const text = `${greeting}\n\nConfirm your Party Codex email:\n${verifyUrl}\n`;
+  return { html, text };
+}
+
+export function passwordResetEmailTemplate({ resetUrl, name }) {
+  const greeting = name ? `Hello ${escapeHtml(name)},` : "Hello,";
+  const html = baseHtml(`
+    <p style="margin:0 0 14px;color:#eadff0;">${greeting}</p>
+    <p style="margin:0 0 18px;color:#cfc1d8;">A password reset was requested for your Party Codex account. This link expires after one hour and can be used only once.</p>
+    <p style="margin:0 0 18px;"><a href="${escapeHtml(resetUrl)}" style="display:inline-block;padding:12px 18px;border-radius:10px;background:linear-gradient(135deg,#f0ce7a,#c28a34);color:#17100d;text-decoration:none;font-weight:800;">Reset password</a></p>
+    <p style="margin:0 0 12px;color:#9e8fab;font-size:12px;word-break:break-all;">Or copy this link: ${escapeHtml(resetUrl)}</p>
+    <p style="margin:0;color:#9e8fab;font-size:12px;">If you did not request this change, ignore this message. Your existing password remains valid.</p>
+  `);
+  const text = `${greeting}\n\nReset your Party Codex password. This link expires after one hour:\n${resetUrl}\n\nIf you did not request this change, ignore this message.\n`;
   return { html, text };
 }

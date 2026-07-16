@@ -85,7 +85,6 @@ async function downloadRequest(path) {
   return response.blob();
 }
 
-
 function queryString(params = {}) {
   const pairs = Object.entries(params || {})
     .filter(([, value]) => value !== undefined && value !== null && value !== "")
@@ -95,6 +94,7 @@ function queryString(params = {}) {
     });
   return pairs.length ? `?${pairs.join("&")}` : "";
 }
+
 function setToken(token = "") {
   authToken = token;
   writeStorage(TOKEN_KEY, token);
@@ -112,6 +112,8 @@ export const api = {
   getActiveCampaignId: () => activeCampaignId,
   register: (payload) => request("/auth/register", { method: "POST", body: JSON.stringify(payload) }),
   resendVerification: (email) => request("/auth/resend-verification", { method: "POST", body: JSON.stringify({ email }) }),
+  requestPasswordReset: (email) => request("/auth/password-recovery/request", { method: "POST", body: JSON.stringify({ email }) }),
+  resetPassword: (payload) => request("/auth/password-recovery/complete", { method: "POST", body: JSON.stringify(payload) }),
   login: async (payload) => {
     const data = await request("/auth/login", { method: "POST", body: JSON.stringify(payload) });
     setToken(data.token);
