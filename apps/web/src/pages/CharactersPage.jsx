@@ -16,6 +16,7 @@ import {
   Zap
 } from "lucide-react";
 import { api } from "../api/client.js";
+import CharacterAssignmentPanel from "../components/CharacterAssignmentPanel.jsx";
 import CharacterEditorView from "../components/CharacterEditorView.jsx";
 import RollToast from "../components/RollToast.jsx";
 import CodexButton from "../components/ui/CodexButton.jsx";
@@ -98,16 +99,17 @@ function canManageCharacters(session) {
   return ["owner", "gm"].includes(String(session?.activeMembership?.role || "").toLowerCase());
 }
 
-function CharacterCard({ character, selected, onSelect }) {
+function CharacterCard({ character, selected, onSelect, manager = false }) {
   const visibility = character.visibility || {};
   const portrait = portraitSource(character.visuals || {});
+  const assignment = character.assignment?.displayName || "Не назначен";
   return (
     <button type="button" className={selected ? "character-roster-card is-active" : "character-roster-card"} onClick={onSelect}>
       <span className="character-roster-avatar">{portrait ? <img src={portrait} alt="" /> : initials(characterName(character))}</span>
       <span className="character-roster-copy">
         <strong>{characterName(character)}</strong>
         <span>{characterSubtitle(character) || "Данные персонажа не заполнены"}</span>
-        <small>{visibility.visibleToParty ? "Виден партии" : "Личный"} · {visibility.sharedWithGm === false ? "Не открыт GM" : "Открыт GM"}</small>
+        <small>{manager ? `Назначение: ${assignment}` : "Назначен вашему аккаунту"} · {visibility.sharedWithGm === false ? "Не открыт GM" : "Открыт GM"}</small>
       </span>
     </button>
   );
@@ -165,6 +167,7 @@ function CollectionSection({ title, icon: Icon, items, emptyText, rollKind = "",
 
 export default function CharactersPage({ session = null, canManage = false }) {
   const manager = canManage || canManageCharacters(session);
+  const activeCampaignId = session?.activeCampaign?.id || session?.activeMembership?.campaignId || "";
   const [searchParams, setSearchParams] = useSearchParams();
   const [state, setState] = useState({ loading: true, error: "", characters: [] });
   const [roll, setRoll] = useState(null);
@@ -184,13 +187,14 @@ export default function CharactersPage({ session = null, canManage = false }) {
     }
   }
 
-  useEffect(() => { loadCharacters(); }, [manager]);
+  useEffect(() => { loadCharacters(); }, [manager, activeCampaignId]);
 
   const selected = useMemo(() => state.characters.find((character) => character.id === requestedCharacterId) || state.characters[0] || null, [requestedCharacterId, state.characters]);
   const editorCharacter = editTarget && editTarget !== "new" ? state.characters.find((character) => character.id === editTarget) || null : null;
+  const canEditSelected = Boolean(selected?.permissions?.canEdit || manager);
 
   function openCreate() { setSearchParams({ edit: "new" }); }
-  function openEdit() { if (selected) setSearchParams({ edit: selected.id }); }
+  function openEdit() { if (selected && canEditSelected) setSearchParams({ edit: selected.id }); }
   function closeEditor(characterId = selected?.id || "") { setSearchParams(characterId ? { character: characterId } : {}); }
 
   async function handleSaved(character) {
@@ -198,9 +202,10 @@ export default function CharactersPage({ session = null, canManage = false }) {
     closeEditor(character?.id || "");
   }
 
-  if (editTarget && manager) {
+  if (editTarget) {
     if (state.loading) return <div className="status-message success-message">Загружаю данные персонажа...</div>;
-    if (editTarget !== "new" && !editorCharacter) return <div className="page-stack"><div className="status-message danger-message">Персонаж не найден в активной кампании.</div><CodexButton type="button" onClick={() => closeEditor()}>Вернуться к героям</CodexButton></div>;
+    const allowed = editTarget === "new" ? manager : Boolean(editorCharacter?.permissions?.canEdit || manager);
+    if (!allowed || (editTarget !== "new" && !editorCharacter)) return <div className="page-stack"><div className="status-message danger-message">Персонаж не найден или недоступен для редактирования.</div><CodexButton type="button" onClick={() => closeEditor()}>Вернуться к героям</CodexButton></div>;
     return <CharacterEditorView character={editTarget === "new" ? null : editorCharacter} onCancel={() => closeEditor(editorCharacter?.id || "")} onSaved={handleSaved} />;
   }
 
@@ -230,12 +235,12 @@ export default function CharactersPage({ session = null, canManage = false }) {
         <div>
           <span className="kicker">{manager ? "Campaign Character Lab" : "Player Workspace"}</span>
           <h1>{manager ? "Персонажи кампании" : "Мой персонаж"}</h1>
-          <p>{manager ? "Управляй составом кампании, а затем проверяй каждого героя в чистом игровом представлении." : "Досье героя собрано вокруг действий, реакций, защит, заклинаний и проверок PF2e."}</p>
+          <p>{manager ? "Управляй составом кампании, назначай героев участникам и проверяй каждого персонажа в чистом игровом представлении." : "Здесь отображаются только персонажи, назначенные вашему аккаунту в активной кампании."}</p>
         </div>
-        {manager ? (
+        {manager || canEditSelected ? (
           <div className="editor-actions character-header-actions">
-            <CodexButton type="button" variant="secondary" onClick={openCreate}><Plus size={16} /><span>Создать героя</span></CodexButton>
-            <CodexButton type="button" onClick={openEdit} disabled={!selected}><Pencil size={16} /><span>Редактировать</span></CodexButton>
+            {manager ? <CodexButton type="button" variant="secondary" onClick={openCreate}><Plus size={16} /><span>Создать героя</span></CodexButton> : null}
+            {canEditSelected ? <CodexButton type="button" onClick={openEdit} disabled={!selected}><Pencil size={16} /><span>Редактировать</span></CodexButton> : null}
           </div>
         ) : null}
       </header>
@@ -246,9 +251,9 @@ export default function CharactersPage({ session = null, canManage = false }) {
       <section className={showRoster ? "characters-layout character-dossier-layout" : "characters-layout character-dossier-layout character-dossier-layout--single"}>
         {showRoster ? (
           <aside className="character-list-panel character-roster-panel">
-            <div className="notes-list-head"><div><span className="kicker">{manager ? "Доступные герои" : "Мои герои"}</span><h2>{state.characters.length}</h2></div></div>
+            <div className="notes-list-head"><div><span className="kicker">{manager ? "Состав кампании" : "Мои герои"}</span><h2>{state.characters.length}</h2></div></div>
             <div className="character-list">
-              {state.characters.map((character) => <CharacterCard key={character.id} character={character} selected={selected?.id === character.id} onSelect={() => setSearchParams({ character: character.id })} />)}
+              {state.characters.map((character) => <CharacterCard key={character.id} character={character} manager={manager} selected={selected?.id === character.id} onSelect={() => setSearchParams({ character: character.id })} />)}
               {!state.loading && !state.error && !state.characters.length ? <p className="empty-copy">{manager ? "В кампании пока нет персонажей." : "В этой кампании пока нет назначенного вам персонажа."}</p> : null}
             </div>
           </aside>
@@ -264,6 +269,7 @@ export default function CharactersPage({ session = null, canManage = false }) {
                   <h2>{characterName(selected)}</h2>
                   <p>{characterSubtitle(selected) || "Основные данные персонажа не заполнены."}</p>
                   <div className="character-identity-chips">
+                    {manager ? <span>{selected.assignment?.displayName ? `Игрок: ${selected.assignment.displayName}` : "Персонаж не назначен"}</span> : null}
                     {identity.background ? <span>{identity.background}</span> : null}
                     {identity.alignment ? <span>{identity.alignment}</span> : null}
                     {identity.deity ? <span>{identity.deity}</span> : null}
@@ -279,6 +285,8 @@ export default function CharactersPage({ session = null, canManage = false }) {
                   <Metric label="Фокус" value={magic.focusPoints} />
                 </div>
               </header>
+
+              {manager ? <CharacterAssignmentPanel character={selected} campaignId={activeCampaignId} onAssigned={(character) => loadCharacters(character?.id || selected.id)} /> : null}
 
               <section className="character-tactical-strip" aria-label="Основные показатели персонажа">
                 <article className="character-tactical-group">
@@ -333,7 +341,7 @@ export default function CharactersPage({ session = null, canManage = false }) {
             <div className="notes-empty-editor character-empty-state">
               <UserRound size={38} />
               <h2>Персонаж ещё не добавлен</h2>
-              <p>{manager ? "Создай тестового героя на отдельной странице редактора." : "После назначения персонажа вашему аккаунту его досье появится здесь."}</p>
+              <p>{manager ? "Создай героя и назначь его участнику активной кампании." : "После назначения персонажа вашему аккаунту его досье появится здесь."}</p>
               {manager ? <CodexButton type="button" onClick={openCreate}><Plus size={16} /><span>Создать героя</span></CodexButton> : null}
             </div>
           )}
