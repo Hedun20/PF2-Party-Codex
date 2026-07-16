@@ -9,6 +9,8 @@ import { config } from "../config.js";
 
 export const membershipsRouter = Router();
 export const invitationsRouter = Router();
+const membershipActionsRouter = Router({ mergeParams: true });
+const invitationActionsRouter = Router({ mergeParams: true });
 
 function idString(value) {
   return String(value?._id || value?.id || value || "");
@@ -74,7 +76,7 @@ membershipsRouter.get("/campaigns/:campaignId/memberships", async (req, res, nex
   }
 });
 
-membershipsRouter.patch("/campaigns/:campaignId/memberships/:membershipId", async (req, res, next) => {
+membershipActionsRouter.patch("/", async (req, res, next) => {
   try {
     const context = await campaignManagerContext(req);
     requireOwner(context);
@@ -103,7 +105,7 @@ membershipsRouter.patch("/campaigns/:campaignId/memberships/:membershipId", asyn
   }
 });
 
-membershipsRouter.delete("/campaigns/:campaignId/memberships/:membershipId", async (req, res, next) => {
+membershipActionsRouter.delete("/", async (req, res, next) => {
   try {
     const context = await campaignManagerContext(req);
     const target = await findCampaignMembership({ campaignId: context.activeCampaign.id, membershipId: req.params.membershipId });
@@ -136,6 +138,8 @@ membershipsRouter.delete("/campaigns/:campaignId/memberships/:membershipId", asy
     next(error);
   }
 });
+
+membershipsRouter.use("/campaigns/:campaignId/memberships/:membershipId", membershipActionsRouter);
 
 invitationsRouter.get("/campaigns/:campaignId/invitations", async (req, res, next) => {
   try {
@@ -178,7 +182,7 @@ invitationsRouter.post("/campaigns/:campaignId/invitations", async (req, res, ne
   }
 });
 
-invitationsRouter.delete("/campaigns/:campaignId/invitations/:invitationId", async (req, res, next) => {
+invitationActionsRouter.delete("/", async (req, res, next) => {
   try {
     const context = await campaignManagerContext(req);
     const invitation = await revokeCampaignInvitation({
@@ -198,6 +202,8 @@ invitationsRouter.delete("/campaigns/:campaignId/invitations/:invitationId", asy
     next(error);
   }
 });
+
+invitationsRouter.use("/campaigns/:campaignId/invitations/:invitationId", invitationActionsRouter);
 
 invitationsRouter.post("/invitations/accept", async (req, res, next) => {
   try {
