@@ -1,0 +1,141 @@
+/* Stage 26: account profile preferences, independent from campaign membership. */
+
+.profile-page-editable {
+  gap: 1rem;
+}
+
+.profile-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(16rem, 0.55fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.profile-editor-card {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1rem, 2.2vw, 1.5rem);
+}
+
+.profile-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid rgba(227, 182, 95, 0.14);
+}
+
+.profile-card-head > div {
+  min-width: 0;
+}
+
+.profile-card-head > svg {
+  flex: 0 0 auto;
+  color: var(--gold);
+}
+
+.profile-card-head h2 {
+  margin: 0.35rem 0 0.45rem;
+  color: var(--text);
+  font-family: var(--display);
+  font-size: clamp(1.45rem, 2.5vw, 2rem);
+}
+
+.profile-card-head p {
+  max-width: 48rem;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.profile-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.profile-field {
+  display: grid;
+  gap: 0.48rem;
+  min-width: 0;
+  color: rgba(245, 239, 255, 0.68);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.profile-field > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.profile-field input,
+.profile-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 0.75rem;
+  color: var(--text);
+  background: rgba(8, 7, 13, 0.86);
+  font: inherit;
+}
+
+.profile-field select {
+  padding-right: 2rem;
+}
+
+.profile-field input:focus-visible,
+.profile-field select:focus-visible {
+  border-color: rgba(227, 182, 95, 0.48);
+  outline: 2px solid rgba(227, 182, 95, 0.2);
+  outline-offset: 2px;
+}
+
+.profile-field input:disabled,
+.profile-field select:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.profile-editor-actions {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 0.25rem;
+}
+
+.profile-context-stack {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.profile-context-card {
+  min-height: 6rem;
+}
+
+.profile-quick-actions {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .profile-workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .profile-context-stack {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .profile-field-grid,
+  .profile-context-stack {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .profile-editor-actions .codex-button {
+    width: 100%;
+  }
+}
