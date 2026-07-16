@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { promisify } from "util";
+import { getDb } from "../db/mongo.js";
 import {
   bootstrapMembershipForNewUser,
   identityContextForCampaign,
@@ -18,6 +19,7 @@ import { platformAccessForUser } from "./platformAccessService.js";
 
 const scrypt = promisify(crypto.scrypt);
 const VERIFY_TTL_MS = Number(process.env.EMAIL_VERIFY_TTL_MS || 1000 * 60 * 60 * 24);
+const PASSWORD_RESET_TTL_MS = Number(process.env.PASSWORD_RESET_TTL_MS || 1000 * 60 * 60);
 
 function idString(user) {
   return String(user?._id || user?.id || "");
@@ -28,6 +30,16 @@ function requireMongoIdentity() {
   const error = new Error("Mongo identity storage is not connected. Authentication is unavailable until the database connection is restored.");
   error.status = 503;
   throw error;
+}
+
+function passwordResetTokens() {
+  return getDb().collection("passwordResetTokens");
+}
+
+async function ensurePasswordResetIndexes() {
+  await passwordResetTokens().createIndex({ tokenHash: 1 }, { unique: true });
+  await passwordResetTokens().createIndex({ userId: 1, usedAt: 1, createdAt: -1 });
+  await passwordResetTokens().createIndex({ purgeAt: 1 }, { expireAfterSeconds: 0 });
 }
 
 export async function publicUser(user, { campaignId = "" } = {}) {
@@ -58,13 +70,32 @@ function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-function createEmailVerification() {
+function createExpiringToken(ttlMs) {
   const token = crypto.randomBytes(32).toString("base64url");
   return {
     token,
     tokenHash: hashToken(token),
-    expiresAt: new Date(Date.now() + VERIFY_TTL_MS).toISOString()
+    expiresAt: new Date(Date.now() + ttlMs).toISOString()
   };
+}
+
+function createEmailVerification() {
+  return createExpiringToken(VERIFY_TTL_MS);
+}
+
+function validatePassword(password) {
+  const value = String(password || "");
+  if (value.length < 8) {
+    const error = new Error("Password must be at least 8 characters.");
+    error.status = 400;
+    throw error;
+  }
+  if (value.length > 256) {
+    const error = new Error("Password is too long.");
+    error.status = 400;
+    throw error;
+  }
+  return value;
 }
 
 async function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")) {
@@ -79,16 +110,7 @@ function validateNewUser(input, existingUsers = []) {
     error.status = 400;
     throw error;
   }
-  if (String(input.password || "").length < 8) {
-    const error = new Error("Password must be at least 8 characters.");
-    error.status = 400;
-    throw error;
-  }
-  if (String(input.password || "").length > 256) {
-    const error = new Error("Password is too long.");
-    error.status = 400;
-    throw error;
-  }
+  validatePassword(input.password);
   if (existingUsers.some((user) => user.email === normalizedEmail)) {
     const error = new Error("This email is already registered.");
     error.status = 409;
@@ -161,6 +183,59 @@ export async function renewEmailVerification(user) {
     emailVerifyTokenExpiresAt: verification.expiresAt
   });
   return { user: updated, verifyToken: verification.token };
+}
+
+export async function beginPasswordReset(user) {
+  requireMongoIdentity();
+  if (!user || user.status !== "active") return null;
+  await ensurePasswordResetIndexes();
+  const reset = createExpiringToken(PASSWORD_RESET_TTL_MS);
+  const stamp = new Date().toISOString();
+  const userId = user._id || user.id;
+  await passwordResetTokens().updateMany(
+    { userId, usedAt: "" },
+    { $set: { usedAt: stamp, invalidatedAt: stamp, updatedAt: stamp } }
+  );
+  await passwordResetTokens().insertOne({
+    userId,
+    email: normalizeEmail(user.email),
+    tokenHash: reset.tokenHash,
+    expiresAt: reset.expiresAt,
+    usedAt: "",
+    createdAt: stamp,
+    updatedAt: stamp,
+    purgeAt: new Date(Date.now() + PASSWORD_RESET_TTL_MS + 24 * 60 * 60 * 1000)
+  });
+  return { user, resetToken: reset.token };
+}
+
+export async function resetPasswordWithToken(token = "", password = "") {
+  requireMongoIdentity();
+  const rawToken = String(token || "");
+  if (rawToken.length < 20) return null;
+  const safePassword = validatePassword(password);
+  await ensurePasswordResetIndexes();
+  const stamp = new Date().toISOString();
+  const record = await passwordResetTokens().findOne({
+    tokenHash: hashToken(rawToken),
+    usedAt: "",
+    expiresAt: { $gte: stamp }
+  });
+  if (!record) return null;
+  const user = await mongoFindUserById(idString(record.userId));
+  if (!user || user.status !== "active") return null;
+  const nextPassword = await hashPassword(safePassword);
+  const updated = await mongoUpdateUser(idString(user), {
+    passwordHash: nextPassword.hash,
+    passwordSalt: nextPassword.salt,
+    sessionVersion: Number(user.sessionVersion || 1) + 1,
+    passwordChangedAt: stamp
+  });
+  await passwordResetTokens().updateMany(
+    { userId: record.userId, usedAt: "" },
+    { $set: { usedAt: stamp, updatedAt: stamp } }
+  );
+  return publicUser(updated);
 }
 
 export async function revokeUserSessions(user) {
