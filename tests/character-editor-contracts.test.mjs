@@ -32,6 +32,21 @@ test("character editor uses separate structured rows instead of pipe-delimited t
   assert.doesNotMatch(editor, /название \| ранг/);
 });
 
+test("character dossier prioritizes table play before reference material", () => {
+  const dossier = read("apps/web/src/pages/CharactersPage.jsx");
+  const styles = read("apps/web/src/styles/stage21-character-dossier.css");
+  const tablePlay = dossier.indexOf('data-character-zone="table-play"');
+  const reference = dossier.indexOf('data-character-zone="reference"');
+
+  assert.ok(tablePlay >= 0, "table-play zone is present");
+  assert.ok(reference > tablePlay, "reference rail follows the primary table-play zone");
+  assert.match(dossier, /character-tactical-strip/);
+  assert.match(dossier, /character-dossier-layout--single/);
+  assert.match(styles, /\.character-dossier-main/);
+  assert.match(styles, /\.character-dossier-reference/);
+  assert.match(styles, /@media \(max-width: 680px\)/);
+});
+
 test("global native selects are no longer intercepted by MagicSelectLayer", () => {
   const shell = read("apps/web/src/components/FantasyShell.jsx");
   assert.doesNotMatch(shell, /MagicSelectLayer/);
