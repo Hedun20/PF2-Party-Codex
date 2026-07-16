@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import CodexSidebar from "./CodexSidebar.jsx";
 import CodexTopbar from "./CodexTopbar.jsx";
 import PageBackButton from "./PageBackButton.jsx";
+import StatusMessage from "./ui/StatusMessage.jsx";
 import CinematicWorldBackground from "./world/CinematicWorldBackground.jsx";
 import { getThemeStyle, getWorldTheme } from "../theme/worldThemes.js";
 
@@ -94,6 +95,9 @@ export default function FantasyShell({ children, ...props }) {
       <main className="main-stage" id="main-content" tabIndex="-1">
         <CodexTopbar {...props} worldTheme={worldTheme} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} sidebarToggleRef={sidebarToggleRef} />
         <section className="content-stage">
+          <StatusMessage tone={props.campaignNotice?.tone || "info"} role={props.campaignNotice?.tone === "danger" ? "alert" : "status"}>
+            {props.campaignNotice?.message || ""}
+          </StatusMessage>
           <PageBackButton />
           {children}
         </section>
