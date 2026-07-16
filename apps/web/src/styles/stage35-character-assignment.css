@@ -1,0 +1,102 @@
+/* Stage 35: exact campaign character assignment without exposing cross-campaign data. */
+
+.character-assignment-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 28rem);
+  gap: 0.9rem 1rem;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid rgba(227, 182, 95, 0.2);
+  border-radius: 1rem;
+  background:
+    linear-gradient(145deg, rgba(227, 182, 95, 0.075), transparent 58%),
+    rgba(10, 9, 16, 0.88);
+}
+
+.character-assignment-panel__copy,
+.character-assignment-panel__controls,
+.character-assignment-panel__controls label {
+  display: grid;
+  min-width: 0;
+}
+
+.character-assignment-panel__copy {
+  gap: 0.32rem;
+}
+
+.character-assignment-panel__copy .kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.character-assignment-panel__copy > strong {
+  overflow-wrap: anywhere;
+  color: #fbf5ff;
+  font-size: 1.1rem;
+}
+
+.character-assignment-panel__copy > small,
+.character-assignment-state,
+.character-assignment-panel__controls label > span {
+  color: rgba(245, 239, 255, 0.58);
+}
+
+.character-assignment-panel__controls {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.7rem;
+  align-items: end;
+}
+
+.character-assignment-panel__controls label {
+  gap: 0.35rem;
+}
+
+.character-assignment-panel__controls label > span {
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.character-assignment-panel__controls select {
+  width: 100%;
+  min-height: 2.65rem;
+}
+
+.character-assignment-state {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.character-assignment-state.is-error {
+  color: #ffaaa3;
+}
+
+.character-assignment-state.is-success {
+  color: #9de6b7;
+}
+
+.character-assignment-spinner {
+  animation: character-assignment-spin 900ms linear infinite;
+}
+
+@keyframes character-assignment-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 760px) {
+  .character-assignment-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .character-assignment-panel__controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .character-assignment-panel__controls .codex-button {
+    width: 100%;
+  }
+}
