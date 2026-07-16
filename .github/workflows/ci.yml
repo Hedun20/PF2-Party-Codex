@@ -30,7 +30,7 @@ jobs:
         run: npm ci
 
       - name: Run route and access contracts
-        run: node --test tests/route-contracts.test.mjs tests/campaign-context-resilience-contracts.test.mjs
+        run: node --test tests/route-contracts.test.mjs tests/campaign-context-resilience-contracts.test.mjs tests/portal-home-contracts.test.mjs
         env:
           AUTH_SECRET: ci-only-signing-secret-with-at-least-32-characters
 
