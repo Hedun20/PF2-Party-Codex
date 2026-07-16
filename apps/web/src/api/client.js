@@ -130,6 +130,8 @@ export const api = {
   },
   me: () => request("/auth/me"),
   session: () => request("/session"),
+  profile: () => request("/profile"),
+  updateProfile: (payload) => request("/profile", { method: "PATCH", body: JSON.stringify(payload) }),
   createWorkspaceOnboarding: async (payload) => {
     const data = await request("/onboarding/workspace", { method: "POST", body: JSON.stringify(payload) });
     setActiveCampaignId(data.activeCampaign?.id || data.campaign?.id || "");
