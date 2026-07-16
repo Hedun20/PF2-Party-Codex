@@ -17,14 +17,32 @@ const authAttemptLimiter = rateLimit({
   message: { error: "Too many auth attempts. Please try again later." }
 });
 
+function safeReturnTo(value = "") {
+  const path = String(value || "").trim();
+  if (!path || path.length > 2048) return "/";
+  if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\") || path.includes("\0")) return "/";
+  if (path === "/login" || path.startsWith("/login?")) return "/";
+  return path;
+}
+
+function verificationRedirect(status, returnTo = "") {
+  const path = safeReturnTo(returnTo);
+  const query = new URLSearchParams({ verified: status });
+  if (path !== "/") query.set("returnTo", path);
+  return `/login?${query.toString()}`;
+}
+
 function publicBase(req) {
   if (config.publicAppUrl) return config.publicAppUrl;
   const protocol = req.get("x-forwarded-proto") || req.protocol || "http";
   return `${protocol}://${req.get("host")}`;
 }
 
-async function queueVerificationEmail(req, user, verifyToken) {
-  const verifyUrl = `${publicBase(req)}/api/auth/verify-email?token=${encodeURIComponent(verifyToken)}`;
+async function queueVerificationEmail(req, user, verifyToken, returnTo = "") {
+  const path = safeReturnTo(returnTo);
+  const query = new URLSearchParams({ token: verifyToken });
+  if (path !== "/") query.set("returnTo", path);
+  const verifyUrl = `${publicBase(req)}/api/auth/verify-email?${query.toString()}`;
   const email = verifyEmailTemplate({ verifyUrl, name: user.name });
   const delivery = await sendEmail({ to: user.email, subject: "Confirm your Party Codex email", ...email });
   return { verifyUrl, delivery };
@@ -53,7 +71,7 @@ async function tokenResponse(user) {
 authRouter.post("/auth/register", authAttemptLimiter, async (req, res, next) => {
   try {
     const created = await createUser(req.body || {});
-    const { verifyUrl, delivery } = await queueVerificationEmail(req, created.user, created.verifyToken);
+    const { verifyUrl, delivery } = await queueVerificationEmail(req, created.user, created.verifyToken, req.body?.returnTo);
     await logAuditEvent({ req, actorUserId: created.user.id, actorEmail: created.user.email, actorRole: created.user.role, campaignId: created.user.activeCampaign?.id, action: "auth.register", entityType: "user", entityId: created.user.id });
     res.status(201).json({
       user: created.user,
@@ -79,7 +97,7 @@ authRouter.post("/auth/resend-verification", authAttemptLimiter, async (req, res
     if (user && !user.emailVerified && user.status === "active") {
       const renewed = await renewEmailVerification(user);
       if (renewed) {
-        await queueVerificationEmail(req, renewed.user, renewed.verifyToken);
+        await queueVerificationEmail(req, renewed.user, renewed.verifyToken, req.body?.returnTo);
         await logAuditEvent({
           req,
           actorUserId: String(user._id || user.id || ""),
@@ -198,10 +216,11 @@ authRouter.get("/auth/me", async (req, res, next) => {
 
 authRouter.get("/auth/verify-email", async (req, res, next) => {
   try {
+    const returnTo = safeReturnTo(req.query.returnTo);
     const user = await verifyEmailToken(req.query.token || "");
-    if (!user) return res.redirect("/?verified=invalid");
+    if (!user) return res.redirect(verificationRedirect("invalid", returnTo));
     await logAuditEvent({ req, actorUserId: user.id, actorEmail: user.email, actorRole: user.role, campaignId: user.activeCampaign?.id, action: "auth.email.verified", entityType: "user", entityId: user.id });
-    res.redirect("/?verified=1");
+    res.redirect(verificationRedirect("1", returnTo));
   } catch (error) {
     next(error);
   }

@@ -8,6 +8,11 @@ function targetRoute(role = "player") {
   return ["owner", "gm"].includes(String(role).toLowerCase()) ? "/gm" : "/player";
 }
 
+function authReturnPath(token = "") {
+  const invitePath = `/invite/${encodeURIComponent(String(token || ""))}`;
+  return `/login?returnTo=${encodeURIComponent(invitePath)}`;
+}
+
 export default function InviteAcceptPage({ session, onAccepted }) {
   const { token = "" } = useParams();
   const navigate = useNavigate();
@@ -46,8 +51,8 @@ export default function InviteAcceptPage({ session, onAccepted }) {
         <section className="codex-card workspace-status-card">
           <MailCheck size={22} />
           <span className="kicker">Login required</span>
-          <p>Login or register first, then open this invitation link again. The invite token is not stored in localStorage.</p>
-          <CodexButton as={Link} to="/login">Login / Register</CodexButton>
+          <p>Log in or register with the invited email. Party Codex will return to this invitation automatically after authentication; the invite token is never stored in browser storage.</p>
+          <CodexButton as={Link} to={authReturnPath(token)}>Login / Register</CodexButton>
         </section>
       ) : null}
 
