@@ -1,0 +1,470 @@
+/* Stage 21: character dossier composition — table-first hierarchy with a compact reference rail. */
+
+.character-dossier-page {
+  gap: 1rem;
+}
+
+.character-dossier-layout {
+  display: grid;
+  grid-template-columns: minmax(15rem, 18rem) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.character-dossier-layout--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.character-roster-panel {
+  position: sticky;
+  top: 5.25rem;
+  max-height: calc(100vh - 6.5rem);
+  overflow: auto;
+  border-radius: 1rem;
+}
+
+.character-roster-card {
+  min-width: 0;
+  border-radius: 0.9rem;
+}
+
+.character-roster-avatar {
+  overflow: hidden;
+}
+
+.character-roster-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.character-dossier-sheet {
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
+}
+
+.character-dossier-hero {
+  display: grid;
+  grid-template-columns: minmax(8.5rem, 11rem) minmax(0, 1fr) minmax(14rem, 17rem);
+  align-items: stretch;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  min-width: 0;
+  padding: clamp(1rem, 2vw, 1.45rem);
+  overflow: hidden;
+  border: 1px solid rgba(227, 182, 95, 0.24);
+  border-radius: 1.1rem;
+  background:
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--character-accent, #e3b65f) 18%, transparent), transparent 34%),
+    linear-gradient(145deg, rgba(168, 85, 247, 0.08), transparent 56%),
+    rgba(11, 9, 17, 0.94);
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.24);
+}
+
+.character-dossier-portrait {
+  width: 100%;
+  min-height: 10rem;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border: 1px solid rgba(227, 182, 95, 0.28);
+  border-radius: 0.95rem;
+  background:
+    radial-gradient(circle at 50% 22%, rgba(227, 182, 95, 0.16), transparent 36%),
+    rgba(255, 255, 255, 0.035);
+}
+
+.character-dossier-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.character-dossier-title {
+  align-self: center;
+  min-width: 0;
+}
+
+.character-dossier-title h2 {
+  margin: 0.35rem 0 0.45rem;
+  overflow-wrap: anywhere;
+  color: #fbf5ff;
+  font-family: var(--display);
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 0.98;
+}
+
+.character-dossier-title > p {
+  max-width: 46rem;
+  margin: 0;
+  color: rgba(245, 239, 255, 0.7);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.character-identity-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.9rem;
+}
+
+.character-identity-chips > span {
+  padding: 0.4rem 0.62rem;
+  border: 1px solid rgba(227, 182, 95, 0.18);
+  border-radius: 999px;
+  color: rgba(255, 245, 216, 0.82);
+  background: rgba(227, 182, 95, 0.075);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.character-dossier-vitals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: center;
+  gap: 0.65rem;
+}
+
+.character-dossier-vitals .character-metric {
+  min-height: 4.8rem;
+}
+
+.character-dossier-vitals .character-metric--prominent {
+  min-height: 5.5rem;
+  border-color: rgba(227, 182, 95, 0.3);
+  background: rgba(227, 182, 95, 0.085);
+}
+
+.character-tactical-strip {
+  display: grid;
+  grid-template-columns: minmax(17rem, 0.8fr) minmax(26rem, 1.2fr);
+  gap: 1rem;
+}
+
+.character-tactical-group {
+  display: grid;
+  align-content: start;
+  gap: 0.7rem;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 1rem;
+  background: rgba(10, 9, 16, 0.86);
+}
+
+.character-tactical-group--abilities {
+  border-color: rgba(168, 85, 247, 0.16);
+  background:
+    linear-gradient(145deg, rgba(168, 85, 247, 0.07), transparent 58%),
+    rgba(10, 9, 16, 0.86);
+}
+
+.character-save-row,
+.character-ability-row {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.character-save-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.character-ability-row {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.character-metric {
+  min-width: 0;
+  padding: 0.72rem 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.028);
+  text-align: center;
+}
+
+.character-metric > span,
+.character-metric > small {
+  display: block;
+}
+
+.character-metric > span {
+  color: rgba(245, 239, 255, 0.5);
+  font-size: 0.69rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.character-metric > strong {
+  display: block;
+  margin-top: 0.22rem;
+  color: #fbf5ff;
+  font-size: clamp(1.15rem, 2vw, 1.55rem);
+  line-height: 1.05;
+}
+
+.character-metric > small {
+  margin-top: 0.22rem;
+  color: rgba(245, 239, 255, 0.35);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.character-roll-control {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+}
+
+.character-roll-control:hover,
+.character-roll-control:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(227, 182, 95, 0.4);
+  background: rgba(227, 182, 95, 0.08);
+}
+
+.character-dossier-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 0.74fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.character-dossier-primary,
+.character-dossier-reference {
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
+}
+
+.character-dossier-reference {
+  position: sticky;
+  top: 5.25rem;
+}
+
+.character-dossier-sheet .character-dossier-section,
+.character-story-section {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 1rem;
+  background: rgba(10, 9, 16, 0.86);
+}
+
+.character-dossier-sheet .character-dossier-section > header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.character-dossier-sheet .character-dossier-section > header svg {
+  color: var(--gold);
+}
+
+.character-dossier-sheet .character-dossier-section > header h3 {
+  min-width: 0;
+  margin: 0;
+  color: #f8f1ff;
+  font-family: var(--display);
+  font-size: 1.25rem;
+}
+
+.character-dossier-sheet .character-dossier-section > header > span {
+  display: inline-grid;
+  min-width: 1.85rem;
+  height: 1.85rem;
+  place-items: center;
+  border: 1px solid rgba(227, 182, 95, 0.18);
+  border-radius: 999px;
+  color: rgba(255, 245, 216, 0.72);
+  background: rgba(227, 182, 95, 0.07);
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.character-dossier-section--combat {
+  border-color: rgba(227, 182, 95, 0.2) !important;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(227, 182, 95, 0.09), transparent 31%),
+    rgba(10, 9, 16, 0.9) !important;
+}
+
+.character-dossier-sheet .character-item-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 0.7rem;
+  margin-top: 0.8rem;
+}
+
+.character-dossier-sheet .character-dossier-section--compact .character-item-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.character-dossier-sheet .character-item-card {
+  display: grid;
+  align-content: start;
+  gap: 0.34rem;
+  min-width: 0;
+  padding: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.026);
+}
+
+.character-dossier-sheet .character-item-card > strong {
+  overflow-wrap: anywhere;
+  color: #f8f1ff;
+}
+
+.character-dossier-sheet .character-item-card > span,
+.character-dossier-sheet .character-item-card > p,
+.character-section-empty {
+  color: rgba(245, 239, 255, 0.58);
+  line-height: 1.45;
+}
+
+.character-dossier-sheet .character-item-card > p,
+.character-section-empty {
+  margin: 0;
+}
+
+.character-item-roll-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+}
+
+.character-item-roll-actions button {
+  min-height: 2.15rem;
+  padding: 0.42rem 0.62rem;
+  border: 1px solid rgba(227, 182, 95, 0.2);
+  border-radius: 0.65rem;
+  color: rgba(255, 245, 216, 0.82);
+  background: rgba(227, 182, 95, 0.07);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.character-story-section {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.character-story-section__head h3 {
+  margin: 0.35rem 0 0;
+  color: #f8f1ff;
+  font-family: var(--display);
+  font-size: 1.4rem;
+}
+
+.character-notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: 0.75rem;
+}
+
+.character-text-card {
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.026);
+}
+
+.character-text-card--private {
+  border-color: rgba(168, 85, 247, 0.16);
+  background: rgba(168, 85, 247, 0.045);
+}
+
+.character-text-card p {
+  margin: 0.45rem 0 0;
+  color: rgba(245, 239, 255, 0.68);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.character-safety-note {
+  margin: 0;
+}
+
+@media (max-width: 1180px) {
+  .character-dossier-layout,
+  .character-dossier-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .character-roster-panel,
+  .character-dossier-reference {
+    position: static;
+    max-height: none;
+  }
+
+  .character-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  }
+
+  .character-dossier-reference {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .character-dossier-reference > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 900px) {
+  .character-dossier-hero {
+    grid-template-columns: minmax(7rem, 9rem) minmax(0, 1fr);
+  }
+
+  .character-dossier-vitals {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .character-tactical-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .character-dossier-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .character-dossier-portrait {
+    width: min(11rem, 52vw);
+    justify-self: center;
+  }
+
+  .character-dossier-title {
+    text-align: center;
+  }
+
+  .character-identity-chips {
+    justify-content: center;
+  }
+
+  .character-dossier-vitals,
+  .character-dossier-reference {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .character-save-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .character-ability-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
