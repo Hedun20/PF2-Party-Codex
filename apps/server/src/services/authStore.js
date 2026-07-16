@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { promisify } from "util";
 import { getDb } from "../db/mongo.js";
+import { collections } from "../repositories/collections.js";
 import {
   bootstrapMembershipForNewUser,
   identityContextForCampaign,
@@ -33,7 +34,7 @@ function requireMongoIdentity() {
 }
 
 function passwordResetTokens() {
-  return getDb().collection("passwordResetTokens");
+  return getDb().collection(collections.passwordResetTokens);
 }
 
 async function ensurePasswordResetIndexes() {
