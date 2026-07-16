@@ -108,6 +108,8 @@ function enrichAttacks(attacks = [], sourceItems = []) {
     const proficiencyRank = text(
       attack.proficiencyRank
       || attack.rank
+      || source.proficiencyRank
+      || source.rank
       || system.proficiency?.rank
       || system.proficiency
       || system.category
@@ -127,9 +129,19 @@ function enrichSpells(spells = [], sourceItems = []) {
   return list(spells).map((spell) => {
     const source = byName.get(itemName(spell).toLowerCase()) || {};
     const system = systemOf(source);
-    const rank = numberOrBlank(spell.rank ?? spell.level ?? system.level?.value ?? system.level);
+    const rank = numberOrBlank(
+      spell.rank
+      ?? spell.level
+      ?? source.rank
+      ?? source.level
+      ?? source.spellLevel
+      ?? system.level?.value
+      ?? system.level
+    );
     const tradition = text(
       spell.tradition
+      || source.tradition
+      || list(source.traditions)[0]
       || list(system.traits?.traditions)[0]
       || list(system.traditions)[0]
       || list(system.traits?.value).find((trait) => ["arcane", "divine", "occult", "primal"].includes(text(trait).toLowerCase()))
@@ -138,6 +150,8 @@ function enrichSpells(spells = [], sourceItems = []) {
     const preparation = text(
       spell.preparation
       || spell.category
+      || source.preparation
+      || source.category
       || system.preparation?.mode
       || system.prepared?.value
       || system.location?.value
