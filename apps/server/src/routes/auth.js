@@ -5,6 +5,7 @@ import { beginPasswordReset, createUser, findUserByEmail, renewEmailVerification
 import { createSessionToken } from "../services/authTokens.js";
 import { passwordResetEmailTemplate, sendEmail, verifyEmailTemplate } from "../services/emailService.js";
 import { logAuditEvent } from "../services/auditLogService.js";
+import { logger } from "../utils/logger.js";
 
 export const authRouter = Router();
 const passwordRecoveryRouter = Router();
@@ -101,17 +102,24 @@ passwordRecoveryRouter.post("/request", authAttemptLimiter, async (req, res, nex
     const user = email ? await findUserByEmail(email) : null;
     let devResetUrl = "";
     if (user?.status === "active") {
-      const recovery = await beginPasswordReset(user);
-      if (recovery) {
-        const queued = await queuePasswordResetEmail(req, recovery.user, recovery.resetToken);
-        devResetUrl = queued.resetUrl;
-        await logAuditEvent({
-          req,
-          actorUserId: String(user._id || user.id || ""),
-          actorEmail: user.email,
-          action: "auth.password.reset.requested",
-          entityType: "user",
-          entityId: String(user._id || user.id || "")
+      try {
+        const recovery = await beginPasswordReset(user);
+        if (recovery) {
+          const queued = await queuePasswordResetEmail(req, recovery.user, recovery.resetToken);
+          devResetUrl = queued.resetUrl;
+          await logAuditEvent({
+            req,
+            actorUserId: String(user._id || user.id || ""),
+            actorEmail: user.email,
+            action: "auth.password.reset.requested",
+            entityType: "user",
+            entityId: String(user._id || user.id || "")
+          });
+        }
+      } catch (error) {
+        logger.error("Password reset request could not be queued", {
+          userId: String(user._id || user.id || ""),
+          error: String(error?.message || error || "unknown error").slice(0, 300)
         });
       }
     }
