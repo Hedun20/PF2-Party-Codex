@@ -77,12 +77,12 @@ export default function InviteAcceptPage({ session, onAccepted }) {
   }
 
   const invitation = previewState.invitation;
-  const accepted = actionState.accepted || Boolean(invitation?.acceptedByCurrentUser);
+  const accepted = actionState.accepted || Boolean(invitation?.acceptedByCurrentUser && invitation?.membershipActive !== false);
   const role = actionState.role || invitation?.role || "player";
   const mismatch = signedIn && invitation?.emailMatchesCurrentUser === false;
   const status = invitation?.status || "";
   const unavailable = ["expired", "revoked"].includes(status);
-  const acceptedElsewhere = status === "accepted" && !invitation?.acceptedByCurrentUser && !actionState.accepted;
+  const acceptedElsewhere = status === "accepted" && (!invitation?.acceptedByCurrentUser || invitation?.membershipActive === false) && !actionState.accepted;
 
   return (
     <div className="page-stack placeholder-page invitation-accept-page">
@@ -145,7 +145,7 @@ export default function InviteAcceptPage({ session, onAccepted }) {
         <section className="codex-card workspace-status-card">
           <UserCheck size={22} />
           <span className="kicker">Подтверждение вступления</span>
-          <p>Аккаунт совпадает с приглашением. Нажатие создаст или восстановит membership и сделает эту кампанию активной.</p>
+          <p>Аккаунт совпадает с приглашением. Нажатие создаст membership и сделает эту кампанию активной.</p>
           {actionState.error ? <p className="status-message status-message--danger" role="alert">{actionState.error}</p> : null}
           <CodexButton type="button" disabled={actionState.busy} onClick={acceptInvite}>{actionState.busy ? "Принимаем..." : "Accept invitation"}</CodexButton>
         </section>
@@ -163,8 +163,8 @@ export default function InviteAcceptPage({ session, onAccepted }) {
         <section className="codex-card workspace-status-card">
           <AlertTriangle size={22} />
           <span className="kicker">Приглашение уже использовано</span>
-          <p>Ссылка уже была принята другим аккаунтом. Войдите под аккаунтом, который принимал приглашение, или запросите новую ссылку.</p>
-          {signedIn ? <CodexButton type="button" variant="secondary" disabled={switchingAccount} onClick={useAnotherAccount}><LogOut size={16} /><span>Сменить аккаунт</span></CodexButton> : null}
+          <p>{invitation.acceptedByCurrentUser && invitation.membershipActive === false ? "Ссылка была использована этим аккаунтом, но доступ к кампании позже удалили. Повторное открытие ссылки не восстанавливает membership." : "Ссылка уже была принята другим аккаунтом. Войдите под аккаунтом, который принимал приглашение, или запросите новую ссылку."}</p>
+          {signedIn && !invitation.acceptedByCurrentUser ? <CodexButton type="button" variant="secondary" disabled={switchingAccount} onClick={useAnotherAccount}><LogOut size={16} /><span>Сменить аккаунт</span></CodexButton> : null}
         </section>
       ) : null}
 
