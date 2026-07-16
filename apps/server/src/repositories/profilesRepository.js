@@ -84,6 +84,7 @@ export async function ensureProfileIndexes() {
 
 export async function profileForUser(user) {
   requireMongo();
+  await ensureProfileIndexes();
   const userId = userIdFor(user);
   const existing = await profiles().findOne({ userId });
   if (existing) return publicProfile(existing, user);
