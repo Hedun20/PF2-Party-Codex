@@ -21,9 +21,10 @@ test("membership mutations are scoped to the exact campaign and preserve the own
 test("membership routes enforce owner role changes and limited GM removals", () => {
   const routes = read("apps/server/src/routes/memberships.js");
 
-  assert.match(routes, /membershipsRouter\.patch\("\/campaigns\/:campaignId\/memberships\/:membershipId"/);
+  assert.match(routes, /membershipActionsRouter\.patch\("\/"/);
+  assert.match(routes, /membershipsRouter\.use\("\/campaigns\/:campaignId\/memberships\/:membershipId", membershipActionsRouter\)/);
   assert.match(routes, /requireOwner\(context\)/);
-  assert.match(routes, /membershipsRouter\.delete\("\/campaigns\/:campaignId\/memberships\/:membershipId"/);
+  assert.match(routes, /membershipActionsRouter\.delete\("\/"/);
   assert.match(routes, /context\.role === "gm" && target\.role !== "player"/);
   assert.match(routes, /Use a dedicated leave-campaign flow to remove your own membership/);
   assert.match(routes, /memberships\.role\.change/);
@@ -37,6 +38,7 @@ test("pending invitations can be revoked only inside their campaign", () => {
   assert.match(repository, /_id: invitationObjectId, campaignId: campaignObjectId/);
   assert.match(repository, /invitation\.status !== "pending"/);
   assert.match(repository, /status: "revoked"/);
-  assert.match(routes, /invitationsRouter\.delete\("\/campaigns\/:campaignId\/invitations\/:invitationId"/);
+  assert.match(routes, /invitationActionsRouter\.delete\("\/"/);
+  assert.match(routes, /invitationsRouter\.use\("\/campaigns\/:campaignId\/invitations\/:invitationId", invitationActionsRouter\)/);
   assert.match(routes, /invitations\.revoke/);
 });
