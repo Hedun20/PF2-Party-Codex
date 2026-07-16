@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb";
 import { getDb, mongoStatus } from "../db/mongo.js";
 import { objectIdFrom } from "./identityRepository.js";
 import { normalizeManualCharacter } from "../services/characterImportService.js";
+import { enrichPf2Character } from "../services/pf2CharacterEnrichmentService.js";
 
 function characters() {
   return getDb().collection("characters");
@@ -46,7 +47,7 @@ export async function ensureCharactersIndexes() {
     "characters.campaignId_ownerUserId_updatedAt",
     "characters.campaignId_visibleToParty",
     "characters.campaignId_sharedWithGm",
-    "characters.campaignId_sourceRawHash"
+    "characters.sourceRawHash"
   ];
 }
 
@@ -82,21 +83,22 @@ export function serializeCharacter(character, { includeRawImport = false, userId
 
 function documentFromNormalized({ campaignId, ownerUserId, normalized }) {
   const stamp = now();
+  const enriched = enrichPf2Character(normalized);
   return {
     campaignId: objectIdFrom(campaignId) || campaignId,
     ownerUserId: objectIdFrom(ownerUserId) || ownerUserId,
-    source: normalized.source || {},
-    identity: normalized.identity || {},
-    visuals: normalized.visuals || {},
-    stats: normalized.stats || {},
-    combat: normalized.combat || {},
-    magic: normalized.magic || {},
-    progression: normalized.progression || {},
-    inventory: normalized.inventory || {},
-    text: normalized.text || {},
-    links: normalized.links || {},
-    visibility: normalized.visibility || { visibleToParty: false, sharedWithGm: true },
-    rawImport: normalized.rawImport || {},
+    source: enriched.source || {},
+    identity: enriched.identity || {},
+    visuals: enriched.visuals || {},
+    stats: enriched.stats || {},
+    combat: enriched.combat || {},
+    magic: enriched.magic || {},
+    progression: enriched.progression || {},
+    inventory: enriched.inventory || {},
+    text: enriched.text || {},
+    links: enriched.links || {},
+    visibility: enriched.visibility || { visibleToParty: false, sharedWithGm: true },
+    rawImport: enriched.rawImport || {},
     createdAt: stamp,
     updatedAt: stamp
   };
