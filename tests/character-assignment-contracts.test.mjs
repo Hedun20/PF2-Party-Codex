@@ -62,7 +62,6 @@ test("GM roster and player workspace expose assignment controls safely", () => {
   const page = read("apps/web/src/pages/CharactersPage.jsx");
   const panel = read("apps/web/src/components/CharacterAssignmentPanel.jsx");
   const client = read("apps/web/src/api/characterAssignments.js");
-  const styles = read("apps/web/src/styles/stage35-character-assignment.css");
   const index = read("apps/web/src/styles/index.css");
 
   assert.match(page, /CharacterAssignmentPanel/);
@@ -71,8 +70,8 @@ test("GM roster and player workspace expose assignment controls safely", () => {
   assert.match(panel, /api\.campaignMemberships\(campaignId\)/);
   assert.match(panel, /assignCharacterMembership\(character\.id, selectedMembershipId\)/);
   assert.match(panel, /Не назначать/);
+  assert.match(panel, /players-card-premium/);
+  assert.match(panel, /players-role-select/);
   assert.match(client, /\/characters\/\$\{encodeURIComponent\(characterId\)\}\/assignment/);
-  assert.match(styles, /\.character-assignment-panel/);
-  assert.match(styles, /@media \(max-width: 520px\)/);
-  assert.match(index, /stage35-character-assignment\.css/);
+  assert.doesNotMatch(index, /stage35-character-assignment\.css/);
 });
