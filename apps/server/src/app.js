@@ -22,6 +22,7 @@ import { onboardingRouter } from "./routes/onboarding.js";
 import { pagesRouter } from "./routes/pages.js";
 import { pf2Router } from "./routes/pf2.js";
 import { platformRouter } from "./routes/platform.js";
+import { profilesRouter } from "./routes/profiles.js";
 import { revealRouter } from "./routes/reveal.js";
 import { searchRouter } from "./routes/search.js";
 import { subscriptionRouter } from "./routes/subscription.js";
@@ -70,6 +71,7 @@ export function createApp({ appConfig = config, appLogger = logger } = {}) {
 
   app.use("/api", healthRouter);
   app.use("/api", authRouter);
+  app.use("/api", profilesRouter);
   app.use("/api", onboardingRouter);
   app.use("/api", campaignsRouter);
   app.use("/api", membershipsRouter);
