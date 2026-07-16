@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Crown, Mail, ShieldCheck, UserRound, UsersRound } from "lucide-react";
-import OnboardingPage from "./OnboardingPage.jsx";
+import { Crown, Languages, Mail, Palette, Save, ShieldCheck, UserRound, UsersRound } from "lucide-react";
+import { api } from "../api/client.js";
+import { CodexButton, CodexCard, PageHero, PageShell, StatusMessage } from "../components/ui/index.js";
 
 function roleLabel(role = "user") {
   if (role === "owner") return "Владелец кампании";
@@ -9,62 +11,150 @@ function roleLabel(role = "user") {
   return "Без кампании";
 }
 
-function displayName(user = {}) {
-  return user.displayName || user.name || user.email || "Пользователь";
+function displayName(user = {}, profile = {}) {
+  return profile.displayName || user.displayName || user.name || user.email || "Пользователь";
 }
 
-export default function ProfilePage({ session, campaigns = [], onCampaignChange, campaignSwitching = false, onOnboardingCreated }) {
+export default function ProfilePage({ session, campaigns = [], onProfileChanged }) {
   const user = session?.user || {};
   const membership = session?.activeMembership || {};
   const campaign = session?.activeCampaign || {};
   const workspace = session?.activeWorkspace || {};
   const hasCampaign = Boolean(membership?.id);
+  const [state, setState] = useState({ loading: true, saving: false, error: "", success: "", profile: null });
+  const [form, setForm] = useState({ displayName: "", language: "ru", theme: "system" });
 
-  if (user?.id && !hasCampaign) {
-    return <OnboardingPage session={session} campaigns={campaigns} onCampaignChange={onCampaignChange} campaignSwitching={campaignSwitching} onCreated={onOnboardingCreated} />;
+  useEffect(() => {
+    let active = true;
+    setState((current) => ({ ...current, loading: true, error: "", success: "" }));
+    api.profile()
+      .then((data) => {
+        if (!active) return;
+        const profile = data.profile || {};
+        setForm({
+          displayName: profile.displayName || user.name || "",
+          language: profile.language || "ru",
+          theme: profile.theme || "system"
+        });
+        setState({ loading: false, saving: false, error: "", success: "", profile });
+      })
+      .catch((error) => {
+        if (active) setState({ loading: false, saving: false, error: error.message || "Не удалось загрузить профиль.", success: "", profile: null });
+      });
+    return () => { active = false; };
+  }, [user.id]);
+
+  function update(field, value) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function saveProfile(event) {
+    event.preventDefault();
+    setState((current) => ({ ...current, saving: true, error: "", success: "" }));
+    try {
+      const data = await api.updateProfile(form);
+      const profile = data.profile || {};
+      setForm({ displayName: profile.displayName || "", language: profile.language || "ru", theme: profile.theme || "system" });
+      setState({ loading: false, saving: false, error: "", success: "Профиль сохранён.", profile });
+      await onProfileChanged?.();
+    } catch (error) {
+      setState((current) => ({ ...current, saving: false, error: error.message || "Не удалось сохранить профиль.", success: "" }));
+    }
   }
 
   return (
-    <div className="page-stack profile-page">
-      <section className="hero-panel">
-        <span className="kicker">Профиль</span>
-        <h1>{displayName(user)}</h1>
-        <p>Аккаунт, активный workspace, кампания и роль в текущей кампании.</p>
+    <PageShell className="profile-page">
+      <PageHero
+        kicker="Профиль аккаунта"
+        title={displayName(user, state.profile || {})}
+        description="Личные данные и интерфейсные предпочтения принадлежат аккаунту, а роль определяется отдельно в каждой кампании."
+      >
         <div className="workspace-identity-strip">
           {user.email ? <span><Mail size={15} /> {user.email}</span> : null}
           <span><ShieldCheck size={15} /> {roleLabel(membership.role || "user")}</span>
           {campaign.name ? <span><Crown size={15} /> {campaign.name}</span> : null}
         </div>
-      </section>
+      </PageHero>
+
+      {state.error ? <StatusMessage tone="danger" role="alert">{state.error}</StatusMessage> : null}
+      {state.success ? <StatusMessage tone="success">{state.success}</StatusMessage> : null}
 
       <section className="workspace-grid settings-grid">
-        <article className="codex-card workspace-card">
-          <UserRound size={22} />
-          <div><strong>Аккаунт</strong><span>{user.email || "Email не указан"}</span></div>
-        </article>
-        <article className="codex-card workspace-card">
-          <UsersRound size={22} />
-          <div><strong>Workspace</strong><span>{workspace.name || "Workspace не выбран"}</span></div>
-        </article>
-        <article className="codex-card workspace-card">
-          <Crown size={22} />
-          <div><strong>Кампания</strong><span>{campaign.name || "Кампания не выбрана"}</span></div>
-        </article>
-        <article className="codex-card workspace-card">
-          <ShieldCheck size={22} />
-          <div><strong>Доступ</strong><span>{roleLabel(membership.role || "user")}</span></div>
-        </article>
-      </section>
+        <CodexCard as="form" className="editor-form profile-editor-card" onSubmit={saveProfile}>
+          <div className="list-header article-page-header">
+            <div>
+              <span className="kicker">Личные настройки</span>
+              <h2>Как вас видит Party Codex</h2>
+              <p>Имя синхронизируется с участниками кампаний. Язык и тема сохраняются на уровне аккаунта.</p>
+            </div>
+            <UserRound size={24} aria-hidden="true" />
+          </div>
 
-      <section className="codex-card workspace-status-card">
-        <span className="kicker">Быстрые действия</span>
-        <div className="workspace-stats-row">
-          <Link className="codex-button codex-button--primary codex-button--sm" to="/campaigns">Кампании ({campaigns.length || 1})</Link>
-          <Link className="codex-button codex-button--secondary codex-button--sm" to="/my">Открыть workspace</Link>
-          <Link className="codex-button codex-button--ghost codex-button--sm" to="/settings">Настройки</Link>
-          <Link className="codex-button codex-button--ghost codex-button--sm" to="/archive">Архив кампании</Link>
+          <label className="profile-field">
+            <span><UserRound size={16} aria-hidden="true" /> Отображаемое имя</span>
+            <input
+              value={form.displayName}
+              onChange={(event) => update("displayName", event.target.value)}
+              maxLength={120}
+              autoComplete="name"
+              disabled={state.loading || state.saving}
+              required
+            />
+          </label>
+
+          <div className="builder-section two-col">
+            <label className="profile-field">
+              <span><Languages size={16} aria-hidden="true" /> Язык интерфейса</span>
+              <select value={form.language} onChange={(event) => update("language", event.target.value)} disabled={state.loading || state.saving}>
+                <option value="ru">Русский</option>
+                <option value="en">English</option>
+                <option value="de">Deutsch</option>
+                <option value="uk">Українська</option>
+              </select>
+            </label>
+            <label className="profile-field">
+              <span><Palette size={16} aria-hidden="true" /> Тема</span>
+              <select value={form.theme} onChange={(event) => update("theme", event.target.value)} disabled={state.loading || state.saving}>
+                <option value="system">Как в системе</option>
+                <option value="dark">Тёмная</option>
+                <option value="light">Светлая</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="editor-actions">
+            <CodexButton type="submit" disabled={state.loading || state.saving || !form.displayName.trim()}>
+              <Save size={16} aria-hidden="true" />
+              {state.saving ? "Сохраняю..." : "Сохранить профиль"}
+            </CodexButton>
+          </div>
+        </CodexCard>
+
+        <div className="workspace-grid settings-grid">
+          <CodexCard className="workspace-card">
+            <UsersRound size={22} aria-hidden="true" />
+            <div><strong>Workspace</strong><span>{workspace.name || "Workspace не выбран"}</span></div>
+          </CodexCard>
+          <CodexCard className="workspace-card">
+            <Crown size={22} aria-hidden="true" />
+            <div><strong>Кампания</strong><span>{campaign.name || "Кампания не выбрана"}</span></div>
+          </CodexCard>
+          <CodexCard className="workspace-card">
+            <ShieldCheck size={22} aria-hidden="true" />
+            <div><strong>Текущая роль</strong><span>{roleLabel(membership.role || "user")}</span></div>
+          </CodexCard>
         </div>
       </section>
-    </div>
+
+      <CodexCard as="section" className="workspace-status-card">
+        <span className="kicker">Быстрые действия</span>
+        <div className="workspace-stats-row">
+          <Link className="codex-button codex-button--primary codex-button--sm" to="/campaigns">{hasCampaign ? `Кампании (${campaigns.length || 1})` : "Создать или выбрать кампанию"}</Link>
+          {hasCampaign ? <Link className="codex-button codex-button--secondary codex-button--sm" to="/my">Открыть workspace</Link> : null}
+          {hasCampaign ? <Link className="codex-button codex-button--ghost codex-button--sm" to="/settings">Настройки кампании</Link> : null}
+          {hasCampaign ? <Link className="codex-button codex-button--ghost codex-button--sm" to="/archive">Архив кампании</Link> : null}
+        </div>
+      </CodexCard>
+    </PageShell>
   );
 }
