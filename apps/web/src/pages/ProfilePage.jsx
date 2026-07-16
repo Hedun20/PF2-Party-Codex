@@ -63,7 +63,7 @@ export default function ProfilePage({ session, campaigns = [], onProfileChanged 
   }
 
   return (
-    <PageShell className="profile-page profile-page-editable">
+    <PageShell className="profile-page">
       <PageHero
         kicker="Профиль аккаунта"
         title={displayName(user, state.profile || {})}
@@ -79,9 +79,9 @@ export default function ProfilePage({ session, campaigns = [], onProfileChanged 
       {state.error ? <StatusMessage tone="danger" role="alert">{state.error}</StatusMessage> : null}
       {state.success ? <StatusMessage tone="success">{state.success}</StatusMessage> : null}
 
-      <section className="profile-workspace-grid">
-        <CodexCard as="form" className="profile-editor-card" onSubmit={saveProfile}>
-          <div className="profile-card-head">
+      <section className="workspace-grid settings-grid">
+        <CodexCard as="form" className="editor-form profile-editor-card" onSubmit={saveProfile}>
+          <div className="list-header article-page-header">
             <div>
               <span className="kicker">Личные настройки</span>
               <h2>Как вас видит Party Codex</h2>
@@ -102,7 +102,7 @@ export default function ProfilePage({ session, campaigns = [], onProfileChanged 
             />
           </label>
 
-          <div className="profile-field-grid">
+          <div className="builder-section two-col">
             <label className="profile-field">
               <span><Languages size={16} aria-hidden="true" /> Язык интерфейса</span>
               <select value={form.language} onChange={(event) => update("language", event.target.value)} disabled={state.loading || state.saving}>
@@ -122,7 +122,7 @@ export default function ProfilePage({ session, campaigns = [], onProfileChanged 
             </label>
           </div>
 
-          <div className="profile-editor-actions">
+          <div className="editor-actions">
             <CodexButton type="submit" disabled={state.loading || state.saving || !form.displayName.trim()}>
               <Save size={16} aria-hidden="true" />
               {state.saving ? "Сохраняю..." : "Сохранить профиль"}
@@ -130,23 +130,23 @@ export default function ProfilePage({ session, campaigns = [], onProfileChanged 
           </div>
         </CodexCard>
 
-        <div className="profile-context-stack">
-          <CodexCard className="workspace-card profile-context-card">
+        <div className="workspace-grid settings-grid">
+          <CodexCard className="workspace-card">
             <UsersRound size={22} aria-hidden="true" />
             <div><strong>Workspace</strong><span>{workspace.name || "Workspace не выбран"}</span></div>
           </CodexCard>
-          <CodexCard className="workspace-card profile-context-card">
+          <CodexCard className="workspace-card">
             <Crown size={22} aria-hidden="true" />
             <div><strong>Кампания</strong><span>{campaign.name || "Кампания не выбрана"}</span></div>
           </CodexCard>
-          <CodexCard className="workspace-card profile-context-card">
+          <CodexCard className="workspace-card">
             <ShieldCheck size={22} aria-hidden="true" />
             <div><strong>Текущая роль</strong><span>{roleLabel(membership.role || "user")}</span></div>
           </CodexCard>
         </div>
       </section>
 
-      <CodexCard as="section" className="workspace-status-card profile-quick-actions">
+      <CodexCard as="section" className="workspace-status-card">
         <span className="kicker">Быстрые действия</span>
         <div className="workspace-stats-row">
           <Link className="codex-button codex-button--primary codex-button--sm" to="/campaigns">{hasCampaign ? `Кампании (${campaigns.length || 1})` : "Создать или выбрать кампанию"}</Link>
