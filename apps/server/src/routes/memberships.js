@@ -11,6 +11,7 @@ export const membershipsRouter = Router();
 export const invitationsRouter = Router();
 const membershipActionsRouter = Router({ mergeParams: true });
 const invitationActionsRouter = Router({ mergeParams: true });
+const invitationPreviewRouter = Router({ mergeParams: true });
 
 function idString(value) {
   return String(value?._id || value?.id || value || "");
@@ -205,7 +206,7 @@ invitationActionsRouter.delete("/", async (req, res, next) => {
 
 invitationsRouter.use("/campaigns/:campaignId/invitations/:invitationId", invitationActionsRouter);
 
-invitationsRouter.get("/invitations/:token/preview", async (req, res, next) => {
+invitationPreviewRouter.get("/", async (req, res, next) => {
   try {
     requireMongoIdentity();
     const preview = await getInvitationPreview({ token: req.params.token || "", user: req.user || null });
@@ -214,6 +215,8 @@ invitationsRouter.get("/invitations/:token/preview", async (req, res, next) => {
     next(error);
   }
 });
+
+invitationsRouter.use("/invitations/:token/preview", invitationPreviewRouter);
 
 invitationsRouter.post("/invitations/accept", async (req, res, next) => {
   try {
