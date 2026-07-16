@@ -39,6 +39,12 @@ function isManager(role = "player") {
   return role === "owner" || role === "gm";
 }
 
+function assignedUserId(character) {
+  return Object.prototype.hasOwnProperty.call(character || {}, "assignedUserId")
+    ? String(character.assignedUserId || "")
+    : String(character?.ownerUserId || "");
+}
+
 async function currentContext(req) {
   if (!req.user) {
     const error = new Error("Login is required to use campaign characters.");
@@ -129,7 +135,7 @@ characterAssignmentRouter.patch("/", async (req, res, next) => {
       entityId: character.id,
       campaignId: context.campaignId,
       metadata: {
-        fromUserId: sameId(existing.assignedUserId, undefined) ? String(existing.ownerUserId || "") : String(existing.assignedUserId || ""),
+        fromUserId: assignedUserId(existing),
         toUserId: character.assignedUserId || "",
         membershipId: character.assignedMembershipId || ""
       }
