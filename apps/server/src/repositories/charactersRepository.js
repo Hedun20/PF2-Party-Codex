@@ -8,6 +8,14 @@ function characters() {
   return getDb().collection("characters");
 }
 
+function memberships() {
+  return getDb().collection("memberships");
+}
+
+function users() {
+  return getDb().collection("users");
+}
+
 function now() {
   return new Date().toISOString();
 }
@@ -33,6 +41,84 @@ function mergeObject(base = {}, patch = {}) {
   return { ...(base || {}), ...(patch || {}) };
 }
 
+function hasExplicitAssignment(character) {
+  return Object.prototype.hasOwnProperty.call(character || {}, "assignedUserId");
+}
+
+function assignedUserIdFor(character) {
+  if (!character) return null;
+  return hasExplicitAssignment(character) ? character.assignedUserId : character.ownerUserId;
+}
+
+function assignedMembershipIdFor(character) {
+  return character?.assignedMembershipId || null;
+}
+
+function isManagerRole(role = "player") {
+  return role === "owner" || role === "gm";
+}
+
+function isAssignedUser(character, userId) {
+  return Boolean(userId && idString(assignedUserIdFor(character)) === idString(userId));
+}
+
+function publicAssignment(assignment, { includeEmail = false } = {}) {
+  if (!assignment) return null;
+  return {
+    membershipId: idString(assignment.membershipId || assignment._id),
+    userId: idString(assignment.userId),
+    displayName: assignment.displayName || "",
+    role: assignment.role || "player",
+    status: assignment.status || "active",
+    ...(includeEmail ? { email: assignment.email || "" } : {})
+  };
+}
+
+async function assignmentMapForCharacters(items = []) {
+  const assigned = items.map((character) => ({
+    characterId: idString(character._id),
+    campaignId: character.campaignId,
+    membershipId: assignedMembershipIdFor(character),
+    userId: assignedUserIdFor(character)
+  })).filter((item) => item.userId);
+  if (!assigned.length) return new Map();
+
+  const membershipIds = assigned.map((item) => objectIdFrom(item.membershipId)).filter(Boolean);
+  const userIds = assigned.map((item) => objectIdFrom(item.userId) || item.userId).filter(Boolean);
+  const campaignIds = assigned.map((item) => objectIdFrom(item.campaignId) || item.campaignId).filter(Boolean);
+  const [membershipDocs, userDocs] = await Promise.all([
+    memberships().find({
+      status: "active",
+      $or: [
+        ...(membershipIds.length ? [{ _id: { $in: membershipIds } }] : []),
+        { userId: { $in: userIds }, campaignId: { $in: campaignIds } }
+      ]
+    }).toArray(),
+    users().find({ _id: { $in: userIds.filter((value) => value instanceof ObjectId) } }).toArray()
+  ]);
+
+  const usersById = new Map(userDocs.map((user) => [idString(user._id), user]));
+  const membershipById = new Map(membershipDocs.map((membership) => [idString(membership._id), membership]));
+  const membershipByCampaignUser = new Map(membershipDocs.map((membership) => [`${idString(membership.campaignId)}:${idString(membership.userId)}`, membership]));
+  const result = new Map();
+
+  for (const item of assigned) {
+    const membership = (item.membershipId && membershipById.get(idString(item.membershipId)))
+      || membershipByCampaignUser.get(`${idString(item.campaignId)}:${idString(item.userId)}`)
+      || null;
+    const user = usersById.get(idString(item.userId));
+    result.set(item.characterId, {
+      membershipId: membership?._id || item.membershipId || null,
+      userId: item.userId,
+      displayName: membership?.displayName || user?.name || user?.email || "Campaign member",
+      email: user?.email || "",
+      role: membership?.role || "player",
+      status: membership?.status || "inactive"
+    });
+  }
+  return result;
+}
+
 export function isMongoCharactersEnabled() {
   return mongoStatus().connected;
 }
@@ -40,26 +126,40 @@ export function isMongoCharactersEnabled() {
 export async function ensureCharactersIndexes() {
   if (!isMongoCharactersEnabled()) return [];
   await characters().createIndex({ campaignId: 1, ownerUserId: 1, updatedAt: -1 });
+  await characters().createIndex({ campaignId: 1, assignedUserId: 1, updatedAt: -1 });
+  await characters().createIndex({ campaignId: 1, assignedMembershipId: 1 });
   await characters().createIndex({ campaignId: 1, "visibility.visibleToParty": 1 });
   await characters().createIndex({ campaignId: 1, "visibility.sharedWithGm": 1 });
   await characters().createIndex({ campaignId: 1, "source.rawHash": 1 });
   return [
     "characters.campaignId_ownerUserId_updatedAt",
+    "characters.campaignId_assignedUserId_updatedAt",
+    "characters.campaignId_assignedMembershipId",
     "characters.campaignId_visibleToParty",
     "characters.campaignId_sharedWithGm",
     "characters.sourceRawHash"
   ];
 }
 
-export function serializeCharacter(character, { includeRawImport = false, userId = "", role = "player" } = {}) {
+export function serializeCharacter(character, { includeRawImport = false, userId = "", role = "player", assignment = null } = {}) {
   if (!character) return null;
-  const isOwner = userId && idString(character.ownerUserId) === idString(userId);
-  const isGm = role === "owner" || role === "gm";
+  const assignedUserId = idString(assignedUserIdFor(character));
+  const assignedMembershipId = idString(assignedMembershipIdFor(character));
+  const isAssigned = isAssignedUser(character, userId);
+  const isGm = isManagerRole(role);
   const text = character.text || {};
   return {
     id: idString(character._id),
     campaignId: idString(character.campaignId),
     ownerUserId: idString(character.ownerUserId),
+    createdByUserId: idString(character.createdByUserId),
+    assignedUserId,
+    assignedMembershipId,
+    assignment: publicAssignment(assignment, { includeEmail: isGm }),
+    permissions: {
+      canEdit: isGm || isAssigned,
+      canAssign: isGm
+    },
     source: character.source || {},
     identity: character.identity || {},
     visuals: character.visuals || {},
@@ -70,23 +170,30 @@ export function serializeCharacter(character, { includeRawImport = false, userId
     inventory: character.inventory || {},
     text: {
       publicSummary: text.publicSummary || "",
-      ...(isOwner || isGm ? { privateNotes: text.privateNotes || "", buildNotes: text.buildNotes || "" } : {}),
+      ...(isAssigned || isGm ? { privateNotes: text.privateNotes || "", buildNotes: text.buildNotes || "" } : {}),
       ...(isGm ? { gmNotes: text.gmNotes || "" } : {})
     },
     links: character.links || {},
     visibility: character.visibility || { visibleToParty: false, sharedWithGm: true },
+    assignedAt: character.assignedAt || "",
     createdAt: character.createdAt,
     updatedAt: character.updatedAt,
-    ...(includeRawImport && (isOwner || isGm) ? { rawImport: character.rawImport || {} } : {})
+    ...(includeRawImport && (isAssigned || isGm) ? { rawImport: character.rawImport || {} } : {})
   };
 }
 
-function documentFromNormalized({ campaignId, ownerUserId, normalized }) {
+function documentFromNormalized({ campaignId, ownerUserId = "", createdByUserId = "", assignedUserId = undefined, assignedMembershipId = null, normalized }) {
   const stamp = now();
   const enriched = enrichPf2Character(normalized);
+  const creatorId = objectIdFrom(createdByUserId || ownerUserId) || createdByUserId || ownerUserId || null;
+  const assignmentWasProvided = assignedUserId !== undefined;
+  const assignmentUserId = assignmentWasProvided ? (objectIdFrom(assignedUserId) || assignedUserId || null) : (objectIdFrom(ownerUserId) || ownerUserId || null);
   return {
     campaignId: objectIdFrom(campaignId) || campaignId,
-    ownerUserId: objectIdFrom(ownerUserId) || ownerUserId,
+    ownerUserId: assignmentUserId || creatorId,
+    createdByUserId: creatorId,
+    assignedUserId: assignmentUserId,
+    assignedMembershipId: objectIdFrom(assignedMembershipId) || assignedMembershipId || null,
     source: enriched.source || {},
     identity: enriched.identity || {},
     visuals: enriched.visuals || {},
@@ -99,44 +206,44 @@ function documentFromNormalized({ campaignId, ownerUserId, normalized }) {
     links: enriched.links || {},
     visibility: enriched.visibility || { visibleToParty: false, sharedWithGm: true },
     rawImport: enriched.rawImport || {},
+    assignedAt: assignmentUserId ? stamp : "",
     createdAt: stamp,
     updatedAt: stamp
   };
 }
 
-export async function createManualCharacter({ campaignId, ownerUserId, input = {}, role = "player" }) {
-  const character = documentFromNormalized({ campaignId, ownerUserId, normalized: normalizeManualCharacter(input) });
+export async function createManualCharacter({ campaignId, ownerUserId = "", createdByUserId = "", assignedUserId = undefined, assignedMembershipId = null, input = {}, role = "player" }) {
+  const character = documentFromNormalized({ campaignId, ownerUserId, createdByUserId, assignedUserId, assignedMembershipId, normalized: normalizeManualCharacter(input) });
   const result = await characters().insertOne(character);
-  return serializeCharacter({ ...character, _id: result.insertedId }, { userId: ownerUserId, role });
+  return serializeCharacter({ ...character, _id: result.insertedId }, { userId: createdByUserId || ownerUserId, role });
 }
 
-export async function createImportedCharacter({ campaignId, ownerUserId, normalized, role = "player" }) {
-  const character = documentFromNormalized({ campaignId, ownerUserId, normalized });
+export async function createImportedCharacter({ campaignId, ownerUserId = "", createdByUserId = "", assignedUserId = undefined, assignedMembershipId = null, normalized, role = "player" }) {
+  const character = documentFromNormalized({ campaignId, ownerUserId, createdByUserId, assignedUserId, assignedMembershipId, normalized });
   const result = await characters().insertOne(character);
-  return serializeCharacter({ ...character, _id: result.insertedId }, { userId: ownerUserId, role });
+  return serializeCharacter({ ...character, _id: result.insertedId }, { userId: createdByUserId || ownerUserId, role });
 }
 
 export async function listCharactersForUser({ campaignId, userId, role = "player", scope = "mine" }) {
   const campaignObjectId = objectIdFrom(campaignId) || campaignId;
   const userObjectId = objectIdFrom(userId) || userId;
-  const isGm = role === "owner" || role === "gm";
+  const isGm = isManagerRole(role);
   const query = { campaignId: campaignObjectId };
 
-  if (scope === "campaign" && isGm) {
+  if (!(scope === "campaign" && isGm)) {
     query.$or = [
-      { ownerUserId: userObjectId },
-      { "visibility.sharedWithGm": true },
-      { "visibility.visibleToParty": true }
-    ];
-  } else {
-    query.$or = [
-      { ownerUserId: userObjectId },
-      { "visibility.visibleToParty": true }
+      { assignedUserId: userObjectId },
+      { assignedUserId: { $exists: false }, ownerUserId: userObjectId }
     ];
   }
 
   const result = await characters().find(query).sort({ updatedAt: -1, createdAt: -1 }).toArray();
-  return result.map((character) => serializeCharacter(character, { userId, role }));
+  const assignments = await assignmentMapForCharacters(result);
+  return result.map((character) => serializeCharacter(character, {
+    userId,
+    role,
+    assignment: assignments.get(idString(character._id)) || null
+  }));
 }
 
 export async function findCharacterById(id, { campaignId = "" } = {}) {
@@ -149,18 +256,42 @@ export async function findCharacterById(id, { campaignId = "" } = {}) {
 
 export function canReadCharacter(character, { userId, role = "player" }) {
   if (!character) return false;
-  const isOwner = idString(character.ownerUserId) === idString(userId);
-  if (isOwner) return true;
-  if (character.visibility?.visibleToParty) return true;
-  const isGm = role === "owner" || role === "gm";
-  return isGm && character.visibility?.sharedWithGm;
+  if (isManagerRole(role)) return true;
+  return isAssignedUser(character, userId);
 }
 
 export function canWriteCharacter(character, { userId, role = "player" }) {
   if (!character) return false;
-  const isOwner = idString(character.ownerUserId) === idString(userId);
-  if (isOwner) return true;
-  return role === "owner" || role === "gm";
+  if (isManagerRole(role)) return true;
+  return isAssignedUser(character, userId);
+}
+
+export async function assignCharacterToMembership({ campaignId, id, membership = null, assignedByUserId = "", userId = "", role = "owner" }) {
+  const existing = await findCharacterById(id, { campaignId });
+  if (!existing) return null;
+  const stamp = now();
+  const assignedUserId = membership?.userId ? (objectIdFrom(membership.userId) || membership.userId) : null;
+  const assignedMembershipId = membership?._id ? (objectIdFrom(membership._id) || membership._id) : null;
+  const patch = {
+    assignedUserId,
+    assignedMembershipId,
+    assignedAt: assignedUserId ? stamp : "",
+    assignedByUserId: objectIdFrom(assignedByUserId) || assignedByUserId || null,
+    updatedAt: stamp
+  };
+  if (assignedUserId) patch.ownerUserId = assignedUserId;
+  await characters().updateOne(
+    { _id: existing._id, campaignId: objectIdFrom(campaignId) || campaignId },
+    { $set: patch }
+  );
+  const assignment = membership ? {
+    membershipId: membership._id,
+    userId: membership.userId,
+    displayName: membership.displayName || "Campaign member",
+    role: membership.role || "player",
+    status: membership.status || "active"
+  } : null;
+  return serializeCharacter({ ...existing, ...patch }, { userId, role, assignment });
 }
 
 function normalizePatch(input = {}, existing = {}) {
