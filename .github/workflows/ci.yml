@@ -40,7 +40,8 @@ jobs:
           retention-days: 7
 
       - name: Run SS architecture contracts
-        run: node --test tests/ss-stage1-architecture-contracts.test.mjs tests/ss-stage2-routing-shell-contracts.test.mjs 2>&1 | tee ss-architecture.log
+        shell: bash
+        run: set -o pipefail; node --test tests/ss-stage1-architecture-contracts.test.mjs tests/ss-stage2-routing-shell-contracts.test.mjs 2>&1 | tee ss-architecture.log
 
       - name: Upload SS architecture diagnostics
         if: failure()
@@ -56,9 +57,18 @@ jobs:
           AUTH_SECRET: ci-only-signing-secret-with-at-least-32-characters
 
       - name: Run route and access contracts
-        run: node --test tests/frontend-source-contracts.test.mjs tests/backend-route-boundary-contracts.test.mjs tests/security-storage-contracts.test.mjs tests/campaign-context-resilience-contracts.test.mjs tests/portal-home-contracts.test.mjs tests/route-state-polish-contracts.test.mjs
+        shell: bash
+        run: set -o pipefail; node --test tests/frontend-source-contracts.test.mjs tests/backend-route-boundary-contracts.test.mjs tests/security-storage-contracts.test.mjs tests/campaign-context-resilience-contracts.test.mjs tests/portal-home-contracts.test.mjs tests/route-state-polish-contracts.test.mjs 2>&1 | tee route-access.log
         env:
           AUTH_SECRET: ci-only-signing-secret-with-at-least-32-characters
+
+      - name: Upload route and access diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: route-access-log
+          path: route-access.log
+          retention-days: 3
 
       - name: Run server smoke tests
         run: node --test tests/server-smoke.test.mjs 2>&1 | tee server-smoke.log
