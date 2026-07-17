@@ -1,23 +1,22 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Archive, Dices, Globe2, Layers3, LogIn, LogOut, Menu, Settings, UserRound } from "lucide-react";
+import { Globe2, Layers3, LogIn, LogOut, Menu, UserRound } from "lucide-react";
 import { getWorlds, worldSlug } from "../utils/worldContext.js";
-import { changeScopePath, modeHome, shellModeFromLocation } from "../utils/shellContext.js";
+import {
+  buildAppPath,
+  campaignHomePath,
+  replaceCampaignIdInPath,
+  routeTitleFromPath
+} from "../routing/appRoutes.js";
 
 function activeRole(session) {
   return String(session?.activeMembership?.role || "").toLowerCase();
 }
 
 function roleLabel(role, signedIn) {
-  if (role === "owner") return "Owner";
+  if (role === "owner") return "Владелец";
   if (role === "gm") return "GM";
-  if (role === "player") return "Player";
-  return signedIn ? "No campaign" : "Guest";
-}
-
-function modeIcon(mode) {
-  if (mode === "table") return Dices;
-  if (mode === "management") return Settings;
-  return Archive;
+  if (role === "player") return "Игрок";
+  return signedIn ? "Без кампании" : "Гость";
 }
 
 function closeAccountMenu(event) {
@@ -31,58 +30,60 @@ export default function CodexTopbar({
   campaigns = [],
   campaignSwitching = false,
   onCampaignChange,
+  sidebarAvailable = false,
   sidebarOpen,
   setSidebarOpen,
   sidebarToggleRef,
   activeWorld,
+  scope,
   onLogout
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const currentMode = shellModeFromLocation(location.pathname, location.search);
-  const ModeIcon = modeIcon(currentMode);
   const hasMembership = Boolean(session?.activeMembership?.id);
   const signedIn = Boolean(session?.user);
-  const campaignNavAvailable = signedIn && hasMembership;
+  const campaignNavAvailable = scope === "campaign" && signedIn && hasMembership;
   const sourcePages = campaignNavAvailable ? allPages || pages : [];
   const worlds = getWorlds(sourcePages);
   const role = activeRole(session);
-  const canManage = hasMembership && (role === "owner" || role === "gm");
   const campaignName = session?.activeCampaign?.name || "Party Codex";
   const campaignId = session?.activeCampaign?.id || "";
-  const accountLabel = session?.user?.name || session?.user?.email || "Guest";
-  const selectedWorld = activeWorld ? worldSlug(activeWorld) : "";
+  const accountLabel = session?.user?.name || session?.user?.displayName || session?.user?.email || "Гость";
+  const selectedWorld = activeWorld ? worldSlug(activeWorld) : new URLSearchParams(location.search).get("world") || "";
   const campaignOptions = campaigns.filter((item) => item?.campaign?.id);
   const currentCampaignListed = campaignOptions.some((item) => item.campaign.id === campaignId);
   const hasAlternativeCampaign = campaignOptions.some((item) => item.campaign.id !== campaignId);
+  const brandTarget = signedIn ? campaignHomePath(campaignId) : buildAppPath("login");
+  const currentTitle = routeTitleFromPath(location.pathname);
 
   function changeCampaign(event) {
     const nextCampaignId = event.target.value;
     if (!nextCampaignId || nextCampaignId === campaignId || campaignSwitching) return;
-    Promise.resolve(onCampaignChange?.(nextCampaignId)).catch(() => {});
-  }
-
-  function changeMode(event) {
-    const nextMode = event.target.value;
-    if (!nextMode || nextMode === currentMode) return;
-    navigate(modeHome(nextMode, canManage, activeWorld));
+    const nextPathname = replaceCampaignIdInPath(location.pathname, nextCampaignId);
+    const targetPath = `${nextPathname}${location.search || ""}`;
+    Promise.resolve(onCampaignChange?.(nextCampaignId, { targetPath })).catch(() => {});
   }
 
   function changeWorld(event) {
     const nextSlug = event.target.value;
-    const nextWorld = nextSlug ? worlds.find((world) => worldSlug(world) === nextSlug) || null : null;
-    navigate(changeScopePath(location.pathname, location.search, nextWorld));
+    const params = new URLSearchParams(location.search);
+    if (nextSlug) params.set("world", nextSlug);
+    else params.delete("world");
+    const query = params.toString();
+    navigate(`${location.pathname}${query ? `?${query}` : ""}`);
   }
 
   return (
     <header className="topbar topbar-shell topbar-clean">
-      <button ref={sidebarToggleRef} type="button" className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)} title="Open navigation" aria-expanded={sidebarOpen} aria-controls="campaign-sidebar">
-        <Menu size={20} />
-      </button>
+      {sidebarAvailable ? (
+        <button ref={sidebarToggleRef} type="button" className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)} title="Открыть навигацию" aria-expanded={sidebarOpen} aria-controls="campaign-sidebar">
+          <Menu size={20} aria-hidden="true" />
+        </button>
+      ) : null}
 
-      <Link to="/" className="topbar-brand-compact" title={campaignName}>
+      <Link to={brandTarget} className="topbar-brand-compact" title={campaignName}>
         <span>Party Codex</span>
-        <strong>{campaignName}</strong>
+        <strong>{scope === "campaign" ? campaignName : currentTitle}</strong>
       </Link>
 
       {signedIn ? (
@@ -95,31 +96,19 @@ export default function CodexTopbar({
               {campaignOptions.map((item) => {
                 const itemId = item.campaign.id;
                 const itemRole = roleLabel(item.role || item.membership?.role, true);
-                return <option key={itemId} value={itemId}>{item.campaign?.name || "Untitled campaign"} · {itemRole}</option>;
+                return <option key={itemId} value={itemId}>{item.campaign?.name || "Кампания без названия"} · {itemRole}</option>;
               })}
             </select>
           </label>
 
-          {campaignNavAvailable ? (
-            <>
-              <label className="topbar-native-select topbar-native-select--mode">
-                <ModeIcon size={16} aria-hidden="true" />
-                <select aria-label="Раздел приложения" value={currentMode} onChange={changeMode}>
-                  <option value="dashboard">Dashboard</option>
-                  <option value="archive">Архив</option>
-                  <option value="table">Игровой стол</option>
-                  <option value="management">{canManage ? "Управление" : "Профиль"}</option>
-                </select>
-              </label>
-
-              <label className="topbar-native-select topbar-native-select--world">
-                <Globe2 size={16} aria-hidden="true" />
-                <select aria-label="Мир кампании" value={selectedWorld} onChange={changeWorld}>
-                  <option value="">Вся кампания</option>
-                  {worlds.map((world) => <option key={world.path} value={worldSlug(world)}>{world.title}</option>)}
-                </select>
-              </label>
-            </>
+          {campaignNavAvailable && worlds.length ? (
+            <label className="topbar-native-select topbar-native-select--world">
+              <Globe2 size={16} aria-hidden="true" />
+              <select aria-label="Контекст мира" value={selectedWorld} onChange={changeWorld}>
+                <option value="">Вся кампания</option>
+                {worlds.map((world) => <option key={world.path} value={worldSlug(world)}>{world.title}</option>)}
+              </select>
+            </label>
           ) : null}
         </div>
       ) : null}
@@ -133,12 +122,13 @@ export default function CodexTopbar({
         </summary>
         <div className="topbar-account-popover">
           <span className="topbar-account-meta">{roleLabel(role, signedIn)}</span>
-          {session?.user ? <Link to="/profile" onClick={closeAccountMenu}>Профиль</Link> : null}
-          {hasMembership ? <Link to="/settings" onClick={closeAccountMenu}>Настройки кампании</Link> : null}
+          {session?.user ? <Link to={buildAppPath("accountProfile")} onClick={closeAccountMenu}>Профиль</Link> : null}
+          {hasMembership && (role === "owner" || role === "gm") ? <Link to={buildAppPath("manageSettings", { campaignId })} onClick={closeAccountMenu}>Настройки кампании</Link> : null}
+          {session?.user ? <Link to={buildAppPath("campaignSelect")} onClick={closeAccountMenu}>Кампании</Link> : null}
           {session?.user ? (
-            <button type="button" onClick={(event) => { closeAccountMenu(event); onLogout?.(); }}><LogOut size={14} /> Выйти</button>
+            <button type="button" onClick={(event) => { closeAccountMenu(event); onLogout?.(); }}><LogOut size={14} aria-hidden="true" /> Выйти</button>
           ) : (
-            <Link to="/login" onClick={closeAccountMenu}><LogIn size={14} /> Войти</Link>
+            <Link to={buildAppPath("login")} onClick={closeAccountMenu}><LogIn size={14} aria-hidden="true" /> Войти</Link>
           )}
         </div>
       </details>

@@ -3,9 +3,11 @@ import { useLocation } from "react-router-dom";
 import CodexSidebar from "./CodexSidebar.jsx";
 import CodexTopbar from "./CodexTopbar.jsx";
 import PageBackButton from "./PageBackButton.jsx";
+import RouteBreadcrumbs from "./RouteBreadcrumbs.jsx";
 import StatusMessage from "./ui/StatusMessage.jsx";
 import CinematicWorldBackground from "./world/CinematicWorldBackground.jsx";
 import { getThemeStyle, getWorldTheme } from "../theme/worldThemes.js";
+import { routeScopeFromPath } from "../routing/appRoutes.js";
 
 function activeMembershipRole(session) {
   return String(session?.activeMembership?.role || "").toLowerCase();
@@ -15,20 +17,25 @@ function hasCampaignMembership(session) {
   return Boolean(session?.activeMembership?.id);
 }
 
-export default function FantasyShell({ children, ...props }) {
+export default function ApplicationShell({ children, ...props }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarRef = useRef(null);
   const sidebarToggleRef = useRef(null);
   const location = useLocation();
+  const scope = routeScopeFromPath(location.pathname);
   const worldTheme = getWorldTheme(props.activeWorld);
   const signedIn = Boolean(props.session?.user);
   const hasMembership = hasCampaignMembership(props.session);
   const role = activeMembershipRole(props.session);
   const canManage = hasMembership && (role === "owner" || role === "gm");
+  const campaignChrome = scope === "campaign" && signedIn && hasMembership;
+  const accountChrome = scope === "account" && signedIn;
+  const showSidebar = campaignChrome || accountChrome;
   const shellClassName = [
     "app-shell",
-    sidebarOpen ? "sidebar-open" : "sidebar-closed",
-    `world-theme-${worldTheme.key}`
+    `app-shell--${scope}`,
+    showSidebar ? (sidebarOpen ? "sidebar-open" : "sidebar-closed") : "sidebar-unavailable",
+    campaignChrome ? `world-theme-${worldTheme.key}` : "world-theme-neutral"
   ].join(" ");
 
   useEffect(() => {
@@ -36,7 +43,7 @@ export default function FantasyShell({ children, ...props }) {
   }, [location.pathname, location.search]);
 
   useEffect(() => {
-    if (!sidebarOpen) return undefined;
+    if (!sidebarOpen || !showSidebar) return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const focusFrame = window.requestAnimationFrame(() => sidebarRef.current?.querySelector(".sidebar-close")?.focus());
@@ -65,13 +72,13 @@ export default function FantasyShell({ children, ...props }) {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
     };
-  }, [sidebarOpen]);
+  }, [sidebarOpen, showSidebar]);
 
   return (
-    <div className={shellClassName} data-world-theme={worldTheme.key} style={getThemeStyle(worldTheme)}>
-      <a className="skip-link" href="#main-content">Skip to campaign content</a>
-      <CinematicWorldBackground theme={worldTheme} />
-      {sidebarOpen && (
+    <div className={shellClassName} data-shell-scope={scope} data-world-theme={campaignChrome ? worldTheme.key : "neutral"} style={campaignChrome ? getThemeStyle(worldTheme) : undefined}>
+      <a className="skip-link" href="#main-content">Перейти к содержимому</a>
+      {campaignChrome ? <CinematicWorldBackground theme={worldTheme} /> : null}
+      {showSidebar && sidebarOpen ? (
         <button
           type="button"
           className="sidebar-backdrop"
@@ -81,23 +88,32 @@ export default function FantasyShell({ children, ...props }) {
             window.requestAnimationFrame(() => sidebarToggleRef.current?.focus());
           }}
         />
-      )}
-      <CodexSidebar
-        sidebarRef={sidebarRef}
-        isOpen={sidebarOpen}
-        categories={props.categories}
-        canEdit={props.mode === "gm" && canManage}
-        signedIn={signedIn}
-        hasCampaignMembership={hasMembership}
-        activeWorld={props.activeWorld}
-        onClose={() => setSidebarOpen(false)}
-      />
+      ) : null}
+      {showSidebar ? (
+        <CodexSidebar
+          sidebarRef={sidebarRef}
+          isOpen={sidebarOpen}
+          session={props.session}
+          activeWorld={props.activeWorld}
+          onClose={() => setSidebarOpen(false)}
+        />
+      ) : null}
       <main className="main-stage" id="main-content" tabIndex="-1">
-        <CodexTopbar {...props} worldTheme={worldTheme} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} sidebarToggleRef={sidebarToggleRef} />
+        <CodexTopbar
+          {...props}
+          scope={scope}
+          canManage={canManage}
+          worldTheme={worldTheme}
+          sidebarAvailable={showSidebar}
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={setSidebarOpen}
+          sidebarToggleRef={sidebarToggleRef}
+        />
         <section className="content-stage">
           <StatusMessage tone={props.campaignNotice?.tone || "info"} role={props.campaignNotice?.tone === "danger" ? "alert" : "status"}>
             {props.campaignNotice?.message || ""}
           </StatusMessage>
+          <RouteBreadcrumbs session={props.session} activeWorld={props.activeWorld} />
           <PageBackButton />
           {children}
         </section>
