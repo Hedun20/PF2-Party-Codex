@@ -71,7 +71,8 @@ jobs:
           retention-days: 3
 
       - name: Run server smoke tests
-        run: node --test tests/server-smoke.test.mjs 2>&1 | tee server-smoke.log
+        shell: bash
+        run: set -o pipefail; node --test tests/server-smoke.test.mjs 2>&1 | tee server-smoke.log
         env:
           AUTH_SECRET: ci-only-signing-secret-with-at-least-32-characters
 
@@ -84,9 +85,18 @@ jobs:
           retention-days: 3
 
       - name: Run content, seed, dice, character editor and select contracts
-        run: node --test tests/content-contracts.test.mjs tests/demo-seed-contracts.test.mjs tests/demo-targeting-contracts.test.mjs tests/dice-roll-contracts.test.mjs tests/character-editor-contracts.test.mjs tests/character-assignment-contracts.test.mjs tests/pf2-tactical-sheet-contracts.test.mjs tests/pf2-import-enrichment-contracts.test.mjs tests/select-archive-hotfix-contracts.test.mjs
+        shell: bash
+        run: set -o pipefail; node --test tests/content-contracts.test.mjs tests/demo-seed-contracts.test.mjs tests/demo-targeting-contracts.test.mjs tests/dice-roll-contracts.test.mjs tests/character-editor-contracts.test.mjs tests/character-assignment-contracts.test.mjs tests/pf2-tactical-sheet-contracts.test.mjs tests/pf2-import-enrichment-contracts.test.mjs tests/select-archive-hotfix-contracts.test.mjs 2>&1 | tee content-contracts.log
         env:
           AUTH_SECRET: ci-only-signing-secret-with-at-least-32-characters
+
+      - name: Upload content contract diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: content-contracts-log
+          path: content-contracts.log
+          retention-days: 3
 
       - name: Build production web bundle and enforce budgets
         run: npm run build
