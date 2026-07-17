@@ -63,5 +63,5 @@ test("canonical product map is campaign-scoped and separates product areas", () 
   assert.ok(productMap.includes("/app/campaigns/:campaignId/manage/players"));
   assert.ok(productMap.includes("/app/account/profile"));
   assert.match(productMap, /Unauthenticated users never see the campaign shell/i);
-  assert.match(productMap, /one canonical archive entry editor/i);
+  assert.match(productMap, /Archive Entry Editor/i);
 });
