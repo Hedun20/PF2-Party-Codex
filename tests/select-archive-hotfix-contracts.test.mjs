@@ -43,16 +43,18 @@ test("archive summary queries canonical entry-backed maps, timeline and sessions
 });
 
 test("critical header and Timeline controls use browser-native selects", async () => {
-  const [topbar, timeline, css] = await Promise.all([
+  const [topbar, sidebar, timeline, css] = await Promise.all([
     source("apps/web/src/components/CodexTopbar.jsx"),
+    source("apps/web/src/components/CodexSidebar.jsx"),
     source("apps/web/src/pages/TimelinePage.jsx"),
     source("apps/web/src/styles/stage20-native-selects.css")
   ]);
 
   assert.match(topbar, /<select aria-label="Активная кампания"/);
-  assert.match(topbar, /<select aria-label="Раздел приложения"/);
-  assert.match(topbar, /<select aria-label="Мир кампании"/);
-  assert.doesNotMatch(topbar, /FloatingMenu|HeaderDropdown|CodexSelect/);
+  assert.match(topbar, /<select aria-label="Контекст мира"/);
+  assert.doesNotMatch(topbar, /FloatingMenu|HeaderDropdown|CodexSelect|Раздел приложения/);
+  assert.match(sidebar, /navigationGroupsFor/);
+  assert.match(sidebar, /<NavLink/);
 
   assert.match(timeline, /<select aria-label="Фильтр мира timeline"/);
   assert.match(timeline, /<select aria-label="Фильтр типа timeline"/);
