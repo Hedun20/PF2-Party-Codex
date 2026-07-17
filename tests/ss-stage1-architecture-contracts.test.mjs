@@ -77,5 +77,6 @@ test("every current stylesheet has an explicit migration decision", () => {
 test("canonical product map preserves account, campaign and editor ownership", () => {
   assert.match(productMap, /Unauthenticated users never see the campaign shell/i);
   assert.match(productMap, /Archive Entry Editor/i);
-  assert.match(productMap, /one canonical/i);
+  assert.match(productMap, /One-editor rule/i);
+  assert.match(productMap, /Canonical primary editor/i);
 });
