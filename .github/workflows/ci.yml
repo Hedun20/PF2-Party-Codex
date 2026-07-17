@@ -40,7 +40,15 @@ jobs:
           retention-days: 7
 
       - name: Run SS architecture contracts
-        run: node --test tests/ss-stage1-architecture-contracts.test.mjs tests/ss-stage2-routing-shell-contracts.test.mjs
+        run: node --test tests/ss-stage1-architecture-contracts.test.mjs tests/ss-stage2-routing-shell-contracts.test.mjs 2>&1 | tee ss-architecture.log
+
+      - name: Upload SS architecture diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ss-architecture-log
+          path: ss-architecture.log
+          retention-days: 3
 
       - name: Run invitation and auth continuity contracts
         run: node --test tests/invitation-trust-flow-contracts.test.mjs tests/invitation-operations-contracts.test.mjs tests/auth-continuity-contracts.test.mjs
