@@ -1,9 +1,18 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api } from "./api/client.js";
-import FantasyShell from "./components/FantasyShell.jsx";
-import AppShell from "./components/AppShell.jsx";
+import ApplicationShell from "./components/ApplicationShell.jsx";
 import RouteLoading from "./components/RouteLoading.jsx";
+import CampaignScopeGate from "./routing/CampaignScopeGate.jsx";
+import LegacyRouteRedirect from "./routing/LegacyRouteRedirect.jsx";
+import {
+  APP_ROUTES,
+  LEGACY_ROUTE_REDIRECTS,
+  buildAppPath,
+  campaignHomePath,
+  campaignIdFromPath,
+  replaceCampaignIdInPath
+} from "./routing/appRoutes.js";
 import { getWorldOwnedPages, getWorldSearchPages, resolveWorldBySlug, resolveWorldForPage } from "./utils/worldContext.js";
 import { worldScopeFromSearch } from "./utils/shellContext.js";
 
@@ -43,14 +52,19 @@ const SettingsPage = lazy(() => import("./pages/SettingsPage.jsx"));
 const TimelinePage = lazy(() => import("./pages/TimelinePage.jsx"));
 const WorldDashboardPage = lazy(() => import("./pages/WorldDashboardPage.jsx"));
 
+// Kept reachable until the corresponding product stages remove their legacy modules.
+void DashboardPage;
+void MyWorkspacePage;
+void SessionModePage;
+
 function worldSlugFromPath(pathname = "") {
-  const match = pathname.match(/^\/world\/([^/]+)/);
+  const match = pathname.match(/^\/app\/campaigns\/[^/]+\/archive\/worlds\/([^/]+)/);
   return match ? match[1] : "";
 }
 
 function pagePathFromRoute(pathname = "") {
-  const match = pathname.match(/^\/(?:page|edit)\/([^/]+)/);
-  if (!match) return "";
+  const match = pathname.match(/^\/app\/campaigns\/[^/]+\/archive\/entries\/([^/]+)(?:\/edit)?$/);
+  if (!match || match[1] === "new") return "";
   try {
     return decodeURIComponent(match[1]);
   } catch {
@@ -59,7 +73,7 @@ function pagePathFromRoute(pathname = "") {
 }
 
 function editorWorldFromLocation(location) {
-  if (location.pathname !== "/editor") return "";
+  if (!/\/archive\/entries\/(?:new|[^/]+\/edit)$/.test(location.pathname)) return "";
   return new URLSearchParams(location.search).get("world") || "";
 }
 
@@ -68,7 +82,7 @@ function activeMembership(session) {
 }
 
 function hasActiveCampaignMembership(session) {
-  return Boolean(activeMembership(session)?.id);
+  return Boolean(activeMembership(session)?.id && session?.activeCampaign?.id);
 }
 
 function campaignRole(session) {
@@ -105,7 +119,6 @@ export default function App() {
   const [campaigns, setCampaigns] = useState([]);
   const [campaignSwitching, setCampaignSwitching] = useState(false);
   const [campaignNotice, setCampaignNotice] = useState(null);
-  const [query, setQuery] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -114,6 +127,7 @@ export default function App() {
   const canManage = canManageCampaign(session);
   const effectiveMode = canManage ? mode : "player";
   const gmView = effectiveMode === "gm" && canManage;
+  const activeCampaignId = session?.activeCampaign?.id || "";
 
   const loadSession = async () => {
     const data = await api.session();
@@ -140,6 +154,14 @@ export default function App() {
     }
   };
 
+  const canonicalLocationForCampaign = (campaignId) => {
+    if (!campaignId) return buildAppPath("campaignSelect");
+    if (campaignIdFromPath(location.pathname)) {
+      return `${replaceCampaignIdInPath(location.pathname, campaignId)}${location.search || ""}`;
+    }
+    return campaignHomePath(campaignId);
+  };
+
   const reconcileCampaignContext = async (previousSession = session) => {
     const previousCampaignId = previousSession?.activeCampaign?.id || "";
     const previousRole = campaignRole(previousSession);
@@ -153,13 +175,13 @@ export default function App() {
     if (!nextSession?.user) {
       setCampaigns([]);
       setCampaignNotice({ tone: "danger", message: "Сессия завершилась. Войдите снова, чтобы продолжить работу с кампаниями." });
-      if (location.pathname !== "/login") navigate("/login", { replace: true });
+      navigate(buildAppPath("login"), { replace: true });
       return nextSession;
     }
 
     if (!hasActiveCampaignMembership(nextSession)) {
       setCampaignNotice({ tone: "warning", message: "Доступ к активной кампании изменился. Выберите другую кампанию, примите приглашение или создайте новую." });
-      if (!["/campaigns", "/profile"].includes(location.pathname)) navigate("/campaigns", { replace: true });
+      navigate(buildAppPath("campaignSelect"), { replace: true });
       return nextSession;
     }
 
@@ -167,10 +189,10 @@ export default function App() {
     const nextRole = campaignRole(nextSession);
     if (previousCampaignId && nextCampaignId !== previousCampaignId) {
       setCampaignNotice({ tone: "warning", message: `Предыдущая кампания больше недоступна. Активирована кампания «${nextSession.activeCampaign?.name || "другая кампания"}».` });
-      navigate("/", { replace: true });
+      navigate(canonicalLocationForCampaign(nextCampaignId), { replace: true });
     } else if (previousRole && nextRole !== previousRole) {
       setCampaignNotice({ tone: "warning", message: `Ваша роль в кампании изменилась: теперь ${nextRole || "участник"}. Доступные разделы обновлены.` });
-      navigate("/", { replace: true });
+      navigate(campaignHomePath(nextCampaignId), { replace: true });
     } else {
       setCampaignNotice({ tone: "danger", message: "Не удалось подтвердить доступ к выбранной кампании. Повторите действие или выберите другую кампанию." });
     }
@@ -211,7 +233,7 @@ export default function App() {
     setMode(nextMode);
     await loadCampaigns(nextSession);
     await refresh(nextSession, nextMode);
-    navigate("/");
+    navigate(campaignHomePath(nextSession?.activeCampaign?.id || ""), { replace: true });
   };
 
   const handleOnboardingCreated = async () => {
@@ -221,7 +243,7 @@ export default function App() {
     setMode(nextMode);
     await loadCampaigns(nextSession);
     await refresh(nextSession, nextMode);
-    navigate("/");
+    navigate(campaignHomePath(nextSession?.activeCampaign?.id || ""), { replace: true });
   };
 
   const handleInvitationAccepted = async () => {
@@ -231,9 +253,10 @@ export default function App() {
     setMode(nextMode);
     await loadCampaigns(nextSession);
     await refresh(nextSession, nextMode);
+    navigate(campaignHomePath(nextSession?.activeCampaign?.id || ""), { replace: true });
   };
 
-  const handleCampaignChange = async (campaignId) => {
+  const handleCampaignChange = async (campaignId, options = {}) => {
     if (!campaignId || campaignId === session?.activeCampaign?.id || campaignSwitching) return;
     setCampaignSwitching(true);
     setCampaignNotice(null);
@@ -246,7 +269,10 @@ export default function App() {
       setMode(nextMode);
       await loadCampaigns(nextSession);
       await refresh(nextSession, nextMode);
-      navigate("/");
+      const resolvedCampaignId = nextSession?.activeCampaign?.id || campaignId;
+      const targetPath = options.targetPath
+        || (options.preserveLocation ? `${replaceCampaignIdInPath(location.pathname, resolvedCampaignId)}${location.search || ""}` : campaignHomePath(resolvedCampaignId));
+      navigate(targetPath, { replace: true });
     } catch (error) {
       setCampaignNotice({ tone: "danger", message: `Не удалось переключить кампанию. ${error.message || "Повторите попытку."}` });
       if (shouldReconcileCampaign(error)) {
@@ -269,7 +295,7 @@ export default function App() {
     setCategories([]);
     setCampaigns([]);
     setCampaignNotice(null);
-    navigate("/");
+    navigate(buildAppPath("login"), { replace: true });
   };
 
   useEffect(() => {
@@ -316,9 +342,8 @@ export default function App() {
       window.removeEventListener("focus", refreshVisibleCampaign);
       document.removeEventListener("visibilitychange", refreshVisibleCampaign);
     };
-  }, [effectiveMode, canManage, hasMembership, signedIn]);
+  }, [effectiveMode, canManage, hasMembership, signedIn, activeCampaignId]);
 
-  const dashboard = useMemo(() => pages.find((page) => page.path === "index.md"), [pages]);
   const activeWorldSlug = worldSlugFromPath(location.pathname);
   const routeWorld = useMemo(() => resolveWorldBySlug(pages, activeWorldSlug), [pages, activeWorldSlug]);
   const activePagePath = pagePathFromRoute(location.pathname);
@@ -341,85 +366,92 @@ export default function App() {
     />
   );
   const accessDeniedElement = <AccessDeniedPage session={session} />;
-  const campaignRoute = (element) => {
-    if (!signedIn) return <AuthPage onAuth={handleAuth} session={session} />;
-    if (!hasMembership) return onboardingElement;
-    return element;
-  };
-  const accountRoute = (element) => {
-    if (!signedIn) return <AuthPage onAuth={handleAuth} session={session} />;
-    return element;
-  };
-  const managerRoute = (element) => {
-    if (!signedIn) return <AuthPage onAuth={handleAuth} session={session} />;
-    if (!hasMembership) return onboardingElement;
-    if (!canManage) return accessDeniedElement;
-    return element;
+  const loginRedirect = <Navigate to={buildAppPath("login")} replace state={{ returnTo: `${location.pathname}${location.search || ""}` }} />;
+
+  const accountRoute = (element) => signedIn ? element : loginRedirect;
+  const campaignRoute = (element, { manager = false } = {}) => {
+    if (!signedIn) return loginRedirect;
+    if (!hasMembership) return <Navigate to={buildAppPath("campaignSelect")} replace />;
+    const requestedCampaignId = campaignIdFromPath(location.pathname);
+    return (
+      <CampaignScopeGate
+        requestedCampaignId={requestedCampaignId}
+        activeCampaignId={activeCampaignId}
+        campaigns={campaigns}
+        onActivate={handleCampaignChange}
+        denied={accessDeniedElement}
+      >
+        {manager && !canManage ? accessDeniedElement : element}
+      </CampaignScopeGate>
+    );
   };
 
+  const entryTarget = !signedIn
+    ? buildAppPath("login")
+    : hasMembership
+      ? campaignHomePath(activeCampaignId)
+      : buildAppPath("campaignSelect");
+
   return (
-    <FantasyShell
-      mode={effectiveMode}
-      setMode={canManage ? setMode : () => {}}
+    <ApplicationShell
       session={session}
       pages={shellPages}
       allPages={pages}
       categories={categories}
-      query={query}
-      setQuery={setQuery}
       activeWorld={activeWorld}
       campaigns={campaigns}
       onCampaignChange={handleCampaignChange}
       campaignSwitching={campaignSwitching}
       campaignNotice={campaignNotice}
       onLogout={handleLogout}
-      onSelectPage={(path) => navigate(`/page/${encodeURIComponent(path)}`)}
+      onSelectPage={(path) => navigate(buildAppPath("archiveEntry", { campaignId: activeCampaignId, path }))}
     >
-      <AppShell session={session} canManage={canManage}>
-        <Suspense fallback={<RouteLoading />}>
+      <Suspense fallback={<RouteLoading />}>
         {!sessionReady ? <RouteLoading /> : sessionError ? <SessionUnavailable message={sessionError} onRetry={retrySession} /> : (
-        <Routes>
-        <Route path="/login" element={<AuthPage onAuth={handleAuth} session={session} />} />
-        <Route path="/invite/:token" element={<InviteAcceptPage session={session} onAccepted={handleInvitationAccepted} />} />
-        <Route path="/campaigns" element={accountRoute(onboardingElement)} />
-        <Route path="/" element={campaignRoute(<DashboardPage pages={pages} dashboard={dashboard} mode={effectiveMode} session={session} />)} />
-        <Route path="/gm" element={managerRoute(<GmHomePage session={session} />)} />
-        <Route path="/player" element={campaignRoute(<PlayerHomePage session={session} />)} />
-        <Route path="/archive" element={campaignRoute(<CampaignArchivePage session={session} />)} />
-        <Route path="/players" element={managerRoute(<PlayersPage session={session} />)} />
-        <Route path="/profile" element={accountRoute(<ProfilePage session={session} campaigns={campaigns} onCampaignChange={handleCampaignChange} campaignSwitching={campaignSwitching} onOnboardingCreated={handleOnboardingCreated} />)} />
-        <Route path="/world/:worldSlug" element={campaignRoute(<WorldDashboardPage pages={pages} mode={effectiveMode} session={session} />)} />
-        <Route path="/world/:worldSlug/category/:category/*" element={campaignRoute(<CategoryPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
-        <Route path="/world/:worldSlug/timeline" element={campaignRoute(<TimelinePage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
-        <Route path="/world/:worldSlug/maps" element={campaignRoute(<MapsPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
-        <Route path="/world/:worldSlug/session" element={campaignRoute(gmView ? <SessionModePage pages={pages} mode={effectiveMode} session={session} /> : <PlayerPortalView pages={pages} />)} />
-        <Route path="/world/:worldSlug/reveal" element={campaignRoute(gmView ? <PlayerRevealPage pages={pages} session={session} /> : <PlayerPortalView pages={pages} />)} />
-        <Route path="/world/:worldSlug/player" element={campaignRoute(<PlayerPortalView pages={pages} />)} />
-        <Route path="/category/:category/*" element={campaignRoute(<CategoryPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
-        <Route path="/page/:path" element={campaignRoute(<PageView mode={effectiveMode} pages={pages} onChanged={refresh} />)} />
-        <Route path="/editor" element={managerRoute(<EditorPage onSaved={refresh} session={{ ...session, canEdit: gmView }} activeWorld={activeWorld} />)} />
-        <Route path="/edit/:path" element={managerRoute(<RawEditorPage mode="gm" onSaved={refresh} pages={pages} />)} />
-        <Route path="/missing" element={managerRoute(<MissingLinksPage mode={effectiveMode} />)} />
-        <Route path="/timeline" element={campaignRoute(<TimelinePage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
-        <Route path="/maps" element={campaignRoute(<MapsPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
-        <Route path="/my" element={campaignRoute(<MyWorkspacePage pages={pages} mode={effectiveMode} session={session} />)} />
-        <Route path="/notes" element={campaignRoute(<NotesPage pages={worldPages} />)} />
-        <Route path="/characters" element={campaignRoute(<CharactersPage pages={worldPages} session={session} canManage={canManage} />)} />
-        <Route path="/handouts" element={campaignRoute(<HandoutsPage pages={worldPages} mode={effectiveMode} />)} />
-        <Route path="/sessions" element={campaignRoute(<SessionsPage pages={worldPages} mode={effectiveMode} />)} />
-        <Route path="/settings" element={campaignRoute(<SettingsPage session={session} />)} />
-        <Route path="/gm-tools" element={managerRoute(<GMToolsPage session={session} />)} />
-        <Route path="/health" element={managerRoute(<CampaignHealthPage mode={effectiveMode} />)} />
-        <Route path="/player-safety" element={managerRoute(<PlayerSafetyPage pages={pages} />)} />
-        <Route path="/session-desk" element={campaignRoute(<SessionDeskPage session={session} />)} />
-        <Route path="/dice" element={campaignRoute(<DiceTrayPage />)} />
-        <Route path="/guide" element={<GuidePage canEdit={gmView} />} />
-        <Route path="/foundry" element={managerRoute(<FoundryImportExportPage mode={effectiveMode} />)} />
-        <Route path="*" element={<NotFoundPage session={session} />} />
-        </Routes>
+          <Routes>
+            <Route path={APP_ROUTES.entry.pattern} element={<Navigate to={entryTarget} replace />} />
+            <Route path={APP_ROUTES.login.pattern} element={<AuthPage onAuth={handleAuth} session={session} />} />
+            <Route path={APP_ROUTES.invitation.pattern} element={<InviteAcceptPage session={session} onAccepted={handleInvitationAccepted} />} />
+            <Route path={APP_ROUTES.help.pattern} element={<GuidePage canEdit={gmView} />} />
+            <Route path={APP_ROUTES.campaignSelect.pattern} element={accountRoute(onboardingElement)} />
+            <Route path={APP_ROUTES.accountProfile.pattern} element={accountRoute(<ProfilePage session={session} campaigns={campaigns} onCampaignChange={handleCampaignChange} campaignSwitching={campaignSwitching} onOnboardingCreated={handleOnboardingCreated} onProfileChanged={loadSession} />)} />
+            <Route path={APP_ROUTES.accountSettings.pattern} element={accountRoute(<Navigate to={buildAppPath("accountProfile")} replace />)} />
+
+            <Route path={APP_ROUTES.campaignHome.pattern} element={campaignRoute(canManage ? <GmHomePage session={session} /> : <PlayerHomePage session={session} />)} />
+            <Route path={APP_ROUTES.archive.pattern} element={campaignRoute(<CampaignArchivePage session={session} />)} />
+            <Route path={APP_ROUTES.archiveWorld.pattern} element={campaignRoute(<WorldDashboardPage pages={pages} mode={effectiveMode} session={session} />)} />
+            <Route path={APP_ROUTES.archiveMaps.pattern} element={campaignRoute(<MapsPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
+            <Route path={APP_ROUTES.archiveTimeline.pattern} element={campaignRoute(<TimelinePage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
+            <Route path={APP_ROUTES.archiveHandouts.pattern} element={campaignRoute(<HandoutsPage pages={worldPages} mode={effectiveMode} />)} />
+            <Route path={APP_ROUTES.archiveEntryNew.pattern} element={campaignRoute(<EditorPage onSaved={refresh} session={{ ...session, canEdit: gmView }} activeWorld={activeWorld} />, { manager: true })} />
+            <Route path={APP_ROUTES.archiveEntryEdit.pattern} element={campaignRoute(<RawEditorPage mode="gm" onSaved={refresh} pages={pages} />, { manager: true })} />
+            <Route path={APP_ROUTES.archiveEntry.pattern} element={campaignRoute(<PageView mode={effectiveMode} pages={pages} onChanged={refresh} />)} />
+            <Route path={APP_ROUTES.archiveCategory.pattern} element={campaignRoute(<CategoryPage pages={worldPages} mode={effectiveMode} activeWorld={activeWorld} />)} />
+
+            <Route path={APP_ROUTES.session.pattern} element={campaignRoute(<SessionDeskPage session={session} />)} />
+            <Route path={APP_ROUTES.sessionDice.pattern} element={campaignRoute(<DiceTrayPage />)} />
+            <Route path={APP_ROUTES.notes.pattern} element={campaignRoute(<NotesPage pages={worldPages} />)} />
+            <Route path={APP_ROUTES.myCharacter.pattern} element={campaignRoute(<CharactersPage pages={worldPages} session={session} canManage={false} />)} />
+
+            <Route path={APP_ROUTES.manageSessions.pattern} element={campaignRoute(<SessionsPage pages={worldPages} mode={effectiveMode} />, { manager: true })} />
+            <Route path={APP_ROUTES.managePlayers.pattern} element={campaignRoute(<PlayersPage session={session} />, { manager: true })} />
+            <Route path={APP_ROUTES.manageCharacters.pattern} element={campaignRoute(<CharactersPage pages={worldPages} session={session} canManage={true} />, { manager: true })} />
+            <Route path={APP_ROUTES.manageImports.pattern} element={campaignRoute(<FoundryImportExportPage mode={effectiveMode} />, { manager: true })} />
+            <Route path={APP_ROUTES.manageArchiveHealth.pattern} element={campaignRoute(<CampaignHealthPage mode={effectiveMode} />, { manager: true })} />
+            <Route path={APP_ROUTES.manageMissingLinks.pattern} element={campaignRoute(<MissingLinksPage mode={effectiveMode} />, { manager: true })} />
+            <Route path={APP_ROUTES.manageVisibility.pattern} element={campaignRoute(<PlayerSafetyPage pages={pages} />, { manager: true })} />
+            <Route path={APP_ROUTES.manageTools.pattern} element={campaignRoute(<GMToolsPage session={session} />, { manager: true })} />
+            <Route path={APP_ROUTES.manageSettings.pattern} element={campaignRoute(<SettingsPage session={session} />, { manager: true })} />
+            <Route path={APP_ROUTES.preview.pattern} element={campaignRoute(<PlayerRevealPage pages={pages} session={session} />, { manager: true })} />
+
+            {LEGACY_ROUTE_REDIRECTS.map((spec) => (
+              <Route key={spec.path} path={spec.path} element={<LegacyRouteRedirect spec={spec} campaignId={activeCampaignId} canManage={canManage} />} />
+            ))}
+
+            <Route path={APP_ROUTES.notFound.pattern} element={<NotFoundPage session={session} />} />
+          </Routes>
         )}
-        </Suspense>
-      </AppShell>
-    </FantasyShell>
+      </Suspense>
+    </ApplicationShell>
   );
 }
