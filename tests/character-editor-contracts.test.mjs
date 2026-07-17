@@ -47,10 +47,13 @@ test("character dossier prioritizes table play before reference material", () =>
   assert.match(styles, /@media \(max-width: 680px\)/);
 });
 
-test("global native selects are no longer intercepted by MagicSelectLayer", () => {
-  const shell = read("apps/web/src/components/FantasyShell.jsx");
+test("global native selects are not intercepted by a custom select layer", () => {
+  const shell = read("apps/web/src/components/ApplicationShell.jsx");
+  const topbar = read("apps/web/src/components/CodexTopbar.jsx");
   assert.doesNotMatch(shell, /MagicSelectLayer/);
+  assert.doesNotMatch(topbar, /MagicSelectLayer|CodexSelect/);
   assert.match(shell, /CodexTopbar/);
+  assert.match(topbar, /<select aria-label="Активная кампания"/);
 });
 
 test("timeline uses the shared padded entity detail inspector", () => {
