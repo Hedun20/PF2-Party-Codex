@@ -24,7 +24,7 @@ test("every current runtime route has an explicit migration decision", () => {
   const routes = [...app.matchAll(/<Route\s+path=["']([^"']+)["']/g)].map((match) => match[1]);
   assert.ok(routes.length >= 30, "route inventory unexpectedly small");
   for (const route of routes) {
-    assert.match(migrationMatrix, new RegExp(`\\| \\`${route.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\` \\|`), `missing route decision for ${route}`);
+    assert.ok(migrationMatrix.includes("| `" + route + "` |"), `missing route decision for ${route}`);
   }
 });
 
@@ -43,7 +43,8 @@ test("every current component module has an explicit migration decision", () => 
   assert.ok(components.length >= 30, "component inventory unexpectedly small");
   for (const component of components) {
     const basename = path.basename(component);
-    assert.ok(migrationMatrix.includes(`\`${basename === "index.js" ? "components/ui/index.js" : basename}\``), `missing component decision for ${component}`);
+    const documentedName = basename === "index.js" ? "components/ui/index.js" : basename;
+    assert.ok(migrationMatrix.includes(`\`${documentedName}\``), `missing component decision for ${component}`);
   }
 });
 

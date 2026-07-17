@@ -39,6 +39,9 @@ jobs:
           path: artifacts/ss-stage1
           retention-days: 7
 
+      - name: Run SS Stage 1 architecture contracts
+        run: node --test tests/ss-stage1-architecture-contracts.test.mjs
+
       - name: Run invitation and auth continuity contracts
         run: node --test tests/invitation-trust-flow-contracts.test.mjs tests/invitation-operations-contracts.test.mjs tests/auth-continuity-contracts.test.mjs
         env:
