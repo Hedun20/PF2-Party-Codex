@@ -20,6 +20,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Upload Stage 2 source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: ss-stage2-source-snapshot
+          path: |
+            apps/web/src
+            tests/route-contracts.test.mjs
+            tests/campaign-context-resilience-contracts.test.mjs
+            tests/portal-home-contracts.test.mjs
+            tests/route-state-polish-contracts.test.mjs
+          retention-days: 1
+
       - name: Use Node.js 24 LTS
         uses: actions/setup-node@v6
         with:
