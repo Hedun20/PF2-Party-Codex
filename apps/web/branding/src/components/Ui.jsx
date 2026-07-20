@@ -56,6 +56,14 @@ export function TextInput({ icon: Icon, className = "", inputClassName = "", ...
   );
 }
 
+export function TextareaInput({ className = "", ...props }) {
+  return (
+    <span className={`sl-textarea-input ${className}`.trim()} data-component="textarea-default-v1">
+      <textarea className="sl-textarea-input__control" {...props} />
+    </span>
+  );
+}
+
 export function SelectInput({ className = "", children, ...props }) {
   return (
     <span className={`sl-select-input ${className}`.trim()} data-component="select-default-v1">
@@ -63,6 +71,25 @@ export function SelectInput({ className = "", children, ...props }) {
       <span className="sl-select-input__finial" aria-hidden="true" />
       <ChevronDown className="sl-select-input__icon" size={17} aria-hidden="true" />
     </span>
+  );
+}
+
+export function Tabs({ items, active, onChange }) {
+  return (
+    <div className="sl-tabs" role="tablist" data-component="tabs-default-v1">
+      {items.map((item) => (
+        <button
+          key={item.value}
+          className={`sl-tab${active === item.value ? " is-active" : ""}`}
+          type="button"
+          role="tab"
+          aria-selected={active === item.value}
+          onClick={() => onChange?.(item.value)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -98,9 +125,30 @@ export function ArchiveCard({ icon: Icon, eyebrow, title, description, meta, chi
   );
 }
 
+export function TableRow({ icon: Icon, title, subtitle, meta, actions }) {
+  return (
+    <div className="sl-table-row" data-component="table-row-default-v1">
+      <span className="sl-table-row__icon">{Icon ? <Icon size={18} aria-hidden="true" /> : null}</span>
+      <div className="sl-table-row__copy"><strong>{title}</strong>{subtitle ? <span>{subtitle}</span> : null}</div>
+      {meta ? <div className="sl-table-row__meta">{meta}</div> : null}
+      {actions ? <div className="sl-table-row__actions">{actions}</div> : null}
+    </div>
+  );
+}
+
+export function DialogCard({ eyebrow, title, description, actions, children }) {
+  return (
+    <section className="sl-dialog-card" role="dialog" aria-modal="false" data-component="dialog-default-v1">
+      <header><div>{eyebrow ? <span>{eyebrow}</span> : null}<h3>{title}</h3></div></header>
+      <div className="sl-dialog-card__body">{description ? <p>{description}</p> : null}{children}</div>
+      {actions ? <footer>{actions}</footer> : null}
+    </section>
+  );
+}
+
 export function IconButton({ label, icon: Icon, active = false, className = "", ...props }) {
   return (
-    <button className={`sl-icon-button${active ? " is-active" : ""} ${className}`.trim()} type="button" aria-label={label} title={label} {...props}>
+    <button className={`sl-icon-button${active ? " is-active" : ""} ${className}`.trim()} type="button" aria-label={label} title={label} data-component="icon-button-default-v1" {...props}>
       <Icon size={18} aria-hidden="true" />
     </button>
   );
