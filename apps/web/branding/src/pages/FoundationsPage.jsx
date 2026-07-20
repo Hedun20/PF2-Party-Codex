@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   AlertTriangle,
   Archive,
@@ -8,24 +9,32 @@ import {
   LayoutDashboard,
   Map,
   MapPin,
+  MoreHorizontal,
+  Pencil,
   Save,
   Search,
   ScrollText,
   ShieldAlert,
   Sparkles,
   Star,
+  Trash2,
   Users
 } from "lucide-react";
 import {
   ArchiveCard,
   Button,
   Chip,
+  DialogCard,
   Field,
+  IconButton,
   PageHeader,
   Panel,
   SelectInput,
   SidebarNavItem,
   Stat,
+  TableRow,
+  Tabs,
+  TextareaInput,
   TextInput
 } from "../components/Ui.jsx";
 
@@ -42,6 +51,8 @@ const colors = [
 ];
 
 export default function FoundationsPage() {
+  const [activeTab, setActiveTab] = useState("overview");
+
   return (
     <div className="branding-page">
       <PageHeader
@@ -143,6 +154,57 @@ export default function FoundationsPage() {
           >
             <div className="sl-inline-chips"><Chip tone="success">Exploration</Chip><Chip>Elven</Chip><Chip tone="gold">Ancient</Chip></div>
           </ArchiveCard>
+        </Panel>
+      </div>
+
+      <div className="branding-grid branding-grid--2">
+        <Panel eyebrow="Interaction" title="Tabs, textarea & icon buttons">
+          <div className="component-stack">
+            <Tabs
+              active={activeTab}
+              onChange={setActiveTab}
+              items={[
+                { value: "overview", label: "Overview" },
+                { value: "journal", label: "Journal" },
+                { value: "relations", label: "Relations" }
+              ]}
+            />
+            <Field label="GM notes" hint="Default textarea shell">
+              <TextareaInput placeholder="Add private notes, reminders or secrets..." aria-label="GM notes" />
+            </Field>
+            <div className="component-row">
+              <IconButton label="Edit" icon={Pencil} />
+              <IconButton label="More actions" icon={MoreHorizontal} active />
+              <IconButton label="Delete" icon={Trash2} />
+            </div>
+          </div>
+        </Panel>
+
+        <Panel eyebrow="Dense data" title="Table row & dialog">
+          <div className="sl-second-layer-grid">
+            <div className="sl-table-sample">
+              <TableRow
+                icon={BookOpen}
+                title="The Shattered Oath"
+                subtitle="Lore entry · History"
+                meta={<Chip tone="success">Revealed</Chip>}
+                actions={<IconButton label="More" icon={MoreHorizontal} />}
+              />
+              <TableRow
+                icon={MapPin}
+                title="Whispering Vale"
+                subtitle="Location · Silverleaf"
+                meta={<Chip>Draft</Chip>}
+                actions={<IconButton label="Edit" icon={Pencil} />}
+              />
+            </div>
+            <DialogCard
+              eyebrow="Destructive action"
+              title="Delete archive entry?"
+              description="The entry will move to Trash and remain recoverable until the campaign archive is emptied."
+              actions={<><Button size="sm" variant="ghost">Cancel</Button><Button size="sm" variant="danger">Delete</Button></>}
+            />
+          </div>
         </Panel>
       </div>
 
