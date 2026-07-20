@@ -4,10 +4,12 @@ import CodexSidebar from "./CodexSidebar.jsx";
 import CodexTopbar from "./CodexTopbar.jsx";
 import PageBackButton from "./PageBackButton.jsx";
 import RouteBreadcrumbs from "./RouteBreadcrumbs.jsx";
-import StatusMessage from "./ui/StatusMessage.jsx";
+import { Notice } from "./ui/Silverleaf.jsx";
 import CinematicWorldBackground from "./world/CinematicWorldBackground.jsx";
 import { getThemeStyle, getWorldTheme } from "../theme/worldThemes.js";
 import { routeScopeFromPath } from "../routing/appRoutes.js";
+
+const DESKTOP_SIDEBAR_QUERY = "(min-width: 1280px)";
 
 function activeMembershipRole(session) {
   return String(session?.activeMembership?.role || "").toLowerCase();
@@ -17,8 +19,13 @@ function hasCampaignMembership(session) {
   return Boolean(session?.activeMembership?.id);
 }
 
+function desktopSidebarMatches() {
+  return typeof window !== "undefined" && window.matchMedia(DESKTOP_SIDEBAR_QUERY).matches;
+}
+
 export default function ApplicationShell({ children, ...props }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopSidebar, setDesktopSidebar] = useState(desktopSidebarMatches);
+  const [sidebarOpen, setSidebarOpen] = useState(desktopSidebarMatches);
   const sidebarRef = useRef(null);
   const sidebarToggleRef = useRef(null);
   const location = useLocation();
@@ -31,19 +38,34 @@ export default function ApplicationShell({ children, ...props }) {
   const campaignChrome = scope === "campaign" && signedIn && hasMembership;
   const accountChrome = scope === "account" && signedIn;
   const showSidebar = campaignChrome || accountChrome;
+  const sidebarVisible = showSidebar && (desktopSidebar || sidebarOpen);
   const shellClassName = [
     "app-shell",
     `app-shell--${scope}`,
-    showSidebar ? (sidebarOpen ? "sidebar-open" : "sidebar-closed") : "sidebar-unavailable",
+    desktopSidebar ? "app-shell--sidebar-persistent" : "app-shell--sidebar-overlay",
+    sidebarVisible ? "sidebar-open" : "sidebar-closed",
+    showSidebar ? "sidebar-available" : "sidebar-unavailable",
     campaignChrome ? `world-theme-${worldTheme.key}` : "world-theme-neutral"
   ].join(" ");
 
   useEffect(() => {
-    setSidebarOpen(false);
-  }, [location.pathname, location.search]);
+    const media = window.matchMedia(DESKTOP_SIDEBAR_QUERY);
+    const sync = (event) => {
+      const matches = "matches" in event ? event.matches : media.matches;
+      setDesktopSidebar(matches);
+      setSidebarOpen(matches);
+    };
+    sync(media);
+    media.addEventListener?.("change", sync);
+    return () => media.removeEventListener?.("change", sync);
+  }, []);
 
   useEffect(() => {
-    if (!sidebarOpen || !showSidebar) return undefined;
+    if (!desktopSidebar) setSidebarOpen(false);
+  }, [location.pathname, location.search, desktopSidebar]);
+
+  useEffect(() => {
+    if (!sidebarOpen || !showSidebar || desktopSidebar) return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const focusFrame = window.requestAnimationFrame(() => sidebarRef.current?.querySelector(".sidebar-close")?.focus());
@@ -54,7 +76,7 @@ export default function ApplicationShell({ children, ...props }) {
         return;
       }
       if (event.key !== "Tab") return;
-      const focusable = [...(sidebarRef.current?.querySelectorAll('a[href], button:not([disabled]), select, input, textarea, [tabindex]:not([tabindex="-1"])') || [])];
+      const focusable = [...(sidebarRef.current?.querySelectorAll('a[href], button:not([disabled]), [role="combobox"], input, textarea, [tabindex]:not([tabindex="-1"])') || [])];
       if (!focusable.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -72,13 +94,13 @@ export default function ApplicationShell({ children, ...props }) {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
     };
-  }, [sidebarOpen, showSidebar]);
+  }, [sidebarOpen, showSidebar, desktopSidebar]);
 
   return (
     <div className={shellClassName} data-shell-scope={scope} data-world-theme={campaignChrome ? worldTheme.key : "neutral"} style={campaignChrome ? getThemeStyle(worldTheme) : undefined}>
       <a className="skip-link" href="#main-content">Перейти к содержимому</a>
       {campaignChrome ? <CinematicWorldBackground theme={worldTheme} /> : null}
-      {showSidebar && sidebarOpen ? (
+      {showSidebar && sidebarOpen && !desktopSidebar ? (
         <button
           type="button"
           className="sidebar-backdrop"
@@ -92,7 +114,8 @@ export default function ApplicationShell({ children, ...props }) {
       {showSidebar ? (
         <CodexSidebar
           sidebarRef={sidebarRef}
-          isOpen={sidebarOpen}
+          isOpen={sidebarVisible}
+          persistent={desktopSidebar}
           session={props.session}
           activeWorld={props.activeWorld}
           onClose={() => setSidebarOpen(false)}
@@ -110,9 +133,7 @@ export default function ApplicationShell({ children, ...props }) {
           sidebarToggleRef={sidebarToggleRef}
         />
         <section className="content-stage">
-          <StatusMessage tone={props.campaignNotice?.tone || "info"} role={props.campaignNotice?.tone === "danger" ? "alert" : "status"}>
-            {props.campaignNotice?.message || ""}
-          </StatusMessage>
+          <Notice tone={props.campaignNotice?.tone || "info"}>{props.campaignNotice?.message || ""}</Notice>
           <RouteBreadcrumbs session={props.session} activeWorld={props.activeWorld} />
           <PageBackButton />
           {children}
