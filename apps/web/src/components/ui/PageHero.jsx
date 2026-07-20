@@ -1,15 +1,16 @@
-function classNames(...values) {
-  return values.filter(Boolean).join(" ");
-}
+import { PageHeader } from "./Silverleaf.jsx";
 
-export default function PageHero({ kicker, title, description, children, className = "", actions = null }) {
+export default function PageHero({ kicker, eyebrow, title, description, children, className = "", actions = null, meta = null }) {
   return (
-    <section className={classNames("hero-panel", className)}>
-      {kicker ? <span className="kicker">{kicker}</span> : null}
-      {title ? <h1>{title}</h1> : null}
-      {description ? <p>{description}</p> : null}
-      {actions ? <div className="page-hero-actions">{actions}</div> : null}
+    <PageHeader
+      eyebrow={eyebrow || kicker}
+      title={title}
+      description={description}
+      actions={actions}
+      meta={meta}
+      className={className}
+    >
       {children}
-    </section>
+    </PageHeader>
   );
 }
