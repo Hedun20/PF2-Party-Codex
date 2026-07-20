@@ -1,0 +1,48 @@
+.character-hero { min-height: 300px; padding: 22px; display: grid; grid-template-columns: 260px minmax(0,1fr) 180px; gap: 26px; align-items: center; border: 1px solid var(--sl-border-default); border-radius: var(--sl-radius-lg); background: linear-gradient(110deg, rgba(10,28,23,0.96), rgba(14,38,31,0.78)), radial-gradient(circle at 75% 20%, rgba(159,197,195,0.16), transparent 30%); box-shadow: var(--sl-shadow-md); position: relative; overflow: hidden; }
+.character-portrait { min-height: 250px; display: grid; place-items: center; position: relative; overflow: hidden; border: 1px solid var(--sl-border-default); border-radius: 48% 48% 14px 14px; color: var(--sl-accent-moon); background: radial-gradient(circle at 50% 34%, rgba(159,197,195,0.19), transparent 30%), linear-gradient(160deg, #244f41, #0a1814 75%); }
+.character-portrait__halo { position: absolute; width: 160px; height: 160px; border: 1px solid rgba(200,166,106,0.42); border-radius: 50%; box-shadow: 0 0 38px rgba(159,197,195,0.11); }
+.character-portrait svg { position: relative; z-index: 1; opacity: 0.86; }
+.character-portrait__badge { position: absolute; bottom: 14px; left: 14px; right: 14px; min-height: 32px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--sl-border-default); border-radius: 999px; background: rgba(3,12,9,0.74); color: var(--sl-accent-gold-bright); font-size: 11px; }
+.character-hero__content h2 { margin: 5px 0 13px; color: var(--sl-accent-gold-bright); font: 500 clamp(28px, 3vw, 45px)/1.05 var(--sl-font-display); }
+.character-hero__content > p { color: var(--sl-text-secondary); line-height: 1.7; }
+.character-hero__identity { margin-top: 22px; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); border-top: 1px solid var(--sl-border-subtle); }
+.character-hero__identity div { padding: 14px 12px 0; border-right: 1px solid var(--sl-border-subtle); }
+.character-hero__identity div:last-child { border-right: 0; }
+.character-hero__identity small { display: block; margin-bottom: 5px; color: var(--sl-text-muted); font-size: 9px; text-transform: uppercase; letter-spacing: 0.11em; }
+.character-hero__identity strong { color: var(--sl-text-primary); font: 500 13px/1.2 var(--sl-font-display); }
+.character-hero__crest { min-height: 170px; display: grid; place-items: center; align-content: center; gap: 10px; border: 1px solid var(--sl-border-subtle); border-radius: 50%; color: var(--sl-accent-gold); background: radial-gradient(circle, rgba(47,108,88,0.2), transparent 64%); }
+.character-hero__crest span { color: var(--sl-accent-gold-bright); font: 500 18px var(--sl-font-display); }
+.character-tabs { display: flex; gap: 3px; border-bottom: 1px solid var(--sl-border-subtle); }
+.character-tabs button { min-height: 44px; padding: 0 18px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--sl-text-muted); cursor: pointer; }
+.character-tabs button.is-active { color: var(--sl-accent-gold-bright); border-color: var(--sl-accent-emerald-strong); }
+.character-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 0.34fr); gap: 16px; }
+.character-layout__main, .character-layout__rail { min-width: 0; display: grid; gap: 16px; align-content: start; }
+.save-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+.save-grid > div { min-height: 120px; padding: 14px; display: grid; justify-items: center; align-content: center; gap: 5px; border: 1px solid var(--sl-border-subtle); border-radius: var(--sl-radius-sm); color: var(--sl-accent-gold); background: rgba(255,255,255,0.016); }
+.save-grid span { color: var(--sl-text-secondary); font-size: 11px; }
+.save-grid strong { color: var(--sl-text-primary); font: 500 25px var(--sl-font-display); }
+.save-grid small { color: var(--sl-text-muted); font-size: 9px; }
+.action-list { display: grid; gap: 9px; }
+.action-row { min-height: 64px; padding: 10px 12px; display: grid; grid-template-columns: 42px minmax(150px,1fr) auto minmax(140px, auto) 18px; align-items: center; gap: 12px; border: 1px solid var(--sl-border-subtle); border-radius: var(--sl-radius-sm); background: rgba(255,255,255,0.015); }
+.action-row.is-featured { border-color: rgba(47,108,88,0.7); background: rgba(47,108,88,0.1); }
+.action-row__icon { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--sl-border-default); border-radius: 50%; color: var(--sl-accent-gold); }
+.action-row div { display: grid; gap: 3px; }
+.action-row div strong { color: var(--sl-text-primary); font-size: 13px; }
+.action-row div span { color: var(--sl-text-muted); font-size: 10px; }
+.action-row b { color: var(--sl-accent-gold-bright); }
+.action-row em { color: var(--sl-text-secondary); font-size: 11px; font-style: normal; }
+.skill-list, .resource-list { display: grid; gap: 4px; }
+.skill-list div, .resource-list div { min-height: 39px; padding: 0 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--sl-border-subtle); color: var(--sl-text-secondary); font-size: 12px; }
+.skill-list strong, .resource-list b { color: var(--sl-accent-gold-bright); }
+.reference-list { display: grid; gap: 8px; }
+.reference-list button { min-height: 58px; padding: 10px; display: grid; grid-template-columns: 26px 1fr 15px; align-items: center; gap: 9px; text-align: left; border: 1px solid var(--sl-border-subtle); border-radius: var(--sl-radius-sm); background: rgba(255,255,255,0.014); color: var(--sl-accent-gold); }
+.reference-list button span { display: grid; gap: 3px; }
+.reference-list button strong { color: var(--sl-text-primary); font-size: 12px; }
+.reference-list button small { color: var(--sl-text-muted); font-size: 9px; }
+.connection-list { display: grid; gap: 9px; }
+.connection-list > div { display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: 9px; }
+.connection-avatar { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--sl-border-default); border-radius: 50%; color: var(--sl-accent-gold-bright); font-size: 10px; background: rgba(47,108,88,0.12); }
+.connection-list > div > span:nth-child(2) { display: grid; gap: 2px; }
+.connection-list strong { font-size: 11px; }
+.connection-list small { color: var(--sl-text-muted); font-size: 9px; }
+.character-note { margin: 0 0 14px; padding: 14px; border-left: 2px solid var(--sl-accent-emerald-strong); color: var(--sl-text-secondary); background: rgba(47,108,88,0.07); font: italic 13px/1.65 var(--sl-font-display); }
