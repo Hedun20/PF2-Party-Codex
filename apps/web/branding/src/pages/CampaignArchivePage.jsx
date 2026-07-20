@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Archive,
   BookOpen,
@@ -73,9 +74,11 @@ const entries = [
 ];
 
 export default function CampaignArchivePage() {
+  const navigate = useNavigate();
   const [selectedId, setSelectedId] = useState(entries[0].id);
   const selected = useMemo(() => entries.find((entry) => entry.id === selectedId) || entries[0], [selectedId]);
   const SelectedIcon = selected.icon;
+  const openSelected = () => navigate(selected.type === "NPC" ? "/npcs" : "/entry");
 
   return (
     <div className="archive-page">
@@ -85,7 +88,7 @@ export default function CampaignArchivePage() {
           <h1>Campaign Archive</h1>
           <p>Your campaign’s complete history, preserved for posterity. Organized. Timeless. Yours.</p>
           <div className="archive-page__hero-actions">
-            <Button>Create New Entry</Button>
+            <Button onClick={() => navigate("/entry/new")}>Create New Entry</Button>
             <Button variant="secondary" icon={Upload}>Import Archive</Button>
           </div>
         </div>
@@ -137,6 +140,7 @@ export default function CampaignArchivePage() {
                   type="button"
                   className={`archive-entry${selectedEntry ? " is-selected" : ""}`}
                   onClick={() => setSelectedId(entry.id)}
+                  onDoubleClick={() => navigate(entry.type === "NPC" ? "/npcs" : "/entry")}
                 >
                   <span className={`archive-entry__art archive-entry__art--${entry.tone}`} aria-hidden="true">
                     <span><EntryIcon size={28} strokeWidth={1.25} /></span>
@@ -168,7 +172,7 @@ export default function CampaignArchivePage() {
           eyebrow="Selected record"
           title={selected.title}
           className="archive-page__inspector"
-          actions={<><IconButton label="Preview record" icon={Eye} /><IconButton label="More actions" icon={MoreHorizontal} /></>}
+          actions={<><IconButton label="Open selected record" icon={Eye} onClick={openSelected} /><IconButton label="More actions" icon={MoreHorizontal} /></>}
         >
           <div className="archive-inspector">
             <div className={`archive-inspector__art archive-entry__art--${selected.tone}`}>
@@ -193,15 +197,15 @@ export default function CampaignArchivePage() {
 
             <section className="archive-inspector__section">
               <h3>Related Content</h3>
-              <button type="button"><Users size={17} strokeWidth={1.35} /><span>Lirael Moonwhisper</span><small>NPC</small><ChevronRight size={15} /></button>
+              <button type="button" onClick={() => navigate("/npcs")}><Users size={17} strokeWidth={1.35} /><span>Lirael Moonwhisper</span><small>NPC</small><ChevronRight size={15} /></button>
               <button type="button"><MapPin size={17} strokeWidth={1.35} /><span>Silverleaf Conclave</span><small>Location</small><ChevronRight size={15} /></button>
-              <button type="button"><BookOpen size={17} strokeWidth={1.35} /><span>The Shattered Oath</span><small>Lore</small><ChevronRight size={15} /></button>
+              <button type="button" onClick={() => navigate("/entry")}><BookOpen size={17} strokeWidth={1.35} /><span>The Shattered Oath</span><small>Lore</small><ChevronRight size={15} /></button>
             </section>
 
             <section className="archive-inspector__section">
               <h3>Quick Actions</h3>
               <div className="archive-inspector__actions">
-                <Button variant="secondary" icon={BookOpen}>Open in Journal</Button>
+                <Button variant="secondary" icon={BookOpen} onClick={openSelected}>Open Full Record</Button>
                 <Button variant="secondary" icon={Archive}>View Relations</Button>
               </div>
             </section>
