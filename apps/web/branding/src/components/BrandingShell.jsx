@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Dices,
   FilePlus2,
+  History,
   Menu,
   MoonStar,
   Search,
@@ -27,6 +28,7 @@ const navigation = [
   { to: "/entry", label: "Lore Entry Detail", icon: BookOpen },
   { to: "/entry/new", label: "Create Archive Entry", icon: FilePlus2 },
   { to: "/npcs", label: "NPC Roster", icon: Users },
+  { to: "/timeline", label: "Campaign Timeline", icon: History },
   { to: "/character", label: "Character Dossier", icon: UserRound },
   { to: "/dice", label: "Dice Workspace", icon: Dices },
   { to: "/invitations", label: "Players & Invites", icon: UserPlus }
@@ -38,6 +40,7 @@ const pageNames = {
   "/entry": "The Shattered Oath",
   "/entry/new": "Create Archive Entry",
   "/npcs": "NPC Roster",
+  "/timeline": "Campaign Timeline",
   "/character": "Character Dossier",
   "/dice": "Dice Workspace",
   "/invitations": "Players & Invitations"
