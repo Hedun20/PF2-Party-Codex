@@ -80,35 +80,54 @@ test("approved corrected v3 primary button keeps its locked geometry", () => {
   assert.doesNotMatch(css, /translate\([+-]?34%/);
 });
 
-test("approved secondary button remains subordinate to the primary", () => {
+test("secondary v2 is a light outline without coupon notches or CTA fill", () => {
   const ui = read("apps/web/branding/src/components/Ui.jsx");
   const css = read("apps/web/branding/src/silverleaf-components.css");
   const foundations = read("apps/web/branding/src/pages/FoundationsPage.jsx");
 
-  assert.match(ui, /secondary-button-default-v1/);
+  assert.match(ui, /secondary-button-default-v2/);
   assert.match(css, /\.sl-button--secondary\s*\{/);
   assert.match(css, /width:\s*220px/);
-  assert.match(css, /height:\s*48px/);
-  assert.match(foundations, /Approved components/);
-  assert.match(foundations, /Primary & Secondary Buttons/);
-  assert.match(foundations, /Secondary: 220 × 48 px/);
+  assert.match(css, /height:\s*44px/);
+  assert.match(css, /rgba\(3, 13, 10, 0\.84\)/);
+  assert.doesNotMatch(css, /\.sl-button--secondary[\s\S]*calc\(100% - 5px\) 50%/);
+  assert.match(foundations, /Secondary v2 candidate/);
+  assert.match(foundations, /no side notches, no coupon silhouette/);
 });
 
-test("text input exposes only its default Silverleaf candidate", () => {
+test("text and select controls are fluid and share the restrained form shell", () => {
   const ui = read("apps/web/branding/src/components/Ui.jsx");
   const css = read("apps/web/branding/src/silverleaf-components.css");
   const foundations = read("apps/web/branding/src/pages/FoundationsPage.jsx");
 
   assert.match(ui, /function TextInput/);
-  assert.match(ui, /text-input-default-v1/);
-  assert.match(ui, /sl-text-input__finial/);
-  assert.match(css, /\.sl-text-input\s*\{/);
-  assert.match(css, /width:\s*320px/);
-  assert.match(css, /height:\s*48px/);
-  assert.match(css, /sl-text-input__control/);
-  assert.match(foundations, /Text Input · default v1/);
-  assert.match(foundations, /Default candidate only/);
-  assert.match(foundations, /Focus, error, disabled and helper states remain intentionally unapproved/);
+  assert.match(ui, /text-input-default-v2/);
+  assert.match(ui, /function SelectInput/);
+  assert.match(ui, /select-default-v1/);
+  assert.match(css, /\.sl-text-input,\s*\n\.sl-select-input/);
+  assert.match(css, /width:\s*100%/);
+  assert.match(css, /min-width:\s*0/);
+  assert.match(css, /height:\s*44px/);
+  assert.doesNotMatch(css, /\.sl-text-input[\s\S]{0,180}width:\s*320px/);
+  assert.match(foundations, /Fluid width: shrinks with an open sidebar/);
+  assert.match(foundations, /No fixed 320 px width/);
+});
+
+test("core navigation, card and chip primitives are present in the branding lab", () => {
+  const ui = read("apps/web/branding/src/components/Ui.jsx");
+  const css = read("apps/web/branding/src/silverleaf-components.css");
+  const foundations = read("apps/web/branding/src/pages/FoundationsPage.jsx");
+
+  assert.match(ui, /function SidebarNavItem/);
+  assert.match(ui, /sidebar-item-default-v1/);
+  assert.match(ui, /function ArchiveCard/);
+  assert.match(ui, /archive-card-default-v1/);
+  assert.match(ui, /chip-default-v1/);
+  assert.match(css, /\.sl-sidebar-item\.is-active/);
+  assert.match(css, /\.sl-archive-card\s*\{/);
+  assert.match(css, /\.sl-chip\s*\{/);
+  assert.match(foundations, /Sidebar item/);
+  assert.match(foundations, /Archive card & chips/);
 });
 
 test("shell prototype covers expanded, collapsed and mobile navigation", () => {
