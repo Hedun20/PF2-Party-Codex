@@ -1,10 +1,36 @@
 import { LoaderCircle } from "lucide-react";
 
-export function Button({ variant = "primary", size = "md", icon: Icon, loading = false, children, className = "", ...props }) {
+function SilverleafLeafIcon({ size = 20, ...props }) {
   return (
-    <button className={`sl-button sl-button--${variant} sl-button--${size} ${className}`.trim()} type="button" {...props}>
-      {loading ? <LoaderCircle className="sl-spin" size={16} aria-hidden="true" /> : Icon ? <Icon size={16} aria-hidden="true" /> : null}
-      <span>{children}</span>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
+      <path d="M19.2 3.4C13.1 4 8.1 7.3 6 12.2c-1 2.3-1.3 4.7-1.2 7.1 2.4.1 4.8-.3 6.9-1.4 4.7-2.3 7.1-7.3 7.5-14.5Z" stroke="currentColor" strokeWidth="1.55" strokeLinejoin="round" />
+      <path d="M4 21c2.2-5.7 6.1-10 11.9-13" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" />
+      <path d="M7.4 14.9c1.7 0 3.2.4 4.7 1.1M10.2 11.3c.2-1.4.1-2.7-.2-3.9M12.7 8.9c1.4.1 2.7.5 3.8 1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function Button({ variant = "primary", size = "md", icon: Icon, loading = false, children, className = "", ...props }) {
+  const ResolvedIcon = loading ? LoaderCircle : Icon || (variant === "primary" ? SilverleafLeafIcon : null);
+
+  return (
+    <button
+      className={`sl-button sl-button--${variant} sl-button--${size} ${className}`.trim()}
+      type="button"
+      data-component={variant === "primary" && size === "md" ? "primary-button-default-v3" : undefined}
+      {...props}
+    >
+      {variant === "primary" ? (
+        <>
+          <span className="sl-button__surface" aria-hidden="true" />
+          <span className="sl-button__diamond sl-button__diamond--left" aria-hidden="true" />
+          <span className="sl-button__diamond sl-button__diamond--right" aria-hidden="true" />
+        </>
+      ) : null}
+      <span className="sl-button__content">
+        {ResolvedIcon ? <ResolvedIcon className={loading ? "sl-spin" : undefined} size={variant === "primary" ? 20 : 16} aria-hidden="true" /> : null}
+        <span>{children}</span>
+      </span>
     </button>
   );
 }
