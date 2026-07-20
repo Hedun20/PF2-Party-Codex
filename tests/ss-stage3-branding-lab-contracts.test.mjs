@@ -177,6 +177,24 @@ test("shell uses Silverleaf branding instead of the old generic gem shell", () =
   assert.match(css, /--sl-sidebar-collapsed/);
 });
 
+test("premium surface pass carries the primary button craft into the shell and content surfaces", () => {
+  const entry = read("apps/web/branding/src/branding.css");
+  const surface = read("apps/web/branding/src/silverleaf-surface-pass.css");
+
+  assert.match(entry, /silverleaf-surface-pass\.css/);
+  assert.match(surface, /\.sl-panel::before/);
+  assert.match(surface, /\.sl-archive-card::before/);
+  assert.match(surface, /\.sl-dialog-card::before/);
+  assert.match(surface, /--sl-surface-gold-outer/);
+  assert.match(surface, /--sl-surface-teal-inner/);
+  assert.match(surface, /aspect-ratio:\s*1\s*\/\s*1/);
+  assert.match(surface, /flex:\s*0\s+0\s+var\(--sl-icon-control-size\)/);
+  assert.match(surface, /\.branding-grid--stats\s*\{/);
+  assert.match(surface, /grid-template-columns:\s*repeat\(4, minmax\(220px, 1fr\)\)/);
+  assert.match(surface, /container-name:\s*silverleaf-dense-data/);
+  assert.match(surface, /@container silverleaf-dense-data \(max-width: 920px\)/);
+});
+
 test("review pages contain real interactive JSX rather than screenshots", () => {
   const character = read("apps/web/branding/src/pages/CharacterDossierPage.jsx");
   const dice = read("apps/web/branding/src/pages/DiceWorkspacePage.jsx");
