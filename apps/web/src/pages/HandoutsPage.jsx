@@ -84,10 +84,6 @@ export default function HandoutsPage({ pages = [], mode = "player" }) {
   const showEntryFallback = Boolean(state.error && entryItems.length);
   const showMongo = !state.loading && !state.error && state.handouts.length > 0;
   const showEmpty = !state.loading && !state.error && state.handouts.length === 0;
-  const meta = [
-    state.role ? `Роль: ${state.role}` : null,
-    mode === "gm" ? "GM видит подготовленные и открытые материалы" : "Участник видит только открытые материалы"
-  ].filter(Boolean);
 
   return (
     <div className="page-stack handouts-page">
@@ -95,7 +91,12 @@ export default function HandoutsPage({ pages = [], mode = "player" }) {
         eyebrow="Материалы / Reveal"
         title="Материалы для участников"
         description="Изображения, тексты и подсказки, которые GM подготовил или уже открыл участникам активной кампании."
-        meta={meta}
+        meta={(
+          <>
+            {state.role ? <Chip tone="gold">Роль: {state.role}</Chip> : null}
+            <Chip tone={mode === "gm" ? "success" : "neutral"}>{mode === "gm" ? "GM: подготовленные и открытые" : "Участник: только открытые"}</Chip>
+          </>
+        )}
       />
 
       {state.loading ? <LoadingState title="Загружаю материалы" description="Проверяю handouts и открытые статьи активной кампании." /> : null}
