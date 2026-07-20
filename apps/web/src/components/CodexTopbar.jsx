@@ -93,6 +93,7 @@ export default function CodexTopbar({
           <SelectInput
             className="topbar-select topbar-select--campaign"
             aria-label="Активная кампания"
+            aria-busy={campaignSwitching}
             value={campaignId}
             onChange={changeCampaign}
             disabled={campaignSwitching || !hasAlternativeCampaign}
