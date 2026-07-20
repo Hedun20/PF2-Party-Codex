@@ -41,7 +41,7 @@ jobs:
 
       - name: Run SS architecture contracts
         shell: bash
-        run: set -o pipefail; node --test tests/ss-stage1-architecture-contracts.test.mjs tests/ss-stage2-routing-shell-contracts.test.mjs 2>&1 | tee ss-architecture.log
+        run: set -o pipefail; node --test tests/ss-stage1-architecture-contracts.test.mjs tests/ss-stage2-routing-shell-contracts.test.mjs tests/ss-stage3-branding-lab-contracts.test.mjs 2>&1 | tee ss-architecture.log
 
       - name: Upload SS architecture diagnostics
         if: failure()
@@ -70,7 +70,7 @@ jobs:
           path: route-access.log
           retention-days: 3
 
-      - name: Build production web bundle and enforce budgets
+      - name: Build production web bundle and branding brochure
         run: npm run build
 
       - name: Run server smoke tests against production bundle
