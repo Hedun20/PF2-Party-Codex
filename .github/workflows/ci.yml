@@ -41,7 +41,7 @@ jobs:
 
       - name: Run SS architecture contracts
         shell: bash
-        run: set -o pipefail; node --test tests/ss-stage1-architecture-contracts.test.mjs tests/ss-stage2-routing-shell-contracts.test.mjs tests/ss-stage3-branding-lab-contracts.test.mjs 2>&1 | tee ss-architecture.log
+        run: set -o pipefail; node --test tests/ss-stage1-architecture-contracts.test.mjs tests/ss-stage2-routing-shell-contracts.test.mjs tests/ss-stage3-branding-lab-contracts.test.mjs tests/ss-stage3-production-design-system-contracts.test.mjs 2>&1 | tee ss-architecture.log
 
       - name: Upload SS architecture diagnostics
         if: failure()
