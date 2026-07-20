@@ -1,9 +1,6 @@
 import { useState } from "react";
 import {
-  AlertTriangle,
-  Archive,
   BookOpen,
-  Check,
   Clock3,
   Eye,
   LayoutDashboard,
@@ -14,9 +11,7 @@ import {
   Save,
   Search,
   ScrollText,
-  ShieldAlert,
   Sparkles,
-  Star,
   Trash2,
   Users
 } from "lucide-react";
@@ -56,19 +51,19 @@ export default function FoundationsPage() {
   return (
     <div className="branding-page">
       <PageHeader
-        eyebrow="Approved visual system"
+        eyebrow="Silverleaf design system"
         title="Silverleaf Dark"
-        description="A clickable JSX brochure for the final Royal Archive design language. Components here are isolated from production and become the source for later migration."
-        actions={<><Button variant="secondary" icon={Eye}>Preview shell</Button><Button variant="secondary" icon={Save}>Freeze tokens</Button></>}
+        description="The isolated component workshop for the final Royal Archive interface. Approved components remain locked; review candidates stay here until visual sign-off."
+        actions={<><Button variant="secondary" icon={Eye}>Preview Shell</Button><Button variant="secondary" icon={Save}>Freeze Tokens</Button></>}
       >
-        <div className="sl-inline-chips"><Chip tone="success">Approved direction</Chip><Chip>Dark mode</Chip><Chip tone="gold">Fantasy 7/10</Chip></div>
+        <div className="sl-inline-chips"><Chip tone="success">Primary approved</Chip><Chip>Dark mode</Chip><Chip tone="gold">Fantasy interface</Chip></div>
       </PageHeader>
 
       <section className="branding-hero-card">
         <div className="branding-hero-card__copy">
           <p className="sl-eyebrow">Royal archive · moonlit sanctuary</p>
           <h2>A premium campaign workspace, not a decorative skin.</h2>
-          <p>One layout system. One spacing scale. One component contract. Themes change tokens, assets and atmosphere—never behavior.</p>
+          <p>One component grammar, one icon language and one frame system. Pages will be assembled from approved parts rather than restyled individually.</p>
           <div className="branding-hero-card__actions">
             <Button>Create New Entry</Button>
             <Button variant="secondary" icon={BookOpen}>Open Journal</Button>
@@ -84,11 +79,11 @@ export default function FoundationsPage() {
       <div className="branding-grid branding-grid--3">
         <Panel eyebrow="Foundation" title="Palette">
           <div className="token-grid">
-            {colors.map(([name, value]) => (
+            {colors.map(([name, color]) => (
               <div className="token-swatch" key={name}>
-                <span style={{ background: value }} />
+                <span style={{ background: color }} />
                 <strong>{name}</strong>
-                <code>{value}</code>
+                <code>{color}</code>
               </div>
             ))}
           </div>
@@ -99,19 +94,19 @@ export default function FoundationsPage() {
             <div className="component-row"><Button>Create New Entry</Button></div>
             <div className="component-row"><Button variant="secondary" icon={BookOpen}>View Journal</Button></div>
             <div className="sl-component-contract">
-              <strong>Primary approved · Secondary v2 candidate</strong>
-              <span>Primary geometry remains locked at 248 × 56 px.</span>
-              <span>Secondary is now a quiet 220 × 44 px outline: no green CTA fill, no side notches, no coupon silhouette.</span>
+              <strong>Primary approved · Secondary v3 review candidate</strong>
+              <span>Both actions use the same 248 × 56 px footprint and align perfectly in action groups.</span>
+              <span>Secondary keeps a quiet transparent interior and a single restrained hairline frame.</span>
             </div>
           </div>
         </Panel>
 
-        <Panel eyebrow="Core forms" title="Text Field & Select">
+        <Panel eyebrow="Core forms" title="Text Field & Custom Select">
           <div className="component-stack">
             <Field label="Archive search" hint="Fluid width: shrinks with an open sidebar">
               <TextInput icon={Search} placeholder="Search your archive..." aria-label="Archive search" />
             </Field>
-            <Field label="Entry type">
+            <Field label="Entry type" hint="Custom listbox: no browser-native white popup">
               <SelectInput defaultValue="lore" aria-label="Entry type">
                 <option value="lore">Lore Entry</option>
                 <option value="npc">NPC</option>
@@ -119,16 +114,16 @@ export default function FoundationsPage() {
               </SelectInput>
             </Field>
             <div className="sl-component-contract">
-              <strong>Default candidates</strong>
-              <span>Responsive width, restrained teal-gold hairline and shallow 6 px corner cuts.</span>
-              <span>No fixed 320 px width. Both controls stay inside medium layouts with the sidebar open.</span>
+              <strong>Form shell v3 review candidates</strong>
+              <span>Responsive width, one 48 px field height and the same restrained teal-gold hairline.</span>
+              <span>The dropdown menu is fully custom and uses the Silverleaf surface, icons and selection state.</span>
             </div>
           </div>
         </Panel>
       </div>
 
       <div className="branding-grid branding-grid--2">
-        <Panel eyebrow="Navigation" title="Sidebar item">
+        <Panel eyebrow="Navigation" title="Sidebar Item">
           <div className="sl-core-showcase">
             <div className="sl-sidebar-sample">
               <SidebarNavItem icon={LayoutDashboard}>Dashboard</SidebarNavItem>
@@ -137,14 +132,14 @@ export default function FoundationsPage() {
               <SidebarNavItem icon={MapPin}>Locations</SidebarNavItem>
             </div>
             <div className="sl-component-contract">
-              <strong>Default + active language</strong>
-              <span>Quiet default row, thin antique-gold icon and a narrow active marker.</span>
-              <span>The active state uses atmosphere and hierarchy instead of a bright rounded rectangle.</span>
+              <strong>Unified icon and navigation grammar</strong>
+              <span>All interface icons use the same 1.45 stroke weight and antique-gold tone.</span>
+              <span>The active state relies on atmosphere and a narrow marker instead of a generic rounded block.</span>
             </div>
           </div>
         </Panel>
 
-        <Panel eyebrow="Content" title="Archive card & chips">
+        <Panel eyebrow="Content" title="Archive Card & Chips">
           <ArchiveCard
             icon={Map}
             eyebrow="Location"
@@ -158,7 +153,7 @@ export default function FoundationsPage() {
       </div>
 
       <div className="branding-grid branding-grid--2">
-        <Panel eyebrow="Interaction" title="Tabs, textarea & icon buttons">
+        <Panel eyebrow="Interaction" title="Tabs, Textarea & Icon Buttons">
           <div className="component-stack">
             <Tabs
               active={activeTab}
@@ -169,7 +164,7 @@ export default function FoundationsPage() {
                 { value: "relations", label: "Relations" }
               ]}
             />
-            <Field label="GM notes" hint="Default textarea shell">
+            <Field label="GM notes" hint="Shared Silverleaf field frame">
               <TextareaInput placeholder="Add private notes, reminders or secrets..." aria-label="GM notes" />
             </Field>
             <div className="component-row">
@@ -180,7 +175,7 @@ export default function FoundationsPage() {
           </div>
         </Panel>
 
-        <Panel eyebrow="Dense data" title="Table row & dialog">
+        <Panel eyebrow="Dense data" title="Table Row & Dialog">
           <div className="sl-second-layer-grid">
             <div className="sl-table-sample">
               <TableRow
@@ -200,7 +195,7 @@ export default function FoundationsPage() {
             </div>
             <DialogCard
               eyebrow="Destructive action"
-              title="Delete archive entry?"
+              title="Delete Archive Entry?"
               description="The entry will move to Trash and remain recoverable until the campaign archive is emptied."
               actions={<><Button size="sm" variant="ghost">Cancel</Button><Button size="sm" variant="danger">Delete</Button></>}
             />
@@ -215,38 +210,14 @@ export default function FoundationsPage() {
         <Stat icon={Map} value="12" label="Campaign maps" hint="3 revealed" />
       </div>
 
-      <div className="branding-grid branding-grid--2">
-        <Panel eyebrow="Pattern" title="Legacy comparison card" actions={<Button size="sm" variant="ghost">View all</Button>}>
-          <article className="archive-card-demo">
-            <div className="archive-card-demo__art"><span>☾</span></div>
-            <div className="archive-card-demo__body">
-              <div className="archive-card-demo__meta"><Chip tone="success">Lore</Chip><span>Updated today</span></div>
-              <h3>The Shattered Oath</h3>
-              <p>A betrayal buried deep within elven history returns to reshape the alliances of Silverleaf Vale.</p>
-              <div className="sl-inline-chips"><Chip>Elves</Chip><Chip>Betrayal</Chip><Chip>First Age</Chip></div>
-            </div>
-            <button className="archive-card-demo__star" type="button" aria-label="Favorite entry"><Star size={18} /></button>
-          </article>
-        </Panel>
-
-        <Panel eyebrow="System states" title="Complete state language">
-          <div className="state-grid">
-            <div className="state-card"><Check size={23} /><strong>Complete</strong><span>Everything is ready.</span></div>
-            <div className="state-card"><Archive size={23} /><strong>Empty</strong><span>Create the first entry.</span></div>
-            <div className="state-card is-warning"><AlertTriangle size={23} /><strong>Recoverable error</strong><span>Retry without losing context.</span></div>
-            <div className="state-card is-danger"><ShieldAlert size={23} /><strong>Forbidden</strong><span>Role-safe and explicit.</span></div>
-          </div>
-        </Panel>
-      </div>
-
-      <Panel eyebrow="Layout contract" title="Expanded and collapsed sidebar are equal first-class states" className="layout-contract">
+      <Panel eyebrow="Layout contract" title="Expanded and Collapsed Sidebar Are Equal First-Class States" className="layout-contract">
         <div className="layout-contract__visual">
           <div className="layout-mini-shell is-expanded"><span /><div><i /><i /><i /></div></div>
           <div className="layout-mini-shell is-collapsed"><span /><div><i /><i /><i /></div></div>
         </div>
         <div className="layout-contract__copy">
-          <Sparkles size={22} aria-hidden="true" />
-          <p>Content uses fluid columns and bounded reading widths. Closing the sidebar gives useful space back to the page; it never stretches text into unreadable lines or turns cards into oversized blocks.</p>
+          <Sparkles size={22} strokeWidth={1.45} aria-hidden="true" />
+          <p>Content uses fluid columns and bounded reading widths. Closing the sidebar gives useful space back to the page; it never clips controls or stretches text into unreadable lines.</p>
         </div>
       </Panel>
     </div>
