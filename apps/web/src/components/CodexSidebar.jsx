@@ -3,7 +3,6 @@ import {
   Archive,
   BookOpen,
   CalendarDays,
-  Castle,
   CircleHelp,
   Dices,
   FileText,
@@ -22,6 +21,7 @@ import {
   UsersRound,
   X
 } from "lucide-react";
+import { IconButton, SilverleafLeafIcon } from "./ui/Silverleaf.jsx";
 import {
   buildAppPath,
   campaignHomePath,
@@ -59,13 +59,14 @@ function role(session) {
   return String(session?.activeMembership?.role || "").toLowerCase();
 }
 
+function roleLabel(value) {
+  if (value === "owner") return "Campaign Owner";
+  if (value === "gm") return "Game Master";
+  return "Player";
+}
+
 function NavGroup({ title, children }) {
-  return (
-    <div className="nav-group">
-      <span className="nav-group-title">{title}</span>
-      <div className="nav-group-links">{children}</div>
-    </div>
-  );
+  return <div className="nav-group"><span className="nav-group-title">{title}</span><div className="nav-group-links">{children}</div></div>;
 }
 
 function routeTarget(definition, campaignId) {
@@ -75,16 +76,15 @@ function routeTarget(definition, campaignId) {
 
 function NavItem({ definition, campaignId, onClose }) {
   const Icon = ICONS[definition.icon] || BookOpen;
-  const to = routeTarget(definition, campaignId);
   return (
-    <NavLink to={to} className="nav-link" onClick={onClose}>
-      <Icon size={18} aria-hidden="true" />
+    <NavLink to={routeTarget(definition, campaignId)} className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} onClick={onClose}>
+      <Icon size={18} strokeWidth={1.45} aria-hidden="true" />
       <span>{definition.title}</span>
     </NavLink>
   );
 }
 
-export default function CodexSidebar({ sidebarRef, isOpen = false, onClose, session, activeWorld = null }) {
+export default function CodexSidebar({ sidebarRef, isOpen = false, persistent = false, onClose, session, activeWorld = null }) {
   const location = useLocation();
   const signedIn = Boolean(session?.user);
   const hasCampaign = Boolean(session?.activeMembership?.id && session?.activeCampaign?.id);
@@ -99,28 +99,24 @@ export default function CodexSidebar({ sidebarRef, isOpen = false, onClose, sess
     <aside className="sidebar sidebar-shell" id="campaign-sidebar" ref={sidebarRef} aria-label="Навигация Party Codex" aria-hidden={!isOpen} inert={isOpen ? undefined : ""}>
       <div className="sidebar-head">
         <Link to={brandTarget} className="brand" onClick={onClose}>
-          <Castle aria-hidden="true" />
-          <span>{hasCampaign ? session?.activeCampaign?.name || "Party Codex" : "Party Codex"}</span>
+          <span className="brand-mark"><SilverleafLeafIcon size={29} /></span>
+          <span className="brand-copy"><strong>{hasCampaign ? session?.activeCampaign?.name || "Royal Archive" : "Royal Archive"}</strong><small>PF2 Party Codex</small></span>
         </Link>
-        <button type="button" className="sidebar-close" onClick={onClose} title="Закрыть навигацию" aria-label="Закрыть навигацию">
-          <X size={18} aria-hidden="true" />
-        </button>
+        {!persistent ? <IconButton label="Закрыть навигацию" icon={X} className="sidebar-close" onClick={onClose} /> : null}
       </div>
 
       {hasCampaign ? (
         <div className="sidebar-context-card">
-          <span className="kicker">{canManage ? "GM Portal" : "Player Portal"}</span>
+          <span className="kicker">{roleLabel(currentRole)}</span>
           <strong>{activeWorld?.title || session?.activeCampaign?.name || "Кампания"}</strong>
-          <p>{activeRoute.title}. Активная роль: {currentRole || "player"}.</p>
+          <p>{activeRoute.title} · {activeWorld ? "контекст мира" : "вся кампания"}</p>
         </div>
       ) : null}
 
       <nav className="nav-stack nav-stack-shell" aria-label="Основная навигация">
         {groups.map((group) => (
           <NavGroup key={group.id} title={group.label}>
-            {group.routes.map((definition) => (
-              <NavItem key={definition.id} definition={definition} campaignId={campaignId} onClose={onClose} />
-            ))}
+            {group.routes.map((definition) => <NavItem key={definition.id} definition={definition} campaignId={campaignId} onClose={persistent ? undefined : onClose} />)}
           </NavGroup>
         ))}
       </nav>
