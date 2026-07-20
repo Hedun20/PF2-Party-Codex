@@ -22,6 +22,7 @@ import { IconButton, SilverleafLeafIcon, TextInput } from "./Ui.jsx";
 const navigation = [
   { to: "/foundations", label: "Foundations", icon: Sparkles },
   { to: "/archive", label: "Campaign Archive", icon: Archive },
+  { to: "/entry", label: "Lore Entry Detail", icon: BookOpen },
   { to: "/character", label: "Character Dossier", icon: UserRound },
   { to: "/dice", label: "Dice Workspace", icon: Dices },
   { to: "/invitations", label: "Players & Invites", icon: UserPlus }
@@ -30,6 +31,7 @@ const navigation = [
 const pageNames = {
   "/foundations": "Design System Lab",
   "/archive": "Campaign Archive",
+  "/entry": "The Shattered Oath",
   "/character": "Character Dossier",
   "/dice": "Dice Workspace",
   "/invitations": "Players & Invitations"
