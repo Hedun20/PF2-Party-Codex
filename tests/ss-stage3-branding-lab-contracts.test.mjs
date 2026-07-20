@@ -27,33 +27,40 @@ test("branding lab is an isolated JSX multi-page prototype", () => {
   assert.match(main, /HashRouter/);
 });
 
-test("branding brochure exposes the approved four-page review flow", () => {
+test("branding brochure exposes the four-page review flow", () => {
   const app = read("apps/web/branding/src/BrandingApp.jsx");
   for (const route of ["/foundations", "/character", "/dice", "/invitations"]) {
     assert.ok(app.includes(`path="${route}"`), `missing branding route ${route}`);
   }
 });
 
-test("Silverleaf Dark has a fixed semantic token and typography contract", () => {
+test("Silverleaf Dark has one semantic geometry and typography contract", () => {
   const tokens = read("apps/web/branding/src/theme/silverleaf-dark.css");
   for (const token of [
     "--sl-bg-canvas",
     "--sl-bg-sidebar",
     "--sl-bg-surface",
     "--sl-border-default",
+    "--sl-frame-gold",
+    "--sl-frame-teal",
     "--sl-text-primary",
     "--sl-accent-emerald",
     "--sl-accent-moon",
     "--sl-accent-gold",
     "--sl-danger",
     "--sl-focus",
+    "--sl-action-width",
+    "--sl-action-height",
+    "--sl-field-height",
     "--sl-sidebar-expanded",
     "--sl-sidebar-collapsed"
-  ]) {
-    assert.ok(tokens.includes(token), `missing semantic token ${token}`);
-  }
+  ]) assert.ok(tokens.includes(token), `missing semantic token ${token}`);
+
   assert.match(tokens, /family=Cinzel/);
   assert.match(tokens, /family=Inter/);
+  assert.match(tokens, /--sl-action-width:\s*248px/);
+  assert.match(tokens, /--sl-action-height:\s*56px/);
+  assert.match(tokens, /--sl-field-height:\s*48px/);
   assert.match(tokens, /--sl-font-display:\s*"Cinzel"/);
   assert.match(tokens, /--sl-font-body:\s*"Inter"/);
 });
@@ -64,110 +71,113 @@ test("approved corrected v3 primary button keeps its locked geometry", () => {
   const entry = read("apps/web/branding/src/branding.css");
 
   assert.match(entry, /silverleaf-components\.css/);
+  assert.doesNotMatch(entry, /silverleaf-components-extra/);
   assert.match(ui, /SilverleafLeafIcon/);
   assert.match(ui, /primary-button-default-v3/);
   assert.match(ui, /sl-button__diamond--left/);
   assert.match(ui, /sl-button__diamond--right/);
-  assert.match(css, /width:\s*248px/);
-  assert.match(css, /height:\s*56px/);
+  assert.match(css, /\.sl-button--primary\s*\{[\s\S]*width:\s*var\(--sl-action-width\)/);
+  assert.match(css, /\.sl-button--primary\s*\{[\s\S]*height:\s*var\(--sl-action-height\)/);
   assert.match(css, /width:\s*148px/);
-  assert.match(css, /100%\s+84%/);
-  assert.match(css, /7px\s+50%/);
   assert.match(css, /top:\s*50%/);
   assert.match(css, /margin-top:\s*-6px/);
   assert.match(css, /left:\s*1px/);
   assert.match(css, /right:\s*1px/);
-  assert.doesNotMatch(css, /translate\([+-]?34%/);
 });
 
-test("secondary v2 is a light outline without coupon notches or CTA fill", () => {
+test("secondary v3 matches the primary footprint while remaining visually subordinate", () => {
   const ui = read("apps/web/branding/src/components/Ui.jsx");
   const css = read("apps/web/branding/src/silverleaf-components.css");
   const foundations = read("apps/web/branding/src/pages/FoundationsPage.jsx");
 
-  assert.match(ui, /secondary-button-default-v2/);
-  assert.match(css, /\.sl-button--secondary\s*\{/);
-  assert.match(css, /width:\s*220px/);
-  assert.match(css, /height:\s*44px/);
-  assert.match(css, /rgba\(3, 13, 10, 0\.84\)/);
-  assert.doesNotMatch(css, /\.sl-button--secondary[\s\S]*calc\(100% - 5px\) 50%/);
-  assert.match(foundations, /Secondary v2 candidate/);
-  assert.match(foundations, /no side notches, no coupon silhouette/);
+  assert.match(ui, /secondary-button-default-v3/);
+  assert.match(css, /\.sl-button--secondary\s*\{[\s\S]*width:\s*var\(--sl-action-width\)/);
+  assert.match(css, /\.sl-button--secondary\s*\{[\s\S]*height:\s*var\(--sl-action-height\)/);
+  assert.match(css, /background:\s*rgba\(3, 13, 10, 0\.55\)/);
+  assert.match(foundations, /same 248 × 56 px footprint/);
+  assert.match(foundations, /Secondary v3 review candidate/);
 });
 
-test("text and select controls are fluid and share the restrained form shell", () => {
+test("text and custom select controls are fluid and never use the native popup", () => {
   const ui = read("apps/web/branding/src/components/Ui.jsx");
   const css = read("apps/web/branding/src/silverleaf-components.css");
   const foundations = read("apps/web/branding/src/pages/FoundationsPage.jsx");
 
   assert.match(ui, /function TextInput/);
-  assert.match(ui, /text-input-default-v2/);
+  assert.match(ui, /text-input-default-v3/);
   assert.match(ui, /function SelectInput/);
-  assert.match(ui, /select-default-v1/);
-  assert.match(css, /\.sl-text-input,\s*\n\.sl-select-input/);
-  assert.match(css, /width:\s*100%/);
-  assert.match(css, /min-width:\s*0/);
-  assert.match(css, /height:\s*44px/);
-  assert.doesNotMatch(css, /\.sl-text-input[\s\S]{0,180}width:\s*320px/);
-  assert.match(foundations, /Fluid width: shrinks with an open sidebar/);
-  assert.match(foundations, /No fixed 320 px width/);
+  assert.match(ui, /select-default-v2/);
+  assert.match(ui, /role="combobox"/);
+  assert.match(ui, /role="listbox"/);
+  assert.match(ui, /sl-select-menu/);
+  assert.doesNotMatch(ui, /<select className="sl-select-input__control"/);
+  assert.match(css, /\.sl-text-input,[\s\S]*\.sl-select-input,[\s\S]*width:\s*100%/);
+  assert.match(css, /height:\s*var\(--sl-field-height\)/);
+  assert.match(css, /\.sl-select-menu\s*\{/);
+  assert.match(foundations, /Custom listbox: no browser-native white popup/);
 });
 
-test("core navigation, card and chip primitives are present in the branding lab", () => {
+test("navigation cards chips and icons use one visual language", () => {
   const ui = read("apps/web/branding/src/components/Ui.jsx");
   const css = read("apps/web/branding/src/silverleaf-components.css");
   const foundations = read("apps/web/branding/src/pages/FoundationsPage.jsx");
 
-  assert.match(ui, /function SidebarNavItem/);
-  assert.match(ui, /sidebar-item-default-v1/);
-  assert.match(ui, /function ArchiveCard/);
-  assert.match(ui, /archive-card-default-v1/);
-  assert.match(ui, /chip-default-v1/);
+  for (const component of [
+    "sidebar-item-default-v2",
+    "archive-card-default-v2",
+    "chip-default-v2",
+    "icon-button-default-v2"
+  ]) assert.match(ui, new RegExp(component));
+
+  assert.match(css, /\.sl-icon-medallion\s*\{/);
   assert.match(css, /\.sl-sidebar-item\.is-active/);
   assert.match(css, /\.sl-archive-card\s*\{/);
   assert.match(css, /\.sl-chip\s*\{/);
-  assert.match(foundations, /Sidebar item/);
-  assert.match(foundations, /Archive card & chips/);
+  assert.match(foundations, /Unified icon and navigation grammar/);
 });
 
-test("second layer primitives cover tabs textarea icon actions table rows and dialogs", () => {
+test("second layer primitives live in the same canonical component stylesheet", () => {
   const ui = read("apps/web/branding/src/components/Ui.jsx");
   const entry = read("apps/web/branding/src/branding.css");
-  const css = read("apps/web/branding/src/silverleaf-components-extra.css");
+  const css = read("apps/web/branding/src/silverleaf-components.css");
   const foundations = read("apps/web/branding/src/pages/FoundationsPage.jsx");
 
-  assert.match(entry, /silverleaf-components-extra\.css/);
+  assert.doesNotMatch(entry, /silverleaf-components-extra/);
   for (const component of [
-    "textarea-default-v1",
-    "tabs-default-v1",
-    "icon-button-default-v1",
-    "table-row-default-v1",
-    "dialog-default-v1"
+    "textarea-default-v2",
+    "tabs-default-v2",
+    "icon-button-default-v2",
+    "table-row-default-v2",
+    "dialog-default-v2"
   ]) assert.match(ui, new RegExp(component));
+
   assert.match(css, /\.sl-textarea-input\s*\{/);
   assert.match(css, /\.sl-tabs\s*\{/);
   assert.match(css, /\.sl-table-row\s*\{/);
   assert.match(css, /\.sl-dialog-card\s*\{/);
-  assert.match(foundations, /Tabs, textarea & icon buttons/);
-  assert.match(foundations, /Table row & dialog/);
+  assert.match(foundations, /Tabs, Textarea & Icon Buttons/);
+  assert.match(foundations, /Table Row & Dialog/);
 });
 
-test("shell prototype covers expanded, collapsed and mobile navigation", () => {
+test("shell uses Silverleaf branding instead of the old generic gem shell", () => {
   const shell = read("apps/web/branding/src/components/BrandingShell.jsx");
   const css = [
-    read("apps/web/branding/src/branding.css"),
     read("apps/web/branding/src/base.css"),
     read("apps/web/branding/src/responsive.css")
   ].join("\n");
+
+  assert.match(shell, /SilverleafLeafIcon/);
+  assert.doesNotMatch(shell, /\bGem\b/);
+  assert.match(shell, /TextInput className="branding-search"/);
+  assert.match(shell, /branding-nav__marker/);
   assert.match(shell, /setCollapsed/);
-  assert.match(shell, /is-collapsed/);
   assert.match(shell, /setMobileOpen/);
+  assert.match(css, /branding-sidebar\.is-mobile-open/);
   assert.match(css, /--sl-sidebar-expanded/);
   assert.match(css, /--sl-sidebar-collapsed/);
-  assert.match(css, /branding-sidebar\.is-mobile-open/);
 });
 
-test("approved review pages contain real interactive JSX rather than screenshots", () => {
+test("review pages contain real interactive JSX rather than screenshots", () => {
   const character = read("apps/web/branding/src/pages/CharacterDossierPage.jsx");
   const dice = read("apps/web/branding/src/pages/DiceWorkspacePage.jsx");
   const invitations = read("apps/web/branding/src/pages/InvitationsPage.jsx");
