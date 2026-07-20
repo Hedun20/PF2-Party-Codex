@@ -70,7 +70,7 @@ export default function CampaignHomePage() {
           <span className="campaign-home-path__meta"><b>86</b><small>entries</small><ChevronRight size={20} /></span>
         </button>
 
-        <button type="button" className="campaign-home-path campaign-home-path--session" onClick={() => navigate("/dice")}>
+        <button type="button" className="campaign-home-path campaign-home-path--session" onClick={() => navigate("/session")}>
           <span className="campaign-home-path__icon"><Swords size={34} strokeWidth={1.2} /></span>
           <span className="campaign-home-path__copy">
             <span className="sl-eyebrow">Live workspace</span>
@@ -111,7 +111,7 @@ export default function CampaignHomePage() {
 
           <div className="campaign-home-session__actions">
             <Button variant="secondary" icon={BookOpen} onClick={() => navigate("/entry")}>Open Session Notes</Button>
-            <Button icon={Swords} onClick={() => setSessionReady(true)}>{sessionReady ? "Open Game Table" : "Mark Session Ready"}</Button>
+            <Button icon={Swords} onClick={() => sessionReady ? navigate("/session") : setSessionReady(true)}>{sessionReady ? "Open Game Table" : "Mark Session Ready"}</Button>
           </div>
         </Panel>
 
