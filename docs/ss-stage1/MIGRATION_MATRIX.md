@@ -119,7 +119,7 @@
 | `SectionHeader.jsx` | Replace | Final Section Header primitive |
 | `StatusMessage.jsx` | Replace | Final Notice/Status primitive |
 | `components/ui/index.js` | Replace exports | Final design-system barrel |
-| `ui/Silverleaf.jsx` | Keep as canonical production implementation | Button, IconButton, Input, Select, Textarea, Field, Panel, Chip, Tabs, Dialog, Notice and shared states |
+| `Silverleaf.jsx` | Keep as canonical production implementation | Button, IconButton, Input, Select, Textarea, Field, Panel, Chip, Tabs, Dialog, Notice and shared states |
 | `CinematicWorldBackground.jsx` | Keep concept, rebuild | Theme/atmosphere engine; remove inline styles |
 
 ## Migration rule
