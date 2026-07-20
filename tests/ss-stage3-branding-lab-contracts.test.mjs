@@ -80,7 +80,7 @@ test("approved corrected v3 primary button keeps its locked geometry", () => {
   assert.doesNotMatch(css, /translate\([+-]?34%/);
 });
 
-test("secondary button exposes only its default review candidate", () => {
+test("approved secondary button remains subordinate to the primary", () => {
   const ui = read("apps/web/branding/src/components/Ui.jsx");
   const css = read("apps/web/branding/src/silverleaf-components.css");
   const foundations = read("apps/web/branding/src/pages/FoundationsPage.jsx");
@@ -89,10 +89,26 @@ test("secondary button exposes only its default review candidate", () => {
   assert.match(css, /\.sl-button--secondary\s*\{/);
   assert.match(css, /width:\s*220px/);
   assert.match(css, /height:\s*48px/);
-  assert.match(foundations, /Secondary Button · default v1/);
+  assert.match(foundations, /Approved components/);
+  assert.match(foundations, /Primary & Secondary Buttons/);
+  assert.match(foundations, /Secondary: 220 × 48 px/);
+});
+
+test("text input exposes only its default Silverleaf candidate", () => {
+  const ui = read("apps/web/branding/src/components/Ui.jsx");
+  const css = read("apps/web/branding/src/silverleaf-components.css");
+  const foundations = read("apps/web/branding/src/pages/FoundationsPage.jsx");
+
+  assert.match(ui, /function TextInput/);
+  assert.match(ui, /text-input-default-v1/);
+  assert.match(ui, /sl-text-input__finial/);
+  assert.match(css, /\.sl-text-input\s*\{/);
+  assert.match(css, /width:\s*320px/);
+  assert.match(css, /height:\s*48px/);
+  assert.match(css, /sl-text-input__control/);
+  assert.match(foundations, /Text Input · default v1/);
   assert.match(foundations, /Default candidate only/);
-  assert.match(foundations, /No side diamonds/);
-  assert.match(foundations, /Hover, focus, disabled and loading variants remain intentionally unapproved/);
+  assert.match(foundations, /Focus, error, disabled and helper states remain intentionally unapproved/);
 });
 
 test("shell prototype covers expanded, collapsed and mobile navigation", () => {
