@@ -31,20 +31,20 @@
   position: absolute;
   pointer-events: none;
   clip-path: polygon(
-    12px 0,
-    calc(100% - 12px) 0,
-    100% 12px,
-    100% 20px,
-    calc(100% - 6px) 28px,
-    100% 36px,
-    100% 44px,
-    calc(100% - 12px) 100%,
-    12px 100%,
-    0 44px,
-    0 36px,
-    6px 28px,
-    0 20px,
-    0 12px
+    10px 0,
+    calc(100% - 10px) 0,
+    100% 16%,
+    100% 34%,
+    calc(100% - 7px) 50%,
+    100% 66%,
+    100% 84%,
+    calc(100% - 8px) 100%,
+    8px 100%,
+    0 84%,
+    0 66%,
+    7px 50%,
+    0 34%,
+    0 16%
   );
 }
 
@@ -72,20 +72,20 @@
   z-index: -1;
   pointer-events: none;
   clip-path: polygon(
-    7px 0,
-    calc(100% - 7px) 0,
-    100% 7px,
-    100% 15px,
-    calc(100% - 5px) 21px,
-    100% 27px,
-    100% 35px,
-    calc(100% - 7px) 100%,
-    7px 100%,
-    0 35px,
-    0 27px,
-    5px 21px,
-    0 15px,
-    0 7px
+    6px 0,
+    calc(100% - 6px) 0,
+    100% 16%,
+    100% 34%,
+    calc(100% - 5px) 50%,
+    100% 66%,
+    100% 84%,
+    calc(100% - 5px) 100%,
+    5px 100%,
+    0 84%,
+    0 66%,
+    5px 50%,
+    0 34%,
+    0 16%
   );
   border: 1px solid rgba(75, 128, 116, 0.66);
 }
@@ -96,20 +96,20 @@
   z-index: 3;
   width: 12px;
   height: 12px;
+  margin-top: -6px;
   pointer-events: none;
   border: 2px solid #c9a654;
   background: #0c2924;
   box-shadow: inset 0 0 0 2px rgba(75, 128, 116, 0.76);
+  transform: rotate(45deg);
 }
 
 .sl-button--primary .sl-button__diamond--left {
-  left: 0;
-  transform: translate(-34%, -50%) rotate(45deg);
+  left: 1px;
 }
 
 .sl-button--primary .sl-button__diamond--right {
-  right: 0;
-  transform: translate(34%, -50%) rotate(45deg);
+  right: 1px;
 }
 
 .sl-button--primary .sl-button__content {
