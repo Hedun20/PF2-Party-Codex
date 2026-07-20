@@ -47,13 +47,16 @@ test("character dossier prioritizes table play before reference material", () =>
   assert.match(styles, /@media \(max-width: 680px\)/);
 });
 
-test("global native selects are not intercepted by a custom select layer", () => {
+test("global header selects use the canonical Silverleaf listbox", () => {
   const shell = read("apps/web/src/components/ApplicationShell.jsx");
   const topbar = read("apps/web/src/components/CodexTopbar.jsx");
   assert.doesNotMatch(shell, /MagicSelectLayer/);
   assert.doesNotMatch(topbar, /MagicSelectLayer|CodexSelect/);
   assert.match(shell, /CodexTopbar/);
-  assert.match(topbar, /<select aria-label="Активная кампания"/);
+  assert.match(topbar, /SelectInput/);
+  assert.match(topbar, /aria-label="Активная кампания"/);
+  assert.match(topbar, /aria-label="Контекст мира"/);
+  assert.doesNotMatch(topbar, /<select/);
 });
 
 test("timeline uses the shared padded entity detail inspector", () => {
