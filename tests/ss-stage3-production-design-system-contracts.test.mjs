@@ -35,6 +35,7 @@ test("production CSS has one canonical Silverleaf entrypoint above a bounded leg
   assert.match(index, /silverleaf\/components\.css/);
   assert.match(index, /silverleaf\/advanced-primitives\.css/);
   assert.match(index, /silverleaf\/shell\.css/);
+  assert.match(index, /silverleaf\/page-composition\.css/);
   assert.match(index, /Temporary compatibility boundary/);
   assert.match(index, /stage25-player-management\.css" layer\(legacy\)/);
   assert.doesNotMatch(index, /layer\(stage\d+/);
@@ -136,6 +137,26 @@ test("Card, Table, PageHeader and overlays have responsive production styling", 
   assert.match(css, /@media \(max-width: 520px\)/);
 });
 
+test("legacy page markup is normalized by the final Silverleaf composition layer", () => {
+  const composition = read("apps/web/src/styles/silverleaf/page-composition.css");
+  const handouts = read("apps/web/src/pages/HandoutsPage.jsx");
+  const foundry = read("apps/web/src/pages/FoundryImportExportPage.jsx");
+  const back = read("apps/web/src/components/PageBackButton.jsx");
+
+  assert.match(composition, /\.hero-panel/);
+  assert.match(composition, /\.list-header/);
+  assert.match(composition, /\.route-breadcrumbs ol/);
+  assert.match(composition, /\.codex-card/);
+  assert.match(composition, /font:\s*500 clamp\(34px, 4\.6vw, 64px\)/);
+  assert.match(composition, /\.cinematic-world-bg\s*\{[\s\S]*opacity:\s*0 !important/);
+  assert.match(handouts, /PageHeader/);
+  assert.match(handouts, /LoadingState/);
+  assert.match(handouts, /EmptyState/);
+  assert.match(foundry, /PageHeader/);
+  assert.match(back, /\.\/ui\/Silverleaf\.jsx/);
+  assert.doesNotMatch(back, /CodexButton/);
+});
+
 test("production shell consumes Silverleaf primitives and avoids native topbar selects", () => {
   const shell = read("apps/web/src/components/ApplicationShell.jsx");
   const sidebar = read("apps/web/src/components/CodexSidebar.jsx");
@@ -166,7 +187,8 @@ test("production design system remains independent from the Branding Lab", () =>
     read("apps/web/src/styles/silverleaf/tokens.css"),
     read("apps/web/src/styles/silverleaf/components.css"),
     read("apps/web/src/styles/silverleaf/advanced-primitives.css"),
-    read("apps/web/src/styles/silverleaf/shell.css")
+    read("apps/web/src/styles/silverleaf/shell.css"),
+    read("apps/web/src/styles/silverleaf/page-composition.css")
   ].join("\n");
   assert.doesNotMatch(sources, /branding\//i);
   assert.doesNotMatch(sources, /stage\d+|hotfix|stabilization/i);
