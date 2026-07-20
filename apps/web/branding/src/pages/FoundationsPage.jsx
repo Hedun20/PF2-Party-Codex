@@ -6,7 +6,6 @@ import {
   Clock3,
   Eye,
   Map,
-  Plus,
   Save,
   ScrollText,
   ShieldAlert,
@@ -35,9 +34,9 @@ export default function FoundationsPage() {
         eyebrow="Approved visual system"
         title="Silverleaf Dark"
         description="A clickable JSX brochure for the final Royal Archive design language. Components here are isolated from production and become the source for later migration."
-        actions={<><Button variant="secondary" icon={Eye}>Preview shell</Button><Button icon={Save}>Freeze tokens</Button></>}
+        actions={<><Button variant="secondary" icon={Eye}>Preview shell</Button><Button variant="secondary" icon={Save}>Freeze tokens</Button></>}
       >
-        <div className="sl-inline-chips"><Chip tone="success">Approved</Chip><Chip>Dark mode</Chip><Chip tone="gold">Fantasy 7/10</Chip></div>
+        <div className="sl-inline-chips"><Chip tone="success">Approved direction</Chip><Chip>Dark mode</Chip><Chip tone="gold">Fantasy 7/10</Chip></div>
       </PageHeader>
 
       <section className="branding-hero-card">
@@ -46,7 +45,7 @@ export default function FoundationsPage() {
           <h2>A premium campaign workspace, not a decorative skin.</h2>
           <p>One layout system. One spacing scale. One component contract. Themes change tokens, assets and atmosphere—never behavior.</p>
           <div className="branding-hero-card__actions">
-            <Button icon={Plus}>Create archive entry</Button>
+            <Button>Create New Entry</Button>
             <Button variant="secondary" icon={BookOpen}>Open journal</Button>
           </div>
         </div>
@@ -70,12 +69,16 @@ export default function FoundationsPage() {
           </div>
         </Panel>
 
-        <Panel eyebrow="Primitives" title="Buttons and chips">
+        <Panel eyebrow="Current component" title="Primary Button · corrected v3">
           <div className="component-stack">
-            <div className="component-row"><Button icon={Plus}>Primary action</Button><Button variant="secondary">Secondary</Button></div>
-            <div className="component-row"><Button variant="ghost">Ghost</Button><Button variant="danger">Destructive</Button></div>
-            <div className="component-row"><Button size="sm">Small</Button><Button size="lg">Large</Button><Button loading>Loading</Button></div>
-            <div className="component-row"><Chip tone="success">Revealed</Chip><Chip tone="warning">Needs review</Chip><Chip tone="danger">GM secret</Chip></div>
+            <div className="component-row"><Button>Create New Entry</Button></div>
+            <div className="sl-component-contract">
+              <strong>Default candidate only</strong>
+              <span>248 × 56 px · leaf + label group 148 px · centered on both axes.</span>
+              <span>Silverleaf stepped frame and side diamonds centered at y = 28.</span>
+              <span>No legacy round or square corner ornaments. No decorative corner dashes.</span>
+              <span>Hover, focus, disabled and loading variants remain intentionally unapproved.</span>
+            </div>
           </div>
         </Panel>
 
