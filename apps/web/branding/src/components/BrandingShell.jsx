@@ -10,6 +10,7 @@ import {
   FilePlus2,
   History,
   Map,
+  MapPin,
   Menu,
   MoonStar,
   Search,
@@ -31,6 +32,7 @@ const navigation = [
   { to: "/npcs", label: "NPC Roster", icon: Users },
   { to: "/timeline", label: "Campaign Timeline", icon: History },
   { to: "/maps", label: "Campaign Maps", icon: Map },
+  { to: "/locations", label: "Locations Directory", icon: MapPin },
   { to: "/character", label: "Character Dossier", icon: UserRound },
   { to: "/dice", label: "Dice Workspace", icon: Dices },
   { to: "/invitations", label: "Players & Invites", icon: UserPlus }
@@ -44,6 +46,7 @@ const pageNames = {
   "/npcs": "NPC Roster",
   "/timeline": "Campaign Timeline",
   "/maps": "Campaign Maps",
+  "/locations": "Locations Directory",
   "/character": "Character Dossier",
   "/dice": "Dice Workspace",
   "/invitations": "Players & Invitations"
