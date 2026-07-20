@@ -19,7 +19,6 @@ import {
   Settings,
   ShieldCheck,
   Sparkles,
-  UserPlus,
   UserRound,
   Users,
   X
@@ -37,9 +36,9 @@ const navigation = [
   { to: "/timeline", label: "Campaign Timeline", icon: History },
   { to: "/maps", label: "Campaign Maps", icon: Map },
   { to: "/locations", label: "Locations Directory", icon: MapPin },
+  { to: "/management", label: "Campaign Management", icon: Settings },
   { to: "/character", label: "Character Dossier", icon: UserRound },
-  { to: "/dice", label: "Dice Workspace", icon: Dices },
-  { to: "/invitations", label: "Players & Invites", icon: UserPlus }
+  { to: "/dice", label: "Dice Workspace", icon: Dices }
 ];
 
 const pageNames = {
@@ -53,9 +52,9 @@ const pageNames = {
   "/timeline": "Campaign Timeline",
   "/maps": "Campaign Maps",
   "/locations": "Locations Directory",
+  "/management": "Campaign Management",
   "/character": "Character Dossier",
-  "/dice": "Dice Workspace",
-  "/invitations": "Players & Invitations"
+  "/dice": "Dice Workspace"
 };
 
 export default function BrandingShell({ children }) {
