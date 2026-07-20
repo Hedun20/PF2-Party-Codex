@@ -29,3 +29,6 @@
 @import "./silverleaf/advanced-primitives.css" layer(silverleafComponents);
 @import "./silverleaf/shell.css" layer(silverleafShell);
 @import "./silverleaf/page-composition.css" layer(silverleafComposition);
+@import "./silverleaf/adapter-controls.css" layer(silverleafComposition);
+@import "./silverleaf/adapter-pages.css" layer(silverleafComposition);
+@import "./silverleaf/adapter-responsive.css" layer(silverleafComposition);
