@@ -9,6 +9,7 @@ import {
   Dices,
   FilePlus2,
   History,
+  LayoutDashboard,
   Map,
   MapPin,
   Menu,
@@ -26,6 +27,7 @@ import { IconButton, SilverleafLeafIcon, TextInput } from "./Ui.jsx";
 
 const navigation = [
   { to: "/foundations", label: "Foundations", icon: Sparkles },
+  { to: "/home", label: "Campaign Home", icon: LayoutDashboard },
   { to: "/archive", label: "Campaign Archive", icon: Archive },
   { to: "/entry", label: "Lore Entry Detail", icon: BookOpen },
   { to: "/entry/new", label: "Create Archive Entry", icon: FilePlus2 },
@@ -40,6 +42,7 @@ const navigation = [
 
 const pageNames = {
   "/foundations": "Design System Lab",
+  "/home": "Campaign Home",
   "/archive": "Campaign Archive",
   "/entry": "The Shattered Oath",
   "/entry/new": "Create Archive Entry",
