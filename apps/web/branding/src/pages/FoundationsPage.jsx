@@ -210,6 +210,63 @@ export default function FoundationsPage() {
         <Stat icon={Map} value="12" label="Campaign maps" hint="3 revealed" />
       </div>
 
+      <Panel eyebrow="Interaction system" title="Hover, Focus, Active, Disabled, Loading & Error">
+        <div className="sl-state-showcase">
+          <section className="sl-state-group">
+            <span className="sl-state-group__title">Action states</span>
+            <div className="sl-state-group__controls">
+              <Button>Create New Entry</Button>
+              <Button variant="secondary" icon={BookOpen}>View Journal</Button>
+            </div>
+            <div className="sl-state-group__controls">
+              <Button loading disabled aria-busy="true">Creating Entry</Button>
+              <Button variant="secondary" disabled>Unavailable</Button>
+            </div>
+          </section>
+
+          <section className="sl-state-group">
+            <span className="sl-state-group__title">Field states</span>
+            <div className="sl-state-group__fields">
+              <Field label="Archive title" error="Archive title is required.">
+                <TextInput aria-invalid="true" placeholder="Enter archive title..." />
+              </Field>
+              <Field label="Entry type" hint="Disabled by campaign policy">
+                <SelectInput defaultValue="lore" disabled aria-label="Disabled entry type">
+                  <option value="lore">Lore Entry</option>
+                  <option value="npc">NPC</option>
+                </SelectInput>
+              </Field>
+            </div>
+          </section>
+
+          <section className="sl-state-group">
+            <span className="sl-state-group__title">Icon and selection states</span>
+            <div className="sl-state-group__controls">
+              <IconButton label="Default edit action" icon={Pencil} />
+              <IconButton label="Active more action" icon={MoreHorizontal} active />
+              <IconButton label="Disabled delete action" icon={Trash2} disabled />
+            </div>
+            <Tabs
+              active="journal"
+              items={[
+                { value: "overview", label: "Overview" },
+                { value: "journal", label: "Journal" },
+                { value: "relations", label: "Relations" }
+              ]}
+            />
+          </section>
+
+          <section className="sl-state-group">
+            <span className="sl-state-group__title">Review method</span>
+            <div className="sl-component-contract">
+              <strong>Pointer + keyboard QA</strong>
+              <span>Hover the active controls, press them, then use Tab to inspect the moonlit focus ring.</span>
+              <span>State styling changes light and depth only; approved component geometry never moves or resizes.</span>
+            </div>
+          </section>
+        </div>
+      </Panel>
+
       <Panel eyebrow="Layout contract" title="Expanded and Collapsed Sidebar Are Equal First-Class States" className="layout-contract">
         <div className="layout-contract__visual">
           <div className="layout-mini-shell is-expanded"><span /><div><i /><i /><i /></div></div>
