@@ -6,6 +6,7 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
+  CirclePlay,
   Dices,
   FilePlus2,
   History,
@@ -28,6 +29,7 @@ import { IconButton, SilverleafLeafIcon, TextInput } from "./Ui.jsx";
 const navigation = [
   { to: "/foundations", label: "Foundations", icon: Sparkles },
   { to: "/home", label: "Campaign Home", icon: LayoutDashboard },
+  { to: "/session", label: "Active Session", icon: CirclePlay },
   { to: "/archive", label: "Campaign Archive", icon: Archive },
   { to: "/entry", label: "Lore Entry Detail", icon: BookOpen },
   { to: "/entry/new", label: "Create Archive Entry", icon: FilePlus2 },
@@ -43,6 +45,7 @@ const navigation = [
 const pageNames = {
   "/foundations": "Design System Lab",
   "/home": "Campaign Home",
+  "/session": "Active Session",
   "/archive": "Campaign Archive",
   "/entry": "The Shattered Oath",
   "/entry/new": "Create Archive Entry",
