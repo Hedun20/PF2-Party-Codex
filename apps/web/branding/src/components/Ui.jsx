@@ -12,12 +12,19 @@ function SilverleafLeafIcon({ size = 20, ...props }) {
 
 export function Button({ variant = "primary", size = "md", icon: Icon, loading = false, children, className = "", ...props }) {
   const ResolvedIcon = loading ? LoaderCircle : Icon || (variant === "primary" ? SilverleafLeafIcon : null);
+  const componentName = size === "md"
+    ? variant === "primary"
+      ? "primary-button-default-v3"
+      : variant === "secondary"
+        ? "secondary-button-default-v1"
+        : undefined
+    : undefined;
 
   return (
     <button
       className={`sl-button sl-button--${variant} sl-button--${size} ${className}`.trim()}
       type="button"
-      data-component={variant === "primary" && size === "md" ? "primary-button-default-v3" : undefined}
+      data-component={componentName}
       {...props}
     >
       {variant === "primary" ? (
