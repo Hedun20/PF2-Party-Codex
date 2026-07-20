@@ -10,9 +10,9 @@ import CampaignTimelinePage from "./pages/CampaignTimelinePage.jsx";
 import CampaignMapsPage from "./pages/CampaignMapsPage.jsx";
 import LocationsDirectoryPage from "./pages/LocationsDirectoryPage.jsx";
 import ActiveSessionPage from "./pages/ActiveSessionPage.jsx";
+import CampaignManagementPage from "./pages/CampaignManagementPage.jsx";
 import CharacterDossierPage from "./pages/CharacterDossierPage.jsx";
 import DiceWorkspacePage from "./pages/DiceWorkspacePage.jsx";
-import InvitationsPage from "./pages/InvitationsPage.jsx";
 
 export default function BrandingApp() {
   return (
@@ -29,9 +29,10 @@ export default function BrandingApp() {
         <Route path="/maps" element={<CampaignMapsPage />} />
         <Route path="/locations" element={<LocationsDirectoryPage />} />
         <Route path="/session" element={<ActiveSessionPage />} />
+        <Route path="/management" element={<CampaignManagementPage />} />
+        <Route path="/invitations" element={<Navigate to="/management" replace />} />
         <Route path="/character" element={<CharacterDossierPage />} />
         <Route path="/dice" element={<DiceWorkspacePage />} />
-        <Route path="/invitations" element={<InvitationsPage />} />
         <Route path="*" element={<Navigate to="/foundations" replace />} />
       </Routes>
     </BrandingShell>
