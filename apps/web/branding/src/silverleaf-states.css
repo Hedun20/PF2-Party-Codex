@@ -1,0 +1,257 @@
+/* Silverleaf interaction states.
+   Default geometry remains untouched; states only change light, depth and emphasis. */
+
+.sl-button,
+.sl-icon-button,
+.sl-text-input,
+.sl-select-input__trigger,
+.sl-textarea-input,
+.sl-select-option,
+.sl-sidebar-item,
+.sl-tab,
+.sl-archive-card,
+.sl-stat,
+.sl-table-row {
+  transition:
+    transform 150ms ease,
+    filter 150ms ease,
+    color 150ms ease,
+    border-color 150ms ease,
+    background 150ms ease,
+    box-shadow 150ms ease,
+    opacity 150ms ease;
+}
+
+/* Hover adds moonlit depth without changing geometry. */
+@media (hover: hover) {
+  .sl-button:not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+
+  .sl-button--primary:not(:disabled):hover::before {
+    background: linear-gradient(105deg, #e4c77d 0%, #ad8741 44%, #dfbf75 100%);
+    filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.4)) drop-shadow(0 0 10px rgba(200, 166, 106, 0.15));
+  }
+
+  .sl-button--primary:not(:disabled):hover::after {
+    background:
+      radial-gradient(circle at 50% 15%, rgba(112, 180, 157, 0.25), transparent 44%),
+      linear-gradient(180deg, #1c493d 0%, #103329 55%, #0b2620 100%);
+    box-shadow:
+      inset 0 0 0 2px rgba(91, 151, 132, 0.98),
+      inset 0 0 24px rgba(0, 0, 0, 0.28),
+      0 0 20px rgba(47, 108, 88, 0.16);
+  }
+
+  .sl-button--secondary:not(:disabled):hover::before {
+    background: linear-gradient(90deg, rgba(225, 197, 143, 0.68), rgba(94, 154, 133, 0.58), rgba(225, 197, 143, 0.68));
+  }
+
+  .sl-button--secondary:not(:disabled):hover::after {
+    background:
+      radial-gradient(circle at 50% 0%, rgba(47, 108, 88, 0.15), transparent 55%),
+      rgba(4, 18, 14, 0.78);
+  }
+
+  .sl-icon-button:not(:disabled):hover {
+    transform: translateY(-1px);
+    color: #e6cd99;
+    border-color: rgba(225, 197, 143, 0.72);
+    background:
+      radial-gradient(circle at 50% 30%, rgba(76, 145, 119, 0.28), transparent 48%),
+      rgba(4, 20, 15, 0.94);
+    box-shadow:
+      inset 0 0 0 4px rgba(3, 13, 10, 0.9),
+      inset 0 0 0 5px rgba(91, 151, 132, 0.46),
+      0 9px 20px rgba(0, 0, 0, 0.26),
+      0 0 14px rgba(47, 108, 88, 0.12);
+  }
+
+  .sl-text-input:hover,
+  .sl-select-input__trigger:hover,
+  .sl-textarea-input:hover {
+    background: linear-gradient(90deg, rgba(225, 197, 143, 0.46), rgba(91, 151, 132, 0.54), rgba(225, 197, 143, 0.46));
+  }
+
+  .sl-select-option:not(:disabled):hover,
+  .sl-select-option.is-highlighted {
+    color: #efe7d5;
+    background: linear-gradient(90deg, rgba(47, 108, 88, 0.34), rgba(47, 108, 88, 0.08));
+  }
+
+  .sl-sidebar-item:not(:disabled):hover {
+    color: #efe7d5;
+    border-color: rgba(75, 128, 116, 0.3);
+    background: linear-gradient(90deg, rgba(24, 72, 58, 0.38), rgba(10, 31, 25, 0.08));
+  }
+
+  .sl-tab:not(:disabled):hover {
+    color: #d8c293;
+  }
+
+  .sl-archive-card:hover,
+  .sl-stat:hover {
+    transform: translateY(-2px);
+    border-color: rgba(225, 197, 143, 0.68);
+    box-shadow:
+      inset 0 0 0 1px rgba(3, 13, 10, 0.92),
+      inset 0 0 30px rgba(0, 0, 0, 0.27),
+      0 18px 38px rgba(0, 0, 0, 0.3),
+      0 0 22px rgba(47, 108, 88, 0.1);
+  }
+
+  .sl-table-row:hover {
+    border-color: rgba(200, 166, 106, 0.32);
+    background: linear-gradient(90deg, rgba(13, 45, 35, 0.72), rgba(6, 22, 17, 0.42));
+    box-shadow: inset 3px 0 rgba(200, 166, 106, 0.48);
+  }
+}
+
+/* Pressed state keeps the object tactile and stable. */
+.sl-button:not(:disabled):active,
+.sl-icon-button:not(:disabled):active,
+.sl-sidebar-item:not(:disabled):active {
+  transform: translateY(1px) scale(0.995);
+  filter: brightness(0.94);
+}
+
+.sl-tab:not(:disabled):active,
+.sl-select-option:not(:disabled):active {
+  filter: brightness(0.92);
+}
+
+/* Keyboard focus is explicit and consistent across the system. */
+.sl-button:focus-visible,
+.sl-icon-button:focus-visible,
+.sl-select-input__trigger:focus-visible,
+.sl-tab:focus-visible,
+.sl-sidebar-item:focus-visible {
+  outline: 1px solid #b8ded9;
+  outline-offset: 4px;
+  filter: drop-shadow(0 0 8px rgba(184, 222, 217, 0.26));
+}
+
+.sl-text-input:focus-within,
+.sl-textarea-input:focus-within,
+.sl-select-input.is-open .sl-select-input__trigger {
+  background: linear-gradient(90deg, rgba(225, 197, 143, 0.66), rgba(184, 222, 217, 0.72), rgba(225, 197, 143, 0.66));
+  box-shadow:
+    0 0 0 1px rgba(184, 222, 217, 0.5),
+    0 0 0 4px rgba(75, 128, 116, 0.12),
+    0 10px 22px rgba(0, 0, 0, 0.22);
+}
+
+.sl-select-input.is-open .sl-control-icon {
+  color: #e1c58f;
+}
+
+/* Error uses a restrained ember edge, never a flat red rectangle. */
+.sl-field.has-error .sl-text-input,
+.sl-field.has-error .sl-textarea-input,
+.sl-field.has-error .sl-select-input__trigger {
+  background: linear-gradient(90deg, rgba(169, 79, 66, 0.82), rgba(200, 166, 106, 0.34), rgba(169, 79, 66, 0.82));
+  box-shadow:
+    0 0 0 1px rgba(169, 79, 66, 0.32),
+    0 9px 20px rgba(0, 0, 0, 0.2);
+}
+
+.sl-field.has-error .sl-text-input::after,
+.sl-field.has-error .sl-textarea-input::after,
+.sl-field.has-error .sl-select-input__trigger::after {
+  box-shadow:
+    inset 0 0 0 1px rgba(169, 79, 66, 0.54),
+    inset 0 0 18px rgba(92, 28, 22, 0.12);
+}
+
+.sl-field.has-error .sl-field__label,
+.sl-field.has-error .sl-field__error {
+  color: #efb1a8;
+}
+
+/* Disabled stays readable but clearly unavailable. */
+.sl-button:disabled,
+.sl-icon-button:disabled,
+.sl-select-input__trigger:disabled,
+.sl-select-option:disabled,
+.sl-sidebar-item:disabled,
+.sl-tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+  filter: saturate(0.45) brightness(0.82);
+  transform: none;
+}
+
+.sl-select-input.is-disabled,
+.sl-text-input:has(.sl-text-input__control:disabled),
+.sl-textarea-input:has(.sl-textarea-input__control:disabled) {
+  opacity: 0.5;
+  filter: saturate(0.45);
+}
+
+.sl-text-input__control:disabled,
+.sl-textarea-input__control:disabled {
+  cursor: not-allowed;
+}
+
+/* Loading preserves the button footprint and communicates work in progress. */
+.sl-button[aria-busy="true"] {
+  cursor: progress;
+}
+
+.sl-button[aria-busy="true"] .sl-button__content {
+  color: #d9d3c4;
+}
+
+.sl-button[aria-busy="true"]::after {
+  filter: brightness(0.9) saturate(0.7);
+}
+
+/* Review layout for explicit state QA. */
+.sl-state-showcase {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.sl-state-group {
+  min-width: 0;
+  padding: 18px;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  border: 1px solid rgba(200, 166, 106, 0.28);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(47, 108, 88, 0.12), transparent 38%),
+    rgba(2, 10, 8, 0.44);
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
+  box-shadow: inset 0 0 0 1px rgba(75, 128, 116, 0.12);
+}
+
+.sl-state-group__title {
+  color: #c8a66a;
+  font: 700 10px/1.2 var(--sl-font-body);
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.sl-state-group__controls {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.sl-state-group__fields {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .sl-state-showcase,
+  .sl-state-group__fields {
+    grid-template-columns: 1fr;
+  }
+}
