@@ -42,6 +42,16 @@ export function Button({ variant = "primary", size = "md", icon: Icon, loading =
   );
 }
 
+export function TextInput({ icon: Icon, className = "", inputClassName = "", ...props }) {
+  return (
+    <span className={`sl-text-input ${className}`.trim()} data-component="text-input-default-v1">
+      {Icon ? <Icon className="sl-text-input__icon" size={17} aria-hidden="true" /> : null}
+      <input className={`sl-text-input__control ${inputClassName}`.trim()} {...props} />
+      <span className="sl-text-input__finial" aria-hidden="true" />
+    </span>
+  );
+}
+
 export function IconButton({ label, icon: Icon, active = false, className = "", ...props }) {
   return (
     <button className={`sl-icon-button${active ? " is-active" : ""} ${className}`.trim()} type="button" aria-label={label} title={label} {...props}>
