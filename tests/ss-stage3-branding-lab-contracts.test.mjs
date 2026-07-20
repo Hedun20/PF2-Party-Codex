@@ -130,6 +130,28 @@ test("core navigation, card and chip primitives are present in the branding lab"
   assert.match(foundations, /Archive card & chips/);
 });
 
+test("second layer primitives cover tabs textarea icon actions table rows and dialogs", () => {
+  const ui = read("apps/web/branding/src/components/Ui.jsx");
+  const entry = read("apps/web/branding/src/branding.css");
+  const css = read("apps/web/branding/src/silverleaf-components-extra.css");
+  const foundations = read("apps/web/branding/src/pages/FoundationsPage.jsx");
+
+  assert.match(entry, /silverleaf-components-extra\.css/);
+  for (const component of [
+    "textarea-default-v1",
+    "tabs-default-v1",
+    "icon-button-default-v1",
+    "table-row-default-v1",
+    "dialog-default-v1"
+  ]) assert.match(ui, new RegExp(component));
+  assert.match(css, /\.sl-textarea-input\s*\{/);
+  assert.match(css, /\.sl-tabs\s*\{/);
+  assert.match(css, /\.sl-table-row\s*\{/);
+  assert.match(css, /\.sl-dialog-card\s*\{/);
+  assert.match(foundations, /Tabs, textarea & icon buttons/);
+  assert.match(foundations, /Table row & dialog/);
+});
+
 test("shell prototype covers expanded, collapsed and mobile navigation", () => {
   const shell = read("apps/web/branding/src/components/BrandingShell.jsx");
   const css = [
