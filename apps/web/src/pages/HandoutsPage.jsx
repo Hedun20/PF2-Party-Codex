@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, BookOpen, Eye, ImageIcon, Sparkles } from "lucide-react";
+import { BookOpen, ImageIcon } from "lucide-react";
 import { api } from "../api/client.js";
 import { labelCategory } from "../utils/labels.js";
+import {
+  Card,
+  Chip,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  Notice,
+  PageHeader
+} from "../components/ui/Silverleaf.jsx";
 
 function compactText(text = "", limit = 170) {
   const value = String(text || "").replace(/\s+/g, " ").trim();
@@ -26,30 +35,30 @@ function assetUrl(path = "") {
 
 function MongoHandoutCard({ handout }) {
   return (
-    <article className="codex-card handout-card">
-      <div className="handout-card-placeholder"><ImageIcon size={26} /></div>
+    <Card className="handout-card">
+      <div className="handout-card-placeholder"><ImageIcon size={28} strokeWidth={1.35} /></div>
       <div className="handout-card-body">
-        <span className="kicker">{handout.visibility || "материал"}</span>
+        <Chip tone="gold">{handout.visibility || "материал"}</Chip>
         <h2>{handout.title || "Без названия"}</h2>
         <p>{compactText(handout.body || handout.summary || handout.description || "")}</p>
-        {handout.releasedAt ? <p>Открыто: {handout.releasedAt}</p> : null}
+        {handout.releasedAt ? <p className="handout-card-date">Открыто: {handout.releasedAt}</p> : null}
       </div>
-    </article>
+    </Card>
   );
 }
 
 function EntryHandoutCard({ page }) {
   const image = imageFor(page);
   return (
-    <article className="codex-card handout-card">
-      {image ? <img src={assetUrl(image)} alt="" /> : <div className="handout-card-placeholder"><ImageIcon size={26} /></div>}
+    <Card className="handout-card">
+      {image ? <img src={assetUrl(image)} alt="" /> : <div className="handout-card-placeholder"><ImageIcon size={28} strokeWidth={1.35} /></div>}
       <div className="handout-card-body">
-        <span className="kicker">{labelCategory(page.category)}</span>
+        <Chip tone="gold">{labelCategory(page.category)}</Chip>
         <h2>{page.title}</h2>
         <p>{compactText(page.summary || page.frontmatter?.summary)}</p>
-        <Link to={`/page/${encodeURIComponent(page.path)}`}><BookOpen size={15} /> Открыть</Link>
+        <Link className="handout-open-link" to={`/page/${encodeURIComponent(page.path)}`}><BookOpen size={16} /> Открыть материал</Link>
       </div>
-    </article>
+    </Card>
   );
 }
 
@@ -75,55 +84,34 @@ export default function HandoutsPage({ pages = [], mode = "player" }) {
   const showEntryFallback = Boolean(state.error && entryItems.length);
   const showMongo = !state.loading && !state.error && state.handouts.length > 0;
   const showEmpty = !state.loading && !state.error && state.handouts.length === 0;
+  const meta = [
+    state.role ? `Роль: ${state.role}` : null,
+    mode === "gm" ? "GM видит подготовленные и открытые материалы" : "Участник видит только открытые материалы"
+  ].filter(Boolean);
 
   return (
     <div className="page-stack handouts-page">
-      <section className="hero-panel">
-        <span className="kicker">Материалы / Reveal</span>
-        <h1>Материалы для участников</h1>
-        <p>Handouts — это картинки, тексты и подсказки, которые GM открыл группе. Reveal — действие GM: сделать материал доступным участникам кампании.</p>
-        <div className="workspace-identity-strip">
-          {state.role ? <span>Роль: {state.role}</span> : null}
-          <span>{mode === "gm" ? "GM видит подготовленные и открытые материалы" : "Участник видит только открытые материалы"}</span>
-        </div>
-      </section>
+      <PageHeader
+        eyebrow="Материалы / Reveal"
+        title="Материалы для участников"
+        description="Изображения, тексты и подсказки, которые GM подготовил или уже открыл участникам активной кампании."
+        meta={meta}
+      />
 
-      {state.loading ? (
-        <section className="codex-card workspace-status-card">
-          <Sparkles size={24} />
-          <h2>Загружаю материалы</h2>
-          <p>Проверяю handouts и открытые статьи активной кампании.</p>
-        </section>
-      ) : null}
+      {state.loading ? <LoadingState title="Загружаю материалы" description="Проверяю handouts и открытые статьи активной кампании." /> : null}
 
-      {state.error && !entryItems.length ? (
-        <section className="codex-card workspace-status-card">
-          <AlertTriangle size={24} />
-          <h2>Материалы недоступны</h2>
-          <p>{state.error}</p>
-        </section>
-      ) : null}
+      {state.error && !entryItems.length ? <ErrorState title="Материалы недоступны" description={state.error} /> : null}
 
       {showEntryFallback ? (
         <>
-          <section className="codex-card workspace-status-card">
-            <AlertTriangle size={22} />
-            <span className="kicker">Материалы из статей</span>
-            <p>Проекция handouts недоступна. Ниже показаны открытые материалы из статей той же кампании.</p>
-          </section>
-          <section className="handout-grid">{entryItems.map((page) => <EntryHandoutCard key={page.path} page={page} />)}</section>
+          <Notice tone="warning" title="Используется резервный источник">Проекция handouts недоступна. Ниже показаны открытые материалы из статей той же кампании.</Notice>
+          <section className="handout-grid" aria-label="Материалы из статей">{entryItems.map((page) => <EntryHandoutCard key={page.path} page={page} />)}</section>
         </>
       ) : null}
 
-      {showMongo ? <section className="handout-grid">{state.handouts.map((handout) => <MongoHandoutCard key={handout.id || handout.title} handout={handout} />)}</section> : null}
+      {showMongo ? <section className="handout-grid" aria-label="Материалы кампании">{state.handouts.map((handout) => <MongoHandoutCard key={handout.id || handout.title} handout={handout} />)}</section> : null}
 
-      {showEmpty ? (
-        <section className="codex-card workspace-status-card">
-          <Eye size={24} />
-          <h2>Пока нет открытых материалов</h2>
-          <p>{mode === "gm" ? "Добавьте handout или публичную статью, чтобы материал появился здесь." : "GM ещё не открыл материалы для вашей группы."}</p>
-        </section>
-      ) : null}
+      {showEmpty ? <EmptyState title="Пока нет открытых материалов" description={mode === "gm" ? "Добавьте handout или публичную статью, чтобы материал появился здесь." : "GM ещё не открыл материалы для вашей группы."} /> : null}
     </div>
   );
 }
