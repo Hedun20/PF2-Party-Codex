@@ -1,4 +1,4 @@
-@layer silverleafTokens, silverleafBase, legacy, silverleafComponents, silverleafAdvanced, silverleafShell;
+@layer silverleafTokens, silverleafBase, legacy, silverleafComponents, silverleafShell, silverleafComposition;
 
 @import "./silverleaf/tokens.css" layer(silverleafTokens);
 @import "./silverleaf/base.css" layer(silverleafBase);
@@ -26,5 +26,6 @@
 @import "./stage25-player-management.css" layer(legacy);
 
 @import "./silverleaf/components.css" layer(silverleafComponents);
-@import "./silverleaf/advanced-primitives.css" layer(silverleafAdvanced);
+@import "./silverleaf/advanced-primitives.css" layer(silverleafComponents);
 @import "./silverleaf/shell.css" layer(silverleafShell);
+@import "./silverleaf/page-composition.css" layer(silverleafComposition);
