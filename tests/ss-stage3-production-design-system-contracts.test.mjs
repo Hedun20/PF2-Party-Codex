@@ -157,7 +157,7 @@ test("migrated shell code cannot import legacy or alternate primitive implementa
   ].map(read).join("\n");
   assert.doesNotMatch(migrated, /stage\d+|hotfix|stabilization/i);
   assert.doesNotMatch(migrated, /CodexButton|CodexCard|MagicSelectLayer|LoreDropdown/);
-  assert.match(migrated, /components\/ui\/Silverleaf\.jsx/);
+  assert.match(migrated, /\.\/ui\/Silverleaf\.jsx/);
 });
 
 test("production design system remains independent from the Branding Lab", () => {
