@@ -1,6 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import CodexButton from "./ui/CodexButton.jsx";
+import { Button } from "./ui/Silverleaf.jsx";
 import { parentPathFor } from "../routing/appRoutes.js";
 
 export default function PageBackButton() {
@@ -12,10 +12,9 @@ export default function PageBackButton() {
 
   return (
     <nav className="page-back-navigation" aria-label="Навигация назад">
-      <CodexButton type="button" variant="ghost" size="sm" className="page-back-button" onClick={() => navigate(parent)}>
-        <ArrowLeft size={16} aria-hidden="true" />
+      <Button type="button" variant="ghost" size="sm" icon={ArrowLeft} className="page-back-button" onClick={() => navigate(parent)}>
         Назад
-      </CodexButton>
+      </Button>
     </nav>
   );
 }
