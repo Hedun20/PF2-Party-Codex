@@ -58,10 +58,9 @@ test("Silverleaf Dark has a fixed semantic token and typography contract", () =>
   assert.match(tokens, /--sl-font-body:\s*"Inter"/);
 });
 
-test("corrected v3 primary button keeps the current default review geometry", () => {
+test("approved corrected v3 primary button keeps its locked geometry", () => {
   const ui = read("apps/web/branding/src/components/Ui.jsx");
   const css = read("apps/web/branding/src/silverleaf-components.css");
-  const foundations = read("apps/web/branding/src/pages/FoundationsPage.jsx");
   const entry = read("apps/web/branding/src/branding.css");
 
   assert.match(entry, /silverleaf-components\.css/);
@@ -79,9 +78,21 @@ test("corrected v3 primary button keeps the current default review geometry", ()
   assert.match(css, /left:\s*1px/);
   assert.match(css, /right:\s*1px/);
   assert.doesNotMatch(css, /translate\([+-]?34%/);
-  assert.match(foundations, /Primary Button · corrected v3/);
+});
+
+test("secondary button exposes only its default review candidate", () => {
+  const ui = read("apps/web/branding/src/components/Ui.jsx");
+  const css = read("apps/web/branding/src/silverleaf-components.css");
+  const foundations = read("apps/web/branding/src/pages/FoundationsPage.jsx");
+
+  assert.match(ui, /secondary-button-default-v1/);
+  assert.match(css, /\.sl-button--secondary\s*\{/);
+  assert.match(css, /width:\s*220px/);
+  assert.match(css, /height:\s*48px/);
+  assert.match(foundations, /Secondary Button · default v1/);
   assert.match(foundations, /Default candidate only/);
-  assert.match(foundations, /No decorative corner dashes/);
+  assert.match(foundations, /No side diamonds/);
+  assert.match(foundations, /Hover, focus, disabled and loading variants remain intentionally unapproved/);
 });
 
 test("shell prototype covers expanded, collapsed and mobile navigation", () => {
