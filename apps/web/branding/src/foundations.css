@@ -48,3 +48,116 @@
 .layout-mini-shell i { display: block; border: 1px solid var(--sl-border-subtle); border-radius: 4px; background: rgba(255,255,255,0.02); }
 .layout-contract__copy { display: flex; gap: 15px; align-items: flex-start; color: var(--sl-accent-gold); }
 .layout-contract__copy p { margin: 0; color: var(--sl-text-secondary); line-height: 1.7; }
+
+/* Dense content responds to the space left after the sidebar, not only to viewport width. */
+.dense-data-panel { container-type: inline-size; }
+.dense-data-panel .sl-second-layer-grid { align-items: start; }
+.dense-data-panel .sl-dialog-card { width: 100%; }
+
+@container (max-width: 760px) {
+  .dense-data-panel .sl-second-layer-grid { grid-template-columns: 1fr; }
+  .dense-data-panel .sl-table-row { grid-template-columns: 36px minmax(0, 1fr) auto auto; }
+}
+
+@container (max-width: 500px) {
+  .dense-data-panel .sl-table-row { grid-template-columns: 36px minmax(0, 1fr) auto; }
+  .dense-data-panel .sl-table-row__meta { grid-column: 2; }
+  .dense-data-panel .sl-dialog-card footer { flex-wrap: wrap; }
+}
+
+/* Archive counters: compact, framed and ceremonial instead of generic dashboard KPI tiles. */
+.branding-page .branding-grid--stats {
+  width: min(100%, 1280px);
+  margin-inline: auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.branding-page .sl-stat {
+  position: relative;
+  min-height: 148px;
+  padding: 22px 20px 18px;
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr);
+  align-items: start;
+  gap: 15px;
+  overflow: hidden;
+  border: 1px solid rgba(200, 166, 106, 0.32);
+  background:
+    radial-gradient(circle at 18% 18%, rgba(66, 124, 105, 0.16), transparent 34%),
+    linear-gradient(155deg, rgba(11, 34, 27, 0.96), rgba(3, 14, 11, 0.98));
+  box-shadow:
+    inset 0 0 0 1px rgba(75, 128, 116, 0.13),
+    0 14px 30px rgba(0, 0, 0, 0.22);
+  clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px);
+}
+
+.branding-page .sl-stat::before {
+  content: "";
+  position: absolute;
+  top: 11px;
+  left: 17px;
+  right: 17px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(200, 166, 106, 0.42) 22%, rgba(75, 128, 116, 0.32) 50%, rgba(200, 166, 106, 0.42) 78%, transparent);
+}
+
+.branding-page .sl-stat::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 18px;
+  height: 18px;
+  border-right: 1px solid rgba(200, 166, 106, 0.42);
+  border-bottom: 1px solid rgba(200, 166, 106, 0.42);
+}
+
+.branding-page .sl-stat .sl-icon-medallion {
+  width: 48px;
+  height: 48px;
+  margin-top: 7px;
+  border-color: rgba(200, 166, 106, 0.48);
+  color: #d5b66f;
+  background:
+    radial-gradient(circle, rgba(47, 108, 88, 0.2), rgba(3, 13, 10, 0.72) 68%);
+  box-shadow:
+    inset 0 0 0 1px rgba(75, 128, 116, 0.28),
+    0 0 18px rgba(47, 108, 88, 0.09);
+}
+
+.branding-page .sl-stat > div {
+  min-width: 0;
+  padding-top: 4px;
+  display: grid;
+  gap: 4px;
+}
+
+.branding-page .sl-stat strong {
+  color: #e4c883;
+  font: 500 34px/0.95 var(--sl-font-display);
+  letter-spacing: 0.01em;
+}
+
+.branding-page .sl-stat span {
+  color: #d7e0dc;
+  font: 500 12px/1.25 var(--sl-font-display);
+  letter-spacing: 0.025em;
+}
+
+.branding-page .sl-stat small {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(200, 166, 106, 0.14);
+  color: #789b90;
+  font: 500 10px/1.2 var(--sl-font-body);
+}
+
+@media (max-width: 1120px) {
+  .branding-page .branding-grid--stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 620px) {
+  .branding-page .branding-grid--stats { grid-template-columns: 1fr; }
+  .branding-page .sl-stat { min-height: 132px; }
+}
