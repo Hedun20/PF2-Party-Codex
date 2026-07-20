@@ -54,7 +54,7 @@ test("Silverleaf Dark has a fixed semantic token contract", () => {
   }
 });
 
-test("corrected v3 primary button is locked to the approved default geometry", () => {
+test("corrected v3 primary button keeps the current default review geometry", () => {
   const ui = read("apps/web/branding/src/components/Ui.jsx");
   const css = read("apps/web/branding/src/silverleaf-components.css");
   const foundations = read("apps/web/branding/src/pages/FoundationsPage.jsx");
@@ -68,7 +68,13 @@ test("corrected v3 primary button is locked to the approved default geometry", (
   assert.match(css, /width:\s*248px/);
   assert.match(css, /height:\s*56px/);
   assert.match(css, /width:\s*148px/);
+  assert.match(css, /100%\s+84%/);
+  assert.match(css, /7px\s+50%/);
   assert.match(css, /top:\s*50%/);
+  assert.match(css, /margin-top:\s*-6px/);
+  assert.match(css, /left:\s*1px/);
+  assert.match(css, /right:\s*1px/);
+  assert.doesNotMatch(css, /translate\([+-]?34%/);
   assert.match(foundations, /Primary Button · corrected v3/);
   assert.match(foundations, /Default candidate only/);
   assert.match(foundations, /No decorative corner dashes/);
