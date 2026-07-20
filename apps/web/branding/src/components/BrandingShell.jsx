@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
+  Archive,
   Bell,
   BookOpen,
   ChevronLeft,
@@ -20,6 +21,7 @@ import { IconButton, SilverleafLeafIcon, TextInput } from "./Ui.jsx";
 
 const navigation = [
   { to: "/foundations", label: "Foundations", icon: Sparkles },
+  { to: "/archive", label: "Campaign Archive", icon: Archive },
   { to: "/character", label: "Character Dossier", icon: UserRound },
   { to: "/dice", label: "Dice Workspace", icon: Dices },
   { to: "/invitations", label: "Players & Invites", icon: UserPlus }
@@ -27,6 +29,7 @@ const navigation = [
 
 const pageNames = {
   "/foundations": "Design System Lab",
+  "/archive": "Campaign Archive",
   "/character": "Character Dossier",
   "/dice": "Dice Workspace",
   "/invitations": "Players & Invitations"
