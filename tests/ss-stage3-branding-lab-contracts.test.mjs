@@ -54,6 +54,26 @@ test("Silverleaf Dark has a fixed semantic token contract", () => {
   }
 });
 
+test("corrected v3 primary button is locked to the approved default geometry", () => {
+  const ui = read("apps/web/branding/src/components/Ui.jsx");
+  const css = read("apps/web/branding/src/silverleaf-components.css");
+  const foundations = read("apps/web/branding/src/pages/FoundationsPage.jsx");
+  const entry = read("apps/web/branding/src/branding.css");
+
+  assert.match(entry, /silverleaf-components\.css/);
+  assert.match(ui, /SilverleafLeafIcon/);
+  assert.match(ui, /primary-button-default-v3/);
+  assert.match(ui, /sl-button__diamond--left/);
+  assert.match(ui, /sl-button__diamond--right/);
+  assert.match(css, /width:\s*248px/);
+  assert.match(css, /height:\s*56px/);
+  assert.match(css, /width:\s*148px/);
+  assert.match(css, /top:\s*50%/);
+  assert.match(foundations, /Primary Button · corrected v3/);
+  assert.match(foundations, /Default candidate only/);
+  assert.match(foundations, /No decorative corner dashes/);
+});
+
 test("shell prototype covers expanded, collapsed and mobile navigation", () => {
   const shell = read("apps/web/branding/src/components/BrandingShell.jsx");
   const css = [
