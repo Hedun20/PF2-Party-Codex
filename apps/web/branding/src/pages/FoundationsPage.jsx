@@ -7,13 +7,14 @@ import {
   Eye,
   Map,
   Save,
+  Search,
   ScrollText,
   ShieldAlert,
   Sparkles,
   Star,
   Users
 } from "lucide-react";
-import { Button, Chip, Field, PageHeader, Panel, Stat } from "../components/Ui.jsx";
+import { Button, Chip, Field, PageHeader, Panel, Stat, TextInput } from "../components/Ui.jsx";
 
 const colors = [
   ["Deep Verdant", "#0F2B22"],
@@ -69,24 +70,30 @@ export default function FoundationsPage() {
           </div>
         </Panel>
 
-        <Panel eyebrow="Current component" title="Secondary Button · default v1">
+        <Panel eyebrow="Approved components" title="Primary & Secondary Buttons">
           <div className="component-stack">
+            <div className="component-row"><Button>Create New Entry</Button></div>
             <div className="component-row"><Button variant="secondary" icon={BookOpen}>View Journal</Button></div>
             <div className="sl-component-contract">
-              <strong>Default candidate only</strong>
-              <span>220 × 48 px · centered icon + label composition.</span>
-              <span>Dark archival surface, restrained antique-gold frame and shallow central side notches.</span>
-              <span>No side diamonds and no ornamental corner marks: this is subordinate to the approved Primary Button.</span>
-              <span>Hover, focus, disabled and loading variants remain intentionally unapproved.</span>
+              <strong>Approved defaults</strong>
+              <span>Primary: 248 × 56 px · leaf + label group 148 px · centered side diamonds.</span>
+              <span>Secondary: 220 × 48 px · restrained frame · no diamonds or corner ornaments.</span>
+              <span>Cinzel display typography. Interaction states remain a later pass.</span>
             </div>
           </div>
         </Panel>
 
-        <Panel eyebrow="Forms" title="Inputs and states">
+        <Panel eyebrow="Current component" title="Text Input · default v1">
           <div className="component-stack">
-            <Field label="Archive title" hint="Used in cards and breadcrumbs"><input className="sl-input" defaultValue="The Shattered Oath" /></Field>
-            <Field label="Visibility"><select className="sl-input" defaultValue="revealed"><option value="revealed">Revealed to party</option><option value="gm">GM only</option></select></Field>
-            <Field label="Slug" error="Slug must be unique"><input className="sl-input" defaultValue="the-shattered-oath" /></Field>
+            <Field label="Archive search" hint="Default review target only">
+              <TextInput icon={Search} placeholder="Search your archive..." aria-label="Archive search" />
+            </Field>
+            <div className="sl-component-contract">
+              <strong>Default candidate only</strong>
+              <span>320 × 48 px · clipped Silverleaf corners · antique-gold outer edge.</span>
+              <span>Deep archival surface, teal inner line and right-side icon divider.</span>
+              <span>Inter interface typography. Focus, error, disabled and helper states remain intentionally unapproved.</span>
+            </div>
           </div>
         </Panel>
       </div>
