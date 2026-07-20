@@ -6,7 +6,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Dices,
-  Gem,
   Menu,
   MoonStar,
   Search,
@@ -17,7 +16,7 @@ import {
   UserRound,
   X
 } from "lucide-react";
-import { IconButton } from "./Ui.jsx";
+import { IconButton, SilverleafLeafIcon, TextInput } from "./Ui.jsx";
 
 const navigation = [
   { to: "/foundations", label: "Foundations", icon: Sparkles },
@@ -42,32 +41,33 @@ export default function BrandingShell({ children }) {
     <div className={`branding-shell${collapsed ? " is-collapsed" : ""}`}>
       <aside className={`branding-sidebar${mobileOpen ? " is-mobile-open" : ""}`}>
         <div className="branding-logo">
-          <span className="branding-logo__mark"><Gem size={27} aria-hidden="true" /></span>
+          <span className="branding-logo__mark"><SilverleafLeafIcon size={31} /></span>
           <div className="branding-logo__copy">
             <strong>Royal Archive</strong>
-            <small>Silverleaf Dark</small>
+            <small>PF2 Party Codex</small>
           </div>
           <IconButton label="Close navigation" icon={X} className="branding-sidebar__mobile-close" onClick={() => setMobileOpen(false)} />
         </div>
 
         <div className="branding-sidebar__meta">
-          <MoonStar size={18} aria-hidden="true" />
-          <span>Approved theme · dark mode</span>
+          <MoonStar size={18} strokeWidth={1.45} aria-hidden="true" />
+          <span>Silverleaf Dark · foundation</span>
         </div>
 
         <nav className="branding-nav" aria-label="Branding prototype pages">
-          <p className="branding-nav__label">Prototype brochure</p>
+          <p className="branding-nav__label">Design system</p>
           {navigation.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} onClick={() => setMobileOpen(false)} className={({ isActive }) => `branding-nav__link${isActive ? " is-active" : ""}`}>
-              <Icon size={19} aria-hidden="true" />
+              <span className="branding-nav__marker" aria-hidden="true" />
+              <Icon size={19} strokeWidth={1.45} aria-hidden="true" />
               <span>{label}</span>
             </NavLink>
           ))}
         </nav>
 
         <div className="branding-sidebar__footer">
-          <button type="button" className="branding-collapse" onClick={() => setCollapsed((value) => !value)}>
-            {collapsed ? <ChevronRight size={18} aria-hidden="true" /> : <ChevronLeft size={18} aria-hidden="true" />}
+          <button type="button" className="branding-collapse" onClick={() => setCollapsed((current) => !current)}>
+            {collapsed ? <ChevronRight size={18} strokeWidth={1.45} aria-hidden="true" /> : <ChevronLeft size={18} strokeWidth={1.45} aria-hidden="true" />}
             <span>{collapsed ? "Expand" : "Collapse sidebar"}</span>
           </button>
         </div>
@@ -78,7 +78,7 @@ export default function BrandingShell({ children }) {
       <div className="branding-workspace">
         <header className="branding-topbar">
           <button type="button" className="branding-mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Open navigation">
-            <Menu size={20} aria-hidden="true" />
+            <Menu size={20} strokeWidth={1.45} aria-hidden="true" />
           </button>
           <div className="branding-context">
             <div className="branding-context__item">
@@ -95,10 +95,7 @@ export default function BrandingShell({ children }) {
             </div>
           </div>
           <div className="branding-topbar__tools">
-            <label className="branding-search">
-              <Search size={17} aria-hidden="true" />
-              <input aria-label="Search branding prototype" placeholder="Search the archive..." />
-            </label>
+            <TextInput className="branding-search" icon={Search} aria-label="Search branding prototype" placeholder="Search the archive..." />
             <IconButton label="Notifications" icon={Bell} />
             <IconButton label="Settings" icon={Settings} />
             <span className="branding-avatar" aria-label="Demo account">DM</span>
@@ -107,11 +104,11 @@ export default function BrandingShell({ children }) {
 
         <main className="branding-main">
           <div className="branding-breadcrumbs">
-            <BookOpen size={14} aria-hidden="true" />
+            <BookOpen size={14} strokeWidth={1.45} aria-hidden="true" />
             <span>Branding</span>
-            <ChevronRight size={13} aria-hidden="true" />
+            <ChevronRight size={13} strokeWidth={1.45} aria-hidden="true" />
             <strong>{pageNames[location.pathname] || "Design System Lab"}</strong>
-            <span className="branding-breadcrumbs__badge"><ShieldCheck size={13} aria-hidden="true" /> JSX prototype</span>
+            <span className="branding-breadcrumbs__badge"><ShieldCheck size={13} strokeWidth={1.45} aria-hidden="true" /> JSX prototype</span>
           </div>
           {children}
         </main>
