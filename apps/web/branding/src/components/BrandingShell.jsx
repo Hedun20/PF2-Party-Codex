@@ -16,6 +16,7 @@ import {
   Sparkles,
   UserPlus,
   UserRound,
+  Users,
   X
 } from "lucide-react";
 import { IconButton, SilverleafLeafIcon, TextInput } from "./Ui.jsx";
@@ -25,6 +26,7 @@ const navigation = [
   { to: "/archive", label: "Campaign Archive", icon: Archive },
   { to: "/entry", label: "Lore Entry Detail", icon: BookOpen },
   { to: "/entry/new", label: "Create Archive Entry", icon: FilePlus2 },
+  { to: "/npcs", label: "NPC Roster", icon: Users },
   { to: "/character", label: "Character Dossier", icon: UserRound },
   { to: "/dice", label: "Dice Workspace", icon: Dices },
   { to: "/invitations", label: "Players & Invites", icon: UserPlus }
@@ -35,6 +37,7 @@ const pageNames = {
   "/archive": "Campaign Archive",
   "/entry": "The Shattered Oath",
   "/entry/new": "Create Archive Entry",
+  "/npcs": "NPC Roster",
   "/character": "Character Dossier",
   "/dice": "Dice Workspace",
   "/invitations": "Players & Invitations"
@@ -65,7 +68,7 @@ export default function BrandingShell({ children }) {
         <nav className="branding-nav" aria-label="Branding prototype pages">
           <p className="branding-nav__label">Design system</p>
           {navigation.map(({ to, label, icon: Icon }) => (
-            <NavLink key={to} to={to} onClick={() => setMobileOpen(false)} className={({ isActive }) => `branding-nav__link${isActive ? " is-active" : ""}`}>
+            <NavLink end key={to} to={to} onClick={() => setMobileOpen(false)} className={({ isActive }) => `branding-nav__link${isActive ? " is-active" : ""}`}>
               <span className="branding-nav__marker" aria-hidden="true" />
               <Icon size={19} strokeWidth={1.45} aria-hidden="true" />
               <span>{label}</span>
