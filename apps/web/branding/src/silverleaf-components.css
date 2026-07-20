@@ -134,6 +134,85 @@
   box-shadow: none;
 }
 
+.sl-button--secondary {
+  position: relative;
+  isolation: isolate;
+  width: 220px;
+  max-width: 100%;
+  height: 48px;
+  min-height: 48px;
+  padding: 0 24px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--sl-accent-gold-bright);
+  box-shadow: none;
+  font: 500 15px/1 var(--sl-font-display);
+  letter-spacing: 0.018em;
+}
+
+.sl-button--secondary::before,
+.sl-button--secondary::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  clip-path: polygon(
+    10px 0,
+    calc(100% - 10px) 0,
+    100% 10px,
+    100% 18px,
+    calc(100% - 5px) 50%,
+    100% 30px,
+    100% 38px,
+    calc(100% - 10px) 100%,
+    10px 100%,
+    0 38px,
+    0 30px,
+    5px 50%,
+    0 18px,
+    0 10px
+  );
+}
+
+.sl-button--secondary::before {
+  inset: 0;
+  z-index: -2;
+  background: linear-gradient(105deg, rgba(215, 186, 112, 0.9), rgba(137, 103, 48, 0.78), rgba(212, 179, 106, 0.9));
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.26));
+}
+
+.sl-button--secondary::after {
+  inset: 2px;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(47, 108, 88, 0.11), transparent 52%),
+    linear-gradient(180deg, rgba(10, 29, 24, 0.98), rgba(5, 17, 14, 0.98));
+  box-shadow:
+    inset 0 0 0 1px rgba(75, 128, 116, 0.42),
+    inset 0 0 14px rgba(0, 0, 0, 0.28);
+}
+
+.sl-button--secondary .sl-button__content {
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.sl-button--secondary .sl-button__content svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: var(--sl-accent-gold);
+}
+
+.sl-button--secondary:hover,
+.sl-button--secondary:active {
+  transform: none;
+  background: transparent;
+  box-shadow: none;
+}
+
 .sl-component-contract {
   margin: 14px 0 0;
   padding: 12px 14px;
