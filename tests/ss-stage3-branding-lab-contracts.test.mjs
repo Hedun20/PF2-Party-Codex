@@ -34,7 +34,7 @@ test("branding brochure exposes the approved four-page review flow", () => {
   }
 });
 
-test("Silverleaf Dark has a fixed semantic token contract", () => {
+test("Silverleaf Dark has a fixed semantic token and typography contract", () => {
   const tokens = read("apps/web/branding/src/theme/silverleaf-dark.css");
   for (const token of [
     "--sl-bg-canvas",
@@ -52,6 +52,10 @@ test("Silverleaf Dark has a fixed semantic token contract", () => {
   ]) {
     assert.ok(tokens.includes(token), `missing semantic token ${token}`);
   }
+  assert.match(tokens, /family=Cinzel/);
+  assert.match(tokens, /family=Inter/);
+  assert.match(tokens, /--sl-font-display:\s*"Cinzel"/);
+  assert.match(tokens, /--sl-font-body:\s*"Inter"/);
 });
 
 test("corrected v3 primary button keeps the current default review geometry", () => {
