@@ -5,7 +5,9 @@ import {
   Check,
   Clock3,
   Eye,
+  LayoutDashboard,
   Map,
+  MapPin,
   Save,
   Search,
   ScrollText,
@@ -14,7 +16,18 @@ import {
   Star,
   Users
 } from "lucide-react";
-import { Button, Chip, Field, PageHeader, Panel, Stat, TextInput } from "../components/Ui.jsx";
+import {
+  ArchiveCard,
+  Button,
+  Chip,
+  Field,
+  PageHeader,
+  Panel,
+  SelectInput,
+  SidebarNavItem,
+  Stat,
+  TextInput
+} from "../components/Ui.jsx";
 
 const colors = [
   ["Deep Verdant", "#0F2B22"],
@@ -47,7 +60,7 @@ export default function FoundationsPage() {
           <p>One layout system. One spacing scale. One component contract. Themes change tokens, assets and atmosphere—never behavior.</p>
           <div className="branding-hero-card__actions">
             <Button>Create New Entry</Button>
-            <Button variant="secondary" icon={BookOpen}>Open journal</Button>
+            <Button variant="secondary" icon={BookOpen}>Open Journal</Button>
           </div>
         </div>
         <div className="branding-hero-card__ornament" aria-hidden="true">
@@ -70,31 +83,66 @@ export default function FoundationsPage() {
           </div>
         </Panel>
 
-        <Panel eyebrow="Approved components" title="Primary & Secondary Buttons">
+        <Panel eyebrow="Core actions" title="Primary & Secondary">
           <div className="component-stack">
             <div className="component-row"><Button>Create New Entry</Button></div>
             <div className="component-row"><Button variant="secondary" icon={BookOpen}>View Journal</Button></div>
             <div className="sl-component-contract">
-              <strong>Approved defaults</strong>
-              <span>Primary: 248 × 56 px · leaf + label group 148 px · centered side diamonds.</span>
-              <span>Secondary: 220 × 48 px · restrained frame · no diamonds or corner ornaments.</span>
-              <span>Cinzel display typography. Interaction states remain a later pass.</span>
+              <strong>Primary approved · Secondary v2 candidate</strong>
+              <span>Primary geometry remains locked at 248 × 56 px.</span>
+              <span>Secondary is now a quiet 220 × 44 px outline: no green CTA fill, no side notches, no coupon silhouette.</span>
             </div>
           </div>
         </Panel>
 
-        <Panel eyebrow="Current component" title="Text Input · default v1">
+        <Panel eyebrow="Core forms" title="Text Field & Select">
           <div className="component-stack">
-            <Field label="Archive search" hint="Default review target only">
+            <Field label="Archive search" hint="Fluid width: shrinks with an open sidebar">
               <TextInput icon={Search} placeholder="Search your archive..." aria-label="Archive search" />
             </Field>
+            <Field label="Entry type">
+              <SelectInput defaultValue="lore" aria-label="Entry type">
+                <option value="lore">Lore Entry</option>
+                <option value="npc">NPC</option>
+                <option value="location">Location</option>
+              </SelectInput>
+            </Field>
             <div className="sl-component-contract">
-              <strong>Default candidate only</strong>
-              <span>320 × 48 px · clipped Silverleaf corners · antique-gold outer edge.</span>
-              <span>Deep archival surface, teal inner line and right-side icon divider.</span>
-              <span>Inter interface typography. Focus, error, disabled and helper states remain intentionally unapproved.</span>
+              <strong>Default candidates</strong>
+              <span>Responsive width, restrained teal-gold hairline and shallow 6 px corner cuts.</span>
+              <span>No fixed 320 px width. Both controls stay inside medium layouts with the sidebar open.</span>
             </div>
           </div>
+        </Panel>
+      </div>
+
+      <div className="branding-grid branding-grid--2">
+        <Panel eyebrow="Navigation" title="Sidebar item">
+          <div className="sl-core-showcase">
+            <div className="sl-sidebar-sample">
+              <SidebarNavItem icon={LayoutDashboard}>Dashboard</SidebarNavItem>
+              <SidebarNavItem icon={BookOpen} active>Campaign Archive</SidebarNavItem>
+              <SidebarNavItem icon={Users}>Characters</SidebarNavItem>
+              <SidebarNavItem icon={MapPin}>Locations</SidebarNavItem>
+            </div>
+            <div className="sl-component-contract">
+              <strong>Default + active language</strong>
+              <span>Quiet default row, thin antique-gold icon and a narrow active marker.</span>
+              <span>The active state uses atmosphere and hierarchy instead of a bright rounded rectangle.</span>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel eyebrow="Content" title="Archive card & chips">
+          <ArchiveCard
+            icon={Map}
+            eyebrow="Location"
+            title="Whispering Vale"
+            description="A moonlit sanctuary where old roads, ancient promises and forgotten names meet."
+            meta={<><span>Updated today</span><span>Public entry</span></>}
+          >
+            <div className="sl-inline-chips"><Chip tone="success">Exploration</Chip><Chip>Elven</Chip><Chip tone="gold">Ancient</Chip></div>
+          </ArchiveCard>
         </Panel>
       </div>
 
@@ -106,7 +154,7 @@ export default function FoundationsPage() {
       </div>
 
       <div className="branding-grid branding-grid--2">
-        <Panel eyebrow="Pattern" title="Archive entry card" actions={<Button size="sm" variant="ghost">View all</Button>}>
+        <Panel eyebrow="Pattern" title="Legacy comparison card" actions={<Button size="sm" variant="ghost">View all</Button>}>
           <article className="archive-card-demo">
             <div className="archive-card-demo__art"><span>☾</span></div>
             <div className="archive-card-demo__body">
