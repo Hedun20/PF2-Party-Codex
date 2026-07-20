@@ -1,4 +1,4 @@
-import { LoaderCircle } from "lucide-react";
+import { ChevronDown, LoaderCircle } from "lucide-react";
 
 function SilverleafLeafIcon({ size = 20, ...props }) {
   return (
@@ -16,7 +16,7 @@ export function Button({ variant = "primary", size = "md", icon: Icon, loading =
     ? variant === "primary"
       ? "primary-button-default-v3"
       : variant === "secondary"
-        ? "secondary-button-default-v1"
+        ? "secondary-button-default-v2"
         : undefined
     : undefined;
 
@@ -44,11 +44,57 @@ export function Button({ variant = "primary", size = "md", icon: Icon, loading =
 
 export function TextInput({ icon: Icon, className = "", inputClassName = "", ...props }) {
   return (
-    <span className={`sl-text-input ${className}`.trim()} data-component="text-input-default-v1">
-      {Icon ? <Icon className="sl-text-input__icon" size={17} aria-hidden="true" /> : null}
+    <span className={`sl-text-input ${className}`.trim()} data-component="text-input-default-v2">
       <input className={`sl-text-input__control ${inputClassName}`.trim()} {...props} />
-      <span className="sl-text-input__finial" aria-hidden="true" />
+      {Icon ? (
+        <>
+          <span className="sl-text-input__finial" aria-hidden="true" />
+          <Icon className="sl-text-input__icon" size={17} aria-hidden="true" />
+        </>
+      ) : null}
     </span>
+  );
+}
+
+export function SelectInput({ className = "", children, ...props }) {
+  return (
+    <span className={`sl-select-input ${className}`.trim()} data-component="select-default-v1">
+      <select className="sl-select-input__control" {...props}>{children}</select>
+      <span className="sl-select-input__finial" aria-hidden="true" />
+      <ChevronDown className="sl-select-input__icon" size={17} aria-hidden="true" />
+    </span>
+  );
+}
+
+export function SidebarNavItem({ icon: Icon, active = false, children, className = "", ...props }) {
+  return (
+    <button
+      className={`sl-sidebar-item${active ? " is-active" : ""} ${className}`.trim()}
+      type="button"
+      data-component="sidebar-item-default-v1"
+      {...props}
+    >
+      <span className="sl-sidebar-item__marker" aria-hidden="true" />
+      {Icon ? <Icon size={19} aria-hidden="true" /> : null}
+      <span>{children}</span>
+    </button>
+  );
+}
+
+export function ArchiveCard({ icon: Icon, eyebrow, title, description, meta, children, className = "" }) {
+  return (
+    <article className={`sl-archive-card ${className}`.trim()} data-component="archive-card-default-v1">
+      <div className="sl-archive-card__art" aria-hidden="true">
+        {Icon ? <Icon size={38} /> : <SilverleafLeafIcon size={38} />}
+      </div>
+      <div className="sl-archive-card__content">
+        {eyebrow ? <span className="sl-archive-card__eyebrow">{eyebrow}</span> : null}
+        <h3>{title}</h3>
+        {description ? <p>{description}</p> : null}
+        {children}
+      </div>
+      {meta ? <div className="sl-archive-card__meta">{meta}</div> : null}
+    </article>
   );
 }
 
@@ -61,7 +107,7 @@ export function IconButton({ label, icon: Icon, active = false, className = "", 
 }
 
 export function Chip({ tone = "neutral", children }) {
-  return <span className={`sl-chip sl-chip--${tone}`}>{children}</span>;
+  return <span className={`sl-chip sl-chip--${tone}`} data-component="chip-default-v1">{children}</span>;
 }
 
 export function Panel({ title, eyebrow, actions, className = "", children }) {
