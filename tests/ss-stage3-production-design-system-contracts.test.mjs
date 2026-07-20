@@ -36,9 +36,13 @@ test("production CSS has one canonical Silverleaf entrypoint above a bounded leg
   assert.match(index, /silverleaf\/advanced-primitives\.css/);
   assert.match(index, /silverleaf\/shell\.css/);
   assert.match(index, /silverleaf\/page-composition\.css/);
+  assert.match(index, /silverleaf\/adapter-controls\.css/);
+  assert.match(index, /silverleaf\/adapter-pages\.css/);
+  assert.match(index, /silverleaf\/adapter-responsive\.css/);
   assert.match(index, /Temporary compatibility boundary/);
   assert.match(index, /stage25-player-management\.css" layer\(legacy\)/);
   assert.doesNotMatch(index, /layer\(stage\d+/);
+  assert.ok(index.indexOf("adapter-responsive.css") > index.indexOf("stage25-player-management.css"));
 });
 
 test("production Silverleaf tokens cover semantic visual, motion, breakpoint and layering foundations", () => {
@@ -76,7 +80,8 @@ test("one canonical production module exports the complete Stage 3 primitive set
     assert.match(ui, new RegExp(`export (?:function|const) ${name}\\b`), `missing canonical ${name}`);
   }
   assert.match(barrel, /export \* from "\.\/Silverleaf\.jsx"/);
-  assert.match(barrel, /Temporary adapters/);
+  assert.match(barrel, /Compatibility adapters/);
+  assert.match(barrel, /default as EmptyState/);
 });
 
 test("approved primary geometry and custom listbox remain locked", () => {
@@ -137,21 +142,44 @@ test("Card, Table, PageHeader and overlays have responsive production styling", 
   assert.match(css, /@media \(max-width: 520px\)/);
 });
 
-test("legacy page markup is normalized by the final Silverleaf composition layer", () => {
+test("compatibility adapters render canonical Silverleaf primitives instead of alternate designs", () => {
+  const button = read("apps/web/src/components/ui/CodexButton.jsx");
+  const card = read("apps/web/src/components/ui/CodexCard.jsx");
+  const hero = read("apps/web/src/components/ui/PageHero.jsx");
+  const empty = read("apps/web/src/components/ui/EmptyState.jsx");
+  const status = read("apps/web/src/components/ui/StatusMessage.jsx");
+  assert.match(button, /"sl-button"/);
+  assert.match(button, /sl-button__diamond--left/);
+  assert.match(card, /import \{ Card \}/);
+  assert.match(card, /<Card/);
+  assert.match(hero, /import \{ PageHeader \}/);
+  assert.match(hero, /<PageHeader/);
+  assert.match(empty, /import \{ StatePanel \}/);
+  assert.match(status, /import \{ Notice \}/);
+});
+
+test("final page composition removes the purple prototype and protects all production routes", () => {
   const composition = read("apps/web/src/styles/silverleaf/page-composition.css");
+  const controls = read("apps/web/src/styles/silverleaf/adapter-controls.css");
+  const pages = read("apps/web/src/styles/silverleaf/adapter-pages.css");
+  const responsive = read("apps/web/src/styles/silverleaf/adapter-responsive.css");
   const handouts = read("apps/web/src/pages/HandoutsPage.jsx");
   const foundry = read("apps/web/src/pages/FoundryImportExportPage.jsx");
   const back = read("apps/web/src/components/PageBackButton.jsx");
 
-  assert.match(composition, /\.hero-panel/);
-  assert.match(composition, /\.list-header/);
-  assert.match(composition, /\.route-breadcrumbs ol/);
-  assert.match(composition, /\.codex-card/);
-  assert.match(composition, /font:\s*500 clamp\(34px, 4\.6vw, 64px\)/);
-  assert.match(composition, /\.cinematic-world-bg\s*\{[\s\S]*opacity:\s*0 !important/);
+  assert.match(composition, /\.cinematic-world-bg\s*\{[\s\S]*opacity:\s*0\s*!important/);
+  assert.match(composition, /\.route-breadcrumbs ol\s*\{[\s\S]*list-style:\s*none/);
+  assert.match(composition, /font:\s*500 clamp\(34px,\s*4\.6vw,\s*64px\)/);
+  assert.match(controls, /\.codex-button\.sl-button--primary/);
+  assert.match(controls, /width:\s*var\(--sl-action-width\)/);
+  assert.match(controls, /\.codex-card\.sl-card/);
+  assert.match(pages, /\.archive-summary-grid/);
+  assert.match(pages, /\.archive-count-card/);
+  assert.match(pages, /\.workspace-grid/);
+  assert.match(pages, /\.archive-recent-grid/);
+  assert.match(responsive, /@media \(max-width: 1180px\)/);
+  assert.match(responsive, /@media \(max-width: 620px\)/);
   assert.match(handouts, /PageHeader/);
-  assert.match(handouts, /LoadingState/);
-  assert.match(handouts, /EmptyState/);
   assert.match(foundry, /PageHeader/);
   assert.match(back, /\.\/ui\/Silverleaf\.jsx/);
   assert.doesNotMatch(back, /CodexButton/);
@@ -188,7 +216,10 @@ test("production design system remains independent from the Branding Lab", () =>
     read("apps/web/src/styles/silverleaf/components.css"),
     read("apps/web/src/styles/silverleaf/advanced-primitives.css"),
     read("apps/web/src/styles/silverleaf/shell.css"),
-    read("apps/web/src/styles/silverleaf/page-composition.css")
+    read("apps/web/src/styles/silverleaf/page-composition.css"),
+    read("apps/web/src/styles/silverleaf/adapter-controls.css"),
+    read("apps/web/src/styles/silverleaf/adapter-pages.css"),
+    read("apps/web/src/styles/silverleaf/adapter-responsive.css")
   ].join("\n");
   assert.doesNotMatch(sources, /branding\//i);
   assert.doesNotMatch(sources, /stage\d+|hotfix|stabilization/i);
