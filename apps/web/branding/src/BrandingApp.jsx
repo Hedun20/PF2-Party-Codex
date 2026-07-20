@@ -6,6 +6,7 @@ import LoreEntryPage from "./pages/LoreEntryPage.jsx";
 import CreateEntryPage from "./pages/CreateEntryPage.jsx";
 import NpcRosterPage from "./pages/NpcRosterPage.jsx";
 import CampaignTimelinePage from "./pages/CampaignTimelinePage.jsx";
+import CampaignMapsPage from "./pages/CampaignMapsPage.jsx";
 import CharacterDossierPage from "./pages/CharacterDossierPage.jsx";
 import DiceWorkspacePage from "./pages/DiceWorkspacePage.jsx";
 import InvitationsPage from "./pages/InvitationsPage.jsx";
@@ -21,6 +22,7 @@ export default function BrandingApp() {
         <Route path="/entry/new" element={<CreateEntryPage />} />
         <Route path="/npcs" element={<NpcRosterPage />} />
         <Route path="/timeline" element={<CampaignTimelinePage />} />
+        <Route path="/maps" element={<CampaignMapsPage />} />
         <Route path="/character" element={<CharacterDossierPage />} />
         <Route path="/dice" element={<DiceWorkspacePage />} />
         <Route path="/invitations" element={<InvitationsPage />} />
