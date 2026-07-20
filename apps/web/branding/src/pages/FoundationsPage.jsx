@@ -69,14 +69,14 @@ export default function FoundationsPage() {
           </div>
         </Panel>
 
-        <Panel eyebrow="Current component" title="Primary Button · corrected v3">
+        <Panel eyebrow="Current component" title="Secondary Button · default v1">
           <div className="component-stack">
-            <div className="component-row"><Button>Create New Entry</Button></div>
+            <div className="component-row"><Button variant="secondary" icon={BookOpen}>View Journal</Button></div>
             <div className="sl-component-contract">
               <strong>Default candidate only</strong>
-              <span>248 × 56 px · leaf + label group 148 px · centered on both axes.</span>
-              <span>Silverleaf stepped frame and side diamonds centered at y = 28.</span>
-              <span>No legacy round or square corner ornaments. No decorative corner dashes.</span>
+              <span>220 × 48 px · centered icon + label composition.</span>
+              <span>Dark archival surface, restrained antique-gold frame and shallow central side notches.</span>
+              <span>No side diamonds and no ornamental corner marks: this is subordinate to the approved Primary Button.</span>
               <span>Hover, focus, disabled and loading variants remain intentionally unapproved.</span>
             </div>
           </div>
