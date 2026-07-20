@@ -59,6 +59,60 @@
   .invite-filters { overflow-x: auto; max-width: 220px; }
 }
 
+/* Dense component groups must respond to the space left after the sidebar,
+   not only to the browser viewport. */
+.sl-panel__body {
+  container-type: inline-size;
+}
+
+.sl-second-layer-grid > * {
+  min-width: 0;
+}
+
+@container (max-width: 900px) {
+  .sl-second-layer-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sl-table-sample {
+    width: 100%;
+  }
+
+  .sl-dialog-card {
+    width: min(100%, 680px);
+    justify-self: center;
+  }
+}
+
+@container (max-width: 560px) {
+  .sl-table-row {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+  }
+
+  .sl-table-row__meta {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .sl-table-row__actions {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+}
+
+@container (max-width: 420px) {
+  .sl-table-row {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .sl-table-row__meta,
+  .sl-table-row__actions {
+    grid-column: 2;
+    grid-row: auto;
+    justify-self: start;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
