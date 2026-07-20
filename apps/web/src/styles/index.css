@@ -1,22 +1,29 @@
-@layer theme, fantasy, components, design, buttons, stabilization, shell, blocks, campaign, accessibility, stage16a, stage16b, magicSelect, content, stage17, stage18, stage19, stage20, stage21, stage25;
+@layer silverleafTokens, silverleafBase, legacy, silverleafComponents, silverleafShell;
 
-@import "./theme.css" layer(theme);
-@import "./fantasy.css" layer(fantasy);
-@import "./components.css" layer(components);
-@import "./codex-design.css" layer(design);
-@import "./codex-buttons.css" layer(buttons);
-@import "./stabilization.css" layer(stabilization);
-@import "./shell-context.css" layer(shell);
-@import "./ui-blocks.css" layer(blocks);
-@import "./campaign-context.css" layer(campaign);
-@import "./accessibility.css" layer(accessibility);
-@import "./stage16a-ui.css" layer(stage16a);
-@import "./stage16b-navigation.css" layer(stage16b);
-@import "./magic-select.css" layer(magicSelect);
-@import "./content-cards.css" layer(content);
-@import "./stage17-content-polish.css" layer(stage17);
-@import "./stage18-editor-inspector-selects.css" layer(stage18);
-@import "./stage19-select-archive-hotfix.css" layer(stage19);
-@import "./stage20-native-selects.css" layer(stage20);
-@import "./stage21-character-dossier.css" layer(stage21);
-@import "./stage25-player-management.css" layer(stage25);
+@import "./silverleaf/tokens.css" layer(silverleafTokens);
+@import "./silverleaf/base.css" layer(silverleafBase);
+
+/* Temporary compatibility boundary. No new production code may depend on these files. */
+@import "./theme.css" layer(legacy);
+@import "./fantasy.css" layer(legacy);
+@import "./components.css" layer(legacy);
+@import "./codex-design.css" layer(legacy);
+@import "./codex-buttons.css" layer(legacy);
+@import "./stabilization.css" layer(legacy);
+@import "./shell-context.css" layer(legacy);
+@import "./ui-blocks.css" layer(legacy);
+@import "./campaign-context.css" layer(legacy);
+@import "./accessibility.css" layer(legacy);
+@import "./stage16a-ui.css" layer(legacy);
+@import "./stage16b-navigation.css" layer(legacy);
+@import "./magic-select.css" layer(legacy);
+@import "./content-cards.css" layer(legacy);
+@import "./stage17-content-polish.css" layer(legacy);
+@import "./stage18-editor-inspector-selects.css" layer(legacy);
+@import "./stage19-select-archive-hotfix.css" layer(legacy);
+@import "./stage20-native-selects.css" layer(legacy);
+@import "./stage21-character-dossier.css" layer(legacy);
+@import "./stage25-player-management.css" layer(legacy);
+
+@import "./silverleaf/components.css" layer(silverleafComponents);
+@import "./silverleaf/shell.css" layer(silverleafShell);
