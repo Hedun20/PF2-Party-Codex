@@ -42,16 +42,19 @@ test("archive summary queries canonical entry-backed maps, timeline and sessions
   assert.deepEqual(sessions.$and[0].visibility, { $in: ["public", "revealed"] });
 });
 
-test("critical header and Timeline controls use browser-native selects", async () => {
-  const [topbar, sidebar, timeline, css] = await Promise.all([
+test("critical header uses the canonical Silverleaf select while Timeline remains stable", async () => {
+  const [topbar, sidebar, timeline, legacyCss, silverleaf] = await Promise.all([
     source("apps/web/src/components/CodexTopbar.jsx"),
     source("apps/web/src/components/CodexSidebar.jsx"),
     source("apps/web/src/pages/TimelinePage.jsx"),
-    source("apps/web/src/styles/stage20-native-selects.css")
+    source("apps/web/src/styles/stage20-native-selects.css"),
+    source("apps/web/src/styles/silverleaf/components.css")
   ]);
 
-  assert.match(topbar, /<select aria-label="Активная кампания"/);
-  assert.match(topbar, /<select aria-label="Контекст мира"/);
+  assert.match(topbar, /SelectInput/);
+  assert.match(topbar, /aria-label="Активная кампания"/);
+  assert.match(topbar, /aria-label="Контекст мира"/);
+  assert.doesNotMatch(topbar, /<select/);
   assert.doesNotMatch(topbar, /FloatingMenu|HeaderDropdown|CodexSelect|Раздел приложения/);
   assert.match(sidebar, /navigationGroupsFor/);
   assert.match(sidebar, /<NavLink/);
@@ -61,7 +64,8 @@ test("critical header and Timeline controls use browser-native selects", async (
   assert.doesNotMatch(timeline, /CodexSelect|FloatingMenu/);
   assert.match(timeline, /getWorlds\(pages\)/);
 
-  assert.match(css, /topbar-native-select/);
-  assert.match(css, /timeline-control--native-select/);
-  assert.doesNotMatch(css, /position:\s*fixed/);
+  assert.match(silverleaf, /\.sl-select-input__trigger/);
+  assert.match(silverleaf, /\.sl-select-menu/);
+  assert.match(legacyCss, /timeline-control--native-select/);
+  assert.doesNotMatch(legacyCss, /position:\s*fixed/);
 });
