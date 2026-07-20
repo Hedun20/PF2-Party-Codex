@@ -32,7 +32,7 @@ test("campaign switching reports failures instead of silently swallowing them", 
   assert.match(app, /Не удалось переключить кампанию/);
   assert.match(app, /setCampaignSwitching\(false\)/);
   assert.match(shell, /props\.campaignNotice\?\.message/);
-  assert.match(shell, /StatusMessage/);
+  assert.match(shell, /Notice/);
   assert.match(topbar, /currentCampaignListed/);
   assert.match(topbar, /hasAlternativeCampaign/);
   assert.match(topbar, /aria-busy=\{campaignSwitching\}/);
