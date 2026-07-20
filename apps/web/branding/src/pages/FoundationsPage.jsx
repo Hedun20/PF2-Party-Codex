@@ -175,7 +175,7 @@ export default function FoundationsPage() {
           </div>
         </Panel>
 
-        <Panel eyebrow="Dense data" title="Table Row & Dialog">
+        <Panel eyebrow="Dense data" title="Table Row & Dialog" className="dense-data-panel">
           <div className="sl-second-layer-grid">
             <div className="sl-table-sample">
               <TableRow
