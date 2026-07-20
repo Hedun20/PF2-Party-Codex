@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -6,6 +7,10 @@ export default defineConfig({
   build: {
     manifest: true,
     rollupOptions: {
+      input: {
+        app: resolve(import.meta.dirname, "index.html"),
+        branding: resolve(import.meta.dirname, "branding/index.html")
+      },
       output: {
         manualChunks: {
           "react-vendor": ["react", "react-dom", "react-router-dom"],
