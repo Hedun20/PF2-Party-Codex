@@ -37,7 +37,6 @@ export const MANAGEMENT_PATHS = [
   "/health",
   "/foundry",
   "/missing",
-  "/player-safety"
 ];
 
 export const TABLE_PATHS = [

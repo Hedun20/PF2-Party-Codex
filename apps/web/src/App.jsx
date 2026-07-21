@@ -32,7 +32,6 @@ const PageView = lazy(() => import("./pages/PageView.jsx"));
 const PlayerHomePage = lazy(() => import("./pages/PlayerHomePage.jsx"));
 const PlayerRevealPage = lazy(() => import("./pages/PlayerRevealPage.jsx"));
 const PlayerPortalView = lazy(() => import("./pages/PlayerRevealPage.jsx").then((module) => ({ default: module.PlayerPortalView })));
-const PlayerSafetyPage = lazy(() => import("./pages/PlayerSafetyPage.jsx"));
 const PlayersPage = lazy(() => import("./pages/PlayersPage.jsx"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage.jsx"));
 const RawEditorPage = lazy(() => import("./pages/RawEditorPage.jsx"));
@@ -410,7 +409,6 @@ export default function App() {
         <Route path="/settings" element={campaignRoute(<SettingsPage session={session} />)} />
         <Route path="/gm-tools" element={managerRoute(<GMToolsPage session={session} />)} />
         <Route path="/health" element={managerRoute(<CampaignHealthPage mode={effectiveMode} />)} />
-        <Route path="/player-safety" element={managerRoute(<PlayerSafetyPage pages={pages} />)} />
         <Route path="/session-desk" element={campaignRoute(<SessionDeskPage session={session} />)} />
         <Route path="/dice" element={campaignRoute(<DiceTrayPage />)} />
         <Route path="/guide" element={<GuidePage canEdit={gmView} />} />

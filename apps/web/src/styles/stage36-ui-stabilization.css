@@ -1,0 +1,447 @@
+/* Stage 36: targeted UI stabilization from live viewport review. */
+
+/* Archive cards stay compact and keep actions at their intrinsic height. */
+.archive-summary-grid,
+.archive-recent-grid {
+  align-items: start;
+}
+
+.archive-recent-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+
+.archive-count-card.codex-card {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  align-content: center;
+  gap: 12px;
+  min-height: 76px;
+  padding: 16px 18px;
+}
+
+.archive-count-card.codex-card > strong {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.archive-recent-card.codex-card {
+  grid-template-rows: auto auto auto;
+  align-content: start;
+  align-self: start;
+  gap: 14px;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  padding: 18px 20px;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.archive-recent-card.codex-card:hover,
+.archive-recent-card.codex-card:focus-within {
+  transform: translateY(-2px) scale(1.01);
+}
+
+.archive-recent-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.archive-recent-head > svg {
+  flex: 0 0 auto;
+  color: var(--gold);
+}
+
+.archive-recent-head .kicker {
+  margin: 0;
+  overflow: hidden;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.archive-recent-card.codex-card ul {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.archive-recent-card.codex-card li {
+  min-width: 0;
+  margin: 0;
+}
+
+.archive-recent-card.codex-card li > a {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid rgba(218, 184, 103, 0.14);
+  border-radius: 10px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.025);
+  text-decoration: none;
+}
+
+.archive-recent-card.codex-card li > a:hover,
+.archive-recent-card.codex-card li > a:focus-visible {
+  border-color: rgba(227, 190, 101, 0.38);
+  background: rgba(218, 184, 103, 0.08);
+}
+
+.archive-recent-card.codex-card li strong {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.archive-recent-card.codex-card li span {
+  color: rgba(245, 239, 255, 0.58);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.archive-recent-card.codex-card > .codex-button {
+  align-self: start;
+  justify-self: start;
+  width: auto !important;
+  min-width: 0 !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  margin: 0;
+  padding: 0 14px !important;
+}
+
+/* Notes title row reserves real space for a readable destructive action. */
+.notes-editor-head {
+  grid-template-columns: auto minmax(0, 1fr) max-content;
+  min-width: 0;
+}
+
+.notes-editor-head > input {
+  min-width: 0;
+}
+
+.notes-editor-head .notes-delete-button.codex-button {
+  justify-self: end;
+  width: auto !important;
+  min-width: 7.25rem !important;
+  height: 46px !important;
+  min-height: 46px !important;
+  padding: 0 14px !important;
+  white-space: nowrap;
+}
+
+/* The submit bar wraps cleanly instead of becoming a row of oversized pills. */
+.create-article-page .quick-create-submit-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.create-article-page .quick-create-submit-row .quick-submit {
+  flex: 0 0 auto;
+  margin-right: auto;
+}
+
+.create-article-page .quick-create-status {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 999px;
+  color: rgba(245, 239, 255, 0.76);
+  font-size: 0.86rem;
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.create-article-page .quick-create-status > svg {
+  flex: 0 0 auto;
+}
+
+/* Header selectors must never regain a second wrapper frame. */
+.topbar-native-select {
+  padding: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 720px) {
+  .archive-recent-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .notes-editor-head {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .notes-editor-head .notes-delete-button.codex-button {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .create-article-page .quick-create-submit-row .quick-submit,
+  .create-article-page .quick-create-status {
+    width: 100% !important;
+  }
+
+  .create-article-page .quick-create-submit-row .quick-submit {
+    margin-right: 0;
+  }
+}
+
+
+/* Stage 36.1: balanced archive rows and a downward in-flow material menu. */
+.archive-summary-grid,
+.archive-recent-grid {
+  align-items: stretch;
+}
+
+.archive-recent-card.codex-card {
+  grid-template-rows: auto minmax(6.5rem, 1fr) auto;
+  height: 100%;
+}
+
+.material-type-menu {
+  display: grid;
+  min-width: 0;
+}
+
+.material-type-menu > summary {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 0 16px;
+  border: 1px solid rgba(218, 184, 103, 0.38);
+  border-radius: 14px;
+  color: #f7f0ff;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(218, 184, 103, 0.12), transparent 38%),
+    rgba(9, 8, 14, 0.94);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 10px 24px rgba(0, 0, 0, 0.2);
+  font-weight: 800;
+  list-style: none;
+  cursor: pointer;
+}
+
+.material-type-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.material-type-menu > summary:focus-visible {
+  outline: 2px solid rgba(227, 190, 101, 0.58);
+  outline-offset: 3px;
+}
+
+.material-type-menu > summary > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.material-type-menu > summary > svg {
+  flex: 0 0 auto;
+  color: var(--gold);
+}
+
+.material-type-menu > summary > svg:last-child {
+  transition: transform 150ms ease;
+}
+
+.material-type-menu[open] > summary > svg:last-child {
+  transform: rotate(180deg);
+}
+
+.material-type-menu__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid rgba(218, 184, 103, 0.28);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(218, 184, 103, 0.1), transparent 36%),
+    rgba(12, 10, 18, 0.98);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.3);
+}
+
+.material-type-menu__options > button {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: rgba(245, 239, 255, 0.76);
+  background: rgba(255, 255, 255, 0.025);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 760;
+  text-align: left;
+  cursor: pointer;
+}
+
+.material-type-menu__options > button:hover,
+.material-type-menu__options > button:focus-visible {
+  outline: 0;
+  border-color: rgba(227, 190, 101, 0.3);
+  color: #fff8e8;
+  background: rgba(218, 184, 103, 0.09);
+}
+
+.material-type-menu__options > button.is-selected {
+  border-color: rgba(255, 231, 160, 0.58);
+  color: #17100d;
+  background: linear-gradient(90deg, #e6c476, #d5ad58);
+}
+
+@media (min-width: 1200px) {
+  .archive-summary-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .archive-recent-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 720px) and (max-width: 1199px) {
+  .archive-summary-grid,
+  .archive-recent-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .archive-summary-grid > .archive-count-card {
+    grid-column: span 3;
+  }
+
+  .archive-summary-grid > .archive-count-card:nth-last-child(-n + 3) {
+    grid-column: span 4;
+  }
+
+  .archive-recent-grid > .archive-recent-card {
+    grid-column: span 4;
+  }
+
+  .archive-recent-grid > .archive-recent-card:nth-last-child(-n + 2) {
+    grid-column: span 6;
+  }
+}
+
+@media (max-width: 719px) {
+  .archive-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .archive-summary-grid > .archive-count-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .archive-recent-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .material-type-menu__options {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .archive-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .archive-summary-grid > .archive-count-card:last-child:nth-child(odd) {
+    grid-column: auto;
+  }
+}
+
+/* Stage 36.2: bounded archive columns with five equally sized visible items. */
+.archive-recent-grid {
+  align-items: start;
+}
+
+.archive-recent-card.codex-card {
+  grid-template-rows: auto auto auto;
+  align-self: start;
+  height: auto;
+}
+
+.archive-recent-list-shell {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.archive-recent-card.codex-card .archive-recent-list {
+  --archive-recent-item-height: clamp(7.25rem, 8vw, 8rem);
+  --archive-recent-item-gap: 9px;
+  grid-auto-rows: var(--archive-recent-item-height);
+  gap: var(--archive-recent-item-gap);
+  max-height: calc((var(--archive-recent-item-height) * 5) + (var(--archive-recent-item-gap) * 4));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: rgba(218, 184, 103, 0.62) rgba(255, 255, 255, 0.04);
+  scrollbar-width: thin;
+}
+
+.archive-recent-card.codex-card .archive-recent-list.is-scrollable {
+  padding-right: 7px;
+}
+
+.archive-recent-card.codex-card .archive-recent-list li,
+.archive-recent-card.codex-card .archive-recent-list li > a {
+  height: 100%;
+}
+
+.archive-recent-card.codex-card .archive-recent-list li > a {
+  grid-template-rows: minmax(2.6em, auto) minmax(2.3em, auto);
+  align-content: start;
+}
+
+.archive-recent-card.codex-card .archive-recent-list li strong,
+.archive-recent-card.codex-card .archive-recent-list li span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.archive-recent-more {
+  color: rgba(245, 239, 255, 0.56);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+/* The retired GM-secret panel leaves one full-width writing workspace. */
+.structured-story-grid--single {
+  grid-template-columns: minmax(0, 1fr);
+}

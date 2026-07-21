@@ -194,7 +194,7 @@ export default function NotesPage({ pages = [] }) {
               <div className="notes-editor-head">
                 <NotebookPen size={22} />
                 <input value={draft.title} onChange={(event) => updateDraft({ title: event.target.value })} placeholder="Note title" aria-label="Note title" />
-                <CodexButton type="button" variant="danger" size="sm" onClick={removeNote} disabled={saving}><Trash2 size={16} /> Delete</CodexButton>
+                <CodexButton type="button" className="notes-delete-button" variant="danger" size="sm" onClick={removeNote} disabled={saving}><Trash2 size={16} /> Удалить</CodexButton>
               </div>
               <div className="notes-meta-grid">
                 <label className="notes-link-field">

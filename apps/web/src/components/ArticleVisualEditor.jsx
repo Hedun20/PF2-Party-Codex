@@ -454,13 +454,6 @@ export default function ArticleVisualEditor({
     onContentChange?.(buildStructuredContent({ ...structuredStory, ...patch }));
   }
 
-  function appendGmSecretsBlock() {
-    const currentSecrets = String(structuredStory.gmSecrets || "").trimEnd();
-    const separator = currentSecrets ? "\n" : "";
-    updateStructuredStory({ gmSecrets: `${currentSecrets}${separator}- Секрет GM: что скрыто, кто знает правду и когда это раскрыть.` });
-    setTab("text");
-  }
-
   function relatedPageByTitle(title) {
     return relationOptions.find((page) => page.title === title);
   }
@@ -596,7 +589,7 @@ export default function ArticleVisualEditor({
               <BookOpenText size={22} />
               <div>
                 <strong>Открой вкладку “Текст статьи”</strong>
-                <p>Там большой редактор, быстрые публичные/секретные блоки и подсказки для безопасного player view.</p>
+                <p>Там большой редактор основного текста и управление связанными статьями.</p>
               </div>
               <button type="button" className="type-chip" onClick={() => setTab("text")}>Открыть текст</button>
             </div>
@@ -613,36 +606,24 @@ export default function ArticleVisualEditor({
         <div className="article-writing-workspace structured-text-workspace structured-article-builder">
           <div className="visual-editor-section-head">
             <span className="kicker">Структура статьи</span>
-            <h2>Public · Secrets · Links</h2>
-            <p>Не один огромный placeholder, а три рабочих зоны: что увидят игроки, что знает только GM, и с какими статьями этот материал связан.</p>
+            <h2>Текст · Связи</h2>
+            <p>Основной текст статьи и связанные материалы собраны в одной понятной рабочей области.</p>
           </div>
 
-          <div className="structured-story-grid">
+          <div className="structured-story-grid structured-story-grid--single">
             <label className="codex-field story-main-field structured-public-field">
-              Публичные заметки / что видят игроки
+              Основной текст статьи
               <textarea
                 className="story-textarea structured-textarea"
                 rows={18}
                 value={structuredStory.publicNotes}
                 onChange={(event) => updateStructuredStory({ publicNotes: event.target.value })}
                 spellCheck="true"
-                placeholder="Описание сцены, NPC, места или мира. Это player-safe текст для handout и player view."
+                placeholder="Описание сцены, NPC, места, мира или другого материала."
               />
-              <span>Этот блок должен быть безопасен для игроков. [[Ссылки]] можно оставлять прямо в тексте.</span>
+              <span>[[Ссылки]] на связанные статьи можно оставлять прямо в тексте.</span>
             </label>
 
-            <label className="codex-field gm-secret-field story-gm-field structured-secret-field">
-              GM секреты / правда мастера
-              <textarea
-                className="story-textarea structured-textarea structured-secret-textarea"
-                rows={14}
-                value={structuredStory.gmSecrets}
-                onChange={(event) => updateStructuredStory({ gmSecrets: event.target.value })}
-                spellCheck="true"
-                placeholder="Скрытые мотивы, ловушки, будущие раскрытия, секреты фракций, настоящая история. Игрокам не показывается."
-              />
-              <span>При сохранении это останется Markdown-разделом ## GM Secrets и будет вырезаться из player-safe view.</span>
-            </label>
           </div>
 
           <section className="related-articles-workbench">
@@ -686,12 +667,9 @@ export default function ArticleVisualEditor({
             <p>Статья хранится как структурированный контент кампании, а Markdown остаётся совместимым режимом редактирования и обмена.</p>
             <div className="story-helper-actions">
               <button type="button" className="type-chip" onClick={() => updateStructuredStory({ publicNotes: `${String(structuredStory.publicNotes || "").trimEnd()}${structuredStory.publicNotes ? "\n\n" : ""}## Что видят игроки\n\nКороткое описание, которое можно показывать в Handout / Player View.` })}>+ Public section</button>
-              <button type="button" className="type-chip" onClick={appendGmSecretsBlock}>+ GM secret</button>
-              <button type="button" className="type-chip" onClick={() => updateStructuredStory({ gmSecrets: `${String(structuredStory.gmSecrets || "").trimEnd()}${structuredStory.gmSecrets ? "\n" : ""}- Reveal условие: что должно произойти, чтобы открыть эту правду игрокам.` })}>+ Reveal note</button>
             </div>
             <div className="story-safe-rules">
-              <span>Public: безопасно для игроков.</span>
-              <span>GM Secrets: скрывается из player view.</span>
+              <span>Текст: основное содержимое статьи.</span>
               <span>Related: структурные связи в frontmatter.related.</span>
               <span>Markdown tab остаётся для ручной правки.</span>
             </div>

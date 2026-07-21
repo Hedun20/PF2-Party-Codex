@@ -16,7 +16,6 @@ import {
   NotebookPen,
   ScrollText,
   Settings,
-  ShieldAlert,
   ShieldCheck,
   Sparkles,
   Swords,
@@ -130,7 +129,6 @@ function ManagementTools({ activeWorld, onClose, canEdit }) {
         <NavItem to="/health" icon={ShieldCheck} label="Campaign Health" onClose={onClose} />
         <NavItem to="/foundry" icon={Hammer} label="Import / Export" onClose={onClose} />
         <NavItem to="/missing" icon={FileQuestion} label="Missing Articles" onClose={onClose} />
-        <NavItem to="/player-safety" icon={ShieldAlert} label="Player Safety" onClose={onClose} />
       </NavGroup>
     </>
   );

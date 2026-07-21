@@ -79,7 +79,7 @@ test("frontend route table includes every stabilization entry point and a 404 fa
     "/gm-tools", "/health", "/foundry", "*"
   ];
   for (const route of requiredRoutes) assert.ok(routes.has(route), `Missing frontend route: ${route}`);
-  assert.equal(routeList.length, 37, "Unexpected frontend route count");
+  assert.equal(routeList.length, 36, "Unexpected frontend route count");
   assert.equal(routes.size, routeList.length, "Frontend route paths must be unique");
 });
 
@@ -274,7 +274,7 @@ test("all backend route modules are mounted and endpoint signatures stay unique"
     .sort();
   const mountedFiles = [...new Set(routerMounts.map(([, , file]) => file))].sort();
   assert.deepEqual(routeFiles, mountedFiles, "Every route module must be mounted exactly through the route table");
-  assert.equal(signatures.length, 97, "Unexpected backend endpoint count");
+  assert.equal(signatures.length, 96, "Unexpected backend endpoint count");
   assert.equal(new Set(signatures).size, signatures.length, "Backend endpoint signatures must be unique");
 });
 

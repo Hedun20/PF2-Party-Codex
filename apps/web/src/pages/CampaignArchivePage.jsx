@@ -10,7 +10,7 @@ const countSections = ["entries", "maps", "timelineEvents", "sessions", "handout
 const sectionMeta = {
   entries: { label: "Статьи", icon: FileText, path: "/category/lore", empty: "Статьи архива пока не созданы." },
   maps: { label: "Карты", icon: MapPinned, path: "/maps", empty: "Карты пока не добавлены." },
-  timelineEvents: { label: "Timeline", icon: Clock3, path: "/timeline", empty: "События timeline пока не добавлены." },
+  timelineEvents: { label: "Хронология", icon: Clock3, path: "/timeline", empty: "События хронологии пока не добавлены." },
   sessions: { label: "Сессии", icon: BookOpen, path: "/sessions", empty: "Сессии пока не запланированы." },
   handouts: { label: "Материалы", icon: Sparkles, path: "/handouts", empty: "Handouts пока не открыты игрокам." },
   characters: { label: "Персонажи", icon: UserRound, path: "/characters", empty: "Персонажи пока не добавлены." },
@@ -29,9 +29,28 @@ function itemLabel(item) {
   return item?.title || item?.name || item?.label || item?.summary || item?.id || item?._id || "Без названия";
 }
 
-function itemSubline(item = {}) {
-  const parts = [item.type, item.category, item.visibility, item.status, item.dateLabel, item.scheduledAt].filter(Boolean);
-  return parts.join(" · ");
+const itemMetaLabels = {
+  map: "Карта",
+  timelineEvent: "Событие хронологии",
+  session: "Сессия",
+  handout: "Материал",
+  public: "Доступно игрокам",
+  revealed: "Открыто игрокам",
+  gm: "Только GM",
+  private: "Приватное",
+  draft: "Черновик",
+  entries: "Статья",
+  maps: "Карта",
+  timelineEvents: "Событие хронологии",
+  sessions: "Сессия",
+  handouts: "Материал"
+};
+
+function itemSubline(item = {}, section = "") {
+  const kind = itemMetaLabels[item.type] || itemMetaLabels[item.category] || itemMetaLabels[section] || "";
+  const visibility = itemMetaLabels[item.visibility] || "";
+  const status = item.status && item.status !== item.visibility ? (itemMetaLabels[item.status] || item.status) : "";
+  return [kind, visibility, status, item.dateLabel, item.scheduledAt].filter(Boolean).join(" · ");
 }
 
 function itemTarget(section, item = {}) {
@@ -61,20 +80,27 @@ function ArchiveCountCard({ section, value }) {
 
 function RecentSection({ section, items, manager }) {
   const meta = sectionMeta[section] || sectionMeta.entries;
+  const Icon = meta.icon;
   return (
     <article className="codex-card archive-recent-card">
-      <span className="kicker">{sectionLabel(section)}</span>
+      <div className="archive-recent-head">
+        <Icon size={18} aria-hidden="true" />
+        <span className="kicker">{sectionLabel(section)}</span>
+      </div>
       {items.length ? (
-        <ul>
-          {items.map((item, index) => (
-            <li key={item?.id || item?._id || `${section}-${index}`}>
-              <Link to={itemTarget(section, item)}>
-                <strong>{itemLabel(item)}</strong>
-                {itemSubline(item) ? <span> · {itemSubline(item)}</span> : null}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="archive-recent-list-shell">
+          <ul className={items.length > 5 ? "archive-recent-list is-scrollable" : "archive-recent-list"}>
+            {items.map((item, index) => (
+              <li key={item?.id || item?._id || `${section}-${index}`}>
+                <Link to={itemTarget(section, item)}>
+                  <strong>{itemLabel(item)}</strong>
+                  {itemSubline(item, section) ? <span>{itemSubline(item, section)}</span> : null}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {items.length > 5 ? <span className="archive-recent-more">Ещё {items.length - 5} — прокрутите список</span> : null}
+        </div>
       ) : (
         <p>{manager ? meta.empty : "Пока нет материалов, доступных игроку."}</p>
       )}

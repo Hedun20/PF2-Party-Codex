@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Eye, NotebookPen, PenLine, Plus, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
+import { Eye, NotebookPen, PenLine, Plus, Trash2 } from "lucide-react";
 import { api } from "../api/client.js";
 import ArticleFactsPanel from "../components/ArticleFactsPanel.jsx";
 import HierarchyPanel from "../components/HierarchyPanel.jsx";
@@ -154,7 +154,7 @@ export default function PageView({ mode, pages = [], onChanged }) {
       setPlayerPreview(data.page);
       setPreviewMessage("Это ровно та player-safe версия, которую отдаёт player API.");
     } catch {
-      setPreviewMessage("Игроки не смогут открыть эту статью: она GM-only, review-needed или скрыта целиком.");
+      setPreviewMessage("Игроки не смогут открыть эту статью: она доступна только GM или скрыта целиком.");
     }
   }
 
@@ -211,12 +211,6 @@ export default function PageView({ mode, pages = [], onChanged }) {
         )}
       </header>
       {deleteMessage && <div className="status-message danger-message">{deleteMessage}</div>}
-      {canEdit && page.playerSafety && (
-        <section className={`codex-card article-safety-banner safety-${page.playerSafety.status}`}>
-          <div>{page.playerSafety.status === "safe" ? <ShieldCheck size={20} /> : <ShieldAlert size={20} />}<strong>{page.playerSafety.status === "safe" ? "Player-safe" : "Требует проверки перед игроками"}</strong><p>{page.playerSafety.warnings?.[0] || "Секретных блоков не найдено. Игроки получат только public-версию."}</p></div>
-          <CodexButton as={Link} to="/player-safety" variant="ghost" size="sm">Открыть Safety Review</CodexButton>
-        </section>
-      )}
       {previewMessage && (
         <section className={`codex-card article-player-preview ${playerPreview ? "" : "is-blocked"}`}>
           <div className="article-player-preview-head"><span className="kicker">Preview as Player</span><strong>{previewMessage}</strong></div>
