@@ -109,7 +109,7 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
       <section className="hero-panel">
         <span className="kicker">Создание материала</span>
         <h1>{initialWorld ? `Создать в мире: ${initialWorld}` : "Создать статью"}</h1>
-        <p>Один понятный поток: выберите тип, заполните его собственные поля, отделите публичную информацию от секретов мастера и сохраните запись в архив кампании.</p>
+        <p>Один понятный поток: выберите тип, заполните его собственные поля и сохраните запись в архив кампании.</p>
       </section>
 
       <form className="editor-form builder-form quick-create-shell" onSubmit={submit}>
@@ -119,16 +119,33 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
             <h2>{selectedConfig.label}</h2>
             <p>{selectedConfig.description}</p>
           </div>
-          <label className="material-type-select" htmlFor="material-type-select">
-            <span className="material-type-select__label">Выберите тип</span>
-            <span className="material-type-select__control">
-              <Layers3 size={20} aria-hidden="true" />
-              <select id="material-type-select" value={form.type} onChange={(event) => changeType(event.target.value)}>
-                {ARTICLE_TYPE_CONFIG.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-              </select>
-              <ChevronDown className="material-type-select__chevron" size={20} aria-hidden="true" />
-            </span>
-          </label>
+          <div className="material-type-select">
+            <span className="material-type-select__label" id="material-type-label">Выберите тип</span>
+            <details className="material-type-menu">
+              <summary aria-labelledby="material-type-label">
+                <Layers3 size={20} aria-hidden="true" />
+                <span>{selectedConfig.label}</span>
+                <ChevronDown size={20} aria-hidden="true" />
+              </summary>
+              <div className="material-type-menu__options" role="listbox" aria-labelledby="material-type-label">
+                {ARTICLE_TYPE_CONFIG.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    role="option"
+                    aria-selected={item.value === form.type}
+                    className={item.value === form.type ? "is-selected" : ""}
+                    onClick={(event) => {
+                      changeType(item.value);
+                      event.currentTarget.closest("details")?.removeAttribute("open");
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </details>
+          </div>
         </section>
 
         <section className="builder-section create-flow-section">
@@ -183,15 +200,12 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
         <section className="builder-section article-writing-workspace quick-article-workspace structured-article-builder">
           <div className="visual-editor-section-head">
             <span className="kicker">Шаг 3 · Текст</span>
-            <h2>Игрокам и GM — разные блоки</h2>
-            <p>Публичный текст войдёт в player-safe представление. Секреты мастера сохранятся отдельно и не попадут игрокам в API.</p>
+            <h2>Основной текст материала</h2>
+            <p>Содержание хранится в одной рабочей области. Доступ игрокам определяется видимостью всей записи.</p>
           </div>
-          <div className="structured-story-grid">
-            <Field label="Публичный текст / что видят игроки" hint="Описание, слухи, внешний вид, публичная история и handout-текст.">
-              <textarea className="story-textarea structured-textarea" rows={14} value={form.publicNotes} onChange={(event) => update("publicNotes", event.target.value)} placeholder="Что можно безопасно показать игрокам." />
-            </Field>
-            <Field label="GM секреты / правда мастера" hint="Скрытая правда, мотивы NPC, ловушки и условия reveal.">
-              <textarea className="story-textarea structured-textarea structured-secret-textarea" rows={14} value={form.gmSecrets} onChange={(event) => update("gmSecrets", event.target.value)} placeholder="Игрокам не показывается." />
+          <div className="structured-story-grid structured-story-grid--single">
+            <Field label="Текст материала" hint="Описание, история, сведения для игры и handout-текст.">
+              <textarea className="story-textarea structured-textarea" rows={14} value={form.publicNotes} onChange={(event) => update("publicNotes", event.target.value)} placeholder="Основное содержание записи." />
             </Field>
           </div>
         </section>
@@ -220,8 +234,8 @@ export default function EditorPage({ onSaved, session, activeWorld = null }) {
           <CodexButton type="submit" className="quick-submit" size="md" disabled={state.saving}>
             <Sparkles size={17} /> <span>{state.saving ? "Создаю..." : `Создать: ${selectedConfig.label}`}</span>
           </CodexButton>
-          <span className="status-message"><Eye size={16} /> Public видно игрокам</span>
-          <span className="status-message"><Lock size={16} /> GM private и draft скрыты backend-ом</span>
+          <span className="status-message quick-create-status"><Eye size={16} /> Публичное видно игрокам</span>
+          <span className="status-message quick-create-status"><Lock size={16} /> GM и черновики скрыты</span>
         </div>
       </form>
     </div>

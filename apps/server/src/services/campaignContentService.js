@@ -392,32 +392,4 @@ export async function campaignMetadata(context) {
   };
 }
 
-export async function campaignPlayerSafetyReview(context) {
-  const pages = await listCampaignPages({ ...context, role: "gm" });
-  const reviewPages = pages.map((page) => ({
-    title: page.title,
-    path: page.path,
-    category: page.category,
-    type: page.type,
-    world: page.world,
-    summary: page.summary,
-    visibility: page.visibility,
-    modifiedAt: page.modifiedAt,
-    playerVisible: !["gm", "draft"].includes(page.visibility),
-    playerContentPreview: redactPlayerContent(page.content).slice(0, 420),
-    playerSummary: page.summary,
-    tags: page.tags || [],
-    safety: analyzePlayerSafety(page)
-  }));
-  const totals = reviewPages.reduce((acc, item) => {
-    acc.total += 1;
-    acc[item.safety.status] = (acc[item.safety.status] || 0) + 1;
-    if (item.playerVisible) acc.playerVisible += 1;
-    if (item.safety.containsSecrets) acc.containsSecrets += 1;
-    if (item.safety.reviewNeeded) acc.reviewNeeded += 1;
-    return acc;
-  }, { total: 0, playerVisible: 0, containsSecrets: 0, reviewNeeded: 0 });
-  return { totals, pages: reviewPages };
-}
-
 export { isMongoEntriesEnabled as isMongoCampaignContentEnabled };

@@ -5,7 +5,6 @@ import { Router } from "express";
 import { auditPages } from "../services/auditService.js";
 import {
   campaignMetadata,
-  campaignPlayerSafetyReview,
   listCampaignPages
 } from "../services/campaignContentService.js";
 import { campaignAssetDirectory, referencedCampaignAssetNames, workspaceAssetUsageBytes } from "../services/campaignAssetsService.js";
@@ -43,14 +42,6 @@ function contentContext(req) {
 toolsRouter.get("/metadata", requireGm, async (req, res, next) => {
   try {
     res.json(await campaignMetadata(contentContext(req)));
-  } catch (error) {
-    next(error);
-  }
-});
-
-toolsRouter.get("/player-safety", requireGm, async (req, res, next) => {
-  try {
-    res.json(await campaignPlayerSafetyReview(contentContext(req)));
   } catch (error) {
     next(error);
   }

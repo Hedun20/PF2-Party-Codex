@@ -29,7 +29,7 @@ export default function GuidePage({ canEdit = false }) {
         <span className="kicker">{canEdit ? "Быстрый старт мастера" : "Портал игрока"}</span>
         <h1>{canEdit ? "Как пользоваться кодексом" : "Что доступно игроку"}</h1>
         <p>{canEdit
-          ? "Создание статей, импорт Markdown, карты и проверка player-safe материалов собраны в одном рабочем процессе. Игроки видят только опубликованную часть архива."
+          ? "Создание статей, импорт Markdown, карты и управление материалами собраны в одном рабочем процессе. Игроки видят только опубликованную часть архива."
           : "Игрок видит опубликованные мастером материалы, личные заметки и свой PF2e-лист персонажа. Полный лист и краткая карточка управляются настройками видимости."}</p>
       </header>
 
@@ -37,7 +37,7 @@ export default function GuidePage({ canEdit = false }) {
         {canEdit && <Link to="/editor"><PenLine size={18} /><strong>Создать</strong><span>Quick Create</span></Link>}
         {canEdit && <Link to="/editor"><FileUp size={18} /><strong>Импорт</strong><span>MD / Obsidian</span></Link>}
         <Link to="/timeline"><BookOpen size={18} /><strong>Timeline</strong><span>События</span></Link>
-        <Link to="/maps"><MapPinned size={18} /><strong>Карты</strong><span>Player-safe</span></Link>
+        <Link to="/maps"><MapPinned size={18} /><strong>Карты</strong><span>Объекты и слои</span></Link>
         <Link to="/notes"><NotebookPen size={18} /><strong>Notes</strong><span>Личный блокнот</span></Link>
         <Link to="/characters"><UserRound size={18} /><strong>Characters</strong><span>Лист персонажа</span></Link>
         <Link to="/category/worlds"><Eye size={18} /><strong>Миры</strong><span>Выбор мира</span></Link>
@@ -60,7 +60,7 @@ export default function GuidePage({ canEdit = false }) {
         <article>
           <Shield size={22} />
           <h2>GM / Player режим</h2>
-          <p>В player-режиме сервер скрывает GM-only статьи, draft-материалы, GM Secrets и секретные объекты карты.</p>
+          <p>В player-режиме сервер скрывает GM-only статьи, черновики и приватные объекты карты.</p>
         </article>
         <article>
           <UserRound size={22} />

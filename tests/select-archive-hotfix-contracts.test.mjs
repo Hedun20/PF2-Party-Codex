@@ -63,3 +63,68 @@ test("critical header and Timeline controls use browser-native selects", async (
   assert.match(css, /timeline-control--native-select/);
   assert.doesNotMatch(css, /position:\s*fixed/);
 });
+
+test("select styles use one canonical native layer", async () => {
+  const styleIndex = await source("apps/web/src/styles/index.css");
+
+  assert.match(styleIndex, /stage20-native-selects\.css/);
+  assert.doesNotMatch(styleIndex, /magic-select\.css/);
+  assert.doesNotMatch(styleIndex, /stage19-select-archive-hotfix\.css/);
+});
+
+test("world page remains archive-first and delegates live play to the table", async () => {
+  const worldPage = await source("apps/web/src/pages/WorldDashboardPage.jsx");
+
+  assert.match(worldPage, /Архив мира/);
+  assert.match(worldPage, /Хроника сессий/);
+  assert.doesNotMatch(worldPage, /Start Session|Session Mode|GM Desktop|Player Reveal|Open live portal/);
+  assert.doesNotMatch(worldPage, /worldRoute\(world\)\}\/session|worldRoute\(world\)\}\/reveal/);
+});
+
+test("live viewport regressions keep archive cards, notes and editor controls readable", async () => {
+  const [archivePage, editorPage, notesPage, styleIndex, stabilizationCss] = await Promise.all([
+    source("apps/web/src/pages/CampaignArchivePage.jsx"),
+    source("apps/web/src/pages/EditorPage.jsx"),
+    source("apps/web/src/pages/NotesPage.jsx"),
+    source("apps/web/src/styles/index.css"),
+    source("apps/web/src/styles/stage36-ui-stabilization.css")
+  ]);
+
+  assert.match(archivePage, /Событие хронологии/);
+  assert.doesNotMatch(archivePage, /<span> · \{itemSubline/);
+  assert.match(editorPage, /material-type-menu__options/);
+  assert.doesNotMatch(editorPage, /<select id="material-type-select"/);
+  assert.match(notesPage, /notes-delete-button[\s\S]*Удалить/);
+  assert.match(styleIndex, /stage36-ui-stabilization\.css/);
+  assert.match(stabilizationCss, /archive-recent-card\.codex-card > \.codex-button/);
+  assert.match(stabilizationCss, /notes-delete-button\.codex-button/);
+  assert.match(stabilizationCss, /material-type-menu__options/);
+  assert.match(stabilizationCss, /repeat\(7, minmax\(0, 1fr\)\)/);
+  assert.match(stabilizationCss, /repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(archivePage, /items\.length > 5/);
+  assert.match(stabilizationCss, /grid-auto-rows: var\(--archive-recent-item-height\)/);
+  assert.match(stabilizationCss, /var\(--archive-recent-item-height\) \* 5/);
+});
+
+test("retired safety review and GM-secret controls stay out of the product UI", async () => {
+  const [app, sidebar, gmTools, pageView, editor, visualEditor, apiClient, toolsRoute] = await Promise.all([
+    source("apps/web/src/App.jsx"),
+    source("apps/web/src/components/CodexSidebar.jsx"),
+    source("apps/web/src/pages/GMToolsPage.jsx"),
+    source("apps/web/src/pages/PageView.jsx"),
+    source("apps/web/src/pages/EditorPage.jsx"),
+    source("apps/web/src/components/ArticleVisualEditor.jsx"),
+    source("apps/web/src/api/client.js"),
+    source("apps/server/src/routes/tools.js")
+  ]);
+
+  for (const productSurface of [app, sidebar, gmTools, pageView, apiClient, toolsRoute]) {
+    assert.doesNotMatch(productSurface, /player-safety|PlayerSafetyPage|Safety Review/);
+  }
+  assert.doesNotMatch(pageView, /article-safety-banner|page\.playerSafety/);
+  assert.doesNotMatch(editor, /structured-secret-textarea|form\.gmSecrets/);
+  assert.doesNotMatch(visualEditor, /appendGmSecretsBlock|>\+ GM secret<|>\+ Reveal note<|structured-secret-field/);
+  assert.doesNotMatch(apiClient, /playerSafety:/);
+  assert.doesNotMatch(toolsRoute, /campaignPlayerSafetyReview/);
+  await assert.rejects(fs.access(path.join(rootDir, "apps/web/src/pages/PlayerSafetyPage.jsx")));
+});

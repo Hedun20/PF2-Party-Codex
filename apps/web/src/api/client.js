@@ -170,7 +170,6 @@ export const api = {
   metadata: (mode) => request(`/metadata?mode=${mode}`),
   audit: (mode) => request(`/audit?mode=${mode}`),
   auditLog: (limit = 200) => request(`/audit-log?limit=${limit}`),
-  playerSafety: () => request("/player-safety"),
 
   campaignArchive: (campaignId) => request(`/campaigns/${encodeURIComponent(campaignId)}/archive`),
   archive: (params = {}) => request(`/archive${queryString(params)}`),

@@ -609,45 +609,6 @@ function withBacklinks(page, visiblePages) {
 }
 
 
-export function getPlayerSafetyReview() {
-  const reviewPages = pages.map((page) => {
-    const safety = analyzePlayerSafety(page);
-    const playerPage = filterByMode(page, "player");
-    return {
-      title: page.title,
-      path: page.path,
-      category: page.category,
-      type: page.type,
-      world: page.world,
-      summary: page.summary,
-      visibility: page.visibility,
-      modifiedAt: page.modifiedAt,
-      playerVisible: Boolean(playerPage),
-      playerContentPreview: playerPage?.content?.slice(0, 420) || "",
-      playerSummary: playerPage?.summary || "",
-      tags: page.tags || [],
-      safety
-    };
-  });
-
-  const totals = reviewPages.reduce((acc, item) => {
-    acc.total += 1;
-    acc[item.safety.status] = (acc[item.safety.status] || 0) + 1;
-    if (item.playerVisible) acc.playerVisible += 1;
-    if (item.safety.containsSecrets) acc.containsSecrets += 1;
-    if (item.safety.reviewNeeded) acc.reviewNeeded += 1;
-    return acc;
-  }, { total: 0, playerVisible: 0, containsSecrets: 0, reviewNeeded: 0 });
-
-  return {
-    totals,
-    pages: reviewPages.sort((a, b) => {
-      const weight = { "review-needed": 0, "contains-secrets": 1, "gm-only": 2, safe: 3 };
-      return (weight[a.safety.status] ?? 9) - (weight[b.safety.status] ?? 9) || a.title.localeCompare(b.title);
-    })
-  };
-}
-
 export function getCategories(mode = "gm") {
   const grouped = new Map();
   for (const page of listPages(mode)) {
