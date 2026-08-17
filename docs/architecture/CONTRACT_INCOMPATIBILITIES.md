@@ -1,0 +1,48 @@
+# HED-103 contract compatibility record
+
+## Scope and safety boundary
+
+HED-103 adds framework-free TypeScript contracts and policy helpers only. It does not import them into the Express/Vite runtime, change routes, mutate MongoDB, install Next.js, or cut over authentication. The existing implementation remains the rollback path.
+
+The target rule is stricter than the current serializer: a player response must not contain GM-only keys at any depth, even when their values are empty or `undefined`. Backend policy must construct an allowlisted player DTO; frontend hiding is not a security control.
+
+## Current entry compatibility
+
+| Surface | Current repository evidence | HED-103 contract | Compatibility result | Required follow-up |
+| --- | --- | --- | --- | --- |
+| GM entry JSON | `apps/server/src/repositories/entriesRepository.js` `publicEntry()` emits `id`, campaign/world IDs, content, status, visibility, tags, aliases, metadata, source, actor IDs and timestamps. | `GmArchiveEntryDto` preserves that serialized field set and validates all five current entry visibility values. | The redacted synthetic fixture validates. Existing records with missing/non-string timestamps or non-JSON metadata will fail validation. | A future adapter must report invalid historical records; it must not invent or persist replacements during read. |
+| Player entry JSON | `playerSafeEntry()` spreads the GM object, sets `gmContent: ""`, and assigns `undefined` to `source`, `createdBy`, and `updatedBy`. JSON serialization drops the `undefined` keys but retains the empty `gmContent` key. | `PlayerArchiveEntryDto` does not define any GM field and rejects forbidden keys recursively. | Intentionally incompatible: `current-player-entry.json` is rejected at `entry.gmContent`. | The archive read adapter must build the target DTO with `toPlayerArchiveEntryDto()` instead of spreading the GM serializer result. Do not change the legacy route in HED-103. |
+| Player metadata | `playerSafeMetadata()` in `entriesRepository.js` allowlists public metadata/frontmatter fields and public/revealed pins and map objects. | Target parsing uses the same top-level/frontmatter allowlist, rejects private nested records, and the core sanitizer constructs a new object without unknown fields. | Compatible for serialized allowlisted values. Unknown or private nested fields fail closed or are removed by the policy mapper. | Characterize additional genuinely public metadata before expanding the allowlist. |
+| Entry status | Current `publicEntry()` defaults missing status to `active`; player queries exclude `draft` and `archived`. | Contract accepts only `active`, `draft`, `archived`; player DTO accepts only `active`. | Compatible after current serialization. An unexpected stored status is rejected. | Keep status normalization in an adapter; do not broaden the target union silently. |
+
+All fixtures under `tests/contracts/fixtures/` are synthetic and redacted. They contain no production campaign data.
+
+## Approved visibility mapping
+
+| Current entry visibility | Editorial state | Audience | Release state | Player read |
+| --- | --- | --- | --- | --- |
+| `public` | `active` | `party` | `public` | allowed for active entries |
+| `revealed` | `active` | `party` | `revealed` | allowed for active entries |
+| `gmOnly` | `active` | `gmOnly` | `hidden` | denied |
+| `hidden` | `active` | `gmOnly` | `hidden` | denied |
+| `needsReview` | `needsReview` | `gmOnly` | `hidden` | denied |
+
+Any other value is invalid and denied. `partyVisible` and `specificPlayers` are current handout/note visibility values (`apps/server/src/repositories/worldSystemsRepository.js`, `apps/server/src/repositories/notesRepository.js`); they are not silently accepted as entry visibility. The vault compatibility value `gm` must be translated by a future vault adapter, not admitted into core.
+
+## Identity contract gaps
+
+The new `User`, `SessionPrincipal`, `Workspace`, `Campaign`, and `Membership` contracts are target boundaries rather than claims that every current payload already matches them.
+
+- Current identity serializers and `/api/session` use compatibility aliases such as `membership`, `activeMembership`, `role`, `activeWorkspace`, and `activeCampaign` (`apps/server/src/app.js`, `apps/server/src/routes/auth.js`). A session adapter must assemble one `SessionPrincipalContract` and verify the membership for the requested campaign.
+- Current records may omit target fields or use legacy names/defaults. The target validators reject extra fields and missing required values so drift is visible.
+- Empty `worldId`, `createdBy`, and `updatedBy` remain accepted only in the GM entry compatibility DTO because current serialization deliberately emits empty strings. Other aggregate IDs are non-empty branded strings and cannot be mixed by TypeScript.
+
+## Response-envelope gaps
+
+Current Express routes return several unwrapped success shapes, for example `{ entries, campaignId, role }`, `{ entry }`, and `{ ok: true, ... }` (`apps/server/src/routes/entries.js`, `apps/server/src/routes/worldSystems.js`). Errors use `{ error, code?, requestId? }` (`apps/server/src/app.js`). The target envelope is `{ ok: true, data, meta? } | { ok: false, error }`.
+
+`parseCompatibilityResponse()` normalizes either representation without changing runtime routes. Known legacy codes (`EMAIL_UNVERIFIED`, `RATE_LIMITED`, `API_ROUTE_NOT_FOUND`, `ENTITLEMENT_LIMIT`, and the stable target codes) map deterministically; an unknown legacy code maps to `INTERNAL_ERROR`. A later route adapter must choose the correct success-data validator per endpoint.
+
+## Dependency boundary
+
+`packages/contracts` and `packages/core` may depend on TypeScript/JavaScript language features and on each other only in the `core -> contracts` direction. A source scan fails if either package imports Express, Next.js, MongoDB, React, Foundry, Pathbuilder, or PF2e modules, or references browser globals. This keeps campaign/archive policy reusable by the future web/API/worker adapters without starting the Next.js cutover.
