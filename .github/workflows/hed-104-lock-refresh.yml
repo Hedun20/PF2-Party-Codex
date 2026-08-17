@@ -1,0 +1,67 @@
+name: HED-104 lock refresh
+
+on:
+  push:
+    branches: ["agent/hed-104-production-audit"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hed-104-lock-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh-lock:
+    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, 'build: refresh patched transitive dependencies')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out HED-104 branch
+        uses: actions/checkout@v6
+
+      - name: Use Node.js 24 LTS
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Refresh only patched transitive versions
+        run: npm update body-parser@1.20.6 js-yaml@3.15.1 postcss@8.5.23 nanoid@3.3.18 --package-lock-only --ignore-scripts
+
+      - name: Verify manifests and resolved versions
+        run: |
+          git diff --exit-code -- package.json apps/server/package.json apps/web/package.json packages/contracts/package.json packages/core/package.json
+          git diff --quiet -- package-lock.json && { echo "package-lock.json did not change"; exit 1; }
+          node <<'NODE'
+          const lock = require('./package-lock.json')
+          const expected = {
+            'body-parser': '1.20.6',
+            'js-yaml': '3.15.1',
+            nanoid: '3.3.18',
+            postcss: '8.5.23'
+          }
+          for (const [name, version] of Object.entries(expected)) {
+            const actual = lock.packages[`node_modules/${name}`]?.version
+            if (actual !== version) throw new Error(`${name}: expected ${version}, received ${actual}`)
+          }
+          NODE
+
+      - name: Verify high-severity audit gate
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Upload generated lockfile fallback
+        uses: actions/upload-artifact@v4
+        with:
+          name: hed-104-package-lock
+          path: package-lock.json
+          retention-days: 3
+
+      - name: Commit generated lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "build: refresh patched transitive dependencies [skip ci]"
+          git push origin HEAD:agent/hed-104-production-audit
