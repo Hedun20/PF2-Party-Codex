@@ -14,10 +14,10 @@
 |---|---:|---:|---|
 | `express -> body-parser` | 1.20.5 | 1.20.6 | Includes the patched body-parser release. |
 | `gray-matter -> js-yaml` | 3.15.0 | 3.15.1 | Includes the patched js-yaml release. |
-| `vite -> postcss` | 8.5.15 | 8.5.26 | Includes the patched PostCSS release. |
-| `vite -> postcss -> nanoid` | 3.3.13 | 3.3.18 | Includes both current nanoid security patches in the 3.x line. |
+| `apps/server -> sanitize-html -> postcss` | 8.5.15 | 8.5.26 | Includes the patched PostCSS release. |
+| `apps/server -> sanitize-html -> postcss -> nanoid` | 3.3.13 | 3.3.18 | Includes both current nanoid security patches in the 3.x line. |
 
-The root and workspace `package.json` files are unchanged. No `npm audit fix --force`, audit suppression, or major dependency upgrade was used.
+The root and workspace `package.json` files are unchanged. Vite is dev-only and shares the deduplicated PostCSS/Nano ID resolution, but `sanitize-html` is their production server dependency path. No `npm audit fix --force`, audit suppression, or major dependency upgrade was used.
 
 ## Reproduction and evidence
 
@@ -32,10 +32,11 @@ GitHub Actions run `32029048060` completed successfully on Node.js 24. It verifi
 
 ## Residual moderate findings
 
-The production audit still reports two moderate advisories through `react-router-dom 6.30.4 -> react-router 6.30.4`:
+The production audit still reports two vulnerable package records through `react-router-dom 6.30.4 -> react-router 6.30.4`. Those records cover three moderate advisories:
 
-- open redirect handling in `<Link>` and `useNavigate`;
-- constructor injection in React Router SSR hydration.
+- [`GHSA-jjmj-jmhj-qwj2`](https://github.com/advisories/GHSA-jjmj-jmhj-qwj2): open redirect leading to XSS in `react-router-dom` 6.30.2 through 6.30.4; there is no patched 6.x release;
+- [`GHSA-wrjc-x8rr-h8h6`](https://github.com/advisories/GHSA-wrjc-x8rr-h8h6): a separate backslash redirect bypass in `<Link>` and `useNavigate`;
+- [`GHSA-337j-9hxr-rhxg`](https://github.com/advisories/GHSA-337j-9hxr-rhxg): constructor injection in React Router SSR hydration. The advisory explicitly excludes Declarative Mode, which is the current SPA mode.
 
 The available patched line is React Router 7.18 or newer. That is a major router migration, while the current application uses React Router 6 in declarative SPA mode. Upgrading it inside a lockfile-remediation task would mix security remediation with route behavior changes and would violate the task's rollback boundary.
 
