@@ -29,6 +29,12 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Typecheck framework-free contracts
+        run: npm run typecheck
+
+      - name: Run runtime and dependency-boundary contract tests
+        run: npm run test:contracts
+
       - name: Run invitation and auth continuity contracts
         run: node --test tests/invitation-trust-flow-contracts.test.mjs tests/invitation-operations-contracts.test.mjs tests/auth-continuity-contracts.test.mjs
         env:

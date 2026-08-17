@@ -1,0 +1,67 @@
+{
+  "id": "entry-redacted-001",
+  "campaignId": "campaign-redacted-001",
+  "worldId": "world-redacted-001",
+  "type": "location",
+  "category": "lore/locations",
+  "title": "Redacted Observatory",
+  "slug": "redacted-observatory",
+  "path": "lore/locations/redacted-observatory.md",
+  "summary": "A synthetic location used only for contract tests.",
+  "publicContent": "The party can see an old observatory on the ridge.",
+  "gmContent": "Synthetic GM-only detail: the lower chamber is trapped.",
+  "status": "active",
+  "visibility": "public",
+  "tags": ["location", "synthetic"],
+  "aliases": ["The Observatory"],
+  "metadata": {
+    "sourceCategory": "lore",
+    "gmNotes": "Synthetic private note.",
+    "customPrivatePayload": {
+      "password": "redacted"
+    },
+    "frontmatter": {
+      "title": "Redacted Observatory",
+      "visibility": "public",
+      "gmSecrets": "Synthetic secret.",
+      "pins": [
+        {
+          "id": "pin-public-001",
+          "label": "Outer gate",
+          "visibility": "public"
+        },
+        {
+          "id": "pin-hidden-001",
+          "label": "Lower chamber",
+          "visibility": "hidden",
+          "gmNotes": "Synthetic trap detail."
+        }
+      ]
+    },
+    "mapObjects": [
+      {
+        "id": "object-revealed-001",
+        "label": "Broken telescope",
+        "visibility": "revealed"
+      },
+      {
+        "id": "object-secret-001",
+        "label": "Hidden mechanism",
+        "type": "secret",
+        "visibility": "gmOnly",
+        "secret": "Synthetic mechanism detail."
+      }
+    ]
+  },
+  "source": {
+    "kind": "vaultImport",
+    "originalPath": "redacted/source.md",
+    "rawImport": {
+      "redacted": true
+    }
+  },
+  "createdBy": "user-redacted-gm-001",
+  "updatedBy": "user-redacted-gm-001",
+  "createdAt": "2026-08-17T00:00:00.000Z",
+  "updatedAt": "2026-08-17T00:00:00.000Z"
+}

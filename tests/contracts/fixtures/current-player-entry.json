@@ -1,0 +1,47 @@
+{
+  "id": "entry-redacted-001",
+  "campaignId": "campaign-redacted-001",
+  "worldId": "world-redacted-001",
+  "type": "location",
+  "category": "lore/locations",
+  "title": "Redacted Observatory",
+  "slug": "redacted-observatory",
+  "path": "lore/locations/redacted-observatory.md",
+  "summary": "A synthetic location used only for contract tests.",
+  "publicContent": "The party can see an old observatory on the ridge.",
+  "gmContent": "",
+  "status": "active",
+  "visibility": "public",
+  "tags": ["location", "synthetic"],
+  "aliases": ["The Observatory"],
+  "metadata": {
+    "sourceCategory": "lore",
+    "pins": [
+      {
+        "id": "pin-public-001",
+        "label": "Outer gate",
+        "visibility": "public"
+      }
+    ],
+    "mapObjects": [
+      {
+        "id": "object-revealed-001",
+        "label": "Broken telescope",
+        "visibility": "revealed"
+      }
+    ],
+    "frontmatter": {
+      "title": "Redacted Observatory",
+      "visibility": "public",
+      "pins": [
+        {
+          "id": "pin-public-001",
+          "label": "Outer gate",
+          "visibility": "public"
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-08-17T00:00:00.000Z",
+  "updatedAt": "2026-08-17T00:00:00.000Z"
+}
