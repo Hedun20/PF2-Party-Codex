@@ -37,11 +37,15 @@ The real-Mongo run also exposed a separate current storage defect. The first nat
 
 HED-106 tracks the index/data-contract correction. HED-105 does not change the runtime index: its access matrix isolates authorization by exercising an owner update of an existing entry and a GM create, then proving that player, non-member, removed-member, and platform-admin-without-membership creates are rejected before storage. The defect must be fixed with its own disposable-Mongo regression coverage before migration work relies on native entry creation.
 
+HED-106 replaces that index with a named unique partial index using `{ "source.originalPath": { $type: "string" } }`. The unique constraint therefore applies only to entries with an imported source path, while native entries without that field remain outside the index. Startup creates the replacement first and then removes only matching legacy sparse indexes; repeating the operation is safe, including a concurrent legacy-index drop that returns `IndexNotFound`. The disposable-Mongo suite starts from the legacy index plus one existing native entry, runs the migration twice, creates two more native entries, proves same-campaign import upsert/uniqueness, and proves that the same source path is independent across campaigns.
+
+This follows MongoDB's documented [sparse compound index behavior](https://www.mongodb.com/docs/manual/core/index-sparse/#sparse-compound-indexes) and [unique partial index semantics](https://www.mongodb.com/docs/manual/core/index-partial/#partial-index-with-unique-constraint).
+
 ## Non-decisions
 
 - These tests do not select a cookie/session library.
 - They do not normalize visibility values or change serializers.
 - They do not migrate Mongo data or exercise a production/shared database.
-- They do not repair the repeated native-create index collision tracked by HED-106.
+- HED-105 itself did not repair the repeated native-create index collision; HED-106 applies the isolated index correction described above.
 - HED-105 itself did not repair the archived-entry archive-summary leak; HED-107 applies the isolated correction described above.
 - They do not claim that the current dual archive read model is canonical.

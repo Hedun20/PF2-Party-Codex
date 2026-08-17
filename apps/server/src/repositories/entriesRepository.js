@@ -2,6 +2,10 @@ import { ObjectId } from "mongodb";
 import { getDb, mongoStatus } from "../db/mongo.js";
 import { collections } from "./collections.js";
 
+const ENTRY_SOURCE_INDEX_KEYS = { campaignId: 1, "source.originalPath": 1 };
+const ENTRY_SOURCE_INDEX_NAME = "entries_campaign_source_original_path_unique";
+const ENTRY_SOURCE_INDEX_FILTER = { "source.originalPath": { $type: "string" } };
+
 export function isMongoEntriesEnabled() {
   return mongoStatus().connected;
 }
@@ -42,9 +46,44 @@ function mapObjects() {
   return getDb().collection(collections.mapObjects);
 }
 
+function isEntrySourceIndex(index = {}) {
+  const keys = Object.entries(index.key || {});
+  return keys.length === 2
+    && index.key?.campaignId === 1
+    && index.key?.["source.originalPath"] === 1;
+}
+
+function isIndexNotFound(error) {
+  return error?.code === 27 || error?.codeName === "IndexNotFound";
+}
+
+async function ensureEntrySourceIndex() {
+  const collection = entries();
+  await collection.createIndex(ENTRY_SOURCE_INDEX_KEYS, {
+    name: ENTRY_SOURCE_INDEX_NAME,
+    unique: true,
+    partialFilterExpression: ENTRY_SOURCE_INDEX_FILTER
+  });
+
+  const indexes = await collection.listIndexes().toArray();
+  const legacySparseIndexes = indexes.filter((index) => (
+    index.name !== ENTRY_SOURCE_INDEX_NAME
+    && index.sparse === true
+    && isEntrySourceIndex(index)
+  ));
+  for (const index of legacySparseIndexes) {
+    try {
+      await collection.dropIndex(index.name);
+    } catch (error) {
+      if (!isIndexNotFound(error)) throw error;
+    }
+  }
+  return ENTRY_SOURCE_INDEX_NAME;
+}
+
 export async function ensureCodexIndexes() {
   if (!isMongoEntriesEnabled()) return [];
-  await entries().createIndex({ campaignId: 1, "source.originalPath": 1 }, { unique: true, sparse: true });
+  await ensureEntrySourceIndex();
   await entries().createIndex({ campaignId: 1, slug: 1 });
   await entries().createIndex({ campaignId: 1, type: 1, visibility: 1 });
   await entries().createIndex({ campaignId: 1, worldId: 1 });
@@ -54,7 +93,7 @@ export async function ensureCodexIndexes() {
   await maps().createIndex({ campaignId: 1, worldId: 1 });
   await mapObjects().createIndex({ campaignId: 1, mapId: 1, visibility: 1 });
   return [
-    "entries.campaignId_source.originalPath",
+    ENTRY_SOURCE_INDEX_NAME,
     "entries.campaignId_slug",
     "entries.campaignId_type_visibility",
     "entries.campaignId_worldId",

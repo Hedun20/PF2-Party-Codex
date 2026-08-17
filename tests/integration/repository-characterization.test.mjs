@@ -5,7 +5,7 @@ import { ObjectId } from "mongodb";
 import { createApp } from "../../apps/server/src/app.js";
 import { config } from "../../apps/server/src/config.js";
 import { closeMongo, connectMongo, getDb } from "../../apps/server/src/db/mongo.js";
-import { ensureCodexIndexes } from "../../apps/server/src/repositories/entriesRepository.js";
+import { ensureCodexIndexes, upsertEntryFromImport } from "../../apps/server/src/repositories/entriesRepository.js";
 import { ensureIdentityIndexes } from "../../apps/server/src/repositories/identityRepository.js";
 import { createSessionToken } from "../../apps/server/src/services/authTokens.js";
 
@@ -124,6 +124,22 @@ function entryDocument({ id, campaignId, title, visibility = "public", status = 
   };
 }
 
+function importedEntryDocument({ campaignId, title, originalPath }) {
+  const { _id: _id, ...entry } = entryDocument({
+    id: new ObjectId(),
+    campaignId,
+    title
+  });
+  return {
+    ...entry,
+    source: {
+      kind: "vaultImport",
+      originalPath,
+      originalHash: `${title}-hash`
+    }
+  };
+}
+
 async function seedDatabase() {
   const stamp = new Date().toISOString();
   const users = [
@@ -234,6 +250,19 @@ before(async () => {
   database = getDb();
   await database.dropDatabase();
   await ensureIdentityIndexes();
+  await database.collection("entries").createIndex(
+    { campaignId: 1, "source.originalPath": 1 },
+    { unique: true, sparse: true }
+  );
+  const legacyNativeEntry = entryDocument({
+    id: new ObjectId(),
+    campaignId: ids.campaignA,
+    title: "Legacy native entry",
+    status: "archived"
+  });
+  legacyNativeEntry.source = { kind: "partyCodex" };
+  await database.collection("entries").insertOne(legacyNativeEntry);
+  await ensureCodexIndexes();
   await ensureCodexIndexes();
   await seedDatabase();
 
@@ -340,7 +369,7 @@ test("player entry JSON is allowlisted and excludes GM, source, hidden, draft, a
   }
 });
 
-test("owner and GM write gates succeed while player and non-member writes are denied", async () => {
+test("owner and GM creates succeed while player and non-member writes are denied", async () => {
   const campaignId = ids.campaignA.toString();
   const payload = (title, path) => ({
     title,
@@ -356,22 +385,10 @@ test("owner and GM write gates succeed while player and non-member writes are de
   const ownerWrite = await api("/api/page", {
     token: tokens["owner@example.test"],
     campaignId,
-    method: "PUT",
-    body: {
-      requestedPath: "lore/public-entry.md",
-      frontmatter: {
-        title: "Owner-updated entry",
-        name: "Owner-updated entry",
-        type: "lore",
-        category: "lore",
-        visibility: "public",
-        summary: "Owner-updated entry summary",
-        gmSecrets: "Owner-updated entry GM secret"
-      },
-      content: "Owner-updated entry public notes"
-    }
+    method: "POST",
+    body: payload("Owner-created entry", "lore/owner-created-entry.md")
   });
-  assert.equal(ownerWrite.status, 200, ownerWrite.text);
+  assert.equal(ownerWrite.status, 201, ownerWrite.text);
 
   const gmWrite = await api("/api/page", {
     token: tokens["gm@example.test"],
@@ -397,7 +414,7 @@ test("owner and GM write gates succeed while player and non-member writes are de
     assert.equal(denied.status, 403, `${email} received ${denied.status}`);
   }
 
-  const ownerEntry = await database.collection("entries").findOne({ campaignId: ids.campaignA, path: "lore/public-entry.md" });
+  const ownerEntry = await database.collection("entries").findOne({ campaignId: ids.campaignA, path: "lore/owner-created-entry.md" });
   const gmEntry = await database.collection("entries").findOne({ campaignId: ids.campaignA, path: "lore/gm-created-entry.md" });
   assert.ok(ownerEntry?._id);
   assert.ok(gmEntry?._id);
@@ -410,10 +427,63 @@ test("owner and GM write gates succeed while player and non-member writes are de
   ]);
   assert.equal(ownerRead.status, 200);
   assert.equal(gmRead.status, 200);
-  assert.equal(ownerEntry?.title, "Owner-updated entry");
-  assert.match(ownerRead.json.entry.gmContent, /Owner-updated entry GM secret/);
-  assert.match(gmRead.json.entry.gmContent, /Owner-updated entry GM secret/);
+  assert.equal(ownerEntry?.title, "Owner-created entry");
+  assert.match(ownerRead.json.entry.gmContent, /Owner-created entry GM secret/);
+  assert.match(gmRead.json.entry.gmContent, /Owner-created entry GM secret/);
   assert.equal(playerRead.status, 200);
   assert.equal(playerRead.json.entry.gmContent, "");
-  assert.doesNotMatch(playerRead.text, /Owner-updated entry GM secret/);
+  assert.doesNotMatch(playerRead.text, /Owner-created entry GM secret/);
+});
+
+test("source index migration is idempotent and preserves per-campaign import uniqueness", async () => {
+  const sourceIndexes = (await database.collection("entries").indexes()).filter((index) => (
+    index.key?.campaignId === 1 && index.key?.["source.originalPath"] === 1
+  ));
+  assert.equal(sourceIndexes.length, 1);
+  assert.equal(sourceIndexes[0].name, "entries_campaign_source_original_path_unique");
+  assert.equal(sourceIndexes[0].unique, true);
+  assert.deepEqual(sourceIndexes[0].partialFilterExpression, {
+    "source.originalPath": { $type: "string" }
+  });
+  assert.notEqual(sourceIndexes[0].sparse, true);
+
+  const originalPath = "imports/shared-source.md";
+  const first = await upsertEntryFromImport(importedEntryDocument({
+    campaignId: ids.campaignA,
+    title: "Imported source v1",
+    originalPath
+  }));
+  const updated = await upsertEntryFromImport(importedEntryDocument({
+    campaignId: ids.campaignA,
+    title: "Imported source v2",
+    originalPath
+  }));
+  const otherCampaign = await upsertEntryFromImport(importedEntryDocument({
+    campaignId: ids.campaignB,
+    title: "Imported source in campaign B",
+    originalPath
+  }));
+
+  assert.equal(first.inserted, true);
+  assert.equal(updated.inserted, false);
+  assert.equal(first.entry._id.toString(), updated.entry._id.toString());
+  assert.equal(updated.entry.title, "Imported source v2");
+  assert.equal(otherCampaign.inserted, true);
+  assert.equal(await database.collection("entries").countDocuments({
+    campaignId: ids.campaignA,
+    "source.originalPath": originalPath
+  }), 1);
+  assert.equal(await database.collection("entries").countDocuments({
+    campaignId: ids.campaignB,
+    "source.originalPath": originalPath
+  }), 1);
+
+  await assert.rejects(
+    database.collection("entries").insertOne(importedEntryDocument({
+      campaignId: ids.campaignA,
+      title: "Duplicate imported source",
+      originalPath
+    })),
+    (error) => error?.code === 11000
+  );
 });
