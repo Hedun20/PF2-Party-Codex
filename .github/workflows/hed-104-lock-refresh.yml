@@ -39,7 +39,7 @@ jobs:
             'body-parser': '1.20.6',
             'js-yaml': '3.15.1',
             nanoid: '3.3.18',
-            postcss: '8.5.23'
+            postcss: '8.5.26'
           }
           for (const [name, version] of Object.entries(expected)) {
             const actual = lock.packages[`node_modules/${name}`]?.version
@@ -47,15 +47,15 @@ jobs:
           }
           NODE
 
-      - name: Verify high-severity audit gate
-        run: npm audit --omit=dev --audit-level=high
-
       - name: Upload generated lockfile fallback
         uses: actions/upload-artifact@v4
         with:
           name: hed-104-package-lock
           path: package-lock.json
           retention-days: 3
+
+      - name: Verify high-severity audit gate
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Commit generated lockfile
         run: |
