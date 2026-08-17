@@ -345,8 +345,13 @@ export async function upsertEntryFromImport(entry) {
   const sourcePath = entry.source?.originalPath || entry.path;
   const filter = { campaignId, "source.originalPath": sourcePath };
   const existing = await entries().findOne(filter);
+  const {
+    _id: _ignoredId,
+    createdAt: requestedCreatedAt,
+    ...mutableEntry
+  } = entry;
   const document = {
-    ...entry,
+    ...mutableEntry,
     campaignId,
     worldId: objectIdFrom(entry.worldId) || entry.worldId || null,
     createdBy: objectIdFrom(entry.createdBy) || entry.createdBy || null,
@@ -354,11 +359,12 @@ export async function upsertEntryFromImport(entry) {
     updatedAt: stamp
   };
   if (existing) {
-    await entries().updateOne(filter, { $set: document, $setOnInsert: { createdAt: existing.createdAt || stamp } });
+    await entries().updateOne(filter, { $set: document });
     return { entry: await entries().findOne(filter), inserted: false };
   }
-  const result = await entries().insertOne({ ...document, createdAt: entry.createdAt || stamp });
-  return { entry: { ...document, _id: result.insertedId, createdAt: entry.createdAt || stamp }, inserted: true };
+  const createdAt = requestedCreatedAt || stamp;
+  const result = await entries().insertOne({ ...document, createdAt });
+  return { entry: { ...document, _id: result.insertedId, createdAt }, inserted: true };
 }
 
 export async function replaceRelationsForImport({ campaignId, importJobId, relations: relationDocs = [] }) {

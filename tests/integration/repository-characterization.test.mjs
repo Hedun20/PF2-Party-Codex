@@ -468,6 +468,7 @@ test("source index migration is idempotent and preserves per-campaign import uni
   assert.equal(updated.inserted, false);
   assert.equal(first.entry._id.toString(), updated.entry._id.toString());
   assert.equal(updated.entry.title, "Imported source v2");
+  assert.equal(updated.entry.createdAt, first.entry.createdAt);
   assert.equal(otherCampaign.inserted, true);
   assert.equal(await database.collection("entries").countDocuments({
     campaignId: ids.campaignA,
