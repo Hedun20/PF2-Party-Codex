@@ -282,9 +282,15 @@ export async function archiveEntryByPath({ campaignId, path, userId = null } = {
   if (!existing) return null;
   const stamp = now();
   const trashPath = `_trash/${stamp.replace(/[-:.]/g, "")}/${existing.path}`;
+  const update = {
+    $set: { status: "archived", archivedAt: stamp, archivedBy: objectIdFrom(userId) || userId || null, trashPath, updatedAt: stamp }
+  };
+  if (existing.source?.kind === "partyCodex" && existing.source?.originalPath?.startsWith("partyCodex:")) {
+    update.$unset = { "source.originalPath": "" };
+  }
   await entries().updateOne(
     { _id: existing._id, campaignId: campaignObjectId },
-    { $set: { status: "archived", archivedAt: stamp, archivedBy: objectIdFrom(userId) || userId || null, trashPath, updatedAt: stamp } }
+    update
   );
   return {
     title: existing.title,

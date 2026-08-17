@@ -435,6 +435,33 @@ test("owner and GM creates succeed while player and non-member writes are denied
   assert.equal(playerRead.status, 200);
   assert.equal(playerRead.json.entry.gmContent, "");
   assert.doesNotMatch(playerRead.text, /Owner-created entry GM secret/);
+
+  const archiveOwnerEntry = await api(`/api/page?path=${encodeURIComponent(ownerEntry.path)}`, {
+    token: tokens["owner@example.test"],
+    campaignId,
+    method: "DELETE"
+  });
+  assert.equal(archiveOwnerEntry.status, 200, archiveOwnerEntry.text);
+
+  const recreateOwnerEntry = await api("/api/page", {
+    token: tokens["owner@example.test"],
+    campaignId,
+    method: "POST",
+    body: payload("Recreated owner entry", ownerEntry.path)
+  });
+  assert.equal(recreateOwnerEntry.status, 201, recreateOwnerEntry.text);
+
+  const archivedOwnerEntry = await database.collection("entries").findOne({ _id: ownerEntry._id });
+  const replacementOwnerEntry = await database.collection("entries").findOne({
+    campaignId: ids.campaignA,
+    path: ownerEntry.path,
+    status: { $ne: "archived" }
+  });
+  assert.equal(archivedOwnerEntry?.status, "archived");
+  assert.equal(archivedOwnerEntry?.source?.kind, "partyCodex");
+  assert.equal(archivedOwnerEntry?.source?.originalPath, undefined);
+  assert.notEqual(replacementOwnerEntry?._id?.toString(), ownerEntry._id.toString());
+  assert.equal(replacementOwnerEntry?.source?.originalPath, `partyCodex:${ownerEntry.path}`);
 });
 
 test("source keys preserve the rollback index and per-campaign import uniqueness", async () => {
