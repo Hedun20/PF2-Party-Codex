@@ -23,11 +23,13 @@ The current archive route treats `/api/campaigns/:campaignId` as authoritative a
 
 It does not satisfy the target HED-20 session contract, which requires explicit rejection when route and compatibility header disagree. HED-105 records and tests the current behavior without changing the rollback runtime. HED-23 must define the error contract, and the later session compatibility adapter must reject disagreement before any Next.js cutover.
 
-The executable assertion covers both the serialized campaign metadata and the archive query results: the player response contains only campaign A entry identifiers and never the uniquely seeded campaign B entry. The current campaign A archive result includes three compact entries because of the separate archived-entry inconsistency below.
+The executable assertion covers both the serialized campaign metadata and the archive query results: the player response contains only campaign A entry identifiers and never the uniquely seeded campaign B entry. At the HED-105 baseline, the campaign A archive result included three compact entries because of the separate archived-entry inconsistency below.
 
 ## Player-safety finding: archive summary includes archived metadata
 
-The player-safe entry list and entry-by-id repository paths exclude `status: archived`, but the archive summary currently exposes an archived entry's compact metadata and includes it in `counts.entries`. Its player query excludes only `draft` status. HED-107 tracks alignment of archive counts/recent data with the player-safe entry policy. HED-105 asserts and documents the current result without normalizing it.
+The player-safe entry list and entry-by-id repository paths exclude `status: archived`, but the HED-105 baseline archive summary exposed an archived entry's compact metadata and included it in `counts.entries`. Its player query excluded only `draft` status. HED-105 asserted and documented that result without normalizing it.
+
+HED-107 resolves the inconsistency by excluding both `draft` and `archived` statuses from the shared player archive query used by counts and recent data. Owner and GM queries remain unchanged and retain their full archive view. The real-Mongo assertion now requires exactly the published/revealed campaign entries and rejects archived and cross-campaign markers from the complete response JSON.
 
 ## Storage finding: repeated native creates collide
 
@@ -41,5 +43,5 @@ HED-106 tracks the index/data-contract correction. HED-105 does not change the r
 - They do not normalize visibility values or change serializers.
 - They do not migrate Mongo data or exercise a production/shared database.
 - They do not repair the repeated native-create index collision tracked by HED-106.
-- They do not repair the archived-entry archive-summary leak tracked by HED-107.
+- HED-105 itself did not repair the archived-entry archive-summary leak; HED-107 applies the isolated correction described above.
 - They do not claim that the current dual archive read model is canonical.

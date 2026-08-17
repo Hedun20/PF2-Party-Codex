@@ -40,6 +40,8 @@ test("archive summary queries canonical entry-backed maps, timeline and sessions
   assert.deepEqual(maps.$and[1].$or, [{ type: "map" }, { category: "maps" }]);
   assert.deepEqual(sessions.$and[1].$or, [{ type: "session" }, { category: "sessions" }]);
   assert.deepEqual(sessions.$and[0].visibility, { $in: ["public", "revealed"] });
+  assert.deepEqual(sessions.$and[0].status, { $nin: ["draft", "archived"] });
+  assert.equal("status" in timeline.$and[0], false);
 });
 
 test("critical header and Timeline controls use browser-native selects", async () => {

@@ -53,7 +53,7 @@ function contentVisibilityQuery(campaignId, role) {
   const query = baseQuery(campaignId);
   if (!isGm(role)) {
     query.visibility = { $in: PUBLIC_VISIBILITIES };
-    query.status = { $ne: "draft" };
+    query.status = { $nin: ["draft", "archived"] };
   }
   return query;
 }
