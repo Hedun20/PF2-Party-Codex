@@ -418,6 +418,8 @@ test("owner and GM creates succeed while player and non-member writes are denied
   const gmEntry = await database.collection("entries").findOne({ campaignId: ids.campaignA, path: "lore/gm-created-entry.md" });
   assert.ok(ownerEntry?._id);
   assert.ok(gmEntry?._id);
+  assert.equal(ownerEntry?.source?.originalPath, "partyCodex:lore/owner-created-entry.md");
+  assert.equal(gmEntry?.source?.originalPath, "partyCodex:lore/gm-created-entry.md");
   assert.equal(await database.collection("entries").countDocuments({ campaignId: ids.campaignA, title: "Denied entry" }), 0);
 
   const [ownerRead, gmRead, playerRead] = await Promise.all([
@@ -435,17 +437,15 @@ test("owner and GM creates succeed while player and non-member writes are denied
   assert.doesNotMatch(playerRead.text, /Owner-created entry GM secret/);
 });
 
-test("source index migration is idempotent and preserves per-campaign import uniqueness", async () => {
+test("source keys preserve the rollback index and per-campaign import uniqueness", async () => {
   const sourceIndexes = (await database.collection("entries").indexes()).filter((index) => (
     index.key?.campaignId === 1 && index.key?.["source.originalPath"] === 1
   ));
   assert.equal(sourceIndexes.length, 1);
-  assert.equal(sourceIndexes[0].name, "entries_campaign_source_original_path_unique");
+  assert.equal(sourceIndexes[0].name, "campaignId_1_source.originalPath_1");
   assert.equal(sourceIndexes[0].unique, true);
-  assert.deepEqual(sourceIndexes[0].partialFilterExpression, {
-    "source.originalPath": { $type: "string" }
-  });
-  assert.notEqual(sourceIndexes[0].sparse, true);
+  assert.equal(sourceIndexes[0].sparse, true);
+  assert.equal(sourceIndexes[0].partialFilterExpression, undefined);
 
   const originalPath = "imports/shared-source.md";
   const first = await upsertEntryFromImport(importedEntryDocument({

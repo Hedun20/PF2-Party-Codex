@@ -247,8 +247,9 @@ function documentFromPageInput({ requestedPath, frontmatter = {}, content = "", 
   const category = String(frontmatter.category || existing?.category || type || "lore");
   const requestedVisibility = frontmatter.visibility || existing?.visibility || "public";
   const split = splitContent(content, frontmatter.gmSecrets || "");
+  const normalizedPath = normalizePath(requestedPath || `${category}/${slugify(title)}.md`);
   return {
-    path: normalizePath(requestedPath || `${category}/${slugify(title)}.md`),
+    path: normalizedPath,
     title,
     slug: slugify(title),
     type,
@@ -275,7 +276,10 @@ function documentFromPageInput({ requestedPath, frontmatter = {}, content = "", 
       pins: Array.isArray(frontmatter.pins) ? frontmatter.pins : [],
       mapObjects: Array.isArray(frontmatter.mapObjects) ? frontmatter.mapObjects : []
     },
-    source: existing?.source || { kind: "partyCodex" }
+    source: existing?.source || {
+      kind: "partyCodex",
+      originalPath: `partyCodex:${normalizedPath}`
+    }
   };
 }
 
