@@ -273,7 +273,8 @@ test("exact campaign membership gates reads for every actor state", async () => 
     ["player@example.test", 200],
     ["non-member@example.test", 403],
     ["removed@example.test", 403],
-    ["platform-admin@example.test", 403]
+    ["platform-admin@example.test", 403],
+    ["other-owner@example.test", 403]
   ];
   for (const [email, expectedStatus] of cases) {
     const response = await api(pathname, { token: tokens[email], campaignId });
@@ -379,7 +380,13 @@ test("owner and GM write gates succeed while player and non-member writes are de
   });
   assert.equal(gmWrite.status, 201, gmWrite.text);
 
-  for (const email of ["player@example.test", "non-member@example.test", "removed@example.test", "platform-admin@example.test"]) {
+  for (const email of [
+    "player@example.test",
+    "non-member@example.test",
+    "removed@example.test",
+    "platform-admin@example.test",
+    "other-owner@example.test"
+  ]) {
     const denied = await api("/api/page", {
       token: tokens[email],
       campaignId,
