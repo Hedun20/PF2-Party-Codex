@@ -46,3 +46,11 @@ Current Express routes return several unwrapped success shapes, for example `{ e
 ## Dependency boundary
 
 `packages/contracts` and `packages/core` may depend on TypeScript/JavaScript language features and on each other only in the `core -> contracts` direction. A source scan fails if either package imports Express, Next.js, MongoDB, React, Foundry, Pathbuilder, or PF2e modules, or references browser globals. This keeps campaign/archive policy reusable by the future web/API/worker adapters without starting the Next.js cutover.
+
+## Validation record
+
+GitHub Actions run `32026127820` on Node 24.19.0 and npm 11.17.0 passed `npm ci`, strict typecheck, all seven new contract tests, invitation/auth contracts, route/access contracts, server smoke tests, content/seed/character/select contracts, the production web build, and syntax checks.
+
+The unchanged `npm run audit:production` gate failed with six advisories: one low, two moderate, and three high. The high findings are in `js-yaml`, `nanoid`, and `postcss`; `body-parser` is also reported without a severity line in npm's output, and the moderate chain is `react-router`/`react-router-dom`. These exact dependency versions already exist in the approved HED-20 base commit `f5334cf0` and are not introduced by TypeScript or either new workspace package. HED-20 previously recorded a worse baseline of ten advisories (three low, three moderate, four high) in `CURRENT_STATE_AUDIT.md`.
+
+HED-103 does not suppress the gate or apply a broad `npm audit fix`. Dependency remediation needs its own reviewed task because it changes the Express/Vite rollback implementation and can affect runtime behavior.
