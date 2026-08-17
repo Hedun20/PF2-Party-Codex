@@ -299,11 +299,12 @@ test("route campaign identity wins over a conflicting compatibility header witho
   assert.equal(routeWins.status, 200);
   assert.equal(routeWins.json?.campaign?.id, ids.campaignA.toString());
   assert.notEqual(routeWins.json?.campaign?.id, ids.campaignB.toString());
-  assert.equal(routeWins.json?.archive?.counts?.entries, 3);
+  assert.equal(routeWins.json?.archive?.counts?.entries, 2);
   assert.deepEqual(
     routeWins.json?.archive?.recent?.entries?.map((entry) => entry.id).sort(),
-    [ids.publicEntry, ids.revealedEntry, ids.archivedEntry].map(String).sort()
+    [ids.publicEntry, ids.revealedEntry].map(String).sort()
   );
+  assert.doesNotMatch(routeWins.text, /Archived entry/);
   assert.doesNotMatch(routeWins.text, /Other campaign entry/);
 });
 
