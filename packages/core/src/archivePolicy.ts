@@ -108,6 +108,15 @@ function sanitizePlayerMetadata(value: JsonObject): JsonObject {
     const sanitized = sanitizePlayerJsonValue(item);
     if (sanitized !== undefined) result[key] = sanitized;
   }
+  const frontmatter = result["frontmatter"];
+  if (typeof frontmatter === "object" && frontmatter !== null && !Array.isArray(frontmatter)) {
+    if (result["pins"] === undefined && Array.isArray(frontmatter["pins"])) {
+      result["pins"] = [...frontmatter["pins"]];
+    }
+    if (result["mapObjects"] === undefined && Array.isArray(frontmatter["mapObjects"])) {
+      result["mapObjects"] = [...frontmatter["mapObjects"]];
+    }
+  }
   return result;
 }
 
