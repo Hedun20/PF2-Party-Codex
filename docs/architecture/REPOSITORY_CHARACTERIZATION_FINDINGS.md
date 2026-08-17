@@ -23,9 +23,16 @@ The current archive route treats `/api/campaigns/:campaignId` as authoritative a
 
 It does not satisfy the target HED-20 session contract, which requires explicit rejection when route and compatibility header disagree. HED-105 records and tests the current behavior without changing the rollback runtime. HED-23 must define the error contract, and the later session compatibility adapter must reject disagreement before any Next.js cutover.
 
+## Storage finding: repeated native creates collide
+
+The real-Mongo run also exposed a separate current storage defect. The first native entry create in a campaign succeeds, but a second native create fails with MongoDB error `11000` because the unique sparse compound index on `(campaignId, source.originalPath)` indexes the missing `source.originalPath` as `null`. Native Party Codex entries set `source.kind` without an `originalPath`, so repeated creates in the same campaign collide.
+
+HED-106 tracks the index/data-contract correction. HED-105 does not change the runtime index: its access matrix isolates authorization by exercising an owner update of an existing entry and a GM create, then proving that player, non-member, removed-member, and platform-admin-without-membership creates are rejected before storage. The defect must be fixed with its own disposable-Mongo regression coverage before migration work relies on native entry creation.
+
 ## Non-decisions
 
 - These tests do not select a cookie/session library.
 - They do not normalize visibility values or change serializers.
 - They do not migrate Mongo data or exercise a production/shared database.
+- They do not repair the repeated native-create index collision tracked by HED-106.
 - They do not claim that the current dual archive read model is canonical.

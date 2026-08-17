@@ -332,7 +332,7 @@ test("player entry JSON is allowlisted and excludes GM, source, hidden, draft, a
   }
 });
 
-test("owner and GM writes succeed while player and non-member writes are denied", async () => {
+test("owner and GM write gates succeed while player and non-member writes are denied", async () => {
   const campaignId = ids.campaignA.toString();
   const payload = (title, path) => ({
     title,
@@ -348,10 +348,22 @@ test("owner and GM writes succeed while player and non-member writes are denied"
   const ownerWrite = await api("/api/page", {
     token: tokens["owner@example.test"],
     campaignId,
-    method: "POST",
-    body: payload("Owner-created entry", "lore/owner-created-entry.md")
+    method: "PUT",
+    body: {
+      requestedPath: "lore/public-entry.md",
+      frontmatter: {
+        title: "Owner-updated entry",
+        name: "Owner-updated entry",
+        type: "lore",
+        category: "lore",
+        visibility: "public",
+        summary: "Owner-updated entry summary",
+        gmSecrets: "Owner-updated entry GM secret"
+      },
+      content: "Owner-updated entry public notes"
+    }
   });
-  assert.equal(ownerWrite.status, 201, ownerWrite.text);
+  assert.equal(ownerWrite.status, 200, ownerWrite.text);
 
   const gmWrite = await api("/api/page", {
     token: tokens["gm@example.test"],
@@ -371,7 +383,7 @@ test("owner and GM writes succeed while player and non-member writes are denied"
     assert.equal(denied.status, 403, `${email} received ${denied.status}`);
   }
 
-  const ownerEntry = await database.collection("entries").findOne({ campaignId: ids.campaignA, path: "lore/owner-created-entry.md" });
+  const ownerEntry = await database.collection("entries").findOne({ campaignId: ids.campaignA, path: "lore/public-entry.md" });
   const gmEntry = await database.collection("entries").findOne({ campaignId: ids.campaignA, path: "lore/gm-created-entry.md" });
   assert.ok(ownerEntry?._id);
   assert.ok(gmEntry?._id);
@@ -384,9 +396,10 @@ test("owner and GM writes succeed while player and non-member writes are denied"
   ]);
   assert.equal(ownerRead.status, 200);
   assert.equal(gmRead.status, 200);
-  assert.match(ownerRead.json.entry.gmContent, /Owner-created entry GM secret/);
-  assert.match(gmRead.json.entry.gmContent, /Owner-created entry GM secret/);
+  assert.equal(ownerEntry?.title, "Owner-updated entry");
+  assert.match(ownerRead.json.entry.gmContent, /Owner-updated entry GM secret/);
+  assert.match(gmRead.json.entry.gmContent, /Owner-updated entry GM secret/);
   assert.equal(playerRead.status, 200);
   assert.equal(playerRead.json.entry.gmContent, "");
-  assert.doesNotMatch(playerRead.text, /Owner-created entry GM secret/);
+  assert.doesNotMatch(playerRead.text, /Owner-updated entry GM secret/);
 });
