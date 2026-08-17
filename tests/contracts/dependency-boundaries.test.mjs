@@ -13,9 +13,13 @@ const browserGlobal = /\b(?:window|document|localStorage|sessionStorage|navigato
 
 async function sourceFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
-  return entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
-    .map((entry) => path.join(directory, entry.name));
+  const files = [];
+  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...await sourceFiles(entryPath));
+    if (entry.isFile() && entry.name.endsWith(".ts")) files.push(entryPath);
+  }
+  return files;
 }
 
 function importedSpecifiers(source) {
@@ -35,4 +39,10 @@ test("contracts and core remain framework, storage, browser and game-system neut
       assert.doesNotMatch(source, browserGlobal, `${path.relative(rootDir, file)} references a browser global`);
     }
   }
+});
+
+test("dependency-boundary source discovery includes nested TypeScript modules", async () => {
+  const fixtureDir = path.join(rootDir, "tests/contracts/fixtures/dependency-boundary");
+  const discovered = (await sourceFiles(fixtureDir)).map((file) => path.relative(fixtureDir, file));
+  assert.deepEqual(discovered, [path.join("nested", "policy.ts")]);
 });

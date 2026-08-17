@@ -2,10 +2,12 @@ import {
   parseCampaignId,
   parseMembershipId,
   parseUserId,
+  parseWorldId,
   parseWorkspaceId,
   type CampaignId,
   type MembershipId,
   type UserId,
+  type WorldId,
   type WorkspaceId
 } from "./ids.js";
 import {
@@ -17,6 +19,7 @@ import {
   expectNullableString,
   expectRecord,
   expectString,
+  fail,
   type JsonObject
 } from "./validation.js";
 
@@ -43,8 +46,14 @@ export interface SessionPrincipalContract {
   readonly platformAdmin: boolean;
   readonly activeWorkspaceId: WorkspaceId | null;
   readonly activeCampaignId: CampaignId | null;
-  readonly membershipId: MembershipId | null;
-  readonly role: CampaignRole | null;
+}
+
+export interface VerifiedCampaignContextContract {
+  readonly userId: UserId;
+  readonly workspaceId: WorkspaceId;
+  readonly campaignId: CampaignId;
+  readonly membershipId: MembershipId;
+  readonly role: CampaignRole;
 }
 
 export interface WorkspaceContract {
@@ -66,7 +75,7 @@ export interface CampaignContract {
   readonly description: string;
   readonly ownerUserId: UserId;
   readonly status: RecordStatus;
-  readonly activeWorldId: string;
+  readonly activeWorldId: WorldId | "";
   readonly defaultLanguage: string;
   readonly settings: JsonObject;
   readonly createdAt: string;
@@ -96,11 +105,6 @@ function nullableCampaignId(value: unknown, path: string): CampaignId | null {
   return parsed === null ? null : parseCampaignId(parsed, path);
 }
 
-function nullableMembershipId(value: unknown, path: string): MembershipId | null {
-  const parsed = expectNullableString(value, path);
-  return parsed === null ? null : parseMembershipId(parsed, path);
-}
-
 export function parseCampaignRole(value: unknown, path = "role"): CampaignRole {
   return expectEnum(value, CAMPAIGN_ROLES, path);
 }
@@ -123,28 +127,35 @@ export function parseSessionPrincipalContract(
   path = "principal"
 ): SessionPrincipalContract {
   const item = expectRecord(value, path);
-  expectExactKeys(
-    item,
-    [
-      "userId",
-      "sessionVersion",
-      "platformAdmin",
-      "activeWorkspaceId",
-      "activeCampaignId",
-      "membershipId",
-      "role"
-    ],
-    path
-  );
-  const roleValue = item["role"];
+  expectExactKeys(item, ["userId", "sessionVersion", "platformAdmin", "activeWorkspaceId", "activeCampaignId"], path);
   return {
     userId: parseUserId(item["userId"], `${path}.userId`),
     sessionVersion: expectInteger(item["sessionVersion"], `${path}.sessionVersion`),
     platformAdmin: expectBoolean(item["platformAdmin"], `${path}.platformAdmin`),
     activeWorkspaceId: nullableWorkspaceId(item["activeWorkspaceId"], `${path}.activeWorkspaceId`),
-    activeCampaignId: nullableCampaignId(item["activeCampaignId"], `${path}.activeCampaignId`),
-    membershipId: nullableMembershipId(item["membershipId"], `${path}.membershipId`),
-    role: roleValue === null ? null : parseCampaignRole(roleValue, `${path}.role`)
+    activeCampaignId: nullableCampaignId(item["activeCampaignId"], `${path}.activeCampaignId`)
+  };
+}
+
+export function resolveVerifiedCampaignContextContract(
+  principal: SessionPrincipalContract,
+  membership: MembershipContract,
+  requestedCampaignId: CampaignId,
+  path = "campaignContext"
+): VerifiedCampaignContextContract {
+  if (membership.status !== "active") return fail(`${path}.membershipId`, "membership must be active");
+  if (membership.userId !== principal.userId) {
+    return fail(`${path}.userId`, "membership must belong to the session principal");
+  }
+  if (membership.campaignId !== requestedCampaignId) {
+    return fail(`${path}.campaignId`, "membership must match the requested campaign");
+  }
+  return {
+    userId: membership.userId,
+    workspaceId: membership.workspaceId,
+    campaignId: membership.campaignId,
+    membershipId: membership.id,
+    role: membership.role
   };
 }
 
@@ -194,7 +205,10 @@ export function parseCampaignContract(value: unknown, path = "campaign"): Campai
     description: expectString(item["description"], `${path}.description`, true),
     ownerUserId: parseUserId(item["ownerUserId"], `${path}.ownerUserId`),
     status: expectEnum(item["status"], RECORD_STATUSES, `${path}.status`),
-    activeWorldId: expectString(item["activeWorldId"], `${path}.activeWorldId`, true),
+    activeWorldId:
+      item["activeWorldId"] === ""
+        ? ""
+        : parseWorldId(item["activeWorldId"], `${path}.activeWorldId`),
     defaultLanguage: expectString(item["defaultLanguage"], `${path}.defaultLanguage`),
     settings: expectJsonObject(item["settings"], `${path}.settings`),
     createdAt: expectString(item["createdAt"], `${path}.createdAt`),

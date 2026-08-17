@@ -5,9 +5,13 @@ import test from "node:test";
 import {
   ContractValidationError,
   normalizeLegacyEntryVisibility,
+  parseCampaignContract,
   parseCompatibilityResponse,
   parseGmArchiveEntryDto,
-  parsePlayerArchiveEntryDto
+  parseMembershipContract,
+  parsePlayerArchiveEntryDto,
+  parseSessionPrincipalContract,
+  resolveVerifiedCampaignContextContract
 } from "../../packages/contracts/dist/index.js";
 import {
   evaluatePlayerArchiveRead,
@@ -61,6 +65,25 @@ test("player DTOs reject nested GM-only keys and private records", async () => {
     () => parsePlayerArchiveEntryDto(withHiddenRecord),
     (error) => error instanceof ContractValidationError && error.path.endsWith("visibility")
   );
+
+  for (const credentialKey of ["password", "reset_token", "sessionToken", "invitation-token"]) {
+    const withCredential = structuredClone(targetPlayerEntry);
+    withCredential.metadata.related = [{ label: "safe", [credentialKey]: "must fail" }];
+    assert.throws(
+      () => parsePlayerArchiveEntryDto(withCredential),
+      (error) => error instanceof ContractValidationError && error.path.endsWith(credentialKey)
+    );
+  }
+
+  const gmEntryWithCredentials = await fixture("gm-entry.json");
+  gmEntryWithCredentials.metadata.related = [{
+    label: "safe",
+    password: "remove",
+    resetToken: "remove",
+    session_token: "remove",
+    invitationToken: "remove"
+  }];
+  assert.deepEqual(toPlayerArchiveEntryDto(gmEntryWithCredentials).metadata.related, [{ label: "safe" }]);
 });
 
 test("legacy visibility mapping is exact and invalid values fail closed", () => {
@@ -96,6 +119,25 @@ test("legacy visibility mapping is exact and invalid values fail closed", () => 
 test("compatibility responses normalize current success and error payloads", () => {
   const parseValue = (value) => value;
   assert.deepEqual(
+    parseCompatibilityResponse({ ok: true, data: { id: "target-redacted-001" } }, parseValue, parseValue),
+    { ok: true, data: { id: "target-redacted-001" } }
+  );
+  assert.deepEqual(
+    parseCompatibilityResponse(
+      { ok: true, membership: { id: "membership-redacted-001" } },
+      parseValue,
+      parseValue
+    ),
+    {
+      ok: true,
+      data: { ok: true, membership: { id: "membership-redacted-001" } }
+    }
+  );
+  assert.deepEqual(
+    parseCompatibilityResponse({ ok: true }, parseValue, parseValue),
+    { ok: true, data: { ok: true } }
+  );
+  assert.deepEqual(
     parseCompatibilityResponse({ entries: [], campaignId: "campaign-redacted-001", role: "player" }, parseValue, parseValue),
     { ok: true, data: { entries: [], campaignId: "campaign-redacted-001", role: "player" } }
   );
@@ -114,4 +156,107 @@ test("compatibility responses normalize current success and error payloads", () 
       }
     }
   );
+  assert.deepEqual(
+    parseCompatibilityResponse(
+      { error: "Entry not found." },
+      parseValue,
+      parseValue,
+      "response",
+      { httpStatus: 404 }
+    ),
+    { ok: false, error: { code: "NOT_FOUND", message: "Entry not found." } }
+  );
+  assert.deepEqual(
+    parseCompatibilityResponse(
+      { ok: false, error: "Storage is unavailable." },
+      parseValue,
+      parseValue,
+      "response",
+      { httpStatus: 503 }
+    ),
+    { ok: false, error: { code: "STORAGE_UNAVAILABLE", message: "Storage is unavailable." } }
+  );
+});
+
+test("session identity stays separate from verified campaign authorization", () => {
+  const principal = {
+    userId: "user-redacted-001",
+    sessionVersion: 2,
+    platformAdmin: false,
+    activeWorkspaceId: "workspace-redacted-001",
+    activeCampaignId: "campaign-redacted-001"
+  };
+  assert.deepEqual(parseSessionPrincipalContract(principal), principal);
+  assert.throws(
+    () => parseSessionPrincipalContract({ ...principal, role: "owner" }),
+    (error) => error instanceof ContractValidationError && error.path === "principal.role"
+  );
+  const membership = parseMembershipContract({
+    id: "membership-redacted-001",
+    userId: "user-redacted-001",
+    workspaceId: "workspace-redacted-001",
+    campaignId: "campaign-redacted-001",
+    role: "owner",
+    status: "active",
+    displayName: "Redacted Owner",
+    joinedAt: "2026-08-17T00:00:00.000Z",
+    createdAt: "2026-08-17T00:00:00.000Z",
+    updatedAt: "2026-08-17T00:00:00.000Z"
+  });
+  assert.deepEqual(
+    resolveVerifiedCampaignContextContract(
+      parseSessionPrincipalContract(principal),
+      membership,
+      membership.campaignId
+    ),
+    {
+      userId: "user-redacted-001",
+      workspaceId: "workspace-redacted-001",
+      campaignId: "campaign-redacted-001",
+      membershipId: "membership-redacted-001",
+      role: "owner"
+    }
+  );
+  assert.throws(
+    () => resolveVerifiedCampaignContextContract(
+      parseSessionPrincipalContract({ ...principal, userId: "user-redacted-002" }),
+      membership,
+      membership.campaignId
+    ),
+    (error) => error instanceof ContractValidationError && error.path === "campaignContext.userId"
+  );
+  assert.throws(
+    () => resolveVerifiedCampaignContextContract(
+      parseSessionPrincipalContract(principal),
+      membership,
+      "campaign-redacted-002"
+    ),
+    (error) => error instanceof ContractValidationError && error.path === "campaignContext.campaignId"
+  );
+  assert.throws(
+    () => resolveVerifiedCampaignContextContract(
+      parseSessionPrincipalContract(principal),
+      { ...membership, status: "removed" },
+      membership.campaignId
+    ),
+    (error) => error instanceof ContractValidationError && error.path === "campaignContext.membershipId"
+  );
+});
+
+test("campaign activeWorldId accepts only the branded world boundary or the legacy empty value", () => {
+  const campaign = {
+    id: "campaign-redacted-001",
+    workspaceId: "workspace-redacted-001",
+    name: "Redacted Campaign",
+    description: "",
+    ownerUserId: "user-redacted-001",
+    status: "active",
+    activeWorldId: "world-redacted-001",
+    defaultLanguage: "en",
+    settings: {},
+    createdAt: "2026-08-17T00:00:00.000Z",
+    updatedAt: "2026-08-17T00:00:00.000Z"
+  };
+  assert.deepEqual(parseCampaignContract(campaign), campaign);
+  assert.equal(parseCampaignContract({ ...campaign, activeWorldId: "" }).activeWorldId, "");
 });

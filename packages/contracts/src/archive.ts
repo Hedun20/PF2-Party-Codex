@@ -68,7 +68,24 @@ export const PLAYER_FORBIDDEN_KEYS: ReadonlySet<string> = new Set([
   "secrets",
   "source",
   "createdBy",
-  "updatedBy"
+  "updatedBy",
+  "password",
+  "passwordHash",
+  "passwordSalt",
+  "sessionId",
+  "sessionToken",
+  "sessionCookie",
+  "invitationToken",
+  "inviteToken",
+  "resetToken",
+  "passwordResetToken",
+  "recoveryToken",
+  "emailVerificationToken",
+  "accessToken",
+  "refreshToken",
+  "authToken",
+  "apiKey",
+  "secretKey"
 ]);
 
 export const PLAYER_METADATA_KEYS: ReadonlySet<string> = new Set([

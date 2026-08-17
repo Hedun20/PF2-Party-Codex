@@ -2,6 +2,7 @@ import {
   PLAYER_FORBIDDEN_KEYS,
   PLAYER_FRONTMATTER_KEYS,
   PLAYER_METADATA_KEYS,
+  isForbiddenKey,
   normalizeLegacyEntryVisibility,
   parseEntryStatus,
   parseGmArchiveEntryDto,
@@ -77,7 +78,7 @@ function sanitizePlayerJsonValue(value: JsonValue): JsonValue | undefined {
   if (isPrivateRecord(source)) return undefined;
   const result: Record<string, JsonValue> = {};
   for (const [key, item] of Object.entries(source)) {
-    if (PLAYER_FORBIDDEN_KEYS.has(key)) continue;
+    if (isForbiddenKey(key, PLAYER_FORBIDDEN_KEYS)) continue;
     const sanitized = sanitizePlayerJsonValue(item);
     if (sanitized !== undefined) result[key] = sanitized;
   }

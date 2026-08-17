@@ -94,6 +94,18 @@ export function expectJsonObject(value: unknown, path: string): JsonObject {
   return parsed;
 }
 
+function normalizeSecurityKey(key: string): string {
+  return key.replace(/[^a-z0-9]/gi, "").toLowerCase();
+}
+
+export function isForbiddenKey(key: string, forbiddenKeys: ReadonlySet<string>): boolean {
+  const normalizedKey = normalizeSecurityKey(key);
+  for (const forbiddenKey of forbiddenKeys) {
+    if (normalizeSecurityKey(forbiddenKey) === normalizedKey) return true;
+  }
+  return false;
+}
+
 export function rejectForbiddenKeysDeep(
   value: unknown,
   forbiddenKeys: ReadonlySet<string>,
@@ -110,7 +122,9 @@ export function rejectForbiddenKeysDeep(
       return;
     }
     for (const [key, child] of Object.entries(item as UnknownRecord)) {
-      if (forbiddenKeys.has(key)) fail(`${itemPath}.${key}`, "GM-only field is forbidden in a player DTO");
+      if (isForbiddenKey(key, forbiddenKeys)) {
+        fail(`${itemPath}.${key}`, "private field is forbidden in a player DTO");
+      }
       visit(child, `${itemPath}.${key}`);
     }
   }
