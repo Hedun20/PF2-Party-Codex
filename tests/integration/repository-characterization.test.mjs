@@ -11,7 +11,7 @@ import { createSessionToken } from "../../apps/server/src/services/authTokens.js
 
 const SAFE_DATABASE_PREFIX = "pf2_party_codex_test_";
 const SAFE_MONGO_HOSTS = new Set(["127.0.0.1", "localhost"]);
-const silentLogger = { info() {}, warn() {}, error() {} };
+const silentLogger = { debug() {}, info() {}, warn() {}, error() {} };
 
 const ids = {
   workspaceA: new ObjectId(),
@@ -351,7 +351,7 @@ test("owner and GM writes succeed while player and non-member writes are denied"
     method: "POST",
     body: payload("Owner-created entry", "lore/owner-created-entry.md")
   });
-  assert.equal(ownerWrite.status, 201);
+  assert.equal(ownerWrite.status, 201, ownerWrite.text);
 
   const gmWrite = await api("/api/page", {
     token: tokens["gm@example.test"],
@@ -359,7 +359,7 @@ test("owner and GM writes succeed while player and non-member writes are denied"
     method: "POST",
     body: payload("GM-created entry", "lore/gm-created-entry.md")
   });
-  assert.equal(gmWrite.status, 201);
+  assert.equal(gmWrite.status, 201, gmWrite.text);
 
   for (const email of ["player@example.test", "non-member@example.test", "removed@example.test", "platform-admin@example.test"]) {
     const denied = await api("/api/page", {
