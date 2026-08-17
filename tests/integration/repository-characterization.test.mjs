@@ -459,7 +459,10 @@ test("owner and GM creates succeed while player and non-member writes are denied
   });
   assert.equal(archivedOwnerEntry?.status, "archived");
   assert.equal(archivedOwnerEntry?.source?.kind, "partyCodex");
-  assert.equal(archivedOwnerEntry?.source?.originalPath, undefined);
+  assert.equal(
+    archivedOwnerEntry?.source?.originalPath,
+    `partyCodex:archived:${ownerEntry._id}:${ownerEntry.path}`
+  );
   assert.notEqual(replacementOwnerEntry?._id?.toString(), ownerEntry._id.toString());
   assert.equal(replacementOwnerEntry?.source?.originalPath, `partyCodex:${ownerEntry.path}`);
 });

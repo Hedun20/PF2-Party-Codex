@@ -286,7 +286,7 @@ export async function archiveEntryByPath({ campaignId, path, userId = null } = {
     $set: { status: "archived", archivedAt: stamp, archivedBy: objectIdFrom(userId) || userId || null, trashPath, updatedAt: stamp }
   };
   if (existing.source?.kind === "partyCodex" && existing.source?.originalPath?.startsWith("partyCodex:")) {
-    update.$unset = { "source.originalPath": "" };
+    update.$set["source.originalPath"] = `partyCodex:archived:${idString(existing._id)}:${existing.path}`;
   }
   await entries().updateOne(
     { _id: existing._id, campaignId: campaignObjectId },
