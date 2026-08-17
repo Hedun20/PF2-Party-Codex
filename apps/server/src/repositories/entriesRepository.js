@@ -2,6 +2,8 @@ import { ObjectId } from "mongodb";
 import { getDb, mongoStatus } from "../db/mongo.js";
 import { collections } from "./collections.js";
 
+const PARTY_CODEX_SOURCE_PREFIX = "partyCodex:";
+
 export function isMongoEntriesEnabled() {
   return mongoStatus().connected;
 }
@@ -285,8 +287,8 @@ export async function archiveEntryByPath({ campaignId, path, userId = null } = {
   const update = {
     $set: { status: "archived", archivedAt: stamp, archivedBy: objectIdFrom(userId) || userId || null, trashPath, updatedAt: stamp }
   };
-  if (existing.source?.kind === "partyCodex" && existing.source?.originalPath?.startsWith("partyCodex:")) {
-    update.$set["source.originalPath"] = `partyCodex:archived:${idString(existing._id)}:${existing.path}`;
+  if (existing.source?.kind === "partyCodex" && existing.source?.originalPath?.startsWith(PARTY_CODEX_SOURCE_PREFIX)) {
+    update.$set["source.originalPath"] = `${PARTY_CODEX_SOURCE_PREFIX}archived:${idString(existing._id)}:${existing.path}`;
   }
   await entries().updateOne(
     { _id: existing._id, campaignId: campaignObjectId },
@@ -309,7 +311,13 @@ export async function countEntriesByCampaign(campaignId) {
 export async function upsertEntryFromImport(entry) {
   const stamp = now();
   const campaignId = objectIdFrom(entry.campaignId) || entry.campaignId;
-  const sourcePath = entry.source?.originalPath || entry.path;
+  const sourcePath = String(entry.source?.originalPath || entry.path || "");
+  if (sourcePath.startsWith(PARTY_CODEX_SOURCE_PREFIX)) {
+    const error = new Error(`Imported source paths cannot use the reserved ${PARTY_CODEX_SOURCE_PREFIX} namespace.`);
+    error.status = 400;
+    error.code = "ENTRY_SOURCE_PATH_RESERVED";
+    throw error;
+  }
   const filter = { campaignId, "source.originalPath": sourcePath };
   const existing = await entries().findOne(filter);
   const {

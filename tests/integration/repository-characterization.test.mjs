@@ -477,6 +477,25 @@ test("source keys preserve the rollback index and per-campaign import uniqueness
   assert.equal(sourceIndexes[0].sparse, true);
   assert.equal(sourceIndexes[0].partialFilterExpression, undefined);
 
+  const reservedPath = "partyCodex:lore/owner-created-entry.md";
+  await assert.rejects(
+    upsertEntryFromImport(importedEntryDocument({
+      campaignId: ids.campaignA,
+      title: "Reserved namespace import",
+      originalPath: reservedPath
+    })),
+    (error) => error?.status === 400 && error?.code === "ENTRY_SOURCE_PATH_RESERVED"
+  );
+  const nativeAfterRejectedImport = await database.collection("entries").findOne({
+    campaignId: ids.campaignA,
+    "source.originalPath": reservedPath
+  });
+  assert.equal(nativeAfterRejectedImport?.title, "Recreated owner entry");
+  assert.equal(await database.collection("entries").countDocuments({
+    campaignId: ids.campaignA,
+    title: "Reserved namespace import"
+  }), 0);
+
   const originalPath = "imports/shared-source.md";
   const first = await upsertEntryFromImport(importedEntryDocument({
     campaignId: ids.campaignA,
