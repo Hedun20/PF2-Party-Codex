@@ -52,7 +52,7 @@ Uncoded legacy errors require the adapter to pass the HTTP status in `Compatibil
 
 ## Validation record
 
-GitHub Actions run `32026127820` on Node 24.19.0 and npm 11.17.0 passed `npm ci`, strict typecheck, all seven new contract tests, invitation/auth contracts, route/access contracts, server smoke tests, content/seed/character/select contracts, the production web build, and syntax checks.
+GitHub Actions run `32028056913` on Node 24.19.0 and npm 11.17.0 passed `npm ci`, strict typecheck, all ten contract and recursive dependency-boundary tests, invitation/auth contracts, route/access contracts, server smoke tests, content/seed/character/select contracts, the production web build, and syntax checks. The ten contract tests include regressions for all six Codex review findings on commit `f381a7d15bad3ae1afc1b5d493bbb3f359f1f6e5`.
 
 The unchanged `npm run audit:production` gate failed with six advisories: one low, two moderate, and three high. The high findings are in `js-yaml`, `nanoid`, and `postcss`; `body-parser` is also reported without a severity line in npm's output, and the moderate chain is `react-router`/`react-router-dom`. These exact dependency versions already exist in the approved HED-20 base commit `f5334cf0` and are not introduced by TypeScript or either new workspace package. HED-20 previously recorded a worse baseline of ten advisories (three low, three moderate, four high) in `CURRENT_STATE_AUDIT.md`.
 
