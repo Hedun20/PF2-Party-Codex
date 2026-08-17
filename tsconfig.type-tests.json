@@ -4,6 +4,7 @@
     "composite": false,
     "declaration": false,
     "declarationMap": false,
+    "isolatedDeclarations": false,
     "noEmit": true
   },
   "files": ["./tests/contracts/type-boundaries.type-test.ts"]
