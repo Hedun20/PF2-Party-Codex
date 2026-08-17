@@ -7,5 +7,5 @@
     "isolatedDeclarations": false,
     "noEmit": true
   },
-  "files": ["./tests/contracts/type-boundaries.type-test.ts"]
+  "files": ["./tests/contracts/type-boundaries.type-test.mts"]
 }
