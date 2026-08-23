@@ -22,10 +22,11 @@ UI visibility is not an authorization input and never satisfies this boundary.
 - `player` receives only player-safe decisions.
 - `invited`, `removed` and `expired` states fail before role checks.
 - An active membership with `membershipExpiresAt <= evaluatedAt` also fails as expired.
+- Membership timestamps and `evaluatedAt` use canonical UTC instants (`YYYY-MM-DDTHH:mm:ss.sssZ`). Implementation-dependent `Date.parse` inputs such as `"0"` are invalid; adapters supply a fresh trusted server instant rather than request data.
 - Workspace and campaign IDs must match both subject and request. A role from another campaign is irrelevant.
 - Platform administration is not part of this subject and cannot imply campaign membership.
 
-`membershipUpdatedAt`, `membershipState`, role, membership ID, assigned character IDs and `characterGrantVersion` participate in the policy cache key. Removal, expiry, role change or character reassignment therefore produces a different discriminator immediately.
+`membershipUpdatedAt`, `membershipState`, role, membership ID, assigned character IDs and `characterGrantVersion` participate in the policy cache key. Character and capability arrays use an unambiguous encoded array segment rather than delimiter-joining. For an expiring membership, the key also contains a current/expired discriminator derived from the fresh canonical evaluation instant, so the pre-expiry allow key cannot be read at or after the deadline. Removal, expiry, role change or character reassignment therefore produces a different discriminator immediately.
 
 ## Human action matrix
 
@@ -93,7 +94,7 @@ All consumers use this sequence:
 4. derive the exact read scope before repository access;
 5. evaluate resource visibility where an item-level grant is required;
 6. serialize to the player, manager or dedicated machine DTO;
-7. cache only under `buildCampaignPolicyCacheKey` with a static allowlisted namespace and invalidate source rows normally.
+7. cache only under `buildCampaignPolicyCacheKey` with a static allowlisted namespace and the same fresh canonical server evaluation instant used by policy; never reuse an earlier request's instant, cap an expiring membership's entry TTL at its deadline as defence in depth, and invalidate source rows normally.
 
 ## Security proof
 

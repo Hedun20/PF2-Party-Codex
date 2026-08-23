@@ -106,6 +106,22 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
+function isCanonicalInstant(value: unknown): value is string {
+  if (!isNonEmptyString(value) || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)) {
+    return false;
+  }
+  const instant = Date.parse(value);
+  return Number.isFinite(instant) && new Date(instant).toISOString() === value;
+}
+
+function isDenseArrayOf(value: unknown, predicate: (item: unknown) => boolean): boolean {
+  if (!Array.isArray(value)) return false;
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(value, index) || !predicate(value[index])) return false;
+  }
+  return true;
+}
+
 function validScope(value: { readonly workspaceId: WorkspaceId; readonly campaignId: CampaignId }): boolean {
   return isNonEmptyString(value.workspaceId) && isNonEmptyString(value.campaignId);
 }
@@ -116,15 +132,13 @@ function validHumanSubject(subject: HumanCampaignPolicySubject): boolean {
     && validScope(subject)
     && isNonEmptyString(subject.userId)
     && isNonEmptyString(subject.membershipId)
-    && isNonEmptyString(subject.membershipUpdatedAt)
-    && Number.isFinite(Date.parse(subject.membershipUpdatedAt))
+    && isCanonicalInstant(subject.membershipUpdatedAt)
     && isNonEmptyString(subject.characterGrantVersion)
     && (CAMPAIGN_ROLES as readonly string[]).includes(subject.role)
     && (POLICY_MEMBERSHIP_STATES as readonly string[]).includes(subject.membershipState)
-    && Array.isArray(subject.assignedCharacterIds)
-    && subject.assignedCharacterIds.every(isNonEmptyString)
+    && isDenseArrayOf(subject.assignedCharacterIds, isNonEmptyString)
     && (subject.membershipExpiresAt === null
-      || (isNonEmptyString(subject.membershipExpiresAt) && Number.isFinite(Date.parse(subject.membershipExpiresAt))));
+      || isCanonicalInstant(subject.membershipExpiresAt));
 }
 
 function validMachineSubject(subject: MachineCampaignPolicySubject): boolean {
@@ -135,9 +149,9 @@ function validMachineSubject(subject: MachineCampaignPolicySubject): boolean {
     && isNonEmptyString(subject.principalId)
     && isNonEmptyString(subject.credentialVersion)
     && (MACHINE_CREDENTIAL_STATES as readonly string[]).includes(subject.credentialState)
-    && Array.isArray(subject.capabilities)
-    && subject.capabilities.every((capability) =>
-      (MACHINE_CAMPAIGN_CAPABILITIES as readonly string[]).includes(capability)
+    && isDenseArrayOf(subject.capabilities, (capability) =>
+      isNonEmptyString(capability)
+        && (MACHINE_CAMPAIGN_CAPABILITIES as readonly string[]).includes(capability)
     );
 }
 
@@ -145,19 +159,17 @@ function activeMembershipDecision(
   subject: HumanCampaignPolicySubject,
   evaluatedAt: string
 ): CampaignPolicyDecision | null {
+  if (!isCanonicalInstant(evaluatedAt)) return deny("POLICY_INPUT_INVALID");
   if (!(POLICY_MEMBERSHIP_STATES as readonly string[]).includes(subject.membershipState)) {
     return deny("POLICY_INPUT_INVALID");
   }
   if (subject.membershipState === "expired") return deny("MEMBERSHIP_EXPIRED");
   if (subject.membershipState !== "active") return deny("MEMBERSHIP_INACTIVE");
 
-  const evaluatedAtMs = Date.parse(evaluatedAt);
-  if (!Number.isFinite(evaluatedAtMs)) return deny("POLICY_INPUT_INVALID");
   if (subject.membershipExpiresAt === null) return null;
-
-  const expiryMs = Date.parse(subject.membershipExpiresAt);
-  if (!Number.isFinite(expiryMs)) return deny("POLICY_INPUT_INVALID");
-  return expiryMs <= evaluatedAtMs ? deny("MEMBERSHIP_EXPIRED") : null;
+  return Date.parse(subject.membershipExpiresAt) <= Date.parse(evaluatedAt)
+    ? deny("MEMBERSHIP_EXPIRED")
+    : null;
 }
 
 function isManager(subject: HumanCampaignPolicySubject): boolean {
@@ -245,10 +257,8 @@ function validResourcePolicy(resource: CampaignResourcePolicy): boolean {
     && (AUDIENCES as readonly string[]).includes(resource.audience)
     && (RELEASE_STATES as readonly string[]).includes(resource.releaseState)
     && (CAMPAIGN_CONTENT_CLASSES as readonly string[]).includes(resource.contentClass)
-    && Array.isArray(resource.explicitUserIds)
-    && resource.explicitUserIds.every(isNonEmptyString)
-    && Array.isArray(resource.explicitCharacterIds)
-    && resource.explicitCharacterIds.every(isNonEmptyString);
+    && isDenseArrayOf(resource.explicitUserIds, isNonEmptyString)
+    && isDenseArrayOf(resource.explicitCharacterIds, isNonEmptyString);
 }
 
 export function evaluateCampaignResourceRead(
@@ -335,15 +345,26 @@ function cacheSegment(value: unknown): string {
   return encodeURIComponent(String(value ?? ""));
 }
 
+function cacheArraySegment(values: readonly string[]): string {
+  return JSON.stringify([...values].sort());
+}
+
 export function buildCampaignPolicyCacheKey(
   subject: HumanCampaignPolicySubject | MachineCampaignPolicySubject,
-  namespace: CampaignPolicyCacheNamespace
+  namespace: CampaignPolicyCacheNamespace,
+  evaluatedAt: string
 ): string {
   if (!(CAMPAIGN_POLICY_CACHE_NAMESPACES as readonly string[]).includes(namespace)) {
     throw new Error("Unknown campaign policy cache namespace");
   }
+  if (!subject || typeof subject !== "object") {
+    throw new Error("Invalid campaign policy cache subject");
+  }
   if (subject.kind === "human" ? !validHumanSubject(subject) : !validMachineSubject(subject)) {
     throw new Error("Invalid campaign policy cache subject");
+  }
+  if (!isCanonicalInstant(evaluatedAt)) {
+    throw new Error("Invalid campaign policy cache evaluation instant");
   }
   const common = [
     CAMPAIGN_POLICY_VERSION,
@@ -359,8 +380,12 @@ export function buildCampaignPolicyCacheKey(
         subject.role,
         subject.membershipState,
         subject.membershipExpiresAt ?? "",
+        subject.membershipExpiresAt !== null
+          && Date.parse(subject.membershipExpiresAt) <= Date.parse(evaluatedAt)
+          ? "membership-expired"
+          : "membership-current",
         subject.membershipUpdatedAt,
-        [...subject.assignedCharacterIds].sort().join(","),
+        cacheArraySegment(subject.assignedCharacterIds),
         subject.characterGrantVersion
       ]
     : [
@@ -368,7 +393,7 @@ export function buildCampaignPolicyCacheKey(
         subject.principalId,
         subject.credentialState,
         subject.credentialVersion,
-        [...subject.capabilities].sort().join(",")
+        cacheArraySegment(subject.capabilities)
       ];
   return [...common, ...specific].map(cacheSegment).join("|");
 }

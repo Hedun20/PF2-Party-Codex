@@ -336,6 +336,9 @@ test("machine capabilities stay exact-campaign, active and explicitly allowliste
 });
 
 test("malformed adapter inputs fail closed instead of throwing", () => {
+  const sparseCharacterIds = new Array(1);
+  const sparseCapabilities = new Array(1);
+  const sparseResourceGrants = new Array(1);
   for (const decision of [
     authorizeHumanCampaignAction(
       human({ assignedCharacterIds: null }),
@@ -347,13 +350,42 @@ test("malformed adapter inputs fail closed instead of throwing", () => {
       humanRequest("campaign.read", "toString"),
       evaluatedAt
     ),
+    authorizeHumanCampaignAction(
+      human({ assignedCharacterIds: sparseCharacterIds }),
+      humanRequest("campaign.read"),
+      evaluatedAt
+    ),
+    authorizeHumanCampaignAction(
+      human(),
+      humanRequest("campaign.read"),
+      "0"
+    ),
+    authorizeHumanCampaignAction(
+      human({ membershipUpdatedAt: "0" }),
+      humanRequest("campaign.read"),
+      evaluatedAt
+    ),
+    authorizeHumanCampaignAction(
+      human({ membershipExpiresAt: "0" }),
+      humanRequest("campaign.read"),
+      evaluatedAt
+    ),
     authorizeMachineCampaignCapability(
       machine({ capabilities: null }),
+      machineRequest("job:execute", "job")
+    ),
+    authorizeMachineCampaignCapability(
+      machine({ capabilities: sparseCapabilities }),
       machineRequest("job:execute", "job")
     ),
     evaluateCampaignResourceRead(
       human(),
       resource({ explicitUserIds: null }),
+      evaluatedAt
+    ),
+    evaluateCampaignResourceRead(
+      human(),
+      resource({ explicitCharacterIds: sparseResourceGrants }),
       evaluatedAt
     ),
     deriveCampaignReadScope(
@@ -372,7 +404,7 @@ test("malformed adapter inputs fail closed instead of throwing", () => {
 });
 
 test("policy cache keys invalidate on tenant, membership, role, character and credential changes", () => {
-  const base = buildCampaignPolicyCacheKey(human(), "archive");
+  const base = buildCampaignPolicyCacheKey(human(), "archive", evaluatedAt);
   const humanVariants = [
     human({ campaignId: "campaign-b" }),
     human({ membershipUpdatedAt: "2026-08-23T11:00:00.000Z" }),
@@ -381,15 +413,45 @@ test("policy cache keys invalidate on tenant, membership, role, character and cr
     human({ assignedCharacterIds: ["character-b"] }),
     human({ characterGrantVersion: "character-grants-v2" })
   ];
-  for (const variant of humanVariants) assert.notEqual(buildCampaignPolicyCacheKey(variant, "archive"), base);
+  for (const variant of humanVariants) {
+    assert.notEqual(buildCampaignPolicyCacheKey(variant, "archive", evaluatedAt), base);
+  }
 
-  const machineBase = buildCampaignPolicyCacheKey(machine(), "job");
+  const machineBase = buildCampaignPolicyCacheKey(machine(), "job", evaluatedAt);
   assert.notEqual(
-    buildCampaignPolicyCacheKey(machine({ credentialVersion: "credential-v2" }), "job"),
+    buildCampaignPolicyCacheKey(machine({ credentialVersion: "credential-v2" }), "job", evaluatedAt),
     machineBase
   );
   assert.notEqual(
-    buildCampaignPolicyCacheKey(machine({ capabilities: ["job:execute"] }), "job"),
+    buildCampaignPolicyCacheKey(machine({ capabilities: ["job:execute"] }), "job", evaluatedAt),
     machineBase
+  );
+
+  const expiringMembership = human({ membershipExpiresAt: "2026-08-23T12:30:00.000Z" });
+  assert.notEqual(
+    buildCampaignPolicyCacheKey(expiringMembership, "archive", "2026-08-23T12:29:59.999Z"),
+    buildCampaignPolicyCacheKey(expiringMembership, "archive", "2026-08-23T12:30:00.000Z")
+  );
+
+  assert.notEqual(
+    buildCampaignPolicyCacheKey(
+      human({ assignedCharacterIds: ["character-a,b", "character-c"] }),
+      "archive",
+      evaluatedAt
+    ),
+    buildCampaignPolicyCacheKey(
+      human({ assignedCharacterIds: ["character-a", "b,character-c"] }),
+      "archive",
+      evaluatedAt
+    )
+  );
+
+  assert.throws(
+    () => buildCampaignPolicyCacheKey(human(), "archive", "0"),
+    /Invalid campaign policy cache evaluation instant/
+  );
+  assert.throws(
+    () => buildCampaignPolicyCacheKey(null, "archive", evaluatedAt),
+    /Invalid campaign policy cache subject/
   );
 });
