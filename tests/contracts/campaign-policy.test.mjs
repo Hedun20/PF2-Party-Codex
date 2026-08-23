@@ -338,6 +338,22 @@ test("Discord, Foundry, jobs, notifications, AI and exports use channel-bound po
     authorizeMachineCampaignCapability(machine(), machineRequest("foundry:ingest", "foundry")).code,
     "MACHINE_SCOPE_DENIED"
   );
+  assert.equal(
+    authorizeMachineCampaignCapability(connector, machineRequest("archive:read:party", "job")).code,
+    "MACHINE_SCOPE_DENIED"
+  );
+  assert.equal(
+    authorizeMachineCampaignCapability(connector, machineRequest("archive:read:party", "notification")).code,
+    "MACHINE_SCOPE_DENIED"
+  );
+  assert.equal(
+    authorizeMachineCampaignCapability(machine(), machineRequest("archive:read:party", "foundry")).code,
+    "MACHINE_SCOPE_DENIED"
+  );
+  assert.equal(
+    authorizeMachineCampaignCapability(connector, machineRequest("archive:read:party", "foundry")).allowed,
+    true
+  );
 });
 
 test("machine capabilities stay exact-campaign, active and explicitly allowlisted", () => {

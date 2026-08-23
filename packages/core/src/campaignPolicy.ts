@@ -241,10 +241,10 @@ export function authorizeMachineCampaignCapability(
   if (!MACHINE_CAPABILITIES_BY_CHANNEL[request.channel].has(request.capability)) {
     return deny("CHANNEL_ACTION_DENIED");
   }
-  if (subject.principalKind === "connector" && ["job:execute", "notification:deliver"].includes(request.capability)) {
+  if (subject.principalKind === "connector" && !["foundry", "export"].includes(request.channel)) {
     return deny("MACHINE_SCOPE_DENIED");
   }
-  if (subject.principalKind === "service" && request.capability === "foundry:ingest") {
+  if (subject.principalKind === "service" && request.channel === "foundry") {
     return deny("MACHINE_SCOPE_DENIED");
   }
   if (!subject.capabilities.includes(request.capability)) return deny("MACHINE_SCOPE_DENIED");

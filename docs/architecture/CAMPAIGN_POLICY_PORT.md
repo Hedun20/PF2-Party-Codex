@@ -75,7 +75,7 @@ Machine credentials never receive `owner`, `gm` or `player`. `MachineCampaignPol
 | `notification` | `notification:deliver` plus the minimum archive audience needed |
 | `export` | `export:create:party` or separately approved `export:create:gm` |
 
-Connector credentials cannot execute jobs or notifications. Service credentials cannot impersonate a Foundry connector. A revoked/expired credential, missing capability, wrong channel or wrong tenant fails closed. `archive:read:gm` selects a dedicated GM connector/service allowlist; it never maps the machine to a GM membership or a generic GM serializer.
+Principal kind is bound to channel independently of capability: connectors may use only `foundry` and their separately allowlisted `export` operations; services may use `job`, `notification` and separately allowlisted `export`, never `foundry`. A connector therefore cannot submit even a shared archive-read capability through a job/notification channel, and a service cannot submit it through the Foundry channel. A revoked/expired credential, missing capability, wrong principal kind/channel or wrong tenant fails closed. `archive:read:gm` selects a dedicated GM connector/service allowlist; it never maps the machine to a GM membership or a generic GM serializer.
 
 Notifications require two decisions: authorize the service delivery capability, then evaluate each resource as the recipient's current human subject. AI retrieval follows the same rule for the requesting user/character. Job attribution such as `initiatedByUserId` is audit context, not service authority.
 
