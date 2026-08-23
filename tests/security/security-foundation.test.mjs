@@ -104,6 +104,39 @@ test("deep-link assertion rejects normalized traversal and non-local origins", (
   }
 });
 
+test("player-scoped records reject every private archive visibility", () => {
+  const scenario = fixtures.find((fixture) => fixture.id === "knowledge.player-a-vs-player-b");
+  const baseRecord = scenario.secure.records[0];
+  for (const visibility of ["gmOnly", "hidden", "needsReview", "draft", "unknown"]) {
+    assert.throws(
+      () => validateSecurityFixture(scenario, {
+        ...scenario.secure,
+        records: [{ ...baseRecord, visibility }]
+      }),
+      SecurityAssertionError
+    );
+  }
+  for (const visibility of ["public", "revealed", "party", "specificPlayers"]) {
+    assert.doesNotThrow(() => validateSecurityFixture(scenario, {
+      ...scenario.secure,
+      records: [{ ...baseRecord, visibility }]
+    }));
+  }
+});
+
+test("secret-leak assertions normalize credential field spellings", () => {
+  const scenario = fixtures.find((fixture) => fixture.id === "membership.removed-player");
+  for (const credentialKey of ["Authorization", "access_token", "connector_secret"]) {
+    assert.throws(
+      () => validateSecurityFixture(scenario, {
+        ...scenario.secure,
+        [credentialKey]: "credential-that-must-not-leak"
+      }),
+      SecurityAssertionError
+    );
+  }
+});
+
 test("analytics assertion rejects every field outside its explicit allowlist", () => {
   const scenario = fixtures.find((fixture) => fixture.id === "analytics.metadata-redaction");
   for (const extra of [

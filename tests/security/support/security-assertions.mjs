@@ -15,6 +15,11 @@ const DEFAULT_FORBIDDEN_KEYS = [
   "gmSecrets",
   "privateNotes"
 ];
+const PLAYER_SAFE_VISIBILITIES = new Set(["public", "revealed", "party", "specificplayers"]);
+
+function normalizeSecurityKey(key) {
+  return String(key).toLowerCase().replace(/[^a-z0-9]/g, "");
+}
 
 export function redactSecurityEvidence(value, _options = {}, seen = new WeakSet()) {
   if (value === null || value === undefined || typeof value !== "object") return "<redacted>";
@@ -71,8 +76,15 @@ export function assertNoSecretLeak(scenario, value, extraForbiddenKeys = []) {
     if (marker && serialized.includes(marker)) reject(scenario, "forbidden evidence reached the observable payload", value);
   }
   const keys = allKeys(value);
-  for (const key of [...DEFAULT_FORBIDDEN_KEYS, ...extraForbiddenKeys]) {
-    if (keys.has(key)) reject(scenario, `forbidden field ${key} reached the observable payload`, value);
+  const forbiddenKeys = new Map(
+    [...DEFAULT_FORBIDDEN_KEYS, ...extraForbiddenKeys]
+      .map((key) => [normalizeSecurityKey(key), key])
+  );
+  for (const observedKey of keys) {
+    const forbiddenKey = forbiddenKeys.get(normalizeSecurityKey(observedKey));
+    if (forbiddenKey) {
+      reject(scenario, `forbidden field ${forbiddenKey} reached the observable payload`, value);
+    }
   }
 }
 
@@ -94,8 +106,9 @@ export function assertScopedRecords(scenario, candidate) {
     if (expected.userId && !(record.allowedUserIds || []).includes(expected.userId)) {
       reject(scenario, "record is not authorized for the exact player", record);
     }
-    if (String(record.visibility || "").toLowerCase() === "gmonly") {
-      reject(scenario, "GM-only record reached a player response", record);
+    const visibility = String(record.visibility || "").trim().toLowerCase();
+    if (!PLAYER_SAFE_VISIBILITIES.has(visibility)) {
+      reject(scenario, "record without an explicitly player-safe visibility reached the response", record);
     }
   }
   assertNoSecretLeak(scenario, candidate);
