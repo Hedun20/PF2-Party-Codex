@@ -305,7 +305,7 @@ Phase 3 cannot exit until automated tests cover these boundaries with live Mongo
 
 | Threat | Required proof |
 |---|---|
-| Browser XSS steals durable auth | Cookie is HttpOnly; no token in HTML/RSC props/Client Component/localStorage/logs |
+| Browser XSS steals cookie-session auth | The Next/cookie path exposes no credential in HTML, RSC props, Client Components, Next-owned `localStorage`, or logs; the session cookie is HttpOnly |
 | Cross-site mutation | SameSite cookie plus exact Origin/Referer and synchronizer token; missing/invalid input denied |
 | Session fixation | Login ignores caller session ID and rotates any pre-auth state |
 | Session replay/rotation race | Previous token works only in bounded overlap; replay after overlap revokes family |
@@ -319,6 +319,8 @@ Phase 3 cannot exit until automated tests cover these boundaries with live Mongo
 | Human-session audit leakage | Login/session/CSRF/context audit facts contain no token, code, secret, or private payload |
 
 Passing this table, plus existing login, verification, recovery, invitation-return, and enumeration-safe tests, unblocks the Next.js foundation. Discord, Foundry, and worker features are not Phase 3 exit dependencies.
+
+During migration steps 2-5, the frozen Vite client is the only accepted exception to the browser-storage row: it may continue to own `pf2-auth-token` in its existing `localStorage` path so retained/recovered Bearers can support rollback. Tests must prove that this compatibility token is never read, copied, serialized, or logged by the Next/cookie path. Step 6 removes the exception and adds a repository-wide assertion that no browser auth token remains in `localStorage`.
 
 ### Discord identity-link gate
 
@@ -361,8 +363,8 @@ Every task also adds contract tests for its stable errors, credential parsing, p
 HED-23 freezes behavior; it does not authorize runtime cutover. Implementation should be split so each review remains rollbackable:
 
 1. Add typed principal/error/session-store ports and Mongo indexes with no route cutover.
-2. Add the Express cookie/CSRF/legacy gateway behind `bearer-only`, including dual-mutation compatibility and cookie-to-Bearer rollback recovery, then execute the Phase 3 table.
-3. Move all protected campaign adapters to exact route context and reject compatibility disagreement.
+2. Add the Express cookie/CSRF/legacy gateway behind `bearer-only`, including dual-mutation compatibility and cookie-to-Bearer rollback recovery. Exercise the session-specific rows, but do not claim the combined Phase 3 gate yet.
+3. Move all protected campaign adapters to exact route context, reject compatibility disagreement, and only then execute the complete Phase 3 human-session and campaign-context table.
 4. Add Discord identity linking as an independent provider adapter.
 5. Add Foundry pairing and connector authentication only with the first approved connector endpoints.
 6. Split the worker and add service identity when the deploy topology and least-privilege Mongo users are ready.
