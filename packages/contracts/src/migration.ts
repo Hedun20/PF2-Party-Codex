@@ -13,6 +13,15 @@ import {
 export const MIGRATION_COMMANDS = ["inventory", "dryRun", "commit", "verify", "rollback"] as const;
 export const MIGRATION_REPORT_STATUSES = ["planned", "running", "succeeded", "failed", "rolledBack"] as const;
 export const MIGRATION_INVARIANT_STATUSES = ["pass", "warning", "fail"] as const;
+export const REQUIRED_RESTORE_INVARIANT_CODES = [
+  "BACKUP_ARTIFACT_CHECKSUM_VERIFIED",
+  "BACKUP_ENCRYPTION_VERIFIED",
+  "SNAPSHOT_CONSISTENCY_VERIFIED",
+  "RESTORE_TARGET_ISOLATED",
+  "PRODUCTION_ROUTING_BLOCKED",
+  "RESTORED_COUNTS_MATCH",
+  "RESTORED_INDEXES_MATCH"
+] as const;
 export const MIGRATION_COLLECTIONS = [
   "users",
   "profiles",
@@ -100,10 +109,21 @@ export interface MigrationRestoreDrillContract {
   readonly sourceDatabaseFingerprint: string;
   readonly manifestHash: string;
   readonly backupArtifactHash: string;
+  readonly sourceMongoVersion: string;
+  readonly databaseToolVersion: string;
+  readonly backupEncrypted: true;
+  readonly encryptionKeyVersion: string;
+  readonly consistencyBoundaryKind: "oplog" | "coordinatedSnapshot" | "pointInTime";
+  readonly consistencyBoundaryRef: string;
   readonly restoredDatabaseFingerprint: string;
+  readonly restoreEnvironment: "isolated";
+  readonly productionRoutingDisabled: true;
+  readonly operatorId: string;
   readonly status: "succeeded";
   readonly startedAt: string;
   readonly completedAt: string;
+  readonly restorationDurationMs: number;
+  readonly restoreTargetExpiresAt: string;
   readonly validUntil: string;
   readonly collectionCount: number;
   readonly indexCount: number;
@@ -457,10 +477,21 @@ export function parseMigrationRestoreDrill(
     "sourceDatabaseFingerprint",
     "manifestHash",
     "backupArtifactHash",
+    "sourceMongoVersion",
+    "databaseToolVersion",
+    "backupEncrypted",
+    "encryptionKeyVersion",
+    "consistencyBoundaryKind",
+    "consistencyBoundaryRef",
     "restoredDatabaseFingerprint",
+    "restoreEnvironment",
+    "productionRoutingDisabled",
+    "operatorId",
     "status",
     "startedAt",
     "completedAt",
+    "restorationDurationMs",
+    "restoreTargetExpiresAt",
     "validUntil",
     "collectionCount",
     "indexCount",
@@ -471,9 +502,23 @@ export function parseMigrationRestoreDrill(
   if (migrationVersion === 0) fail(`${path}.migrationVersion`, "must be greater than zero");
   const startedAt = parseCanonicalInstant(record["startedAt"], `${path}.startedAt`);
   const completedAt = parseCanonicalInstant(record["completedAt"], `${path}.completedAt`);
+  const restorationDurationMs = parseNonNegativeInteger(
+    record["restorationDurationMs"],
+    `${path}.restorationDurationMs`
+  );
+  const restoreTargetExpiresAt = parseCanonicalInstant(
+    record["restoreTargetExpiresAt"],
+    `${path}.restoreTargetExpiresAt`
+  );
   const validUntil = parseCanonicalInstant(record["validUntil"], `${path}.validUntil`);
   if (Date.parse(completedAt) < Date.parse(startedAt)) {
     fail(`${path}.completedAt`, "cannot precede startedAt");
+  }
+  if (Date.parse(completedAt) - Date.parse(startedAt) !== restorationDurationMs) {
+    fail(`${path}.restorationDurationMs`, "must equal the measured restore interval");
+  }
+  if (Date.parse(restoreTargetExpiresAt) <= Date.parse(completedAt)) {
+    fail(`${path}.restoreTargetExpiresAt`, "must be later than completedAt");
   }
   if (Date.parse(validUntil) < Date.parse(completedAt)) {
     fail(`${path}.validUntil`, "cannot precede completedAt");
@@ -488,6 +533,12 @@ export function parseMigrationRestoreDrill(
   if (invariants.some((invariant) => invariant.status === "fail")) {
     fail(`${path}.invariants`, "a verified restore drill cannot contain failed invariants");
   }
+  for (const requiredCode of REQUIRED_RESTORE_INVARIANT_CODES) {
+    const requiredInvariant = invariants.find((invariant) => invariant.code === requiredCode);
+    if (requiredInvariant?.status !== "pass") {
+      fail(`${path}.invariants`, `${requiredCode} must be present with pass status`);
+    }
+  }
   const fatalIssueCount = parseNonNegativeInteger(record["fatalIssueCount"], `${path}.fatalIssueCount`);
   if (fatalIssueCount !== 0) fail(`${path}.fatalIssueCount`, "a verified restore drill cannot be fatal");
 
@@ -495,6 +546,15 @@ export function parseMigrationRestoreDrill(
   const indexCount = parseNonNegativeInteger(record["indexCount"], `${path}.indexCount`);
   if (collectionCount === 0) fail(`${path}.collectionCount`, "verified restore must contain collections");
   if (indexCount === 0) fail(`${path}.indexCount`, "verified restore must contain indexes");
+  const backupEncrypted = expectBoolean(record["backupEncrypted"], `${path}.backupEncrypted`);
+  if (!backupEncrypted) fail(`${path}.backupEncrypted`, "verified backup must be encrypted");
+  const productionRoutingDisabled = expectBoolean(
+    record["productionRoutingDisabled"],
+    `${path}.productionRoutingDisabled`
+  );
+  if (!productionRoutingDisabled) {
+    fail(`${path}.productionRoutingDisabled`, "production routing to the restore must be disabled");
+  }
 
   return {
     schemaVersion: expectEnum(
@@ -512,13 +572,34 @@ export function parseMigrationRestoreDrill(
     ),
     manifestHash: parseSha256(record["manifestHash"], `${path}.manifestHash`),
     backupArtifactHash: parseSha256(record["backupArtifactHash"], `${path}.backupArtifactHash`),
+    sourceMongoVersion: parseStableVersion(record["sourceMongoVersion"], `${path}.sourceMongoVersion`),
+    databaseToolVersion: parseStableVersion(record["databaseToolVersion"], `${path}.databaseToolVersion`),
+    backupEncrypted: true,
+    encryptionKeyVersion: parseStableVersion(
+      record["encryptionKeyVersion"],
+      `${path}.encryptionKeyVersion`
+    ),
+    consistencyBoundaryKind: expectEnum(
+      record["consistencyBoundaryKind"],
+      ["oplog", "coordinatedSnapshot", "pointInTime"] as const,
+      `${path}.consistencyBoundaryKind`
+    ),
+    consistencyBoundaryRef: parseStableVersion(
+      record["consistencyBoundaryRef"],
+      `${path}.consistencyBoundaryRef`
+    ),
     restoredDatabaseFingerprint: parseSha256(
       record["restoredDatabaseFingerprint"],
       `${path}.restoredDatabaseFingerprint`
     ),
+    restoreEnvironment: expectEnum(record["restoreEnvironment"], ["isolated"] as const, `${path}.restoreEnvironment`),
+    productionRoutingDisabled: true,
+    operatorId: parseStableVersion(record["operatorId"], `${path}.operatorId`),
     status: expectEnum(record["status"], ["succeeded"] as const, `${path}.status`),
     startedAt,
     completedAt,
+    restorationDurationMs,
+    restoreTargetExpiresAt,
     validUntil,
     collectionCount,
     indexCount,
@@ -706,7 +787,7 @@ function parseInvariant(value: unknown, path: string): MigrationInvariantContrac
   const record = expectRecord(value, path);
   expectExactKeys(record, ["code", "status", "expectedCount", "actualCount"], path);
   return {
-    code: expectString(record["code"], `${path}.code`),
+    code: parseSafeCode(record["code"], `${path}.code`),
     status: expectEnum(record["status"], MIGRATION_INVARIANT_STATUSES, `${path}.status`),
     expectedCount: parseNullableNonNegativeInteger(record["expectedCount"], `${path}.expectedCount`),
     actualCount: parseNullableNonNegativeInteger(record["actualCount"], `${path}.actualCount`)
@@ -810,8 +891,19 @@ export function parseMigrationReport(value: unknown, path = "migrationReport"): 
   if (["inventory", "dryRun"].includes(command) && backupRestoreRef !== null) {
     fail(`${path}.backupRestoreRef`, "read-only reports must not claim a restore gate");
   }
-  if (["inventory", "dryRun"].includes(command) && counts.some((count) => count.written !== 0)) {
-    fail(`${path}.counts`, "inventory and dry-run reports cannot claim domain writes");
+  if (["inventory", "dryRun", "verify"].includes(command) && counts.some((count) => count.written !== 0)) {
+    fail(`${path}.counts`, "inventory, dry-run and verify reports cannot claim writes");
+  }
+  const rollbackWriteCollections = new Set<MigrationCollectionName>([
+    "auditLogs",
+    "migrationRuns",
+    "migrationItems",
+    "migrationReports"
+  ]);
+  if (command === "rollback" && counts.some((count) => (
+    count.written !== 0 && !rollbackWriteCollections.has(count.collection)
+  ))) {
+    fail(`${path}.counts`, "rollback reports can claim writes only to migration control and audit collections");
   }
 
   const fatalIssueCount = parseNonNegativeInteger(record["fatalIssueCount"], `${path}.fatalIssueCount`);
@@ -828,14 +920,24 @@ export function parseMigrationReport(value: unknown, path = "migrationReport"): 
     if (counts.some((count) => count.failed !== 0)) {
       fail(`${path}.counts`, "successful reports cannot contain failed items");
     }
-    if (checkpoint.processed !== checkpoint.total) {
-      fail(`${path}.checkpoint`, "successful reports require a complete checkpoint");
+    const plannedTotal = counts.reduce((total, count) => total + count.planned, 0);
+    const processedTotal = counts.reduce((total, count) => (
+      total + count.written + count.skipped + count.quarantined + count.failed
+    ), 0);
+    if (!Number.isSafeInteger(plannedTotal) || !Number.isSafeInteger(processedTotal)) {
+      fail(`${path}.counts`, "aggregate report counts must be safe integers");
     }
-  }
-  if (status === "succeeded" && command === "commit" && counts.some((count) => (
-    count.written + count.skipped + count.quarantined + count.failed !== count.planned
-  ))) {
-    fail(`${path}.counts`, "successful commit outcomes must account for every planned item");
+    if (counts.some((count) => (
+      count.written + count.skipped + count.quarantined + count.failed !== count.planned
+    ))) {
+      fail(`${path}.counts`, "successful outcomes must account for every planned item");
+    }
+    if (plannedTotal > 0 && checkpoint.batchId === null) {
+      fail(`${path}.checkpoint.batchId`, "successful work requires a nonempty checkpoint batch");
+    }
+    if (checkpoint.total !== plannedTotal || checkpoint.processed !== processedTotal) {
+      fail(`${path}.checkpoint`, "must reconcile exactly with planned and processed report evidence");
+    }
   }
 
   return {

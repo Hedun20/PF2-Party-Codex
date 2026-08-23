@@ -83,19 +83,38 @@ function restoreDrill(overrides = {}) {
     sourceDatabaseFingerprint,
     manifestHash,
     backupArtifactHash,
+    sourceMongoVersion: "8.0.12",
+    databaseToolVersion: "100.13.0",
+    backupEncrypted: true,
+    encryptionKeyVersion: "kms-key-v7",
+    consistencyBoundaryKind: "oplog",
+    consistencyBoundaryRef: "oplog-boundary-redacted-001",
     restoredDatabaseFingerprint,
+    restoreEnvironment: "isolated",
+    productionRoutingDisabled: true,
+    operatorId: "automation-migration-operator-v1",
     status: "succeeded",
     startedAt: "2026-08-23T15:00:00.000Z",
     completedAt: "2026-08-23T15:30:00.000Z",
+    restorationDurationMs: 1_800_000,
+    restoreTargetExpiresAt: "2026-08-24T15:30:00.000Z",
     validUntil: "2026-08-30T15:30:00.000Z",
     collectionCount: 2,
     indexCount: 2,
-    invariants: [{
-      code: "RESTORED_COUNTS_MATCH",
+    invariants: [
+      "BACKUP_ARTIFACT_CHECKSUM_VERIFIED",
+      "BACKUP_ENCRYPTION_VERIFIED",
+      "SNAPSHOT_CONSISTENCY_VERIFIED",
+      "RESTORE_TARGET_ISOLATED",
+      "PRODUCTION_ROUTING_BLOCKED",
+      "RESTORED_COUNTS_MATCH",
+      "RESTORED_INDEXES_MATCH"
+    ].map((code) => ({
+      code,
       status: "pass",
-      expectedCount: 3,
-      actualCount: 3
-    }],
+      expectedCount: null,
+      actualCount: null
+    })),
     fatalIssueCount: 0,
     ...overrides
   };
@@ -233,15 +252,26 @@ test("commit requires a canonically hashed manifest and matching valid restore d
     verification({ restoreDrill: restoreDrill({ collectionCount: 0 }) }),
     verification({ restoreDrill: restoreDrill({ indexCount: 0 }) }),
     verification({ restoreDrill: restoreDrill({ invariants: [] }) }),
+    verification({ restoreDrill: restoreDrill({ backupEncrypted: false }) }),
+    verification({ restoreDrill: restoreDrill({ productionRoutingDisabled: false }) }),
+    verification({ restoreDrill: restoreDrill({ restoreEnvironment: "production" }) }),
+    verification({ restoreDrill: restoreDrill({ restorationDurationMs: 1 }) }),
+    verification({ restoreDrill: restoreDrill({ sourceMongoVersion: "mongodb://private.invalid" }) }),
+    verification({ restoreDrill: restoreDrill({ operatorId: "operator@example.invalid" }) }),
+    verification({
+      restoreDrill: restoreDrill({
+        invariants: restoreDrill().invariants.filter((item) => item.code !== "PRODUCTION_ROUTING_BLOCKED")
+      })
+    }),
     verification({ restoreDrill: restoreDrill({ fatalIssueCount: 1 }) }),
     verification({
       restoreDrill: restoreDrill({
-        invariants: [{
-          code: "RESTORED_COUNTS_MATCH",
+        invariants: restoreDrill().invariants.map((invariant) => invariant.code === "RESTORED_COUNTS_MATCH" ? {
+          ...invariant,
           status: "fail",
           expectedCount: 3,
           actualCount: 2
-        }]
+        } : invariant)
       })
     })
   ]) {
@@ -284,9 +314,18 @@ test("migration reports expose bounded counts and invariants without raw records
     () => parseMigrationReport({ ...report(), rawPayload: { private: "must not enter reports" } }),
     ContractValidationError
   );
+  for (const code of ["mongodb://private.invalid", "TOKEN=secret", "X", "A".repeat(129)]) {
+    assert.throws(
+      () => parseMigrationReport({
+        ...report(),
+        invariants: [{ ...report().invariants[0], code }]
+      }),
+      ContractValidationError
+    );
+  }
 });
 
-test("read-only reports reject every claimed domain write", () => {
+test("read-only and routing rollback reports reject unauthorized writes", () => {
   const baseCount = report().counts[0];
   const safeDryRun = report({
     command: "dryRun",
@@ -296,6 +335,18 @@ test("read-only reports reject every claimed domain write", () => {
   assert.equal(parseMigrationReport(safeDryRun).counts[0].written, 0);
   assert.throws(
     () => parseMigrationReport(report({ command: "dryRun", backupRestoreRef: null })),
+    ContractValidationError
+  );
+  assert.throws(
+    () => parseMigrationReport(report({ command: "verify" })),
+    ContractValidationError
+  );
+  assert.throws(
+    () => parseMigrationReport(report({
+      command: "rollback",
+      status: "rolledBack",
+      rollback: { routingProfile: "legacy", writerProfile: "legacy", dataDeleted: false }
+    })),
     ContractValidationError
   );
 });
@@ -310,7 +361,10 @@ test("successful reports reject failed invariants, fatal issues, failures and in
     report({ invariants: [] }),
     report({ counts: [{ ...baseCount, written: 1, failed: 1 }] }),
     report({ checkpoint: { batchId: "entries-0001", processed: 1, total: 2 } }),
-    report({ counts: [{ ...baseCount, written: 1 }] })
+    report({ counts: [{ ...baseCount, written: 1 }] }),
+    report({ checkpoint: { batchId: null, processed: 2, total: 2 } }),
+    report({ checkpoint: { batchId: "entries-0001", processed: 0, total: 0 } }),
+    report({ checkpoint: { batchId: "entries-0001", processed: 3, total: 3 } })
   ]) {
     assert.throws(() => parseMigrationReport(candidate), ContractValidationError);
   }
@@ -339,19 +393,42 @@ test("rollback reports prove route and writer rollback without deleting migrated
     writerProfile: "legacy",
     dataDeleted: false
   };
+  const auditCount = {
+    ...report().counts[0],
+    collection: "auditLogs",
+    scanned: 1,
+    planned: 1,
+    written: 1
+  };
   assert.deepEqual(parseMigrationReport(report({
     command: "rollback",
     status: "rolledBack",
+    counts: [auditCount],
+    checkpoint: { batchId: "rollback-routing-0001", processed: 1, total: 1 },
     rollback
   })).rollback, rollback);
   for (const candidate of [
     report({
       command: "rollback",
       status: "rolledBack",
+      counts: [auditCount],
+      checkpoint: { batchId: "rollback-routing-0001", processed: 1, total: 1 },
       rollback: { ...rollback, dataDeleted: true }
     }),
-    report({ command: "rollback", status: "succeeded", rollback }),
-    report({ command: "rollback", status: "rolledBack", rollback: null })
+    report({
+      command: "rollback",
+      status: "succeeded",
+      counts: [auditCount],
+      checkpoint: { batchId: "rollback-routing-0001", processed: 1, total: 1 },
+      rollback
+    }),
+    report({
+      command: "rollback",
+      status: "rolledBack",
+      counts: [auditCount],
+      checkpoint: { batchId: "rollback-routing-0001", processed: 1, total: 1 },
+      rollback: null
+    })
   ]) {
     assert.throws(() => parseMigrationReport(candidate), ContractValidationError);
   }
