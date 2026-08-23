@@ -1,0 +1,27 @@
+{
+  "name": "@pf2-party-codex/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    "./public": {
+      "types": "./dist/public.d.ts",
+      "default": "./dist/public.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./foundry": {
+      "types": "./dist/foundry.d.ts",
+      "default": "./dist/foundry.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b --pretty false",
+    "typecheck": "tsc -p tsconfig.json --noEmit --composite false --pretty false"
+  }
+}

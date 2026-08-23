@@ -1,0 +1,25 @@
+{
+  "name": "@pf2-party-codex/web-next",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "typecheck": "next typegen && tsc --noEmit --pretty false",
+    "start": "next start --port 3000"
+  },
+  "dependencies": {
+    "@pf2-party-codex/config": "0.1.0",
+    "@pf2-party-codex/contracts": "0.1.0",
+    "@pf2-party-codex/core": "0.1.0",
+    "next": "16.3.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4"
+  }
+}

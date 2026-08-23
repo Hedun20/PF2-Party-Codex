@@ -2,23 +2,33 @@
   "name": "pf2-party-codex",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@11.9.0",
   "description": "Archive-first TTRPG campaign workspace with MongoDB source of truth, GM/Player portals, and invitation-based campaign access.",
   "engines": {
-    "node": ">=24 <25"
+    "node": ">=24 <25",
+    "npm": ">=11.9 <12"
   },
   "scripts": {
     "dev": "concurrently -n server,web -c magenta,cyan \"npm run dev --workspace apps/server\" \"npm run dev --workspace apps/web\"",
     "dev:clean": "node scripts/kill-dev-ports.mjs && npm run dev",
     "build": "npm run build --workspace apps/web",
+    "build:target": "npm run build:contracts && npm run build --workspace packages/config && npm run build --workspace apps/worker && npm run build --workspace apps/discord-bot && npm run build --workspace apps/foundry-module && npm run build --workspace apps/web-next",
     "build:contracts": "tsc -b tsconfig.contracts.json --pretty false",
     "typecheck": "npm run build:contracts && tsc -p tsconfig.type-tests.json --pretty false",
+    "typecheck:target": "npm run build:contracts && npm run build --workspace packages/config && npm run typecheck --workspace apps/worker && npm run typecheck --workspace apps/discord-bot && npm run typecheck --workspace apps/foundry-module && npm run typecheck --workspace apps/web-next",
     "test:contracts": "npm run build:contracts && node --test tests/contracts/*.test.mjs",
     "test:repositories": "node --test tests/integration/repository-characterization.test.mjs",
     "test": "node --test tests/route-contracts.test.mjs tests/server-smoke.test.mjs tests/content-contracts.test.mjs tests/demo-seed-contracts.test.mjs tests/demo-targeting-contracts.test.mjs tests/dice-roll-contracts.test.mjs tests/character-editor-contracts.test.mjs tests/character-assignment-contracts.test.mjs tests/pf2-tactical-sheet-contracts.test.mjs tests/pf2-import-enrichment-contracts.test.mjs tests/password-recovery-contracts.test.mjs tests/auth-continuity-contracts.test.mjs tests/invitation-auth-return-contracts.test.mjs tests/invitation-trust-flow-contracts.test.mjs tests/invitation-operations-contracts.test.mjs tests/membership-management-contracts.test.mjs tests/player-management-ui-contracts.test.mjs tests/profile-preferences-contracts.test.mjs tests/campaign-context-resilience-contracts.test.mjs tests/portal-home-contracts.test.mjs tests/route-state-polish-contracts.test.mjs tests/select-archive-hotfix-contracts.test.mjs tests/security/security-foundation.test.mjs",
     "test:security": "node --test tests/security/security-foundation.test.mjs",
+    "test:workspace": "npm run build:target && npm run test:workspace:runtime",
+    "test:workspace:runtime": "node --test tests/workspace/*.test.mjs",
+    "lint": "biome lint apps/web-next apps/worker apps/discord-bot apps/foundry-module packages/config tests/workspace",
+    "format": "biome format --write apps/web-next apps/worker apps/discord-bot apps/foundry-module packages/config tests/workspace biome.json docs/architecture/STRICT_TYPESCRIPT_WORKSPACE.md",
+    "format:check": "biome format apps/web-next apps/worker apps/discord-bot apps/foundry-module packages/config tests/workspace biome.json docs/architecture/STRICT_TYPESCRIPT_WORKSPACE.md",
     "check:syntax": "find apps/server/src apps/server/scripts scripts tests -type f \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
     "audit:production": "npm audit --omit=dev --audit-level=high",
-    "verify": "npm run typecheck && npm run test:contracts && npm test && npm run build && npm run check:syntax && npm run audit:production",
+    "verify:target": "npm run lint && npm run format:check && npm run typecheck:target && npm run build:target && npm run test:workspace:runtime",
+    "verify": "npm run verify:target && npm run typecheck && npm run test:contracts && npm test && npm run build && npm run check:syntax && npm run audit:production",
     "demo:seed": "npm run demo:seed --workspace apps/server",
     "prestart": "npm run build",
     "start": "npm run start --workspace apps/server",
@@ -27,11 +37,18 @@
   "workspaces": [
     "apps/server",
     "apps/web",
+    "apps/web-next",
+    "apps/worker",
+    "apps/discord-bot",
+    "apps/foundry-module",
     "packages/contracts",
-    "packages/core"
+    "packages/core",
+    "packages/config"
   ],
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "typescript": "^7.0.2"
+    "@types/node": "24.13.3",
+    "@biomejs/biome": "2.5.10",
+    "concurrently": "8.2.2",
+    "typescript": "7.0.2"
   }
 }
