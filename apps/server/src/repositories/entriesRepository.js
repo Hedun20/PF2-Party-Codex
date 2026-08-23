@@ -1,8 +1,29 @@
+import { createHash } from "node:crypto";
 import { ObjectId } from "mongodb";
 import { getDb, mongoStatus } from "../db/mongo.js";
 import { collections } from "./collections.js";
 
 const PARTY_CODEX_SOURCE_PREFIX = "partyCodex:";
+
+export function nativeEntrySourceKey(path = "") {
+  const pathHash = createHash("sha256").update(String(path || ""), "utf8").digest("hex");
+  return `${PARTY_CODEX_SOURCE_PREFIX}live:${pathHash}`;
+}
+
+export function archivedNativeEntrySourceKey(entryId) {
+  return `${PARTY_CODEX_SOURCE_PREFIX}archived:${idString(entryId)}`;
+}
+
+export function assertImportSourcePathAllowed(value = "") {
+  const sourcePath = String(value || "");
+  if (sourcePath.startsWith(PARTY_CODEX_SOURCE_PREFIX)) {
+    const error = new Error(`Imported source paths cannot use the reserved ${PARTY_CODEX_SOURCE_PREFIX} namespace.`);
+    error.status = 400;
+    error.code = "ENTRY_SOURCE_PATH_RESERVED";
+    throw error;
+  }
+  return sourcePath;
+}
 
 export function isMongoEntriesEnabled() {
   return mongoStatus().connected;
@@ -288,7 +309,7 @@ export async function archiveEntryByPath({ campaignId, path, userId = null } = {
     $set: { status: "archived", archivedAt: stamp, archivedBy: objectIdFrom(userId) || userId || null, trashPath, updatedAt: stamp }
   };
   if (existing.source?.kind === "partyCodex" && existing.source?.originalPath?.startsWith(PARTY_CODEX_SOURCE_PREFIX)) {
-    update.$set["source.originalPath"] = `${PARTY_CODEX_SOURCE_PREFIX}archived:${idString(existing._id)}:${existing.path}`;
+    update.$set["source.originalPath"] = archivedNativeEntrySourceKey(existing._id);
   }
   await entries().updateOne(
     { _id: existing._id, campaignId: campaignObjectId },
@@ -311,13 +332,7 @@ export async function countEntriesByCampaign(campaignId) {
 export async function upsertEntryFromImport(entry) {
   const stamp = now();
   const campaignId = objectIdFrom(entry.campaignId) || entry.campaignId;
-  const sourcePath = String(entry.source?.originalPath || entry.path || "");
-  if (sourcePath.startsWith(PARTY_CODEX_SOURCE_PREFIX)) {
-    const error = new Error(`Imported source paths cannot use the reserved ${PARTY_CODEX_SOURCE_PREFIX} namespace.`);
-    error.status = 400;
-    error.code = "ENTRY_SOURCE_PATH_RESERVED";
-    throw error;
-  }
+  const sourcePath = assertImportSourcePathAllowed(entry.source?.originalPath || entry.path || "");
   const filter = { campaignId, "source.originalPath": sourcePath };
   const existing = await entries().findOne(filter);
   const {

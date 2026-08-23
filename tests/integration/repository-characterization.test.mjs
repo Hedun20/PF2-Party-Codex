@@ -5,9 +5,18 @@ import { ObjectId } from "mongodb";
 import { createApp } from "../../apps/server/src/app.js";
 import { config } from "../../apps/server/src/config.js";
 import { closeMongo, connectMongo, getDb } from "../../apps/server/src/db/mongo.js";
-import { ensureCodexIndexes, upsertEntryFromImport } from "../../apps/server/src/repositories/entriesRepository.js";
+import {
+  archivedNativeEntrySourceKey,
+  ensureCodexIndexes,
+  nativeEntrySourceKey,
+  upsertEntryFromImport
+} from "../../apps/server/src/repositories/entriesRepository.js";
 import { ensureIdentityIndexes } from "../../apps/server/src/repositories/identityRepository.js";
 import { createSessionToken } from "../../apps/server/src/services/authTokens.js";
+import {
+  assertVaultImportCanCommit,
+  validateVaultImportSourcePaths
+} from "../../apps/server/src/services/vaultImportService.js";
 
 const SAFE_DATABASE_PREFIX = "pf2_party_codex_test_";
 const SAFE_MONGO_HOSTS = new Set(["127.0.0.1", "localhost"]);
@@ -418,8 +427,8 @@ test("owner and GM creates succeed while player and non-member writes are denied
   const gmEntry = await database.collection("entries").findOne({ campaignId: ids.campaignA, path: "lore/gm-created-entry.md" });
   assert.ok(ownerEntry?._id);
   assert.ok(gmEntry?._id);
-  assert.equal(ownerEntry?.source?.originalPath, "partyCodex:lore/owner-created-entry.md");
-  assert.equal(gmEntry?.source?.originalPath, "partyCodex:lore/gm-created-entry.md");
+  assert.equal(ownerEntry?.source?.originalPath, nativeEntrySourceKey("lore/owner-created-entry.md"));
+  assert.equal(gmEntry?.source?.originalPath, nativeEntrySourceKey("lore/gm-created-entry.md"));
   assert.equal(await database.collection("entries").countDocuments({ campaignId: ids.campaignA, title: "Denied entry" }), 0);
 
   const [ownerRead, gmRead, playerRead] = await Promise.all([
@@ -435,6 +444,15 @@ test("owner and GM creates succeed while player and non-member writes are denied
   assert.equal(playerRead.status, 200);
   assert.equal(playerRead.json.entry.gmContent, "");
   assert.doesNotMatch(playerRead.text, /Owner-created entry GM secret/);
+
+  const collisionCandidatePath = `archived:${ownerEntry._id}:${ownerEntry.path}`;
+  const collisionCandidate = await api("/api/page", {
+    token: tokens["owner@example.test"],
+    campaignId,
+    method: "POST",
+    body: payload("Archive-key collision candidate", collisionCandidatePath)
+  });
+  assert.equal(collisionCandidate.status, 201, collisionCandidate.text);
 
   const archiveOwnerEntry = await api(`/api/page?path=${encodeURIComponent(ownerEntry.path)}`, {
     token: tokens["owner@example.test"],
@@ -459,12 +477,16 @@ test("owner and GM creates succeed while player and non-member writes are denied
   });
   assert.equal(archivedOwnerEntry?.status, "archived");
   assert.equal(archivedOwnerEntry?.source?.kind, "partyCodex");
-  assert.equal(
-    archivedOwnerEntry?.source?.originalPath,
-    `partyCodex:archived:${ownerEntry._id}:${ownerEntry.path}`
-  );
+  assert.equal(archivedOwnerEntry?.source?.originalPath, archivedNativeEntrySourceKey(ownerEntry._id));
   assert.notEqual(replacementOwnerEntry?._id?.toString(), ownerEntry._id.toString());
-  assert.equal(replacementOwnerEntry?.source?.originalPath, `partyCodex:${ownerEntry.path}`);
+  assert.equal(replacementOwnerEntry?.source?.originalPath, nativeEntrySourceKey(ownerEntry.path));
+
+  const liveCollisionCandidate = await database.collection("entries").findOne({
+    campaignId: ids.campaignA,
+    path: collisionCandidatePath
+  });
+  assert.equal(liveCollisionCandidate?.source?.originalPath, nativeEntrySourceKey(collisionCandidatePath));
+  assert.notEqual(liveCollisionCandidate?.source?.originalPath, archivedOwnerEntry?.source?.originalPath);
 });
 
 test("source keys preserve the rollback index and per-campaign import uniqueness", async () => {
@@ -477,7 +499,12 @@ test("source keys preserve the rollback index and per-campaign import uniqueness
   assert.equal(sourceIndexes[0].sparse, true);
   assert.equal(sourceIndexes[0].partialFilterExpression, undefined);
 
-  const reservedPath = "partyCodex:lore/owner-created-entry.md";
+  const liveNativeEntry = await database.collection("entries").findOne({
+    campaignId: ids.campaignA,
+    title: "Recreated owner entry"
+  });
+  const reservedPath = liveNativeEntry?.source?.originalPath;
+  assert.match(reservedPath, /^partyCodex:live:/);
   await assert.rejects(
     upsertEntryFromImport(importedEntryDocument({
       campaignId: ids.campaignA,
@@ -535,5 +562,27 @@ test("source keys preserve the rollback index and per-campaign import uniqueness
       originalPath
     })),
     (error) => error?.code === 11000
+  );
+});
+
+test("vault import validation rejects every reserved path before commit", () => {
+  const warnings = validateVaultImportSourcePaths([
+    { path: "lore/safe-first.md" },
+    { path: "partyCodex:live:colliding-later.md" },
+    { path: "lore/safe-last.md" },
+    { path: "partyCodex:archived:colliding-last.md" }
+  ]);
+
+  assert.equal(warnings.length, 2);
+  assert.deepEqual(warnings.map((warning) => warning.severity), ["error", "error"]);
+  assert.deepEqual(
+    warnings.map((warning) => warning.path),
+    ["partyCodex:live:colliding-later.md", "partyCodex:archived:colliding-last.md"]
+  );
+  assert.throws(
+    () => assertVaultImportCanCommit({ warnings }),
+    (error) => error?.status === 400
+      && error?.code === "ENTRY_SOURCE_PATH_RESERVED"
+      && error?.path === "partyCodex:live:colliding-later.md"
   );
 });

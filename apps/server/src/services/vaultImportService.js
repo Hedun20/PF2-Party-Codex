@@ -5,6 +5,7 @@ import { analyzePlayerSafety, redactPlayerContent } from "./visibilityService.js
 import { importLegacyAssetsForCampaign } from "./campaignAssetsService.js";
 import { listPages, rebuildVaultIndex } from "./vaultService.js";
 import {
+  assertImportSourcePathAllowed,
   createImportJob,
   idString,
   publicEntry,
@@ -264,11 +265,36 @@ function summarizePages(pages) {
   return { entries: pages.length, byType, byVisibility, pagesWithSecrets: secretCount, needsReview, mapLike };
 }
 
-export async function dryRunVaultImport({ campaignId, createdBy = null } = {}) {
-  await rebuildVaultIndex();
-  const pages = listPages("gm");
+export function validateVaultImportSourcePaths(pages = []) {
+  const errors = [];
+  for (const page of pages) {
+    try {
+      assertImportSourcePathAllowed(page?.path || "");
+    } catch (error) {
+      errors.push({
+        code: error?.code || "VAULT_IMPORT_SOURCE_PATH_INVALID",
+        severity: "error",
+        path: String(page?.path || ""),
+        message: error?.message || "Vault import source path is invalid."
+      });
+    }
+  }
+  return errors;
+}
+
+export function assertVaultImportCanCommit(dryRun = {}) {
+  const blocker = (dryRun.warnings || []).find((warning) => warning?.severity === "error");
+  if (!blocker) return;
+  const error = new Error(blocker.message || "Vault import validation failed.");
+  error.status = 400;
+  error.code = blocker.code || "VAULT_IMPORT_VALIDATION_FAILED";
+  error.path = blocker.path || "";
+  throw error;
+}
+
+function buildVaultImportDryRun({ pages, campaignId, createdBy }) {
   const lookup = buildPageLookup(pages);
-  const warnings = [];
+  const warnings = validateVaultImportSourcePaths(pages);
   for (const page of pages) {
     const safety = page.playerSafety || analyzePlayerSafety(page);
     if (safety.reviewNeeded) warnings.push({ code: "needsReview", severity: "info", path: page.path, message: `Needs review: ${safety.warnings?.join(" ") || "player safety review"}` });
@@ -289,11 +315,23 @@ export async function dryRunVaultImport({ campaignId, createdBy = null } = {}) {
   return job;
 }
 
+async function prepareVaultImport({ campaignId, createdBy }) {
+  await rebuildVaultIndex();
+  const pages = listPages("gm");
+  const dryRun = buildVaultImportDryRun({ pages, campaignId, createdBy });
+  return { pages, dryRun };
+}
+
+export async function dryRunVaultImport({ campaignId, createdBy = null } = {}) {
+  const { dryRun } = await prepareVaultImport({ campaignId, createdBy });
+  return dryRun;
+}
+
 export async function commitVaultImport({ campaignId, createdBy = null } = {}) {
-  const dryRun = await dryRunVaultImport({ campaignId, createdBy });
+  const { pages, dryRun } = await prepareVaultImport({ campaignId, createdBy });
+  assertVaultImportCanCommit(dryRun);
   const job = await createImportJob({ ...dryRun, status: "committing", completedAt: "" });
   const importJobId = idString(job._id);
-  const pages = listPages("gm");
   const entriesByPath = new Map();
   let inserted = 0;
   let updated = 0;

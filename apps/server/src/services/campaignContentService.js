@@ -11,6 +11,7 @@ import {
   findRawEntryByPath,
   isMongoEntriesEnabled,
   listEntries,
+  nativeEntrySourceKey,
   publicEntry,
   saveEntryByPath
 } from "../repositories/entriesRepository.js";
@@ -278,7 +279,7 @@ function documentFromPageInput({ requestedPath, frontmatter = {}, content = "", 
     },
     source: existing?.source || {
       kind: "partyCodex",
-      originalPath: `partyCodex:${normalizedPath}`
+      originalPath: nativeEntrySourceKey(normalizedPath)
     }
   };
 }
