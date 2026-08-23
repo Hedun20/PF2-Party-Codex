@@ -34,6 +34,7 @@ export type DiscordApplicationId = DiscordSnowflake<"DiscordApplicationId">;
 export type DiscordGuildId = DiscordSnowflake<"DiscordGuildId">;
 export type DiscordChannelId = DiscordSnowflake<"DiscordChannelId">;
 export type DiscordMessageId = DiscordSnowflake<"DiscordMessageId">;
+export type DiscordAttachmentId = DiscordSnowflake<"DiscordAttachmentId">;
 export type DiscordUserId = DiscordSnowflake<"DiscordUserId">;
 export type DiscordInteractionId = DiscordSnowflake<"DiscordInteractionId">;
 
@@ -342,6 +343,13 @@ export function parseDiscordMessageId(value: unknown, path = "messageId"): Disco
   return parseDiscordSnowflake<"DiscordMessageId">(value, path);
 }
 
+export function parseDiscordAttachmentId(
+  value: unknown,
+  path = "attachmentId"
+): DiscordAttachmentId {
+  return parseDiscordSnowflake<"DiscordAttachmentId">(value, path);
+}
+
 export function parseDiscordUserId(value: unknown, path = "userId"): DiscordUserId {
   return parseDiscordSnowflake<"DiscordUserId">(value, path);
 }
@@ -379,6 +387,11 @@ function utf8ByteLength(value: string): number {
     bytes += codePoint <= 0x7f ? 1 : codePoint <= 0x7ff ? 2 : codePoint <= 0xffff ? 3 : 4;
   }
   return bytes;
+}
+
+function compareDiscordSnowflakes(left: string, right: string): number {
+  if (left.length !== right.length) return left.length - right.length;
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function expectExactStringList(
@@ -478,7 +491,11 @@ export function parseDiscordConnectionBinding(
   for (let index = 0; index < channels.length; index += 1) {
     const previous = channels[index - 1];
     const current = channels[index];
-    if (current && previous && current.channelId <= previous.channelId) {
+    if (
+      current &&
+      previous &&
+      compareDiscordSnowflakes(current.channelId, previous.channelId) <= 0
+    ) {
       fail(`${path}.channels[${index}]`, "channels must be sorted and unique");
     }
     if (current && !integrationConnection.allowedStreams.includes(current.stream)) {

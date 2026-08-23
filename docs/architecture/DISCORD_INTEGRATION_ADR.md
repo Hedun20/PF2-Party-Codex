@@ -5,6 +5,7 @@
 - **Depends on:** HED-56 Integration Hub envelope, HED-21 campaign policy, HED-18 external connector boundary
 - **Executable contract:** `packages/contracts/src/discord.ts`
 - **Runtime tests:** `tests/contracts/discord-contract.test.mjs`
+- **Channel-capture extension:** [`DISCORD_CHANNEL_CAPTURE.md`](./DISCORD_CHANNEL_CAPTURE.md)
 - **Provider baseline checked:** Discord API v10 documentation on 2026-08-23
 
 ## Decision
@@ -73,7 +74,7 @@ sequenceDiagram
     E-->>C: Payload-free receipt and next cursor
 ```
 
-The connector subscribes only to `GUILDS`, `GUILD_MESSAGES` and `MESSAGE_CONTENT`. It ignores DMs, presences, member lists, reactions, typing, voice, bot messages, webhook messages and system messages. Only the allowlisted guild and channel bindings are eligible. Capture stores text and bounded identifiers/timestamps; attachments, embeds, components, polls, stickers and rich member objects are not part of alpha.
+The connector subscribes only to `GUILDS`, `GUILD_MESSAGES` and `MESSAGE_CONTENT`. It ignores DMs, presences, member lists, reactions, typing, voice, bot messages, webhook messages and system messages. Only the allowlisted guild and channel bindings are eligible. The HED-70 base schema captures text and bounded identifiers/timestamps; HED-74 extends it with explicit thread targets, replies and metadata-only attachment policy without adding attachment bytes or URLs.
 
 Discord's Gateway sequence is session-scoped and covers events unrelated to a configured channel. It therefore remains provider evidence in the payload and resume state; it is **not** the HED-56 per-stream cursor. After the guild/channel filter, the authenticated Integration gateway idempotently reserves an `integrationSequence` for the exact stream and provider source identity. A first occurrence receives the next durable sequence; a retry/replay receives its previously reserved sequence so its HED-56 checksum remains stable and does not become a false idempotency conflict. A resume retains the existing Gateway session and provider sequence. A full re-identify starts a new provider session but continues the platform integration stream from its durable receipt/cursor.
 
