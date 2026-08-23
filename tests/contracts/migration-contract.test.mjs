@@ -76,6 +76,8 @@ const manifestHash = computeMigrationManifestHash(manifest(), sha256);
 function parseMigrationReport(value, overrides = {}) {
   return parseMigrationReportContract(value, {
     manifest: manifest(),
+    restoreDrill: ["inventory", "dryRun"].includes(value.command) ? null : restoreDrill(),
+    evaluatedAt: "2026-08-23T16:06:00.000Z",
     sha256,
     ...overrides
   });
@@ -359,6 +361,17 @@ test("migration reports expose bounded counts and invariants without raw records
   for (const candidate of [
     report({ runId: "mongodb://user:secret@private.invalid" }),
     report({ sourceSnapshotId: "TOKEN=secret" }),
+    report({ backupRestoreRef: "mongodb://user:secret@private.invalid" }),
+    report({
+      status: "running",
+      completedAt: null,
+      checkpoint: { batchId: "TOKEN=secret", processed: 0, total: 3 }
+    }),
+    report({
+      status: "running",
+      completedAt: null,
+      checkpoint: { batchId: "A".repeat(129), processed: 0, total: 3 }
+    }),
     report({
       invariants: [{
         ...report().invariants[0],
@@ -388,6 +401,10 @@ test("read-only and routing rollback reports reject unauthorized writes", () => 
     }))
   });
   assert.equal(parseMigrationReport(safeDryRun).counts[0].written, 0);
+  assert.throws(
+    () => parseMigrationReport(safeDryRun, { restoreDrill: restoreDrill() }),
+    ContractValidationError
+  );
   assert.throws(
     () => parseMigrationReport(report({ command: "dryRun", backupRestoreRef: null })),
     ContractValidationError
@@ -451,6 +468,12 @@ test("successful reports bind to the complete approved manifest and final batch"
       {}
     ],
     [report(), { manifest: manifest({ policyVersion: "campaign-policy-v2" }) }],
+    [report({ backupRestoreRef: "anything" }), {}],
+    [report(), { restoreDrill: null }],
+    [report(), { restoreDrill: restoreDrill({ restoreRef: "anything" }) }],
+    [report(), { restoreDrill: restoreDrill({ sourceSnapshotId: "another-snapshot" }) }],
+    [report(), { restoreDrill: restoreDrill({ validUntil: "2026-08-23T16:05:59.999Z" }) }],
+    [report(), { evaluatedAt: "2026-08-23T16:04:59.999Z" }],
     [report({ migrationId: "another-migration" }), {}],
     [report({ sourceSnapshotId: "another-snapshot" }), {}],
     [report({ manifestHash: "8".repeat(64) }), {}]

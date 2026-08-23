@@ -140,6 +140,8 @@ export interface MigrationVerificationContext {
 
 export interface MigrationReportVerificationContext {
   readonly manifest: unknown;
+  readonly restoreDrill: unknown | null;
+  readonly evaluatedAt: string;
   readonly sha256: (canonicalUtf8: string) => string;
 }
 
@@ -618,6 +620,42 @@ export function parseMigrationRestoreDrill(
   };
 }
 
+interface MigrationRestoreDrillBinding {
+  readonly restoreRef: string | null;
+  readonly migrationId: string;
+  readonly migrationVersion: number;
+  readonly sourceSnapshotId: string;
+  readonly sourceDatabaseFingerprint: string;
+  readonly manifestHash: string;
+  readonly evaluatedAt: string;
+}
+
+function parseVerifiedMigrationRestoreDrill(
+  value: unknown,
+  binding: MigrationRestoreDrillBinding,
+  path: string
+): MigrationRestoreDrillContract {
+  const restoreDrill = parseMigrationRestoreDrill(value, path);
+  if (restoreDrill.restoreRef !== binding.restoreRef
+    || restoreDrill.migrationId !== binding.migrationId
+    || restoreDrill.migrationVersion !== binding.migrationVersion
+    || restoreDrill.sourceSnapshotId !== binding.sourceSnapshotId
+    || restoreDrill.sourceDatabaseFingerprint !== binding.sourceDatabaseFingerprint
+    || restoreDrill.manifestHash !== binding.manifestHash) {
+    fail(
+      path,
+      "does not match the exact restore reference, migration, snapshot, source database and manifest"
+    );
+  }
+  if (Date.parse(restoreDrill.completedAt) > Date.parse(binding.evaluatedAt)) {
+    fail(`${path}.completedAt`, "cannot be later than trusted gate evaluation time");
+  }
+  if (Date.parse(restoreDrill.validUntil) < Date.parse(binding.evaluatedAt)) {
+    fail(`${path}.validUntil`, "verified restore drill has expired");
+  }
+  return restoreDrill;
+}
+
 export function expectedMigrationConfirmation(
   command: MigrationCommand,
   migrationId: string,
@@ -749,27 +787,19 @@ export function parseVerifiedMigrationCommandRequest(
     fail(`${path}.verification.manifest`, "does not match the exact command migration, snapshot, databases and scope");
   }
 
-  const restoreDrill = parseMigrationRestoreDrill(
+  const restoreDrill = parseVerifiedMigrationRestoreDrill(
     verification.restoreDrill,
+    {
+      restoreRef: request.backupRestoreRef,
+      migrationId: request.migrationId,
+      migrationVersion: request.migrationVersion,
+      sourceSnapshotId: request.sourceSnapshotId,
+      sourceDatabaseFingerprint: request.sourceDatabaseFingerprint,
+      manifestHash,
+      evaluatedAt
+    },
     `${path}.verification.restoreDrill`
   );
-  if (restoreDrill.restoreRef !== request.backupRestoreRef
-    || restoreDrill.migrationId !== request.migrationId
-    || restoreDrill.migrationVersion !== request.migrationVersion
-    || restoreDrill.sourceSnapshotId !== request.sourceSnapshotId
-    || restoreDrill.sourceDatabaseFingerprint !== request.sourceDatabaseFingerprint
-    || restoreDrill.manifestHash !== manifestHash) {
-    fail(
-      `${path}.verification.restoreDrill`,
-      "does not match the exact restore reference, migration, snapshot, source database and manifest"
-    );
-  }
-  if (Date.parse(restoreDrill.completedAt) > Date.parse(evaluatedAt)) {
-    fail(`${path}.verification.restoreDrill.completedAt`, "cannot be later than trusted gate evaluation time");
-  }
-  if (Date.parse(restoreDrill.validUntil) < Date.parse(evaluatedAt)) {
-    fail(`${path}.verification.restoreDrill.validUntil`, "verified restore drill has expired");
-  }
 
   return { request, manifest, manifestHash, restoreDrill, evaluatedAt };
 }
@@ -820,7 +850,7 @@ function parseCheckpoint(value: unknown, path: string): MigrationCheckpointContr
   const total = parseNonNegativeInteger(record["total"], `${path}.total`);
   if (processed > total) fail(`${path}.processed`, "cannot exceed total");
   return {
-    batchId: expectNullableString(record["batchId"], `${path}.batchId`),
+    batchId: parseNullableStableReference(record["batchId"], `${path}.batchId`),
     processed,
     total
   };
@@ -845,7 +875,15 @@ export function parseMigrationReport(
   path = "migrationReport"
 ): MigrationReportContract {
   const verificationRecord = expectRecord(verification, `${path}.verification`);
-  expectExactKeys(verificationRecord, ["manifest", "sha256"], `${path}.verification`);
+  expectExactKeys(
+    verificationRecord,
+    ["manifest", "restoreDrill", "evaluatedAt", "sha256"],
+    `${path}.verification`
+  );
+  const evaluatedAt = parseCanonicalInstant(
+    verificationRecord["evaluatedAt"],
+    `${path}.verification.evaluatedAt`
+  );
   const sha256Candidate = verificationRecord["sha256"];
   if (typeof sha256Candidate !== "function") {
     fail(`${path}.verification.sha256`, "trusted SHA-256 function is required");
@@ -916,6 +954,12 @@ export function parseMigrationReport(
   if (completedAt !== null && Date.parse(completedAt) < Date.parse(startedAt)) {
     fail(`${path}.completedAt`, "cannot precede startedAt");
   }
+  if (Date.parse(startedAt) > Date.parse(evaluatedAt)) {
+    fail(`${path}.startedAt`, "cannot be later than trusted report evaluation time");
+  }
+  if (completedAt !== null && Date.parse(completedAt) > Date.parse(evaluatedAt)) {
+    fail(`${path}.completedAt`, "cannot be later than trusted report evaluation time");
+  }
 
   const migrationVersion = parseNonNegativeInteger(record["migrationVersion"], `${path}.migrationVersion`);
   if (migrationVersion === 0) fail(`${path}.migrationVersion`, "must be greater than zero");
@@ -932,12 +976,36 @@ export function parseMigrationReport(
       "must match the report migration, version, source snapshot and canonical manifest hash"
     );
   }
-  const backupRestoreRef = expectNullableString(record["backupRestoreRef"], `${path}.backupRestoreRef`);
-  if (["commit", "verify", "rollback"].includes(command) && backupRestoreRef === null) {
+  const backupRestoreRef = parseNullableStableReference(
+    record["backupRestoreRef"],
+    `${path}.backupRestoreRef`
+  );
+  const postDryRun = ["commit", "verify", "rollback"].includes(command);
+  if (postDryRun && backupRestoreRef === null) {
     fail(`${path}.backupRestoreRef`, "post-dry-run reports require a verified restore reference");
   }
-  if (["inventory", "dryRun"].includes(command) && backupRestoreRef !== null) {
+  if (!postDryRun && backupRestoreRef !== null) {
     fail(`${path}.backupRestoreRef`, "read-only reports must not claim a restore gate");
+  }
+  if (postDryRun) {
+    if (verificationRecord["restoreDrill"] === null) {
+      fail(`${path}.verification.restoreDrill`, "post-dry-run reports require trusted restore evidence");
+    }
+    parseVerifiedMigrationRestoreDrill(
+      verificationRecord["restoreDrill"],
+      {
+        restoreRef: backupRestoreRef,
+        migrationId,
+        migrationVersion,
+        sourceSnapshotId,
+        sourceDatabaseFingerprint: manifest.sourceDatabaseFingerprint,
+        manifestHash,
+        evaluatedAt
+      },
+      `${path}.verification.restoreDrill`
+    );
+  } else if (verificationRecord["restoreDrill"] !== null) {
+    fail(`${path}.verification.restoreDrill`, "read-only reports must not receive restore evidence");
   }
   if (["inventory", "dryRun", "verify"].includes(command) && counts.some((count) => count.written !== 0)) {
     fail(`${path}.counts`, "inventory, dry-run and verify reports cannot claim writes");
