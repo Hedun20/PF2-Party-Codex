@@ -69,6 +69,8 @@ No data migration can be designed until those questions are answered with repres
 
 ### 2. Visibility policy
 
+The approved implementation contract is now [`CAMPAIGN_POLICY_PORT.md`](./CAMPAIGN_POLICY_PORT.md). Adapters must use that exact policy/read-scope boundary rather than recreating role or visibility checks in framework code.
+
 Do not replace all current values with one enum. Recommended normalized policy:
 
 | Dimension | Candidate values | Purpose |

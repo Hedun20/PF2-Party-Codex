@@ -12,6 +12,7 @@ export type CampaignId = AggregateId<"CampaignId">;
 export type MembershipId = AggregateId<"MembershipId">;
 export type EntryId = AggregateId<"EntryId">;
 export type WorldId = AggregateId<"WorldId">;
+export type CharacterId = AggregateId<"CharacterId">;
 
 function parseAggregateId<Name extends string>(value: unknown, path: string): AggregateId<Name> {
   return expectString(value, path) as AggregateId<Name>;
@@ -39,4 +40,8 @@ export function parseEntryId(value: unknown, path = "entryId"): EntryId {
 
 export function parseWorldId(value: unknown, path = "worldId"): WorldId {
   return parseAggregateId<"WorldId">(value, path);
+}
+
+export function parseCharacterId(value: unknown, path = "characterId"): CharacterId {
+  return parseAggregateId<"CharacterId">(value, path);
 }
