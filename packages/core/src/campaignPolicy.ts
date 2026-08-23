@@ -368,9 +368,13 @@ function validCacheDiscriminator(
           "action",
           "channel",
           "kind",
+          "requestedCampaignId",
+          "requestedWorkspaceId",
           "resourceOwnerUserId",
           "targetCharacterId"
         ])
+        && isNonEmptyString(discriminator.requestedWorkspaceId)
+        && isNonEmptyString(discriminator.requestedCampaignId)
         && (HUMAN_POLICY_CHANNELS as readonly string[]).includes(discriminator.channel)
         && (HUMAN_CAMPAIGN_ACTIONS as readonly string[]).includes(discriminator.action)
         && (discriminator.resourceOwnerUserId === null
@@ -379,37 +383,58 @@ function validCacheDiscriminator(
           || isNonEmptyString(discriminator.targetCharacterId));
     case "machineCapability":
       return subject.kind === "machine"
-        && hasExactKeys(discriminator, ["capability", "channel", "kind"])
+        && hasExactKeys(discriminator, [
+          "capability",
+          "channel",
+          "kind",
+          "requestedCampaignId",
+          "requestedWorkspaceId"
+        ])
+        && isNonEmptyString(discriminator.requestedWorkspaceId)
+        && isNonEmptyString(discriminator.requestedCampaignId)
         && (MACHINE_POLICY_CHANNELS as readonly string[]).includes(discriminator.channel)
         && (MACHINE_CAMPAIGN_CAPABILITIES as readonly string[]).includes(discriminator.capability);
     case "resourceRead":
       return subject.kind === "human"
-        && hasExactKeys(discriminator, ["kind", "resourceId", "resourcePolicyVersion"])
+        && hasExactKeys(discriminator, [
+          "kind",
+          "requestedCampaignId",
+          "requestedWorkspaceId",
+          "resourceId",
+          "resourcePolicyVersion"
+        ])
+        && isNonEmptyString(discriminator.requestedWorkspaceId)
+        && isNonEmptyString(discriminator.requestedCampaignId)
         && isNonEmptyString(discriminator.resourceId)
         && isNonEmptyString(discriminator.resourcePolicyVersion);
     case "readScope":
-      return subject.kind === "human" && hasExactKeys(discriminator, ["kind"]);
+      return subject.kind === "human"
+        && hasExactKeys(discriminator, ["kind", "requestedCampaignId", "requestedWorkspaceId"])
+        && isNonEmptyString(discriminator.requestedWorkspaceId)
+        && isNonEmptyString(discriminator.requestedCampaignId);
     default:
       return false;
   }
 }
 
 function cacheDiscriminatorSegments(discriminator: CampaignPolicyCacheDiscriminator): readonly string[] {
+  const requestedTenant = [discriminator.requestedWorkspaceId, discriminator.requestedCampaignId];
   switch (discriminator.kind) {
     case "humanAction":
       return [
         "human-action",
+        ...requestedTenant,
         discriminator.channel,
         discriminator.action,
         discriminator.resourceOwnerUserId ?? "",
         discriminator.targetCharacterId ?? ""
       ];
     case "machineCapability":
-      return ["machine-capability", discriminator.channel, discriminator.capability];
+      return ["machine-capability", ...requestedTenant, discriminator.channel, discriminator.capability];
     case "resourceRead":
-      return ["resource-read", discriminator.resourceId, discriminator.resourcePolicyVersion];
+      return ["resource-read", ...requestedTenant, discriminator.resourceId, discriminator.resourcePolicyVersion];
     case "readScope":
-      return ["read-scope"];
+      return ["read-scope", ...requestedTenant];
   }
 }
 

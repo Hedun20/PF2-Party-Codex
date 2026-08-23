@@ -81,6 +81,8 @@ function resource(overrides = {}) {
 function humanCacheDiscriminator(overrides = {}) {
   return {
     kind: "humanAction",
+    requestedWorkspaceId: "workspace-a",
+    requestedCampaignId: "campaign-a",
     channel: "web",
     action: "resource.read",
     resourceOwnerUserId: null,
@@ -92,6 +94,8 @@ function humanCacheDiscriminator(overrides = {}) {
 function machineCacheDiscriminator(overrides = {}) {
   return {
     kind: "machineCapability",
+    requestedWorkspaceId: "workspace-a",
+    requestedCampaignId: "campaign-a",
     channel: "job",
     capability: "job:execute",
     ...overrides
@@ -500,7 +504,7 @@ test("policy cache keys invalidate on tenant, membership, role, character and cr
   );
 });
 
-test("policy cache keys bind each decision to its exact operation and resource revision", () => {
+test("policy cache keys bind each decision to its requested tenant, operation and resource revision", () => {
   const subject = human();
   const resourceRead = buildCampaignPolicyCacheKey(
     subject,
@@ -535,14 +539,26 @@ test("policy cache keys bind each decision to its exact operation and resource r
   const readA = buildCampaignPolicyCacheKey(
     subject,
     "archive",
-    { kind: "resourceRead", resourceId: "entry-a", resourcePolicyVersion: "revision-1" },
+    {
+      kind: "resourceRead",
+      requestedWorkspaceId: "workspace-a",
+      requestedCampaignId: "campaign-a",
+      resourceId: "entry-a",
+      resourcePolicyVersion: "revision-1"
+    },
     evaluatedAt
   );
   assert.notEqual(
     buildCampaignPolicyCacheKey(
       subject,
       "archive",
-      { kind: "resourceRead", resourceId: "entry-b", resourcePolicyVersion: "revision-1" },
+      {
+        kind: "resourceRead",
+        requestedWorkspaceId: "workspace-a",
+        requestedCampaignId: "campaign-a",
+        resourceId: "entry-b",
+        resourcePolicyVersion: "revision-1"
+      },
       evaluatedAt
     ),
     readA
@@ -551,10 +567,35 @@ test("policy cache keys bind each decision to its exact operation and resource r
     buildCampaignPolicyCacheKey(
       subject,
       "archive",
-      { kind: "resourceRead", resourceId: "entry-a", resourcePolicyVersion: "revision-2" },
+      {
+        kind: "resourceRead",
+        requestedWorkspaceId: "workspace-a",
+        requestedCampaignId: "campaign-a",
+        resourceId: "entry-a",
+        resourcePolicyVersion: "revision-2"
+      },
       evaluatedAt
     ),
     readA
+  );
+
+  assert.notEqual(
+    buildCampaignPolicyCacheKey(subject, "archive", humanCacheDiscriminator(), evaluatedAt),
+    buildCampaignPolicyCacheKey(
+      subject,
+      "archive",
+      humanCacheDiscriminator({ requestedCampaignId: "campaign-b" }),
+      evaluatedAt
+    )
+  );
+  assert.notEqual(
+    buildCampaignPolicyCacheKey(machine(), "job", machineCacheDiscriminator(), evaluatedAt),
+    buildCampaignPolicyCacheKey(
+      machine(),
+      "job",
+      machineCacheDiscriminator({ requestedWorkspaceId: "workspace-b" }),
+      evaluatedAt
+    )
   );
 
   assert.notEqual(
@@ -577,6 +618,16 @@ test("policy cache keys bind each decision to its exact operation and resource r
       subject,
       "archive",
       { ...humanCacheDiscriminator(), callerControlledExtra: "ignored-if-not-rejected" },
+      evaluatedAt
+    ),
+    /Invalid campaign policy cache discriminator/
+  );
+  const { requestedCampaignId: _omittedCampaign, ...missingRequestedCampaign } = humanCacheDiscriminator();
+  assert.throws(
+    () => buildCampaignPolicyCacheKey(
+      subject,
+      "archive",
+      missingRequestedCampaign,
       evaluatedAt
     ),
     /Invalid campaign policy cache discriminator/

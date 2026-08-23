@@ -91,6 +91,8 @@ export type CampaignPolicyEffect = "manager" | "playerSafe" | "self" | "machine"
 export type CampaignPolicyCacheDiscriminator =
   | {
       readonly kind: "humanAction";
+      readonly requestedWorkspaceId: WorkspaceId;
+      readonly requestedCampaignId: CampaignId;
       readonly channel: HumanPolicyChannel;
       readonly action: HumanCampaignAction;
       readonly resourceOwnerUserId: UserId | null;
@@ -98,16 +100,22 @@ export type CampaignPolicyCacheDiscriminator =
     }
   | {
       readonly kind: "machineCapability";
+      readonly requestedWorkspaceId: WorkspaceId;
+      readonly requestedCampaignId: CampaignId;
       readonly channel: MachinePolicyChannel;
       readonly capability: MachineCampaignCapability;
     }
   | {
       readonly kind: "resourceRead";
+      readonly requestedWorkspaceId: WorkspaceId;
+      readonly requestedCampaignId: CampaignId;
       readonly resourceId: string;
       readonly resourcePolicyVersion: string;
     }
   | {
       readonly kind: "readScope";
+      readonly requestedWorkspaceId: WorkspaceId;
+      readonly requestedCampaignId: CampaignId;
     };
 
 export interface HumanCampaignPolicySubject {

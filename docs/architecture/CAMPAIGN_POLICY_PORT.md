@@ -28,7 +28,7 @@ UI visibility is not an authorization input and never satisfies this boundary.
 
 `membershipUpdatedAt`, `membershipState`, role, membership ID, assigned character IDs and `characterGrantVersion` participate in the policy cache key. Character and capability arrays use an unambiguous encoded array segment rather than delimiter-joining. For an expiring membership, the key also contains a current/expired discriminator derived from the fresh canonical evaluation instant, so the pre-expiry allow key cannot be read at or after the deadline. Removal, expiry, role change or character reassignment therefore produces a different discriminator immediately.
 
-Every cache key also requires one exact typed operation discriminator. Human actions include channel, action and explicit nullable owner/character target. Machine checks include channel and capability. Resource decisions include server-derived resource ID plus a revision/policy version that changes with visibility or grants. Read-scope keys use their own kind. Unknown fields and subject/operation-kind disagreement are invalid; an adapter cannot reuse a subject-only prefix as a complete decision or response key.
+Every cache key also requires one exact typed operation discriminator. Every discriminator carries the normalized requested workspace/campaign in addition to the verified subject's tenant, so an in-tenant allow cannot collide with a `TENANT_MISMATCH` decision. Human actions include channel, action and explicit nullable owner/character target. Machine checks include channel and capability. Resource decisions include server-derived resource ID plus a revision/policy version that changes with visibility or grants. Read-scope keys use their own kind. Unknown fields and subject/operation-kind disagreement are invalid; an adapter cannot reuse a subject-only prefix as a complete decision or response key.
 
 This key caches only the matching authorization decision or derived policy scope. It is never sufficient for an archive/list/document payload cache. A data-response cache separately includes the exact resource or normalized query, data revision and audience serializer version, and may reuse a policy result only when its full typed discriminator matches.
 
@@ -98,7 +98,7 @@ All consumers use this sequence:
 4. derive the exact read scope before repository access;
 5. evaluate resource visibility where an item-level grant is required;
 6. serialize to the player, manager or dedicated machine DTO;
-7. cache only under `buildCampaignPolicyCacheKey` with a static allowlisted namespace, the exact typed action/capability/resource/read-scope discriminator, and the same fresh canonical server evaluation instant used by policy; targets and resource versions come from stored state, never request claims; never reuse an earlier request's instant, cap an expiring membership's entry TTL at its deadline as defence in depth, and invalidate source rows normally.
+7. cache only under `buildCampaignPolicyCacheKey` with a static allowlisted namespace, the exact typed action/capability/resource/read-scope discriminator including the normalized requested tenant, and the same fresh canonical server evaluation instant used by policy; owner/character targets and resource versions come from stored state, never request claims; never reuse an earlier request's instant, cap an expiring membership's entry TTL at its deadline as defence in depth, and invalidate source rows normally.
 
 ## Security proof
 
