@@ -142,6 +142,8 @@ Additional gates:
 
 ## Data migration rules
 
+HED-19 freezes the detailed command, evidence/canon, compatibility, rehearsal and rollback boundary in [`MONGO_MIGRATION_CONTRACT.md`](./MONGO_MIGRATION_CONTRACT.md). The rules below remain the concise cross-slice summary.
+
 No destructive migration is part of the first slice. When data migration becomes necessary:
 
 1. Inventory counts, distinct value distributions, null/orphan references, duplicate semantic records, and representative redacted samples on a non-production copy.

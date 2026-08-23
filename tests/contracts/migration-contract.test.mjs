@@ -1,0 +1,550 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import test from "node:test";
+
+import {
+  ContractValidationError,
+  canonicalizeMigrationManifest,
+  computeMigrationManifestHash,
+  expectedMigrationConfirmation,
+  parseMigrationCommandRequest,
+  parseMigrationManifest,
+  parseMigrationReport as parseMigrationReportContract,
+  parseVerifiedMigrationCommandRequest
+} from "../../packages/contracts/dist/index.js";
+
+const sourceDatabaseFingerprint = "b".repeat(64);
+const targetDatabaseFingerprint = "c".repeat(64);
+const backupArtifactHash = "d".repeat(64);
+const restoredDatabaseFingerprint = "e".repeat(64);
+
+function sha256(value) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+function scope(overrides = {}) {
+  return {
+    workspaceIds: ["workspace-redacted-001"],
+    campaignIds: ["campaign-redacted-001"],
+    collections: ["campaigns", "entries"],
+    ...overrides
+  };
+}
+
+function manifest(overrides = {}) {
+  return {
+    schemaVersion: "hed19-manifest-v1",
+    migrationId: "hed19-legacy-to-canon-v1",
+    migrationVersion: 1,
+    codeCommit: "f".repeat(40),
+    sourceSnapshotId: "snapshot-redacted-001",
+    sourceDatabaseFingerprint,
+    targetDatabaseFingerprint,
+    scope: scope(),
+    collectionMappingVersion: "collection-map-v1",
+    normalizationVersion: "normalization-v1",
+    policyVersion: "campaign-policy-v1",
+    batches: [
+      {
+        sequence: 0,
+        batchId: "campaigns-0001",
+        sourceCollection: "campaigns",
+        sourceStartId: "campaign-redacted-001",
+        sourceEndId: "campaign-redacted-001",
+        expectedCount: 1,
+        sourceRangeHash: "1".repeat(64)
+      },
+      {
+        sequence: 1,
+        batchId: "entries-0001",
+        sourceCollection: "entries",
+        sourceStartId: "entry-redacted-001",
+        sourceEndId: "entry-redacted-002",
+        expectedCount: 2,
+        sourceRangeHash: "2".repeat(64)
+      }
+    ],
+    requiredIndexes: ["entries.campaign_slug", "entries.campaign_revision"],
+    fatalIssueCodes: [],
+    warningIssueCodes: ["LEGACY_OPTIONAL_DATE_MISSING", "LEGACY_UNKNOWN_FIELD_RETAINED"],
+    ...overrides
+  };
+}
+
+const manifestHash = computeMigrationManifestHash(manifest(), sha256);
+
+function parseMigrationReport(value, overrides = {}) {
+  return parseMigrationReportContract(value, {
+    manifest: manifest(),
+    restoreDrill: ["inventory", "dryRun"].includes(value.command) ? null : restoreDrill(),
+    evaluatedAt: "2026-08-23T16:06:00.000Z",
+    sha256,
+    ...overrides
+  });
+}
+
+function restoreDrill(overrides = {}) {
+  return {
+    schemaVersion: "hed19-restore-drill-v1",
+    restoreRef: "restore-drill-redacted-001",
+    migrationId: "hed19-legacy-to-canon-v1",
+    migrationVersion: 1,
+    sourceSnapshotId: "snapshot-redacted-001",
+    sourceDatabaseFingerprint,
+    manifestHash,
+    backupArtifactHash,
+    sourceMongoVersion: "8.0.12",
+    databaseToolVersion: "100.13.0",
+    backupEncrypted: true,
+    encryptionKeyVersion: "kms-key-v7",
+    consistencyBoundaryKind: "oplog",
+    consistencyBoundaryRef: "oplog-boundary-redacted-001",
+    restoredDatabaseFingerprint,
+    restoreEnvironment: "isolated",
+    productionRoutingDisabled: true,
+    operatorId: "automation-migration-operator-v1",
+    status: "succeeded",
+    startedAt: "2026-08-23T15:00:00.000Z",
+    completedAt: "2026-08-23T15:30:00.000Z",
+    restorationDurationMs: 1_800_000,
+    restoreTargetExpiresAt: "2026-08-24T15:30:00.000Z",
+    validUntil: "2026-08-30T15:30:00.000Z",
+    collectionCount: 2,
+    indexCount: 2,
+    invariants: [
+      "BACKUP_ARTIFACT_CHECKSUM_VERIFIED",
+      "BACKUP_ENCRYPTION_VERIFIED",
+      "SNAPSHOT_CONSISTENCY_VERIFIED",
+      "RESTORE_TARGET_ISOLATED",
+      "PRODUCTION_ROUTING_BLOCKED",
+      "RESTORED_COUNTS_MATCH",
+      "RESTORED_INDEXES_MATCH"
+    ].map((code) => ({
+      code,
+      status: "pass",
+      expectedCount: null,
+      actualCount: null
+    })),
+    fatalIssueCount: 0,
+    ...overrides
+  };
+}
+
+function verification(overrides = {}) {
+  return {
+    manifest: manifest(),
+    restoreDrill: restoreDrill(),
+    evaluatedAt: "2026-08-23T16:01:00.000Z",
+    sha256,
+    ...overrides
+  };
+}
+
+function command(overrides = {}) {
+  return {
+    schemaVersion: "hed19-command-v1",
+    migrationId: "hed19-legacy-to-canon-v1",
+    migrationVersion: 1,
+    runId: "migration-run-redacted-001",
+    command: "inventory",
+    sourceSnapshotId: "snapshot-redacted-001",
+    sourceDatabaseFingerprint,
+    targetDatabaseFingerprint,
+    manifestHash: null,
+    scope: scope(),
+    backupRestoreRef: null,
+    confirmation: null,
+    requestedAt: "2026-08-23T16:00:00.000Z",
+    ...overrides
+  };
+}
+
+function gatedCommand(commandName, overrides = {}) {
+  const migrationId = "hed19-legacy-to-canon-v1";
+  return command({
+    command: commandName,
+    manifestHash,
+    backupRestoreRef: "restore-drill-redacted-001",
+    confirmation: expectedMigrationConfirmation(commandName, migrationId, manifestHash),
+    ...overrides
+  });
+}
+
+function report(overrides = {}) {
+  return {
+    schemaVersion: "hed19-report-v1",
+    migrationId: "hed19-legacy-to-canon-v1",
+    migrationVersion: 1,
+    runId: "migration-run-redacted-001",
+    command: "commit",
+    sourceSnapshotId: "snapshot-redacted-001",
+    manifestHash,
+    status: "succeeded",
+    startedAt: "2026-08-23T16:00:00.000Z",
+    completedAt: "2026-08-23T16:05:00.000Z",
+    backupRestoreRef: "restore-drill-redacted-001",
+    counts: [{
+      collection: "entries",
+      scanned: 2,
+      planned: 2,
+      written: 2,
+      skipped: 0,
+      quarantined: 0,
+      failed: 0
+    }, {
+      collection: "campaigns",
+      scanned: 1,
+      planned: 1,
+      written: 1,
+      skipped: 0,
+      quarantined: 0,
+      failed: 0
+    }],
+    invariants: [{
+      code: "ENTRY_CAMPAIGN_SCOPE_EXACT",
+      status: "pass",
+      expectedCount: 2,
+      actualCount: 2
+    }],
+    fatalIssueCount: 0,
+    warningIssueCount: 0,
+    checkpoint: { batchId: "entries-0001", processed: 3, total: 3 },
+    rollback: null,
+    ...overrides
+  };
+}
+
+test("inventory and dry-run commands are provably read-only", () => {
+  assert.equal(parseMigrationCommandRequest(command()).command, "inventory");
+  assert.equal(parseMigrationCommandRequest(command({ command: "dryRun" })).command, "dryRun");
+  for (const request of [
+    command({ manifestHash }),
+    command({ command: "dryRun", backupRestoreRef: "unearned-restore-ref" }),
+    command({ command: "dryRun", confirmation: "COMMIT:anything" })
+  ]) {
+    assert.throws(() => parseMigrationCommandRequest(request), ContractValidationError);
+  }
+});
+
+test("manifest canonicalization removes set and input-order nondeterminism", () => {
+  const reordered = manifest({
+    scope: scope({ collections: ["entries", "campaigns"] }),
+    batches: [...manifest().batches].reverse(),
+    requiredIndexes: [...manifest().requiredIndexes].reverse(),
+    warningIssueCodes: [...manifest().warningIssueCodes].reverse()
+  });
+  assert.equal(computeMigrationManifestHash(reordered, sha256), manifestHash);
+  assert.equal(canonicalizeMigrationManifest(reordered), canonicalizeMigrationManifest(manifest()));
+  assert.notEqual(
+    computeMigrationManifestHash(manifest({
+      batches: manifest().batches.map((batch) => (
+        batch.sequence === 1 ? { ...batch, expectedCount: 3 } : batch
+      ))
+    }), sha256),
+    manifestHash
+  );
+  assert.throws(
+    () => parseMigrationManifest({ ...manifest(), generatedAt: "2026-08-23T16:00:00.000Z" }),
+    ContractValidationError
+  );
+  assert.throws(
+    () => parseMigrationManifest(manifest({
+      scope: scope({ collections: ["campaigns", "entries", "notes"] })
+    })),
+    ContractValidationError
+  );
+});
+
+test("commit requires a canonically hashed manifest and matching valid restore drill", () => {
+  const request = gatedCommand("commit");
+  assert.throws(() => parseMigrationCommandRequest(request), ContractValidationError);
+  const parsed = parseVerifiedMigrationCommandRequest(request, verification());
+  assert.equal(parsed.manifestHash, manifestHash);
+  assert.equal(parsed.restoreDrill.restoreRef, "restore-drill-redacted-001");
+  assert.equal(parsed.request.confirmation, `COMMIT:hed19-legacy-to-canon-v1:${manifestHash}`);
+
+  const changedManifest = manifest({ policyVersion: "campaign-policy-v2" });
+  for (const context of [
+    verification({ manifest: changedManifest }),
+    verification({ restoreDrill: restoreDrill({ restoreRef: "anything" }) }),
+    verification({ restoreDrill: restoreDrill({ sourceSnapshotId: "another-snapshot" }) }),
+    verification({ restoreDrill: restoreDrill({ sourceDatabaseFingerprint: "9".repeat(64) }) }),
+    verification({ restoreDrill: restoreDrill({ manifestHash: "8".repeat(64) }) }),
+    verification({ restoreDrill: restoreDrill({ validUntil: "2026-08-23T16:00:59.999Z" }) }),
+    verification({ manifest: manifest({ requiredIndexes: [] }) }),
+    verification({ manifest: manifest({ fatalIssueCodes: ["TENANT_AMBIGUITY"] }) }),
+    verification({ restoreDrill: restoreDrill({ collectionCount: 0 }) }),
+    verification({ restoreDrill: restoreDrill({ indexCount: 0 }) }),
+    verification({ restoreDrill: restoreDrill({ invariants: [] }) }),
+    verification({ restoreDrill: restoreDrill({ backupEncrypted: false }) }),
+    verification({ restoreDrill: restoreDrill({ productionRoutingDisabled: false }) }),
+    verification({ restoreDrill: restoreDrill({ restoreEnvironment: "production" }) }),
+    verification({ restoreDrill: restoreDrill({ restorationDurationMs: 1 }) }),
+    verification({ restoreDrill: restoreDrill({ sourceMongoVersion: "mongodb://private.invalid" }) }),
+    verification({ restoreDrill: restoreDrill({ operatorId: "operator@example.invalid" }) }),
+    verification({
+      restoreDrill: restoreDrill({
+        invariants: restoreDrill().invariants.filter((item) => item.code !== "PRODUCTION_ROUTING_BLOCKED")
+      })
+    }),
+    verification({ restoreDrill: restoreDrill({ fatalIssueCount: 1 }) }),
+    verification({
+      restoreDrill: restoreDrill({
+        invariants: restoreDrill().invariants.map((invariant) => invariant.code === "RESTORED_COUNTS_MATCH" ? {
+          ...invariant,
+          status: "fail",
+          expectedCount: 3,
+          actualCount: 2
+        } : invariant)
+      })
+    }),
+    verification({
+      restoreDrill: restoreDrill({
+        invariants: restoreDrill().invariants.map((invariant) => invariant.code === "RESTORED_COUNTS_MATCH" ? {
+          ...invariant,
+          expectedCount: 3,
+          actualCount: 2
+        } : invariant)
+      })
+    })
+  ]) {
+    assert.throws(() => parseVerifiedMigrationCommandRequest(request, context), ContractValidationError);
+  }
+});
+
+test("verify is non-mutating and rollback confirmation names routing explicitly", () => {
+  assert.equal(
+    parseVerifiedMigrationCommandRequest(gatedCommand("verify"), verification()).request.confirmation,
+    null
+  );
+  assert.equal(
+    parseVerifiedMigrationCommandRequest(gatedCommand("rollback"), verification()).request.confirmation,
+    `ROLLBACK_ROUTING:hed19-legacy-to-canon-v1:${manifestHash}`
+  );
+});
+
+test("migration commands reject ambiguous time, scope, arrays, hashes and secret-shaped extras", () => {
+  const sparseCollections = new Array(1);
+  for (const request of [
+    command({ requestedAt: "0" }),
+    command({ sourceDatabaseFingerprint: "not-a-hash" }),
+    command({ scope: { workspaceIds: [], campaignIds: [], collections: ["entries"] } }),
+    command({ scope: { workspaceIds: ["workspace-redacted-001"], campaignIds: [], collections: [] } }),
+    command({ scope: { workspaceIds: ["workspace-redacted-001"], campaignIds: [], collections: sparseCollections } }),
+    command({ scope: { workspaceIds: ["workspace-redacted-001"], campaignIds: [], collections: ["entries", "entries"] } }),
+    command({ runId: "mongodb://user:secret@private.invalid" }),
+    command({ sourceSnapshotId: "TOKEN=secret" }),
+    { ...command(), mongoUri: "mongodb://private.example.invalid" }
+  ]) {
+    assert.throws(() => parseMigrationCommandRequest(request), ContractValidationError);
+  }
+});
+
+test("migration reports expose bounded counts and invariants without raw records", () => {
+  const parsed = parseMigrationReport(report());
+  assert.equal(parsed.status, "succeeded");
+  assert.equal(parsed.counts[0].written, 2);
+  assert.equal(parsed.invariants[0].status, "pass");
+  assert.throws(
+    () => parseMigrationReport({ ...report(), rawPayload: { private: "must not enter reports" } }),
+    ContractValidationError
+  );
+  for (const code of ["mongodb://private.invalid", "TOKEN=secret", "X", "A".repeat(129)]) {
+    assert.throws(
+      () => parseMigrationReport({
+        ...report(),
+        invariants: [{ ...report().invariants[0], code }]
+      }),
+      ContractValidationError
+    );
+  }
+  for (const candidate of [
+    report({ runId: "mongodb://user:secret@private.invalid" }),
+    report({ sourceSnapshotId: "TOKEN=secret" }),
+    report({ backupRestoreRef: "mongodb://user:secret@private.invalid" }),
+    report({
+      status: "running",
+      completedAt: null,
+      checkpoint: { batchId: "TOKEN=secret", processed: 0, total: 3 }
+    }),
+    report({
+      status: "running",
+      completedAt: null,
+      checkpoint: { batchId: "A".repeat(129), processed: 0, total: 3 }
+    }),
+    report({
+      invariants: [{
+        ...report().invariants[0],
+        expectedCount: 3,
+        actualCount: 2
+      }]
+    }),
+    report({
+      invariants: [{
+        ...report().invariants[0],
+        actualCount: null
+      }]
+    })
+  ]) {
+    assert.throws(() => parseMigrationReport(candidate), ContractValidationError);
+  }
+});
+
+test("read-only and routing rollback reports reject unauthorized writes", () => {
+  const safeDryRun = report({
+    command: "dryRun",
+    backupRestoreRef: null,
+    counts: report().counts.map((count) => ({
+      ...count,
+      written: 0,
+      skipped: count.planned
+    }))
+  });
+  assert.equal(parseMigrationReport(safeDryRun).counts[0].written, 0);
+  assert.throws(
+    () => parseMigrationReport(safeDryRun, { restoreDrill: restoreDrill() }),
+    ContractValidationError
+  );
+  assert.throws(
+    () => parseMigrationReport(report({ command: "dryRun", backupRestoreRef: null })),
+    ContractValidationError
+  );
+  assert.throws(
+    () => parseMigrationReport(report({ command: "verify" })),
+    ContractValidationError
+  );
+  assert.throws(
+    () => parseMigrationReport(report({
+      command: "rollback",
+      status: "rolledBack",
+      rollback: { routingProfile: "legacy", writerProfile: "legacy", dataDeleted: false }
+    })),
+    ContractValidationError
+  );
+});
+
+test("successful reports reject failed invariants, fatal issues, failures and incomplete work", () => {
+  const baseInvariant = report().invariants[0];
+  const baseCount = report().counts[0];
+  for (const candidate of [
+    report({ invariants: [{ ...baseInvariant, status: "fail" }] }),
+    report({ fatalIssueCount: 1 }),
+    report({ counts: [] }),
+    report({ invariants: [] }),
+    report({ counts: [{ ...baseCount, written: 1, failed: 1 }] }),
+    report({ checkpoint: { batchId: "entries-0001", processed: 1, total: 2 } }),
+    report({ counts: [{ ...baseCount, written: 1 }] }),
+    report({ checkpoint: { batchId: null, processed: 2, total: 2 } }),
+    report({ checkpoint: { batchId: "entries-0001", processed: 0, total: 0 } }),
+    report({ checkpoint: { batchId: "entries-0001", processed: 2, total: 3 } })
+  ]) {
+    assert.throws(() => parseMigrationReport(candidate), ContractValidationError);
+  }
+});
+
+test("successful reports bind to the complete approved manifest and final batch", () => {
+  const entries = report().counts.find((count) => count.collection === "entries");
+  const campaigns = report().counts.find((count) => count.collection === "campaigns");
+  assert.ok(entries);
+  assert.ok(campaigns);
+
+  for (const [candidate, reportVerification] of [
+    [
+      report({ counts: [entries], checkpoint: { batchId: "entries-0001", processed: 2, total: 2 } }),
+      {}
+    ],
+    [
+      report({
+        counts: [
+          { ...entries, scanned: 1, planned: 1, written: 1 },
+          campaigns
+        ],
+        checkpoint: { batchId: "entries-0001", processed: 2, total: 2 }
+      }),
+      {}
+    ],
+    [
+      report({ checkpoint: { batchId: "campaigns-0001", processed: 3, total: 3 } }),
+      {}
+    ],
+    [report(), { manifest: manifest({ policyVersion: "campaign-policy-v2" }) }],
+    [report({ backupRestoreRef: "anything" }), {}],
+    [report(), { restoreDrill: null }],
+    [report(), { restoreDrill: restoreDrill({ restoreRef: "anything" }) }],
+    [report(), { restoreDrill: restoreDrill({ sourceSnapshotId: "another-snapshot" }) }],
+    [report(), { restoreDrill: restoreDrill({ validUntil: "2026-08-23T16:05:59.999Z" }) }],
+    [report(), { evaluatedAt: "2026-08-23T16:04:59.999Z" }],
+    [report({ migrationId: "another-migration" }), {}],
+    [report({ sourceSnapshotId: "another-snapshot" }), {}],
+    [report({ manifestHash: "8".repeat(64) }), {}]
+  ]) {
+    assert.throws(
+      () => parseMigrationReport(candidate, reportVerification),
+      ContractValidationError
+    );
+  }
+});
+
+test("migration reports reject impossible counts, duplicate rows and completion states", () => {
+  const baseCount = report().counts[0];
+  for (const candidate of [
+    report({ counts: [{ ...baseCount, planned: 3 }] }),
+    report({ counts: [{ ...baseCount, written: 2, skipped: 1 }] }),
+    report({ counts: [baseCount, { ...baseCount }] }),
+    report({ status: "running", completedAt: "2026-08-23T16:05:00.000Z" }),
+    report({ status: "succeeded", completedAt: null }),
+    report({ status: "rolledBack" }),
+    report({ command: "rollback", status: "succeeded", rollback: null }),
+    report({ completedAt: "2026-08-23T15:59:59.999Z" }),
+    report({ backupRestoreRef: null })
+  ]) {
+    assert.throws(() => parseMigrationReport(candidate), ContractValidationError);
+  }
+});
+
+test("rollback reports prove route and writer rollback without deleting migrated data", () => {
+  const rollback = {
+    routingProfile: "legacy",
+    writerProfile: "legacy",
+    dataDeleted: false
+  };
+  const auditCount = {
+    ...report().counts[0],
+    collection: "auditLogs",
+    scanned: 1,
+    planned: 1,
+    written: 1
+  };
+  assert.deepEqual(parseMigrationReport(report({
+    command: "rollback",
+    status: "rolledBack",
+    counts: [auditCount],
+    checkpoint: { batchId: "rollback-routing-0001", processed: 1, total: 1 },
+    rollback
+  })).rollback, rollback);
+  for (const candidate of [
+    report({
+      command: "rollback",
+      status: "rolledBack",
+      counts: [auditCount],
+      checkpoint: { batchId: "rollback-routing-0001", processed: 1, total: 1 },
+      rollback: { ...rollback, dataDeleted: true }
+    }),
+    report({
+      command: "rollback",
+      status: "succeeded",
+      counts: [auditCount],
+      checkpoint: { batchId: "rollback-routing-0001", processed: 1, total: 1 },
+      rollback
+    }),
+    report({
+      command: "rollback",
+      status: "rolledBack",
+      counts: [auditCount],
+      checkpoint: { batchId: "rollback-routing-0001", processed: 1, total: 1 },
+      rollback: null
+    })
+  ]) {
+    assert.throws(() => parseMigrationReport(candidate), ContractValidationError);
+  }
+});
