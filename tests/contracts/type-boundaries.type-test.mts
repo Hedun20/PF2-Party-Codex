@@ -1,6 +1,8 @@
 import {
   parseCampaignId,
   parseCharacterId,
+  parseDiscordChannelId,
+  parseDiscordGuildId,
   parseEntryId,
   parseIntegrationConnectionId,
   parseIntegrationEventId,
@@ -13,6 +15,8 @@ import {
   type CampaignContract,
   type CampaignId,
   type CharacterId,
+  type DiscordChannelId,
+  type DiscordGuildId,
   type EntryId,
   type IntegrationConnectionId,
   type IntegrationEventId,
@@ -29,6 +33,8 @@ import {
 
 function requireCampaignId(_value: CampaignId): void {}
 function requireCharacterId(_value: CharacterId): void {}
+function requireDiscordChannelId(_value: DiscordChannelId): void {}
+function requireDiscordGuildId(_value: DiscordGuildId): void {}
 function requireEntryId(_value: EntryId): void {}
 function requireIntegrationConnectionId(_value: IntegrationConnectionId): void {}
 function requireIntegrationEventId(_value: IntegrationEventId): void {}
@@ -40,6 +46,8 @@ function requireWorkspaceId(_value: WorkspaceId): void {}
 
 const campaignId = parseCampaignId("campaign-redacted-001");
 const characterId = parseCharacterId("character-redacted-001");
+const discordChannelId = parseDiscordChannelId("123456789012345672");
+const discordGuildId = parseDiscordGuildId("123456789012345671");
 const entryId = parseEntryId("entry-redacted-001");
 const integrationConnectionId = parseIntegrationConnectionId("connection-redacted-001");
 const integrationEventId = parseIntegrationEventId("event-redacted-001");
@@ -51,6 +59,8 @@ const workspaceId = parseWorkspaceId("workspace-redacted-001");
 
 requireCampaignId(campaignId);
 requireCharacterId(characterId);
+requireDiscordChannelId(discordChannelId);
+requireDiscordGuildId(discordGuildId);
 requireEntryId(entryId);
 requireIntegrationConnectionId(integrationConnectionId);
 requireIntegrationEventId(integrationEventId);
@@ -70,6 +80,10 @@ requireMembershipId(entryId);
 requireIntegrationEventId(integrationConnectionId);
 // @ts-expect-error integration-event IDs must never cross a campaign-session boundary.
 requireSessionId(integrationEventId);
+// @ts-expect-error Discord guild IDs must never cross a Discord channel boundary.
+requireDiscordChannelId(discordGuildId);
+// @ts-expect-error provider snowflakes must never cross an internal campaign boundary.
+requireCampaignId(discordChannelId);
 
 const activeWorldId: CampaignContract["activeWorldId"] = worldId;
 const emptyActiveWorldId: CampaignContract["activeWorldId"] = "";
