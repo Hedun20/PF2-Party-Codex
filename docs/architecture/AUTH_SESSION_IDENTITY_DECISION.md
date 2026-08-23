@@ -297,22 +297,23 @@ Before the Vite artifact is frozen for rollback, it adds a version-agnostic pre-
 
 1. **Schema dark launch:** add collections/indexes, session application port, cookie/CSRF gateway, error codes, and metrics with `vite-bearer`; no browser behavior changes.
 2. **Dual issuance on Vite:** use `vite-dual`; password login returns the legacy token to Vite and also sets the cookie. Add an authenticated Bearer-to-cookie exchange for already logged-in Vite sessions. The exchange returns no token body. Add and verify the version-agnostic pre-module guard/bootstrap protocol, then freeze this rollback-compatible Vite artifact without a concrete signing-key version. Same-user dual mutation compatibility applies only in this profile.
-3. **Pre-cutover rollback rehearsal:** in disposable automation, leave a retired token in browser storage, switch atomically from `next-cookie-preferred` to `vite-dual` with a newly rotated legacy signing key, and prove the fresh API bootstrap supplies that new version and removes the stale token before the first application/authenticated request. A cookie-only user with no accepted Bearer must then see Vite login, reauthenticate with the password flow and its existing rate/enumeration controls, receive/store a new-version Bearer, reload without clearing that fresh token, and complete an authenticated Vite mutation. No cookie-to-Bearer endpoint exists.
-4. **Next cutover:** only after that rehearsal and the Phase 3 gate pass, atomically deploy the Next bundle with `next-cookie-preferred`. This profile stops Bearer issuance, unmounts the legacy verifier, retires every previously accepted legacy signing-key version, and removes `pf2-auth-token` from browser storage before application code runs. The same-origin `POST /api/auth/legacy-session` route is absent, so a Next XSS with cookie plus readable CSRF cannot mint a Bearer.
-5. **Bounded rollback window:** retain the frozen Vite artifact and legacy implementation, but keep them disabled while Next is live. A rollback is one control-plane release to `vite-dual` with another freshly rotated legacy signing key/version. The pre-module bootstrap clears every missing/mismatched-version token before API startup; the exact password-login route also treats an attached retired Bearer as no authorization evidence. Old Bearers remain invalid and every user without a newly issued Vite Bearer reauthenticates. Never re-enable or reuse a retired key version.
-6. **Cookie only:** after the rollback window closes, use `next-cookie-only`, remove the Vite artifact, issuance/verifier/exchange code and legacy browser storage code, and remove every legacy signing secret.
+3. **Thin Next foundation:** after the pre-foundation server/campaign gate passes, build the real Next auth/session shell without protected campaign routes and without production traffic.
+4. **Post-foundation rollback rehearsal:** exercise that shell in disposable automation under `next-cookie-preferred`, leave a retired token in browser storage, then switch atomically to `vite-dual` with a newly rotated legacy signing key. Prove the fresh API bootstrap supplies that new version and removes the stale token before the first application/authenticated request. A cookie-only Next user must then see Vite login, reauthenticate with the password flow and its existing rate/enumeration controls, receive/store a new-version Bearer, reload without clearing that fresh token, and complete an authenticated Vite mutation. No cookie-to-Bearer endpoint exists.
+5. **Next cutover:** only after both Phase 3 tables pass, atomically deploy the Next bundle with `next-cookie-preferred`. This profile stops Bearer issuance, unmounts the legacy verifier, retires every previously accepted legacy signing-key version, and removes `pf2-auth-token` from browser storage before application code runs. The same-origin `POST /api/auth/legacy-session` route is absent, so a Next XSS with cookie plus readable CSRF cannot mint a Bearer.
+6. **Bounded rollback window:** retain the frozen Vite artifact and legacy implementation, but keep them disabled while Next is live. A rollback is one control-plane release to `vite-dual` with another freshly rotated legacy signing key/version. The pre-module bootstrap clears every missing/mismatched-version token before API startup; the exact password-login route also treats an attached retired Bearer as no authorization evidence. Old Bearers remain invalid and every user without a newly issued Vite Bearer reauthenticates. Never re-enable or reuse a retired key version.
+7. **Cookie only:** after the rollback window closes, use `next-cookie-only`, remove the Vite artifact, issuance/verifier/exchange code and legacy browser storage code, and remove every legacy signing secret.
 
-Rollback from steps 4-5 never exposes a cookie-to-Bearer conversion surface. It trades transparent session continuity for a bounded, explicit Vite reauthentication while preserving passwords and all Mongo campaign data. Existing cookie sessions may be bulk-revoked without touching user passwords or campaign data. Rollback never makes Markdown authoritative and never downgrades a protected request from an invalid cookie to a Bearer token.
+Rollback from steps 5-6 never exposes a cookie-to-Bearer conversion surface. It trades transparent session continuity for a bounded, explicit Vite reauthentication while preserving passwords and all Mongo campaign data. Existing cookie sessions may be bulk-revoked without touching user passwords or campaign data. Rollback never makes Markdown authoritative and never downgrades a protected request from an invalid cookie to a Bearer token.
 
 ## Exit gates by implementation task
 
-### Phase 3 human-session and campaign-context gate
+### Phase 3 pre-foundation server and campaign-context gate
 
-Phase 3 cannot exit until automated tests cover these boundaries with live Mongo where persistence matters:
+Before a thin Next.js foundation may be created, automated server/contract tests must cover these boundaries with live Mongo where persistence matters:
 
 | Threat | Required proof |
 |---|---|
-| Browser XSS steals cookie-session auth | A Next profile exposes no credential in HTML, RSC props, Client Components, `localStorage`, or logs; the cookie is HttpOnly, the legacy verifier is unmounted, and no cookie-to-Bearer route exists |
+| Cookie credential exposure | Cookie flags are exact; the public session DTO, compatibility response and logs contain no cookie, token or legacy secret |
 | Cross-site mutation | SameSite cookie plus exact Origin/Referer and synchronizer token; missing/invalid input denied |
 | Session fixation | Login ignores caller session ID and rotates any pre-auth state |
 | Session replay/rotation race | Previous token works only in bounded overlap; replay after overlap revokes family |
@@ -320,16 +321,28 @@ Phase 3 cannot exit until automated tests cover these boundaries with live Mongo
 | Compatibility logout bypass | In `vite-dual`, logout advances `sessionVersion`; the cookie, every `webSession`, and the paired/retained Bearer all fail immediately |
 | Dual-input downgrade/confusion | Invalid or cross-user cookie/Bearer combination fails closed |
 | Legacy dual mutation | Same-user Bearer + cookie preserves Vite mutation without CSRF; cookie-only mutation still requires CSRF |
-| Rollback stale-token lockout | The frozen artifact accepts the fresh release's bootstrap protocol/version, removes a retired/missing-version token before any application/authenticated request, preserves the freshly issued token on reload, and password login never uses attached credentials; protected invalid dual input still fails closed |
-| Rollback session recovery | From a cookie-only Next login, an atomic switch to `vite-dual` with a fresh signing key requires password reauthentication, issues a new Bearer, and permits Vite use; cookie+CSRF alone cannot mint one |
 | Cross-campaign header attack | Route/header mismatch rejected before repository access |
 | Removed member or role change | Existing account session remains, but fresh exact membership determines access immediately |
 | Platform-admin tenant escalation | Platform capability without membership cannot read or write campaign data |
 | Human-session audit leakage | Login/session/CSRF/context audit facts contain no token, code, secret, or private payload |
 
-Passing this table, plus existing login, verification, recovery, invitation-return, and enumeration-safe tests, unblocks the Next.js foundation. Discord, Foundry, and worker features are not Phase 3 exit dependencies.
+Passing this table, plus existing login, verification, account-recovery, invitation-return and enumeration-safe tests, unblocks only a thin Next authentication/session foundation. It does not authorize protected campaign-route migration or traffic cutover.
 
-Only `vite-bearer` and `vite-dual` may own `pf2-auth-token` plus its non-secret version marker in the frozen Vite `localStorage` path. Entering a Next profile disables the verifier, retires its signing key and clears both entries before application code runs. If that cleanup never ran, the fresh rollback API supplies its active version through the version-agnostic bootstrap and clears a missing/mismatched token before the Vite API client starts; protected endpoints still reject any stale token that is deliberately reintroduced. Step 6 removes the compatibility code and adds a repository-wide assertion that no browser auth token path remains.
+### Phase 3 post-foundation browser and rollback gate
+
+After the thin Next auth/session shell exists, but before it receives production traffic or protected campaign routes, browser-level automation must cover:
+
+| Threat | Required proof |
+|---|---|
+| Browser XSS steals cookie-session auth | A Next profile exposes no credential in HTML, RSC props, Client Components, `localStorage`, or logs; the cookie is HttpOnly, the legacy verifier is unmounted, and no cookie-to-Bearer route exists |
+| Next mutation omits CSRF | The actual Next client obtains the in-memory synchronizer token and sends it with exact Origin/Referer; missing/invalid client state is denied |
+| Retired Bearer survives Next cutover | A retained legacy token is rejected while the Next profile is active even if browser-storage cleanup is blocked |
+| Rollback stale-token lockout | The frozen artifact accepts the fresh release's bootstrap protocol/version, removes a retired/missing-version token before any application/authenticated request, preserves the freshly issued token on reload, and password login never uses attached credentials; protected invalid dual input still fails closed |
+| Rollback session recovery | From an actual cookie-only Next login, an atomic switch to `vite-dual` with a fresh signing key requires password reauthentication, issues a new Bearer, and permits Vite use; cookie+CSRF alone cannot mint one |
+
+Phase 3 and any browser traffic cutover remain blocked until both tables pass. Discord, Foundry and worker features are not Phase 3 exit dependencies.
+
+Only `vite-bearer` and `vite-dual` may own `pf2-auth-token` plus its non-secret version marker in the frozen Vite `localStorage` path. Entering a Next profile disables the verifier, retires its signing key and clears both entries before application code runs. If that cleanup never ran, the fresh rollback API supplies its active version through the version-agnostic bootstrap and clears a missing/mismatched token before the Vite API client starts; protected endpoints still reject any stale token that is deliberately reintroduced. Step 7 removes the compatibility code and adds a repository-wide assertion that no browser auth token path remains.
 
 ### Discord identity-link gate
 
@@ -372,13 +385,15 @@ Every task also adds contract tests for its stable errors, credential parsing, p
 HED-23 freezes behavior; it does not authorize runtime cutover. Implementation should be split so each review remains rollbackable:
 
 1. Add typed principal/error/session-store ports and Mongo indexes with no route cutover.
-2. Add the Express cookie/CSRF/legacy gateway behind `vite-bearer`, including Vite-only dual-mutation compatibility, profile/key-version enforcement, the version-agnostic frozen guard plus fresh-release bootstrap script, credential-independent password login, compatibility-wide logout and the reauthentication-based rollback rehearsal. Do not add a cookie-to-Bearer route. Exercise the session-specific rows, but do not claim the combined Phase 3 gate yet.
-3. Move all protected campaign adapters to exact route context, reject compatibility disagreement, and only then execute the complete Phase 3 human-session and campaign-context table.
-4. Add Discord identity linking as an independent provider adapter.
-5. Add Foundry pairing and connector authentication only with the first approved connector endpoints.
-6. Split the worker and add service identity when the deploy topology and least-privilege Mongo users are ready.
+2. Add the Express cookie/CSRF/legacy gateway behind `vite-bearer`, including Vite-only dual-mutation compatibility, profile/key-version enforcement, the version-agnostic frozen guard plus fresh-release bootstrap script, credential-independent password login and compatibility-wide logout. Do not add a cookie-to-Bearer route.
+3. Move all protected campaign adapters to exact route context, reject compatibility disagreement, and execute the pre-foundation server/campaign table.
+4. Only after that table passes, create the thin Next auth/session shell without migrating protected campaign routes or traffic.
+5. Execute the post-foundation browser/rollback table against that real shell and the frozen Vite artifact. Only both green tables permit the separately reviewed route/traffic cutover.
+6. Add Discord identity linking as an independent provider adapter.
+7. Add Foundry pairing and connector authentication only with the first approved connector endpoints.
+8. Split the worker and add service identity when the deploy topology and least-privilege Mongo users are ready.
 
-Next.js foundation remains blocked until the human-session and exact campaign-context gates pass. Discord, Foundry, and worker delivery can proceed later without changing `SessionPrincipalContract` or granting machine credentials a campaign role.
+The thin Next foundation remains blocked until the pre-foundation human-session and exact campaign-context gate passes; route/traffic cutover remains blocked until the post-foundation gate also passes. Discord, Foundry and worker delivery can proceed later without changing `SessionPrincipalContract` or granting machine credentials a campaign role.
 
 ## Reference standards
 
