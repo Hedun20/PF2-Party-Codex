@@ -32,6 +32,8 @@ The first vertical slice is intentionally thin but end to end. It starts with co
 
 ## Proposed target boundaries
 
+HED-16 bootstraps the pinned strict-TypeScript runtime/package structure and its CI/environment/secret gates in [`STRICT_TYPESCRIPT_WORKSPACE.md`](./STRICT_TYPESCRIPT_WORKSPACE.md). The scaffold remains non-routing and preserves Express/Vite as the active rollback runtime.
+
 HED-18 freezes the detailed module ownership, command/query, job/queue, connector, server data-access and deployment-process rules in [`MODULAR_MONOLITH_BOUNDARIES.md`](./MODULAR_MONOLITH_BOUNDARIES.md) and its machine-readable manifest. The table below remains the package-level summary.
 
 | Boundary | Owns | Must not own |

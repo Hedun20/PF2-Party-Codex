@@ -26,11 +26,21 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Use pinned npm 11.9.0
+        run: |
+          npm install --global npm@11.9.0
+          npm --version | grep --fixed-strings --line-regexp 11.9.0
+
       - name: Install locked dependencies
         run: npm ci
 
       - name: Typecheck framework-free contracts
         run: npm run typecheck
+
+      - name: Verify strict target workspace boundaries
+        run: npm run verify:target
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
 
       - name: Run runtime and dependency-boundary contract tests
         run: npm run test:contracts
@@ -102,6 +112,11 @@ jobs:
         with:
           node-version: 24
           cache: npm
+
+      - name: Use pinned npm 11.9.0
+        run: |
+          npm install --global npm@11.9.0
+          npm --version | grep --fixed-strings --line-regexp 11.9.0
 
       - name: Install locked dependencies
         run: npm ci
