@@ -1,6 +1,29 @@
+import { createHash } from "node:crypto";
 import { ObjectId } from "mongodb";
 import { getDb, mongoStatus } from "../db/mongo.js";
 import { collections } from "./collections.js";
+
+const PARTY_CODEX_SOURCE_PREFIX = "partyCodex:";
+
+export function nativeEntrySourceKey(path = "") {
+  const pathHash = createHash("sha256").update(String(path || ""), "utf8").digest("hex");
+  return `${PARTY_CODEX_SOURCE_PREFIX}live:${pathHash}`;
+}
+
+export function archivedNativeEntrySourceKey(entryId) {
+  return `${PARTY_CODEX_SOURCE_PREFIX}archived:${idString(entryId)}`;
+}
+
+export function assertImportSourcePathAllowed(value = "") {
+  const sourcePath = String(value || "");
+  if (sourcePath.startsWith(PARTY_CODEX_SOURCE_PREFIX)) {
+    const error = new Error(`Imported source paths cannot use the reserved ${PARTY_CODEX_SOURCE_PREFIX} namespace.`);
+    error.status = 400;
+    error.code = "ENTRY_SOURCE_PATH_RESERVED";
+    throw error;
+  }
+  return sourcePath;
+}
 
 export function isMongoEntriesEnabled() {
   return mongoStatus().connected;
@@ -282,9 +305,15 @@ export async function archiveEntryByPath({ campaignId, path, userId = null } = {
   if (!existing) return null;
   const stamp = now();
   const trashPath = `_trash/${stamp.replace(/[-:.]/g, "")}/${existing.path}`;
+  const update = {
+    $set: { status: "archived", archivedAt: stamp, archivedBy: objectIdFrom(userId) || userId || null, trashPath, updatedAt: stamp }
+  };
+  if (existing.source?.kind === "partyCodex" && existing.source?.originalPath?.startsWith(PARTY_CODEX_SOURCE_PREFIX)) {
+    update.$set["source.originalPath"] = archivedNativeEntrySourceKey(existing._id);
+  }
   await entries().updateOne(
     { _id: existing._id, campaignId: campaignObjectId },
-    { $set: { status: "archived", archivedAt: stamp, archivedBy: objectIdFrom(userId) || userId || null, trashPath, updatedAt: stamp } }
+    update
   );
   return {
     title: existing.title,
@@ -303,11 +332,16 @@ export async function countEntriesByCampaign(campaignId) {
 export async function upsertEntryFromImport(entry) {
   const stamp = now();
   const campaignId = objectIdFrom(entry.campaignId) || entry.campaignId;
-  const sourcePath = entry.source?.originalPath || entry.path;
+  const sourcePath = assertImportSourcePathAllowed(entry.source?.originalPath || entry.path || "");
   const filter = { campaignId, "source.originalPath": sourcePath };
   const existing = await entries().findOne(filter);
+  const {
+    _id: _ignoredId,
+    createdAt: requestedCreatedAt,
+    ...mutableEntry
+  } = entry;
   const document = {
-    ...entry,
+    ...mutableEntry,
     campaignId,
     worldId: objectIdFrom(entry.worldId) || entry.worldId || null,
     createdBy: objectIdFrom(entry.createdBy) || entry.createdBy || null,
@@ -315,11 +349,12 @@ export async function upsertEntryFromImport(entry) {
     updatedAt: stamp
   };
   if (existing) {
-    await entries().updateOne(filter, { $set: document, $setOnInsert: { createdAt: existing.createdAt || stamp } });
+    await entries().updateOne(filter, { $set: document });
     return { entry: await entries().findOne(filter), inserted: false };
   }
-  const result = await entries().insertOne({ ...document, createdAt: entry.createdAt || stamp });
-  return { entry: { ...document, _id: result.insertedId, createdAt: entry.createdAt || stamp }, inserted: true };
+  const createdAt = requestedCreatedAt || stamp;
+  const result = await entries().insertOne({ ...document, createdAt });
+  return { entry: { ...document, _id: result.insertedId, createdAt }, inserted: true };
 }
 
 export async function replaceRelationsForImport({ campaignId, importJobId, relations: relationDocs = [] }) {
