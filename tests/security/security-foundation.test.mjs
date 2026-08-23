@@ -121,6 +121,27 @@ test("analytics assertion rejects every field outside its explicit allowlist", (
   );
 });
 
+test("analytics assertion validates values inside every allowlisted field", () => {
+  const scenario = fixtures.find((fixture) => fixture.id === "analytics.metadata-redaction");
+  for (const override of [
+    { event: "Bearer secret-credential" },
+    { event: "archive.delete" },
+    { campaignBucket: "alice@example.com" },
+    { campaignBucket: "campaign-a" },
+    { outcome: "private player name" },
+    { durationMs: -1 },
+    { durationMs: 1.5 },
+    { durationMs: 120_001 }
+  ]) {
+    assert.throws(
+      () => validateSecurityFixture(scenario, { ...scenario.secure, ...override }),
+      SecurityAssertionError
+    );
+  }
+  const { outcome: _omitted, ...missingOutcome } = scenario.secure;
+  assert.throws(() => validateSecurityFixture(scenario, missingOutcome), SecurityAssertionError);
+});
+
 test("default test and CI commands keep the adversarial foundation mandatory", () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
   const workflow = fs.readFileSync(path.join(rootDir, ".github/workflows/ci.yml"), "utf8");

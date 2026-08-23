@@ -33,7 +33,7 @@ The harness is a test contract, not runtime authorization. A feature must adapt 
 - hidden-envelope and forbidden-evidence checks;
 - canonical HMAC batch signing/integrity verification for connector fixtures;
 - job idempotency, tenant/principal cache-key, and campaign deep-link checks;
-- prompt/evidence separation and explicit allowlisted, bounded analytics metadata checks;
+- prompt/evidence separation and explicit per-field analytics schemas with enums, keyed-HMAC buckets, and numeric bounds;
 - normalized-path campaign deep-link validation;
 - recursive redaction of every evidence leaf and a controlled `SecurityAssertionError`.
 
@@ -46,7 +46,7 @@ Every scenario contains both:
 1. a secure control fixture that the reusable assertion accepts; and
 2. an intentionally insecure fixture that the same assertion must reject.
 
-The negative fixtures include cross-tenant IDs, inactive membership, another player's knowledge, GM-only markers, secret roll data, spoofed Discord binding, replayed Foundry evidence, a tampered signed batch, duplicate job effects, incomplete cache identity, a normalized-path campaign escape, prompt injection, non-allowlisted analytics metadata, cross-campaign export/delete, and a hidden achievement title. Focused controls also cover external deep links, encoded traversal, arbitrary PII/credential-like analytics keys, and nested analytics values.
+The negative fixtures include cross-tenant IDs, inactive membership, another player's knowledge, GM-only markers, secret roll data, spoofed Discord binding, replayed Foundry evidence, a tampered signed batch, duplicate job effects, incomplete cache identity, a normalized-path campaign escape, prompt injection, non-allowlisted analytics metadata, cross-campaign export/delete, and a hidden achievement title. Focused controls also cover external deep links, encoded traversal, arbitrary PII/credential-like analytics keys, nested analytics values, and PII/Bearer/arbitrary text placed inside otherwise allowlisted analytics fields.
 
 If a future edit weakens an assertion so its insecure fixture passes, `tests/security/security-foundation.test.mjs` fails. `tests/security/hed-24-boundaries.mjs` is an independent required-ID and exact-wave specification, so removing a fixture and its local metadata cannot silently reduce coverage. Separate tests inspect controlled error messages and fail if any arbitrary evidence leaf, credential/private marker, Mongo username/password, Bearer value, email, or other forbidden evidence is present.
 

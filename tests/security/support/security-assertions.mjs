@@ -188,22 +188,48 @@ export function assertPromptIsolation(scenario, candidate) {
   assertNoSecretLeak(scenario, candidate?.output || {});
 }
 
+function metadataValueMatchesRule(value, rule) {
+  switch (rule?.kind) {
+    case "enum":
+      return typeof value === "string"
+        && Array.isArray(rule.values)
+        && rule.values.includes(value);
+    case "hmacSha256":
+      return typeof value === "string" && /^hmac-sha256:[a-f0-9]{64}$/.test(value);
+    case "boundedInteger":
+      return Number.isSafeInteger(value)
+        && value >= Number(rule.min)
+        && value <= Number(rule.max);
+    case "boolean":
+      return typeof value === "boolean";
+    default:
+      return false;
+  }
+}
+
 export function assertSafeMetadata(scenario, candidate) {
   assertNoSecretLeak(scenario, candidate, scenario.forbiddenKeys || []);
   if (!candidate || Array.isArray(candidate) || typeof candidate !== "object") {
     reject(scenario, "analytics metadata is not an object", candidate);
   }
-  const allowedKeys = new Set(scenario.allowedMetadataKeys || []);
-  if (allowedKeys.size === 0) reject(scenario, "analytics metadata allowlist is missing", {});
+  const fieldRules = scenario.metadataFieldRules || {};
+  const allowedKeys = new Set(Object.keys(fieldRules));
+  if (allowedKeys.size === 0) reject(scenario, "analytics metadata field schema is missing", {});
   const unexpectedKeyCount = Object.keys(candidate).filter((key) => !allowedKeys.has(key)).length;
   if (unexpectedKeyCount > 0) {
     reject(scenario, "analytics metadata contains fields outside the explicit allowlist", { unexpectedKeyCount });
   }
-  if (Object.values(candidate).some((value) => value !== null && !["string", "number", "boolean"].includes(typeof value))) {
-    reject(scenario, "analytics metadata contains a nested or unsupported value", {});
+  const missingKeyCount = Object.entries(fieldRules)
+    .filter(([key, rule]) => rule.required !== false && !Object.hasOwn(candidate, key))
+    .length;
+  if (missingKeyCount > 0) {
+    reject(scenario, "analytics metadata omits required allowlisted fields", { missingKeyCount });
   }
-  if (Object.values(candidate).some((value) => typeof value === "number" && !Number.isFinite(value))) {
-    reject(scenario, "analytics metadata contains a non-finite number", {});
+  const invalidValueCount = Object.entries(candidate)
+    .filter(([key, value]) => !metadataValueMatchesRule(value, fieldRules[key]))
+    .length;
+  if (invalidValueCount > 0) {
+    reject(scenario, "analytics metadata contains a value outside its field constraint", { invalidValueCount });
   }
   if (json(candidate).length > Number(scenario.maxSerializedLength || 2_000)) {
     reject(scenario, "analytics metadata exceeds the bounded allowlisted shape", { length: json(candidate).length });

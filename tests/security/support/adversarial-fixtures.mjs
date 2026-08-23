@@ -187,10 +187,26 @@ export function createAdversarialFixtures() {
       assertion: "safeMetadata",
       forbiddenKeys: ["entryTitle", "achievementTitle", "rawQuery", "content"],
       forbiddenValues: [markers.analytics, markers.gmOnly, markers.achievement],
-      allowedMetadataKeys: ["event", "campaignBucket", "outcome", "durationMs"],
+      metadataFieldRules: {
+        event: { kind: "enum", values: ["archive.read"] },
+        campaignBucket: { kind: "hmacSha256" },
+        outcome: { kind: "enum", values: ["allowed", "denied", "error"] },
+        durationMs: { kind: "boundedInteger", min: 0, max: 120_000 }
+      },
       maxSerializedLength: 500,
-      secure: { event: "archive.read", campaignBucket: "campaign-hash", outcome: "allowed", durationMs: 21 },
-      insecure: { event: "archive.read", campaignBucket: "campaign-hash", outcome: "allowed", durationMs: 21, playerName: "private name" }
+      secure: {
+        event: "archive.read",
+        campaignBucket: "hmac-sha256:4f5c2a1e0d9b8c7a6f5e4d3c2b1a0099887766554433221100ffeeddccbbaa99",
+        outcome: "allowed",
+        durationMs: 21
+      },
+      insecure: {
+        event: "archive.read",
+        campaignBucket: "hmac-sha256:4f5c2a1e0d9b8c7a6f5e4d3c2b1a0099887766554433221100ffeeddccbbaa99",
+        outcome: "allowed",
+        durationMs: 21,
+        playerName: "private name"
+      }
     },
     denied("export.campaign-scope", ["W4"], "EXPORT_SCOPE_DENIED", {
       campaignId: ids.campaignB,
