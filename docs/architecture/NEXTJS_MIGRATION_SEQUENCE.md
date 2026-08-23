@@ -32,6 +32,8 @@ The first vertical slice is intentionally thin but end to end. It starts with co
 
 ## Proposed target boundaries
 
+HED-18 freezes the detailed module ownership, command/query, job/queue, connector, server data-access and deployment-process rules in [`MODULAR_MONOLITH_BOUNDARIES.md`](./MODULAR_MONOLITH_BOUNDARIES.md) and its machine-readable manifest. The table below remains the package-level summary.
+
 | Boundary | Owns | Must not own |
 |---|---|---|
 | `packages/contracts` | Branded IDs, runtime input/output schemas, DTOs, error codes, compatibility fixtures | Express/Next handlers, Mongo queries, React components |
