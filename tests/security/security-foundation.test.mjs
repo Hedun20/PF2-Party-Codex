@@ -4,10 +4,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import {
-  createAdversarialFixtures,
-  REQUIRED_SECURITY_SCENARIOS
-} from "./support/adversarial-fixtures.mjs";
+import { HED_24_BOUNDARY_SPEC } from "./hed-24-boundaries.mjs";
+import { createAdversarialFixtures } from "./support/adversarial-fixtures.mjs";
 import {
   SecurityAssertionError,
   validateSecurityFixture
@@ -18,12 +16,14 @@ const fixtures = createAdversarialFixtures();
 
 test("security scenario manifest covers every HED-24 boundary and W2/W3/W4 gate", () => {
   const ids = fixtures.map((fixture) => fixture.id);
-  assert.deepEqual([...ids].sort(), [...REQUIRED_SECURITY_SCENARIOS].sort());
+  assert.deepEqual([...ids].sort(), Object.keys(HED_24_BOUNDARY_SPEC).sort());
   assert.equal(new Set(ids).size, ids.length, "Security scenario IDs must be unique");
-  for (const wave of ["W2", "W3", "W4"]) {
-    assert.ok(fixtures.some((fixture) => fixture.waves.includes(wave)), `${wave} has no adversarial gate`);
-  }
   for (const fixture of fixtures) {
+    assert.deepEqual(
+      [...fixture.waves].sort(),
+      [...HED_24_BOUNDARY_SPEC[fixture.id]].sort(),
+      `${fixture.id} does not match the independent HED-24 wave assignment`
+    );
     assert.ok(fixture.assertion, `${fixture.id} has no reusable assertion`);
     assert.ok(fixture.secure, `${fixture.id} has no secure control fixture`);
     assert.ok(fixture.insecure, `${fixture.id} has no intentionally insecure fixture`);
@@ -67,6 +67,58 @@ test("security assertion failures redact credentials, private markers and PII", 
     assert.doesNotMatch(failure.message, /mongodb(?:\+srv)?:\/\/[^:@\s]+:[^<@\s][^@\s]*@/i);
     assert.doesNotMatch(failure.message, /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
   }
+});
+
+test("controlled errors redact every evidence leaf, including future ordinary fields", () => {
+  const privateValues = [
+    "PRIVATE_SUMMARY_VALUE",
+    "SECRET_TITLE_VALUE",
+    "diagnostic payload",
+    "fixture-user",
+    "fixture-password",
+    "arbitrary-api-credential"
+  ];
+  const failure = new SecurityAssertionError("redaction.future-field", "future adapter rejected", {
+    summary: privateValues[0],
+    title: privateValues[1],
+    diagnostic: privateValues[2],
+    mongoUri: `mongodb://${privateValues[3]}:${privateValues[4]}@db.internal/codex`,
+    nested: { apiCredential: privateValues[5], count: 42, enabled: true }
+  });
+  for (const value of privateValues) assert.ok(!failure.message.includes(value));
+  assert.ok(!failure.message.includes("42"));
+  assert.doesNotMatch(failure.message, /true/);
+});
+
+test("deep-link assertion rejects normalized traversal and non-local origins", () => {
+  const scenario = fixtures.find((fixture) => fixture.id === "notifications.deep-link-scope");
+  for (const url of [
+    "https://attacker.invalid/campaigns/campaign-a/archive/entry-1",
+    "/campaigns/campaign-a/../campaign-b/archive/entry-1",
+    "/campaigns/campaign-a/%2e%2e/campaign-b/archive/entry-1",
+    "/campaigns/campaign-a/%2f../campaign-b/archive/entry-1"
+  ]) {
+    assert.throws(() => validateSecurityFixture(scenario, { url }), SecurityAssertionError);
+  }
+});
+
+test("analytics assertion rejects every field outside its explicit allowlist", () => {
+  const scenario = fixtures.find((fixture) => fixture.id === "analytics.metadata-redaction");
+  for (const extra of [
+    { playerName: "private name" },
+    { characterName: "private character" },
+    { phoneNumber: "+1-555-0100" },
+    { apiCredential: "credential" }
+  ]) {
+    assert.throws(
+      () => validateSecurityFixture(scenario, { ...scenario.secure, ...extra }),
+      SecurityAssertionError
+    );
+  }
+  assert.throws(
+    () => validateSecurityFixture(scenario, { ...scenario.secure, campaignBucket: { nested: true } }),
+    SecurityAssertionError
+  );
 });
 
 test("default test and CI commands keep the adversarial foundation mandatory", () => {

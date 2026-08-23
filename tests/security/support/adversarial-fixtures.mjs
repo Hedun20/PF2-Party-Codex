@@ -1,24 +1,5 @@
 import { securityCacheKey, signSecurityBatch } from "./security-assertions.mjs";
 
-export const REQUIRED_SECURITY_SCENARIOS = Object.freeze([
-  "tenant.cross-workspace-campaign",
-  "membership.removed-player",
-  "knowledge.player-a-vs-player-b",
-  "visibility.gm-only-source",
-  "roll.blind-secret",
-  "discord.guild-channel-spoof",
-  "foundry.connection-replay",
-  "connector.signed-batch-tampering",
-  "jobs.retry-idempotency",
-  "cache.tenant-principal-key",
-  "notifications.deep-link-scope",
-  "ai.prompt-injection",
-  "analytics.metadata-redaction",
-  "export.campaign-scope",
-  "delete.campaign-scope",
-  "achievements.title-leakage"
-]);
-
 const ids = Object.freeze({
   workspaceA: "workspace-a",
   workspaceB: "workspace-b",
@@ -179,7 +160,7 @@ export function createAdversarialFixtures() {
       expected: { campaignId: ids.campaignA },
       forbiddenValues: [],
       secure: { url: `/campaigns/${ids.campaignA}/archive/entry-1` },
-      insecure: { url: `https://attacker.invalid/campaigns/${ids.campaignB}/archive/entry-1` }
+      insecure: { url: `/campaigns/${ids.campaignA}/../${ids.campaignB}/archive/entry-1` }
     },
     {
       id: "ai.prompt-injection",
@@ -206,9 +187,10 @@ export function createAdversarialFixtures() {
       assertion: "safeMetadata",
       forbiddenKeys: ["entryTitle", "achievementTitle", "rawQuery", "content"],
       forbiddenValues: [markers.analytics, markers.gmOnly, markers.achievement],
+      allowedMetadataKeys: ["event", "campaignBucket", "outcome", "durationMs"],
       maxSerializedLength: 500,
       secure: { event: "archive.read", campaignBucket: "campaign-hash", outcome: "allowed", durationMs: 21 },
-      insecure: { event: "archive.read", email: "player-a@example.test", mongoUri: markers.analytics, entryTitle: markers.gmOnly, achievementTitle: markers.achievement }
+      insecure: { event: "archive.read", campaignBucket: "campaign-hash", outcome: "allowed", durationMs: 21, playerName: "private name" }
     },
     denied("export.campaign-scope", ["W4"], "EXPORT_SCOPE_DENIED", {
       campaignId: ids.campaignB,

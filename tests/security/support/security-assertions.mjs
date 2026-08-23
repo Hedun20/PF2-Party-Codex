@@ -16,34 +16,16 @@ const DEFAULT_FORBIDDEN_KEYS = [
   "privateNotes"
 ];
 
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function redactString(value, forbiddenValues = []) {
-  let output = String(value)
-    .replace(/Bearer\s+[^\s"']+/gi, "Bearer <redacted>")
-    .replace(/mongodb(?:\+srv)?:\/\/([^:@/\s]+):([^@/\s]+)@/gi, "mongodb://$1:<redacted>@")
-    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "<redacted-email>")
-    .replace(/((?:token|secret|password|cookie|authorization|nonce)\s*[:=]\s*)[^\s,;}]+/gi, "$1<redacted>");
-  for (const marker of forbiddenValues.filter(Boolean)) {
-    output = output.replace(new RegExp(escapeRegExp(marker), "g"), "<redacted>");
-  }
-  return output;
-}
-
-export function redactSecurityEvidence(value, options = {}, seen = new WeakSet()) {
-  const forbiddenValues = options.forbiddenValues || [];
-  if (typeof value === "string") return redactString(value, forbiddenValues);
-  if (value === null || value === undefined || typeof value !== "object") return value;
+export function redactSecurityEvidence(value, _options = {}, seen = new WeakSet()) {
+  if (value === null || value === undefined || typeof value !== "object") return "<redacted>";
   if (seen.has(value)) return "<circular>";
   seen.add(value);
-  if (Array.isArray(value)) return value.map((item) => redactSecurityEvidence(item, options, seen));
+  if (Array.isArray(value)) return value.map((item) => redactSecurityEvidence(item, {}, seen));
   const output = {};
   for (const [key, item] of Object.entries(value)) {
     output[key] = SENSITIVE_KEY.test(key)
       ? "<redacted>"
-      : redactSecurityEvidence(item, options, seen);
+      : redactSecurityEvidence(item, {}, seen);
   }
   return output;
 }
@@ -182,14 +164,19 @@ export function assertTenantCacheKey(scenario, candidate) {
 export function assertCampaignDeepLink(scenario, candidate) {
   const value = String(candidate?.url || "");
   const prefix = `/campaigns/${encodeURIComponent(scenario.expected.campaignId)}`;
-  if (!value.startsWith(`${prefix}/`) || value.startsWith("//") || value.includes("\\") || value.includes("\0")) {
+  const rawPath = value.split(/[?#]/, 1)[0];
+  if (rawPath.startsWith("//") || rawPath.includes("\\") || rawPath.includes("\0") || /%2f|%5c/i.test(rawPath)) {
     reject(scenario, "notification deep link escapes the exact campaign route", candidate);
   }
+  let parsed;
   try {
-    const parsed = new URL(value, "https://party-codex.invalid");
-    if (parsed.origin !== "https://party-codex.invalid") reject(scenario, "notification deep link is not local", candidate);
+    parsed = new URL(value, "https://party-codex.invalid");
   } catch {
     reject(scenario, "notification deep link is malformed", candidate);
+  }
+  if (parsed.origin !== "https://party-codex.invalid") reject(scenario, "notification deep link is not local", candidate);
+  if (!parsed.pathname.startsWith(`${prefix}/`)) {
+    reject(scenario, "normalized notification path escapes the exact campaign route", candidate);
   }
 }
 
@@ -203,6 +190,21 @@ export function assertPromptIsolation(scenario, candidate) {
 
 export function assertSafeMetadata(scenario, candidate) {
   assertNoSecretLeak(scenario, candidate, scenario.forbiddenKeys || []);
+  if (!candidate || Array.isArray(candidate) || typeof candidate !== "object") {
+    reject(scenario, "analytics metadata is not an object", candidate);
+  }
+  const allowedKeys = new Set(scenario.allowedMetadataKeys || []);
+  if (allowedKeys.size === 0) reject(scenario, "analytics metadata allowlist is missing", {});
+  const unexpectedKeyCount = Object.keys(candidate).filter((key) => !allowedKeys.has(key)).length;
+  if (unexpectedKeyCount > 0) {
+    reject(scenario, "analytics metadata contains fields outside the explicit allowlist", { unexpectedKeyCount });
+  }
+  if (Object.values(candidate).some((value) => value !== null && !["string", "number", "boolean"].includes(typeof value))) {
+    reject(scenario, "analytics metadata contains a nested or unsupported value", {});
+  }
+  if (Object.values(candidate).some((value) => typeof value === "number" && !Number.isFinite(value))) {
+    reject(scenario, "analytics metadata contains a non-finite number", {});
+  }
   if (json(candidate).length > Number(scenario.maxSerializedLength || 2_000)) {
     reject(scenario, "analytics metadata exceeds the bounded allowlisted shape", { length: json(candidate).length });
   }
