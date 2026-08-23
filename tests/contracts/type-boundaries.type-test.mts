@@ -2,7 +2,10 @@ import {
   parseCampaignId,
   parseCharacterId,
   parseEntryId,
+  parseIntegrationConnectionId,
+  parseIntegrationEventId,
   parseMembershipId,
+  parseSessionId,
   parseUserId,
   parseWorldId,
   parseWorkspaceId,
@@ -11,10 +14,13 @@ import {
   type CampaignId,
   type CharacterId,
   type EntryId,
+  type IntegrationConnectionId,
+  type IntegrationEventId,
   type MembershipId,
   type MembershipContract,
   type PlayerArchiveEntryDto,
   type SessionPrincipalContract,
+  type SessionId,
   type MachineCampaignPolicySubject,
   type UserId,
   type WorldId,
@@ -24,7 +30,10 @@ import {
 function requireCampaignId(_value: CampaignId): void {}
 function requireCharacterId(_value: CharacterId): void {}
 function requireEntryId(_value: EntryId): void {}
+function requireIntegrationConnectionId(_value: IntegrationConnectionId): void {}
+function requireIntegrationEventId(_value: IntegrationEventId): void {}
 function requireMembershipId(_value: MembershipId): void {}
+function requireSessionId(_value: SessionId): void {}
 function requireUserId(_value: UserId): void {}
 function requireWorldId(_value: WorldId): void {}
 function requireWorkspaceId(_value: WorkspaceId): void {}
@@ -32,7 +41,10 @@ function requireWorkspaceId(_value: WorkspaceId): void {}
 const campaignId = parseCampaignId("campaign-redacted-001");
 const characterId = parseCharacterId("character-redacted-001");
 const entryId = parseEntryId("entry-redacted-001");
+const integrationConnectionId = parseIntegrationConnectionId("connection-redacted-001");
+const integrationEventId = parseIntegrationEventId("event-redacted-001");
 const membershipId = parseMembershipId("membership-redacted-001");
+const sessionId = parseSessionId("session-redacted-001");
 const userId = parseUserId("user-redacted-001");
 const worldId = parseWorldId("world-redacted-001");
 const workspaceId = parseWorkspaceId("workspace-redacted-001");
@@ -40,7 +52,10 @@ const workspaceId = parseWorkspaceId("workspace-redacted-001");
 requireCampaignId(campaignId);
 requireCharacterId(characterId);
 requireEntryId(entryId);
+requireIntegrationConnectionId(integrationConnectionId);
+requireIntegrationEventId(integrationEventId);
 requireMembershipId(membershipId);
+requireSessionId(sessionId);
 requireUserId(userId);
 requireWorldId(worldId);
 requireWorkspaceId(workspaceId);
@@ -51,6 +66,10 @@ requireCampaignId(workspaceId);
 requireUserId(campaignId);
 // @ts-expect-error entry IDs must never cross a membership boundary.
 requireMembershipId(entryId);
+// @ts-expect-error connection IDs must never cross an integration-event boundary.
+requireIntegrationEventId(integrationConnectionId);
+// @ts-expect-error integration-event IDs must never cross a campaign-session boundary.
+requireSessionId(integrationEventId);
 
 const activeWorldId: CampaignContract["activeWorldId"] = worldId;
 const emptyActiveWorldId: CampaignContract["activeWorldId"] = "";

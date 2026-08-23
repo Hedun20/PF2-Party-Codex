@@ -13,6 +13,9 @@ export type MembershipId = AggregateId<"MembershipId">;
 export type EntryId = AggregateId<"EntryId">;
 export type WorldId = AggregateId<"WorldId">;
 export type CharacterId = AggregateId<"CharacterId">;
+export type IntegrationConnectionId = AggregateId<"IntegrationConnectionId">;
+export type IntegrationEventId = AggregateId<"IntegrationEventId">;
+export type SessionId = AggregateId<"SessionId">;
 
 function parseAggregateId<Name extends string>(value: unknown, path: string): AggregateId<Name> {
   return expectString(value, path) as AggregateId<Name>;
@@ -44,4 +47,19 @@ export function parseWorldId(value: unknown, path = "worldId"): WorldId {
 
 export function parseCharacterId(value: unknown, path = "characterId"): CharacterId {
   return parseAggregateId<"CharacterId">(value, path);
+}
+
+export function parseIntegrationConnectionId(
+  value: unknown,
+  path = "connectionId"
+): IntegrationConnectionId {
+  return parseAggregateId<"IntegrationConnectionId">(value, path);
+}
+
+export function parseIntegrationEventId(value: unknown, path = "eventId"): IntegrationEventId {
+  return parseAggregateId<"IntegrationEventId">(value, path);
+}
+
+export function parseSessionId(value: unknown, path = "sessionId"): SessionId {
+  return parseAggregateId<"SessionId">(value, path);
 }
