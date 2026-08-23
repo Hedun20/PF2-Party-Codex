@@ -89,6 +89,7 @@ Required indexes:
 | Keys | Options | Purpose |
 |---|---|---|
 | `{ tokenHash: 1 }` | unique | Session lookup |
+| `{ previousTokenHash: 1 }` | partial on string values | Indexed lookup during the bounded rotation overlap; acceptance also requires `previousTokenValidUntil > now` |
 | `{ sessionId: 1 }` | unique | Safe audit/reference identifier |
 | `{ userId: 1, revokedAt: 1, absoluteExpiresAt: 1 }` | — | Account session list and bulk revocation |
 | `{ purgeAt: 1 }` | TTL | Removal after the audit/recovery retention window |
@@ -99,7 +100,7 @@ The TTL index is cleanup only. Every read explicitly checks account status, `ses
 
 - Create a new session on password login. Do not accept a caller-supplied session identifier.
 - Rotate the token at least every 24 hours and after reauthentication or another account-security boundary.
-- Use an atomic compare-and-swap. The immediately previous hash may remain valid for at most two minutes to tolerate concurrent browser requests. Reuse after the overlap is a replay signal and revokes the session family.
+- Use an atomic compare-and-swap. The immediately previous hash may remain valid for at most two minutes to tolerate concurrent browser requests. Lookup may use only the indexed current or previous hash paths; a previous-hash match still requires `previousTokenValidUntil > now`. Clear both previous-token fields when the overlap closes. Reuse after the overlap is a replay signal and revokes the session family.
 - Update `lastSeenAt` and idle expiry at most once every fifteen minutes to avoid a write on every request.
 - While a Vite profile or the legacy verifier is enabled, `POST /api/auth/logout` increments `users.sessionVersion`, revokes every `webSession` for the user, and expires the cookie. The version change immediately invalidates every paired/retained legacy Bearer; compatibility logout is intentionally account-wide because the frozen stateless Bearer has no independently revocable session row.
 - After the legacy verifier is permanently removed, `POST /api/auth/logout` may revoke only the current cookie session and expire that cookie.
@@ -179,7 +180,7 @@ The provider documents the authorization code grant, exact registered redirect U
 Use a device-style flow so no user password, browser session, or GM role enters Foundry.
 
 1. The Foundry module calls an unauthenticated, rate-limited pairing start endpoint and receives a 256-bit `deviceCode`, a short human `userCode`, a verification URL, polling interval, and ten-minute expiry.
-2. Store a SHA-256 hash of the high-entropy device code and an HMAC-SHA-256 hash of the short user code in `connectorPairings`. The HMAC key comes from `PAIRING_CODE_PEPPER`. Rate-limit user-code attempts by IP and authenticated account; lock the record after five failures.
+2. Store a SHA-256 hash of the high-entropy device code and an HMAC-SHA-256 `activeUserCodeHash` for the short user code in `connectorPairings`. The HMAC key comes from `PAIRING_CODE_PEPPER`. A unique partial index covers `activeUserCodeHash` while it is present. Pairing start inserts the record before returning either code; on a duplicate-key collision it generates a new user code and retries within a bounded attempt limit. Approval, denial, expiry, lock or consumption atomically unsets `activeUserCodeHash`, so only currently enterable codes occupy the uniqueness index. Rate-limit user-code attempts by IP and authenticated account; lock the record after five failures.
 3. An authenticated owner/GM opens the verification URL, enters/confirms the code, selects an exact campaign they currently manage, reviews the requested scopes and instance label, and approves with CSRF protection.
 4. The module polls with the high-entropy device code. An approved record may be consumed exactly once.
 5. Consumption creates a connector record and returns a 256-bit connector secret exactly once. Only its hash is stored.
@@ -214,7 +215,7 @@ Privileged `archive:read:gm`, `import:commit`, and `export:create:gm` require ex
 
 Credentials expire after ninety days by default, show last-used time, and support named rotation. Rotation returns a new secret once and permits an explicitly displayed overlap of at most 24 hours before revoking the old credential. Removal from a campaign does not automatically remove a connector approved by a different active GM; connector revocation is an explicit campaign operation and is mandatory when the campaign is archived or the installation is removed.
 
-Required indexes cover unique credential ID, exact `{ campaignId, connectorType, instanceId }`, active/expiry lookup, pairing device/user code hashes, and pairing/credential TTL cleanup. Raw codes and secrets are never logged, stored in Mongo, or returned by list endpoints.
+Required indexes cover unique credential ID, exact `{ campaignId, connectorType, instanceId }`, active/expiry lookup, a unique device-code hash, a unique partial `activeUserCodeHash`, and pairing/credential TTL cleanup. Collision/retry tests must force two starts to generate the same short code and prove that the second response is withheld until a distinct active hash is inserted. Raw codes and secrets are never logged, stored in Mongo, or returned by list endpoints.
 
 ## Service and job identity
 
@@ -362,6 +363,7 @@ The pairing/connector adapter cannot ship until its task proves:
 | Threat | Required proof |
 |---|---|
 | Pairing brute force/replay | Attempt limits, lock, TTL, hashed codes, exact one-time consumption |
+| Pairing user-code collision | Forced short-code collision cannot create two enterable records or return an ambiguous code; bounded regeneration succeeds or fails closed |
 | Pairing campaign/scope escalation | Approval reloads owner/GM membership; credential is exact-campaign and allowlisted-scope |
 | Connector archive leakage | Party scope uses the player DTO; GM scope uses its dedicated allowlist; generic GM serializers and private/source/auth fields are unreachable |
 | Credential-kind confusion | Connector/service credentials fail on browser routes; user sessions fail on machine routes |
