@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -8,6 +9,7 @@ import { HED_24_BOUNDARY_SPEC } from "./hed-24-boundaries.mjs";
 import { createAdversarialFixtures } from "./support/adversarial-fixtures.mjs";
 import {
   SecurityAssertionError,
+  signSecurityBatch,
   validateSecurityFixture
 } from "./support/security-assertions.mjs";
 
@@ -123,11 +125,14 @@ test("analytics assertion rejects every field outside its explicit allowlist", (
 
 test("analytics assertion validates values inside every allowlisted field", () => {
   const scenario = fixtures.find((fixture) => fixture.id === "analytics.metadata-redaction");
+  const unkeyedEmailDigest = crypto.createHash("sha256").update("alice@example.com").digest("hex");
   for (const override of [
     { event: "Bearer secret-credential" },
     { event: "archive.delete" },
     { campaignBucket: "alice@example.com" },
     { campaignBucket: "campaign-a" },
+    { campaignBucket: `hmac-sha256:${unkeyedEmailDigest}` },
+    { campaignBucket: `hmac-sha256:${"a".repeat(64)}` },
     { outcome: "private player name" },
     { durationMs: -1 },
     { durationMs: 1.5 },
@@ -140,6 +145,35 @@ test("analytics assertion validates values inside every allowlisted field", () =
   }
   const { outcome: _omitted, ...missingOutcome } = scenario.secure;
   assert.throws(() => validateSecurityFixture(scenario, missingOutcome), SecurityAssertionError);
+});
+
+test("signed batches exercise exact campaign and connection checks after valid signatures", () => {
+  const scenario = fixtures.find((fixture) => fixture.id === "connector.signed-batch-tampering");
+  for (const patch of [
+    { campaignId: "campaign-b" },
+    { connectionId: "foundry-connection-b" }
+  ]) {
+    const batch = { ...scenario.secure.batch, ...patch };
+    assert.throws(
+      () => validateSecurityFixture(scenario, {
+        batch,
+        signature: signSecurityBatch(batch, scenario.signingSecret)
+      }),
+      SecurityAssertionError
+    );
+  }
+});
+
+test("malformed metadata candidates always use the controlled error type", () => {
+  const scenario = fixtures.find((fixture) => fixture.id === "analytics.metadata-redaction");
+  for (const candidate of [undefined, Symbol("malformed")]) {
+    assert.throws(
+      () => validateSecurityFixture(scenario, candidate),
+      (error) => error instanceof SecurityAssertionError
+        && error.code === "SECURITY_GATE_FAILED"
+        && error.scenarioId === scenario.id
+    );
+  }
 });
 
 test("default test and CI commands keep the adversarial foundation mandatory", () => {

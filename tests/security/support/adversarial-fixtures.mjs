@@ -1,4 +1,8 @@
-import { securityCacheKey, signSecurityBatch } from "./security-assertions.mjs";
+import {
+  createHmacSha256Bucket,
+  securityCacheKey,
+  signSecurityBatch
+} from "./security-assertions.mjs";
 
 const ids = Object.freeze({
   workspaceA: "workspace-a",
@@ -37,6 +41,9 @@ function denied(id, waves, expectedCode, insecureEvidence = {}) {
 
 export function createAdversarialFixtures() {
   const signingSecret = "fixture-signing-secret-never-log";
+  const analyticsBucketKey = "analytics-bucket-fixture-key-never-log";
+  const analyticsBucketInput = ids.campaignA;
+  const analyticsBucket = createHmacSha256Bucket(analyticsBucketInput, analyticsBucketKey);
   const signedBatch = {
     batchId: "batch-1",
     connectionId: ids.foundryConnection,
@@ -186,23 +193,23 @@ export function createAdversarialFixtures() {
       waves: ["W3", "W4"],
       assertion: "safeMetadata",
       forbiddenKeys: ["entryTitle", "achievementTitle", "rawQuery", "content"],
-      forbiddenValues: [markers.analytics, markers.gmOnly, markers.achievement],
+      forbiddenValues: [markers.analytics, markers.gmOnly, markers.achievement, analyticsBucketKey],
       metadataFieldRules: {
         event: { kind: "enum", values: ["archive.read"] },
-        campaignBucket: { kind: "hmacSha256" },
+        campaignBucket: { kind: "hmacSha256", input: analyticsBucketInput, fixtureKey: analyticsBucketKey },
         outcome: { kind: "enum", values: ["allowed", "denied", "error"] },
         durationMs: { kind: "boundedInteger", min: 0, max: 120_000 }
       },
       maxSerializedLength: 500,
       secure: {
         event: "archive.read",
-        campaignBucket: "hmac-sha256:4f5c2a1e0d9b8c7a6f5e4d3c2b1a0099887766554433221100ffeeddccbbaa99",
+        campaignBucket: analyticsBucket,
         outcome: "allowed",
         durationMs: 21
       },
       insecure: {
         event: "archive.read",
-        campaignBucket: "hmac-sha256:4f5c2a1e0d9b8c7a6f5e4d3c2b1a0099887766554433221100ffeeddccbbaa99",
+        campaignBucket: analyticsBucket,
         outcome: "allowed",
         durationMs: 21,
         playerName: "private name"

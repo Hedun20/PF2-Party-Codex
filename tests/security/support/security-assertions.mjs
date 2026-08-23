@@ -48,7 +48,8 @@ function reject(scenario, reason, evidence) {
 
 function json(value) {
   try {
-    return JSON.stringify(value);
+    const serialized = JSON.stringify(value);
+    return typeof serialized === "string" ? serialized : "<unserializable>";
   } catch {
     return "<unserializable>";
   }
@@ -117,6 +118,10 @@ function canonicalJson(value) {
 
 export function signSecurityBatch(batch, secret) {
   return crypto.createHmac("sha256", secret).update(canonicalJson(batch)).digest("hex");
+}
+
+export function createHmacSha256Bucket(input, secret) {
+  return `hmac-sha256:${crypto.createHmac("sha256", secret).update(String(input)).digest("hex")}`;
 }
 
 export function assertSignedBatch(scenario, candidate) {
@@ -195,7 +200,16 @@ function metadataValueMatchesRule(value, rule) {
         && Array.isArray(rule.values)
         && rule.values.includes(value);
     case "hmacSha256":
-      return typeof value === "string" && /^hmac-sha256:[a-f0-9]{64}$/.test(value);
+      if (typeof value !== "string" || typeof rule.input !== "string" || typeof rule.fixtureKey !== "string") {
+        return false;
+      }
+      {
+        const expected = createHmacSha256Bucket(rule.input, rule.fixtureKey);
+        const valueBytes = Buffer.from(value);
+        const expectedBytes = Buffer.from(expected);
+        return valueBytes.length === expectedBytes.length
+          && crypto.timingSafeEqual(valueBytes, expectedBytes);
+      }
     case "boundedInteger":
       return Number.isSafeInteger(value)
         && value >= Number(rule.min)
