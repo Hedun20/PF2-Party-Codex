@@ -146,6 +146,8 @@ Server-only entrypoints use a `server-only` guard and package exports that have 
 
 The Discord bot and Foundry module are external clients even when they live in the monorepo.
 
+The Discord-specific runtime, least-privilege installation, interaction signature, command, Gateway-message and HED-56 mapping decisions are frozen in [`DISCORD_INTEGRATION_ADR.md`](./DISCORD_INTEGRATION_ADR.md).
+
 - They receive no Mongo URI, application session secret, object-store master credential or internal service credential.
 - They import only generated/versioned connector request/response contracts and provider SDK/types.
 - Foundry sends outbound HTTPS batches; the platform never opens an inbound port to a World or remotely controls Foundry.
