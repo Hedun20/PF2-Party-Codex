@@ -1,5 +1,6 @@
 import {
   parseCampaignId,
+  parseCharacterId,
   parseEntryId,
   parseMembershipId,
   parseUserId,
@@ -8,17 +9,20 @@ import {
   resolveVerifiedCampaignContextContract,
   type CampaignContract,
   type CampaignId,
+  type CharacterId,
   type EntryId,
   type MembershipId,
   type MembershipContract,
   type PlayerArchiveEntryDto,
   type SessionPrincipalContract,
+  type MachineCampaignPolicySubject,
   type UserId,
   type WorldId,
   type WorkspaceId
 } from "@pf2-party-codex/contracts";
 
 function requireCampaignId(_value: CampaignId): void {}
+function requireCharacterId(_value: CharacterId): void {}
 function requireEntryId(_value: EntryId): void {}
 function requireMembershipId(_value: MembershipId): void {}
 function requireUserId(_value: UserId): void {}
@@ -26,6 +30,7 @@ function requireWorldId(_value: WorldId): void {}
 function requireWorkspaceId(_value: WorkspaceId): void {}
 
 const campaignId = parseCampaignId("campaign-redacted-001");
+const characterId = parseCharacterId("character-redacted-001");
 const entryId = parseEntryId("entry-redacted-001");
 const membershipId = parseMembershipId("membership-redacted-001");
 const userId = parseUserId("user-redacted-001");
@@ -33,6 +38,7 @@ const worldId = parseWorldId("world-redacted-001");
 const workspaceId = parseWorkspaceId("workspace-redacted-001");
 
 requireCampaignId(campaignId);
+requireCharacterId(characterId);
 requireEntryId(entryId);
 requireMembershipId(membershipId);
 requireUserId(userId);
@@ -68,3 +74,9 @@ resolveVerifiedCampaignContextContract(principal, membership, workspaceId);
 declare const playerEntry: PlayerArchiveEntryDto;
 // @ts-expect-error player DTOs intentionally expose no GM content field.
 playerEntry.gmContent;
+
+declare const machineSubject: MachineCampaignPolicySubject;
+// @ts-expect-error machine credentials never receive a campaign role.
+machineSubject.role;
+// @ts-expect-error campaign IDs cannot cross a character policy boundary.
+requireCharacterId(campaignId);
