@@ -97,7 +97,7 @@ Recommended transition, subject to security review:
 6. Add CSRF protection appropriate to cookie-authenticated mutations.
 7. Do not expose cookie contents or legacy tokens to Client Components.
 
-No auth framework/provider is selected by this document. The acceptance contract comes before that choice.
+This audit did not select an auth framework/provider. HED-23 now freezes the target implementation and machine-identity boundaries in [`AUTH_SESSION_IDENTITY_DECISION.md`](./AUTH_SESSION_IDENTITY_DECISION.md). Runtime work remains gated by its migration sequence and threat-test matrix.
 
 ## Gated phases
 
