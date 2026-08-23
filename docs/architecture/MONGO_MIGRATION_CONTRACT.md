@@ -100,7 +100,7 @@ Provider object IDs, provider event/version IDs and idempotency keys are separat
 
 ## Command and report contract
 
-`parseMigrationCommandRequest`, `parseVerifiedMigrationCommandRequest`, `parseMigrationManifest`, `parseMigrationRestoreDrill` and `parseMigrationReport` make the operational boundary executable. The ordinary request parser accepts only `inventory`/`dryRun`; commit, verify and rollback must use the verified parser with the actual manifest, restore-drill record, trusted evaluation time and a server-supplied SHA-256 implementation.
+`parseMigrationCommandRequest`, `parseVerifiedMigrationCommandRequest`, `parseMigrationManifest`, `parseMigrationRestoreDrill` and `parseMigrationReport` make the operational boundary executable. The ordinary request parser accepts only `inventory`/`dryRun`; commit, verify and rollback must use the verified parser with the actual manifest, restore-drill record, trusted evaluation time and a server-supplied SHA-256 implementation. Report parsing likewise requires the trusted approved manifest and server-supplied SHA-256 implementation; a report cannot self-attest which plan it completed.
 
 Commands:
 
@@ -114,7 +114,7 @@ Commands:
 
 The verified parser recomputes the canonical manifest hash and binds it to the exact migration/version, source snapshot, source/target fingerprints and normalized scope. It then loads the referenced restore record and requires the same migration/snapshot/source fingerprint/manifest, successful non-fatal invariants, completion before the trusted evaluation instant and an unexpired `validUntil`. A nonempty caller string is not restore evidence.
 
-The request contains only non-secret database fingerprints. It rejects Mongo URIs, credentials and extra fields. The user-visible report contains collection counts, bounded invariant results and aggregate checkpoint progress only. Inventory/dry-run reports reject every nonzero write count. A successful/rolled-back terminal report rejects fatal issues, failed invariants/items and incomplete checkpoints; a successful commit must account for every planned item. Raw records, titles, emails, provider payloads, tokens and per-item error evidence stay out of the report and logs.
+The request contains only non-secret database fingerprints. Run IDs, snapshot IDs and other operational identifiers use a bounded safe identifier grammar; Mongo URIs, credentials, secret-shaped strings and extra fields are rejected. The user-visible report contains collection counts, bounded invariant results and aggregate checkpoint progress only. Passing count invariants require both counts or neither and cannot claim `pass` when the numbers differ. Inventory/dry-run reports reject every nonzero write count. A successful/rolled-back terminal report rejects fatal issues, failed invariants/items and incomplete checkpoints. Successful dry-run, commit and verify reports must match the trusted manifest's exact migration/version/snapshot/hash, cover every and only scoped collection, reconcile each collection's planned count to all approved batches, and finish on the final approved batch ID. Raw records, titles, emails, provider payloads, tokens and per-item error evidence stay out of the report and logs.
 
 ## Inventory and deterministic manifest
 

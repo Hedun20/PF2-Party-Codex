@@ -9,7 +9,7 @@ import {
   expectedMigrationConfirmation,
   parseMigrationCommandRequest,
   parseMigrationManifest,
-  parseMigrationReport,
+  parseMigrationReport as parseMigrationReportContract,
   parseVerifiedMigrationCommandRequest
 } from "../../packages/contracts/dist/index.js";
 
@@ -72,6 +72,14 @@ function manifest(overrides = {}) {
 }
 
 const manifestHash = computeMigrationManifestHash(manifest(), sha256);
+
+function parseMigrationReport(value, overrides = {}) {
+  return parseMigrationReportContract(value, {
+    manifest: manifest(),
+    sha256,
+    ...overrides
+  });
+}
 
 function restoreDrill(overrides = {}) {
   return {
@@ -181,6 +189,14 @@ function report(overrides = {}) {
       skipped: 0,
       quarantined: 0,
       failed: 0
+    }, {
+      collection: "campaigns",
+      scanned: 1,
+      planned: 1,
+      written: 1,
+      skipped: 0,
+      quarantined: 0,
+      failed: 0
     }],
     invariants: [{
       code: "ENTRY_CAMPAIGN_SCOPE_EXACT",
@@ -190,7 +206,7 @@ function report(overrides = {}) {
     }],
     fatalIssueCount: 0,
     warningIssueCount: 0,
-    checkpoint: { batchId: "entries-0001", processed: 2, total: 2 },
+    checkpoint: { batchId: "entries-0001", processed: 3, total: 3 },
     rollback: null,
     ...overrides
   };
@@ -227,6 +243,12 @@ test("manifest canonicalization removes set and input-order nondeterminism", () 
   );
   assert.throws(
     () => parseMigrationManifest({ ...manifest(), generatedAt: "2026-08-23T16:00:00.000Z" }),
+    ContractValidationError
+  );
+  assert.throws(
+    () => parseMigrationManifest(manifest({
+      scope: scope({ collections: ["campaigns", "entries", "notes"] })
+    })),
     ContractValidationError
   );
 });
@@ -273,6 +295,15 @@ test("commit requires a canonically hashed manifest and matching valid restore d
           actualCount: 2
         } : invariant)
       })
+    }),
+    verification({
+      restoreDrill: restoreDrill({
+        invariants: restoreDrill().invariants.map((invariant) => invariant.code === "RESTORED_COUNTS_MATCH" ? {
+          ...invariant,
+          expectedCount: 3,
+          actualCount: 2
+        } : invariant)
+      })
     })
   ]) {
     assert.throws(() => parseVerifiedMigrationCommandRequest(request, context), ContractValidationError);
@@ -299,6 +330,8 @@ test("migration commands reject ambiguous time, scope, arrays, hashes and secret
     command({ scope: { workspaceIds: ["workspace-redacted-001"], campaignIds: [], collections: [] } }),
     command({ scope: { workspaceIds: ["workspace-redacted-001"], campaignIds: [], collections: sparseCollections } }),
     command({ scope: { workspaceIds: ["workspace-redacted-001"], campaignIds: [], collections: ["entries", "entries"] } }),
+    command({ runId: "mongodb://user:secret@private.invalid" }),
+    command({ sourceSnapshotId: "TOKEN=secret" }),
     { ...command(), mongoUri: "mongodb://private.example.invalid" }
   ]) {
     assert.throws(() => parseMigrationCommandRequest(request), ContractValidationError);
@@ -323,14 +356,36 @@ test("migration reports expose bounded counts and invariants without raw records
       ContractValidationError
     );
   }
+  for (const candidate of [
+    report({ runId: "mongodb://user:secret@private.invalid" }),
+    report({ sourceSnapshotId: "TOKEN=secret" }),
+    report({
+      invariants: [{
+        ...report().invariants[0],
+        expectedCount: 3,
+        actualCount: 2
+      }]
+    }),
+    report({
+      invariants: [{
+        ...report().invariants[0],
+        actualCount: null
+      }]
+    })
+  ]) {
+    assert.throws(() => parseMigrationReport(candidate), ContractValidationError);
+  }
 });
 
 test("read-only and routing rollback reports reject unauthorized writes", () => {
-  const baseCount = report().counts[0];
   const safeDryRun = report({
     command: "dryRun",
     backupRestoreRef: null,
-    counts: [{ ...baseCount, written: 0, skipped: 2 }]
+    counts: report().counts.map((count) => ({
+      ...count,
+      written: 0,
+      skipped: count.planned
+    }))
   });
   assert.equal(parseMigrationReport(safeDryRun).counts[0].written, 0);
   assert.throws(
@@ -364,9 +419,46 @@ test("successful reports reject failed invariants, fatal issues, failures and in
     report({ counts: [{ ...baseCount, written: 1 }] }),
     report({ checkpoint: { batchId: null, processed: 2, total: 2 } }),
     report({ checkpoint: { batchId: "entries-0001", processed: 0, total: 0 } }),
-    report({ checkpoint: { batchId: "entries-0001", processed: 3, total: 3 } })
+    report({ checkpoint: { batchId: "entries-0001", processed: 2, total: 3 } })
   ]) {
     assert.throws(() => parseMigrationReport(candidate), ContractValidationError);
+  }
+});
+
+test("successful reports bind to the complete approved manifest and final batch", () => {
+  const entries = report().counts.find((count) => count.collection === "entries");
+  const campaigns = report().counts.find((count) => count.collection === "campaigns");
+  assert.ok(entries);
+  assert.ok(campaigns);
+
+  for (const [candidate, reportVerification] of [
+    [
+      report({ counts: [entries], checkpoint: { batchId: "entries-0001", processed: 2, total: 2 } }),
+      {}
+    ],
+    [
+      report({
+        counts: [
+          { ...entries, scanned: 1, planned: 1, written: 1 },
+          campaigns
+        ],
+        checkpoint: { batchId: "entries-0001", processed: 2, total: 2 }
+      }),
+      {}
+    ],
+    [
+      report({ checkpoint: { batchId: "campaigns-0001", processed: 3, total: 3 } }),
+      {}
+    ],
+    [report(), { manifest: manifest({ policyVersion: "campaign-policy-v2" }) }],
+    [report({ migrationId: "another-migration" }), {}],
+    [report({ sourceSnapshotId: "another-snapshot" }), {}],
+    [report({ manifestHash: "8".repeat(64) }), {}]
+  ]) {
+    assert.throws(
+      () => parseMigrationReport(candidate, reportVerification),
+      ContractValidationError
+    );
   }
 });
 

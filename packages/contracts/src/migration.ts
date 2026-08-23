@@ -138,6 +138,11 @@ export interface MigrationVerificationContext {
   readonly sha256: (canonicalUtf8: string) => string;
 }
 
+export interface MigrationReportVerificationContext {
+  readonly manifest: unknown;
+  readonly sha256: (canonicalUtf8: string) => string;
+}
+
 export interface VerifiedMigrationCommandContract {
   readonly request: MigrationCommandRequestContract;
   readonly manifest: MigrationManifestContract;
@@ -389,6 +394,11 @@ export function parseMigrationManifest(
     }
     if (!scope.collections.includes(batch.sourceCollection)) {
       fail(`${path}.batches[${index}].sourceCollection`, "must be included in the manifest scope");
+    }
+  }
+  for (const collection of scope.collections) {
+    if (!batches.some((batch) => batch.sourceCollection === collection)) {
+      fail(`${path}.scope.collections`, `${collection} requires at least one deterministic batch`);
     }
   }
   const requiredIndexes = parseSortedUniqueStrings(
@@ -644,9 +654,9 @@ function parseMigrationCommandRequestInternal(
   const migrationId = parseMigrationId(record["migrationId"], `${path}.migrationId`);
   const migrationVersion = parseNonNegativeInteger(record["migrationVersion"], `${path}.migrationVersion`);
   if (migrationVersion === 0) fail(`${path}.migrationVersion`, "must be greater than zero");
-  const runId = expectString(record["runId"], `${path}.runId`);
+  const runId = parseStableVersion(record["runId"], `${path}.runId`);
   const command = expectEnum(record["command"], MIGRATION_COMMANDS, `${path}.command`);
-  const sourceSnapshotId = expectString(record["sourceSnapshotId"], `${path}.sourceSnapshotId`);
+  const sourceSnapshotId = parseStableVersion(record["sourceSnapshotId"], `${path}.sourceSnapshotId`);
   const sourceDatabaseFingerprint = parseSha256(record["sourceDatabaseFingerprint"], `${path}.sourceDatabaseFingerprint`);
   const targetDatabaseFingerprint = parseSha256(record["targetDatabaseFingerprint"], `${path}.targetDatabaseFingerprint`);
   const manifestHash = record["manifestHash"] === null
@@ -786,11 +796,20 @@ function parseCollectionCount(value: unknown, path: string): MigrationCollection
 function parseInvariant(value: unknown, path: string): MigrationInvariantContract {
   const record = expectRecord(value, path);
   expectExactKeys(record, ["code", "status", "expectedCount", "actualCount"], path);
+  const status = expectEnum(record["status"], MIGRATION_INVARIANT_STATUSES, `${path}.status`);
+  const expectedCount = parseNullableNonNegativeInteger(record["expectedCount"], `${path}.expectedCount`);
+  const actualCount = parseNullableNonNegativeInteger(record["actualCount"], `${path}.actualCount`);
+  if ((expectedCount === null) !== (actualCount === null)) {
+    fail(path, "expectedCount and actualCount must be present or absent together");
+  }
+  if (status === "pass" && expectedCount !== null && expectedCount !== actualCount) {
+    fail(path, "a passing invariant cannot contain mismatched counts");
+  }
   return {
     code: parseSafeCode(record["code"], `${path}.code`),
-    status: expectEnum(record["status"], MIGRATION_INVARIANT_STATUSES, `${path}.status`),
-    expectedCount: parseNullableNonNegativeInteger(record["expectedCount"], `${path}.expectedCount`),
-    actualCount: parseNullableNonNegativeInteger(record["actualCount"], `${path}.actualCount`)
+    status,
+    expectedCount,
+    actualCount
   };
 }
 
@@ -820,7 +839,23 @@ function parseRollback(value: unknown, path: string): MigrationRollbackContract 
   };
 }
 
-export function parseMigrationReport(value: unknown, path = "migrationReport"): MigrationReportContract {
+export function parseMigrationReport(
+  value: unknown,
+  verification: MigrationReportVerificationContext,
+  path = "migrationReport"
+): MigrationReportContract {
+  const verificationRecord = expectRecord(verification, `${path}.verification`);
+  expectExactKeys(verificationRecord, ["manifest", "sha256"], `${path}.verification`);
+  const sha256Candidate = verificationRecord["sha256"];
+  if (typeof sha256Candidate !== "function") {
+    fail(`${path}.verification.sha256`, "trusted SHA-256 function is required");
+  }
+  const sha256 = sha256Candidate as (canonicalUtf8: string) => string;
+  const manifest = parseMigrationManifest(
+    verificationRecord["manifest"],
+    `${path}.verification.manifest`
+  );
+  const approvedManifestHash = computeMigrationManifestHash(manifest, sha256);
   const record = expectRecord(value, path);
   expectExactKeys(record, [
     "schemaVersion",
@@ -884,6 +919,19 @@ export function parseMigrationReport(value: unknown, path = "migrationReport"): 
 
   const migrationVersion = parseNonNegativeInteger(record["migrationVersion"], `${path}.migrationVersion`);
   if (migrationVersion === 0) fail(`${path}.migrationVersion`, "must be greater than zero");
+  const migrationId = parseMigrationId(record["migrationId"], `${path}.migrationId`);
+  const runId = parseStableVersion(record["runId"], `${path}.runId`);
+  const sourceSnapshotId = parseStableVersion(record["sourceSnapshotId"], `${path}.sourceSnapshotId`);
+  const manifestHash = parseSha256(record["manifestHash"], `${path}.manifestHash`);
+  if (migrationId !== manifest.migrationId
+    || migrationVersion !== manifest.migrationVersion
+    || sourceSnapshotId !== manifest.sourceSnapshotId
+    || manifestHash !== approvedManifestHash) {
+    fail(
+      `${path}.verification.manifest`,
+      "must match the report migration, version, source snapshot and canonical manifest hash"
+    );
+  }
   const backupRestoreRef = expectNullableString(record["backupRestoreRef"], `${path}.backupRestoreRef`);
   if (["commit", "verify", "rollback"].includes(command) && backupRestoreRef === null) {
     fail(`${path}.backupRestoreRef`, "post-dry-run reports require a verified restore reference");
@@ -938,16 +986,41 @@ export function parseMigrationReport(value: unknown, path = "migrationReport"): 
     if (checkpoint.total !== plannedTotal || checkpoint.processed !== processedTotal) {
       fail(`${path}.checkpoint`, "must reconcile exactly with planned and processed report evidence");
     }
+    if (["dryRun", "commit", "verify"].includes(command)) {
+      const expectedByCollection = new Map<MigrationCollectionName, number>();
+      for (const batch of manifest.batches) {
+        const nextExpected = (expectedByCollection.get(batch.sourceCollection) ?? 0) + batch.expectedCount;
+        if (!Number.isSafeInteger(nextExpected)) {
+          fail(`${path}.verification.manifest.batches`, "aggregate batch counts must be safe integers");
+        }
+        expectedByCollection.set(batch.sourceCollection, nextExpected);
+      }
+      if (counts.length !== expectedByCollection.size) {
+        fail(`${path}.counts`, "must cover every and only approved manifest collection");
+      }
+      for (const count of counts) {
+        if (expectedByCollection.get(count.collection) !== count.planned) {
+          fail(
+            `${path}.counts`,
+            `${count.collection} planned count must equal the approved manifest batch total`
+          );
+        }
+      }
+      const finalBatch = manifest.batches[manifest.batches.length - 1];
+      if (finalBatch === undefined || checkpoint.batchId !== finalBatch.batchId) {
+        fail(`${path}.checkpoint.batchId`, "must identify the final approved manifest batch");
+      }
+    }
   }
 
   return {
     schemaVersion: expectEnum(record["schemaVersion"], ["hed19-report-v1"] as const, `${path}.schemaVersion`),
-    migrationId: parseMigrationId(record["migrationId"], `${path}.migrationId`),
+    migrationId,
     migrationVersion,
-    runId: expectString(record["runId"], `${path}.runId`),
+    runId,
     command,
-    sourceSnapshotId: expectString(record["sourceSnapshotId"], `${path}.sourceSnapshotId`),
-    manifestHash: parseSha256(record["manifestHash"], `${path}.manifestHash`),
+    sourceSnapshotId,
+    manifestHash,
     status,
     startedAt,
     completedAt,
