@@ -92,6 +92,23 @@ test("controlled errors redact every evidence leaf, including future ordinary fi
   assert.doesNotMatch(failure.message, /true/);
 });
 
+test("controlled errors redact user-controlled evidence keys", () => {
+  const privateKeys = [
+    "alice@example.com",
+    "sk-live-secret-credential",
+    "PRIVATE_IMPORTED_TITLE"
+  ];
+  const failure = new SecurityAssertionError("redaction.map-keys", "map adapter rejected", {
+    [privateKeys[0]]: true,
+    nested: {
+      [privateKeys[1]]: "value",
+      [privateKeys[2]]: "value"
+    }
+  });
+  for (const key of privateKeys) assert.ok(!failure.message.includes(key));
+  assert.match(failure.message, /field_0/);
+});
+
 test("deep-link assertion rejects normalized traversal and non-local origins", () => {
   const scenario = fixtures.find((fixture) => fixture.id === "notifications.deep-link-scope");
   for (const url of [

@@ -27,8 +27,9 @@ export function redactSecurityEvidence(value, _options = {}, seen = new WeakSet(
   seen.add(value);
   if (Array.isArray(value)) return value.map((item) => redactSecurityEvidence(item, {}, seen));
   const output = {};
-  for (const [key, item] of Object.entries(value)) {
-    output[key] = SENSITIVE_KEY.test(key)
+  for (const [index, [key, item]] of Object.entries(value).entries()) {
+    const redactedKey = `field_${index}`;
+    output[redactedKey] = SENSITIVE_KEY.test(key)
       ? "<redacted>"
       : redactSecurityEvidence(item, {}, seen);
   }
