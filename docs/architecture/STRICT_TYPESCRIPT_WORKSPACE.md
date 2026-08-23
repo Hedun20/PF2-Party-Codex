@@ -13,7 +13,7 @@
 | `apps/web-next` | Next.js App Router server/client build | Public contracts/core; server config only behind `server-only` | Legacy CSS/source import, direct Mongo, worker loop, connector secret in client chunks |
 | `apps/worker` | Node.js ESM background process | Config, contracts, core; application adapters arrive in later slices | Interactive HTTP/session runtime, Next/React, connector role impersonation |
 | `apps/discord-bot` | Node.js ESM external connector process | Connector contracts and server-only bot config | Mongo/core policy replacement, web sessions, raw internal repositories |
-| `apps/foundry-module` | Browser ESM module artifact | Public Foundry config and connector contracts | `process.env`, Mongo/auth/service secrets, internal application implementation |
+| `apps/foundry-module` | Self-contained browser ESM bundle plus declarations | Public Foundry config and connector contracts, bundled at build time | Bare workspace imports in shipped JS, `process.env`, Mongo/auth/service secrets, internal application implementation |
 | `packages/contracts` | Framework/storage-neutral ESM declarations/runtime parsers | Validation helpers only | Next, React, Mongo, Node/browser globals, provider SDKs |
 | `packages/core` | Framework/storage-neutral domain policy | Contracts | Frameworks, storage, queues, provider SDKs |
 | `packages/config` | Three explicit exports: `public`, `server`, `foundry` | Runtime-free validation | Root catch-all export; secret values in error messages |
@@ -61,7 +61,7 @@ The existing `npm run build`, `start`, `dev` and production route remain Express
 
 ## Cross-package proof
 
-The minimal runtime test sends the same branded campaign ID through worker, Discord and Foundry package exports. Worker code consumes the framework-free core policy. Connector probes prove `mongoAccess: "none"`; the Foundry artifact imports only its public config subpath. This is a compile/runtime boundary proof, not a connector implementation.
+The minimal runtime test sends the same branded campaign ID through worker, Discord and Foundry package exports. Worker code consumes the framework-free core policy. Connector probes prove `mongoAccess: "none"`; Foundry source imports only its public config subpath, while the shipped browser ESM is bundled with pinned esbuild and contains no bare workspace specifier. This is a compile/runtime boundary proof, not a connector implementation.
 
 ## CI and deterministic install
 

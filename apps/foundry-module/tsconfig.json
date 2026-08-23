@@ -4,6 +4,7 @@
     "rootDir": "./src",
     "outDir": "./dist",
     "lib": ["ES2024", "DOM"],
+    "sourceMap": false,
     "types": [],
     "tsBuildInfoFile": "./dist/foundry-module.tsbuildinfo"
   },

@@ -57,6 +57,10 @@ test("the target workspace is pinned, private and represented in the lockfile", 
   }
   assert.equal(lockfile.packages["apps/web-next"].dependencies.next, "16.3.2");
   assert.equal(lockfile.packages["apps/web-next"].dependencies.react, "19.2.8");
+  assert.equal(lockfile.packages["apps/foundry-module"].devDependencies.esbuild, "0.25.12");
+  const foundryPackage = await readJson("apps/foundry-module/package.json");
+  assert.equal(foundryPackage.devDependencies.esbuild, "0.25.12");
+  assert.equal(foundryPackage.scripts.build.includes("esbuild src/index.ts --bundle"), true);
 });
 
 test("every clean CI install activates the pinned npm version first", async () => {
@@ -214,6 +218,16 @@ test("browser and Foundry artifacts contain no server secret surface or legacy C
       );
     }
   }
+
+  const foundryBundle = await readFile(
+    path.join(repositoryRoot, "apps/foundry-module/dist/index.js"),
+    "utf8"
+  );
+  assert.equal(
+    foundryBundle.includes("@pf2-party-codex/"),
+    false,
+    "Foundry browser bundle must not retain bare workspace imports"
+  );
 
   const serverEnvironmentSource = await readFile(
     path.join(repositoryRoot, "apps/web-next/src/env/server.ts"),
