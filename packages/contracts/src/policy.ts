@@ -88,6 +88,28 @@ export type CampaignPolicyCacheNamespace = (typeof CAMPAIGN_POLICY_CACHE_NAMESPA
 export type CampaignPolicyDenialCode = (typeof CAMPAIGN_POLICY_DENIAL_CODES)[number];
 export type CampaignPolicyEffect = "manager" | "playerSafe" | "self" | "machine";
 
+export type CampaignPolicyCacheDiscriminator =
+  | {
+      readonly kind: "humanAction";
+      readonly channel: HumanPolicyChannel;
+      readonly action: HumanCampaignAction;
+      readonly resourceOwnerUserId: UserId | null;
+      readonly targetCharacterId: CharacterId | null;
+    }
+  | {
+      readonly kind: "machineCapability";
+      readonly channel: MachinePolicyChannel;
+      readonly capability: MachineCampaignCapability;
+    }
+  | {
+      readonly kind: "resourceRead";
+      readonly resourceId: string;
+      readonly resourcePolicyVersion: string;
+    }
+  | {
+      readonly kind: "readScope";
+    };
+
 export interface HumanCampaignPolicySubject {
   readonly kind: "human";
   readonly userId: UserId;

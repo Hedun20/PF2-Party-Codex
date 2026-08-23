@@ -12,6 +12,7 @@ import {
   POLICY_MEMBERSHIP_STATES,
   RELEASE_STATES,
   type CampaignId,
+  type CampaignPolicyCacheDiscriminator,
   type CampaignPolicyCacheNamespace,
   type CampaignPolicyDecision,
   type CampaignPolicyDenialCode,
@@ -349,9 +350,73 @@ function cacheArraySegment(values: readonly string[]): string {
   return JSON.stringify([...values].sort());
 }
 
+function hasExactKeys(value: object, expectedKeys: readonly string[]): boolean {
+  const actualKeys = Object.keys(value).sort();
+  return actualKeys.length === expectedKeys.length
+    && actualKeys.every((key, index) => key === [...expectedKeys].sort()[index]);
+}
+
+function validCacheDiscriminator(
+  subject: HumanCampaignPolicySubject | MachineCampaignPolicySubject,
+  discriminator: CampaignPolicyCacheDiscriminator
+): boolean {
+  if (!discriminator || typeof discriminator !== "object") return false;
+  switch (discriminator.kind) {
+    case "humanAction":
+      return subject.kind === "human"
+        && hasExactKeys(discriminator, [
+          "action",
+          "channel",
+          "kind",
+          "resourceOwnerUserId",
+          "targetCharacterId"
+        ])
+        && (HUMAN_POLICY_CHANNELS as readonly string[]).includes(discriminator.channel)
+        && (HUMAN_CAMPAIGN_ACTIONS as readonly string[]).includes(discriminator.action)
+        && (discriminator.resourceOwnerUserId === null
+          || isNonEmptyString(discriminator.resourceOwnerUserId))
+        && (discriminator.targetCharacterId === null
+          || isNonEmptyString(discriminator.targetCharacterId));
+    case "machineCapability":
+      return subject.kind === "machine"
+        && hasExactKeys(discriminator, ["capability", "channel", "kind"])
+        && (MACHINE_POLICY_CHANNELS as readonly string[]).includes(discriminator.channel)
+        && (MACHINE_CAMPAIGN_CAPABILITIES as readonly string[]).includes(discriminator.capability);
+    case "resourceRead":
+      return subject.kind === "human"
+        && hasExactKeys(discriminator, ["kind", "resourceId", "resourcePolicyVersion"])
+        && isNonEmptyString(discriminator.resourceId)
+        && isNonEmptyString(discriminator.resourcePolicyVersion);
+    case "readScope":
+      return subject.kind === "human" && hasExactKeys(discriminator, ["kind"]);
+    default:
+      return false;
+  }
+}
+
+function cacheDiscriminatorSegments(discriminator: CampaignPolicyCacheDiscriminator): readonly string[] {
+  switch (discriminator.kind) {
+    case "humanAction":
+      return [
+        "human-action",
+        discriminator.channel,
+        discriminator.action,
+        discriminator.resourceOwnerUserId ?? "",
+        discriminator.targetCharacterId ?? ""
+      ];
+    case "machineCapability":
+      return ["machine-capability", discriminator.channel, discriminator.capability];
+    case "resourceRead":
+      return ["resource-read", discriminator.resourceId, discriminator.resourcePolicyVersion];
+    case "readScope":
+      return ["read-scope"];
+  }
+}
+
 export function buildCampaignPolicyCacheKey(
   subject: HumanCampaignPolicySubject | MachineCampaignPolicySubject,
   namespace: CampaignPolicyCacheNamespace,
+  discriminator: CampaignPolicyCacheDiscriminator,
   evaluatedAt: string
 ): string {
   if (!(CAMPAIGN_POLICY_CACHE_NAMESPACES as readonly string[]).includes(namespace)) {
@@ -365,6 +430,9 @@ export function buildCampaignPolicyCacheKey(
   }
   if (!isCanonicalInstant(evaluatedAt)) {
     throw new Error("Invalid campaign policy cache evaluation instant");
+  }
+  if (!validCacheDiscriminator(subject, discriminator)) {
+    throw new Error("Invalid campaign policy cache discriminator");
   }
   const common = [
     CAMPAIGN_POLICY_VERSION,
@@ -395,5 +463,7 @@ export function buildCampaignPolicyCacheKey(
         subject.credentialVersion,
         cacheArraySegment(subject.capabilities)
       ];
-  return [...common, ...specific].map(cacheSegment).join("|");
+  return [...common, ...specific, ...cacheDiscriminatorSegments(discriminator)]
+    .map(cacheSegment)
+    .join("|");
 }

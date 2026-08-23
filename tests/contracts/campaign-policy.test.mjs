@@ -78,6 +78,26 @@ function resource(overrides = {}) {
   };
 }
 
+function humanCacheDiscriminator(overrides = {}) {
+  return {
+    kind: "humanAction",
+    channel: "web",
+    action: "resource.read",
+    resourceOwnerUserId: null,
+    targetCharacterId: null,
+    ...overrides
+  };
+}
+
+function machineCacheDiscriminator(overrides = {}) {
+  return {
+    kind: "machineCapability",
+    channel: "job",
+    capability: "job:execute",
+    ...overrides
+  };
+}
+
 function assertSecurityDenial(id, expectedCode, decision) {
   assertDeniedBoundary({ id, expectedCode, forbiddenValues: [] }, decision);
 }
@@ -404,7 +424,8 @@ test("malformed adapter inputs fail closed instead of throwing", () => {
 });
 
 test("policy cache keys invalidate on tenant, membership, role, character and credential changes", () => {
-  const base = buildCampaignPolicyCacheKey(human(), "archive", evaluatedAt);
+  const humanOperation = humanCacheDiscriminator();
+  const base = buildCampaignPolicyCacheKey(human(), "archive", humanOperation, evaluatedAt);
   const humanVariants = [
     human({ campaignId: "campaign-b" }),
     human({ membershipUpdatedAt: "2026-08-23T11:00:00.000Z" }),
@@ -414,44 +435,150 @@ test("policy cache keys invalidate on tenant, membership, role, character and cr
     human({ characterGrantVersion: "character-grants-v2" })
   ];
   for (const variant of humanVariants) {
-    assert.notEqual(buildCampaignPolicyCacheKey(variant, "archive", evaluatedAt), base);
+    assert.notEqual(buildCampaignPolicyCacheKey(variant, "archive", humanOperation, evaluatedAt), base);
   }
 
-  const machineBase = buildCampaignPolicyCacheKey(machine(), "job", evaluatedAt);
+  const machineOperation = machineCacheDiscriminator();
+  const machineBase = buildCampaignPolicyCacheKey(machine(), "job", machineOperation, evaluatedAt);
   assert.notEqual(
-    buildCampaignPolicyCacheKey(machine({ credentialVersion: "credential-v2" }), "job", evaluatedAt),
+    buildCampaignPolicyCacheKey(
+      machine({ credentialVersion: "credential-v2" }),
+      "job",
+      machineOperation,
+      evaluatedAt
+    ),
     machineBase
   );
   assert.notEqual(
-    buildCampaignPolicyCacheKey(machine({ capabilities: ["job:execute"] }), "job", evaluatedAt),
+    buildCampaignPolicyCacheKey(
+      machine({ capabilities: ["job:execute"] }),
+      "job",
+      machineOperation,
+      evaluatedAt
+    ),
     machineBase
   );
 
   const expiringMembership = human({ membershipExpiresAt: "2026-08-23T12:30:00.000Z" });
   assert.notEqual(
-    buildCampaignPolicyCacheKey(expiringMembership, "archive", "2026-08-23T12:29:59.999Z"),
-    buildCampaignPolicyCacheKey(expiringMembership, "archive", "2026-08-23T12:30:00.000Z")
+    buildCampaignPolicyCacheKey(
+      expiringMembership,
+      "archive",
+      humanOperation,
+      "2026-08-23T12:29:59.999Z"
+    ),
+    buildCampaignPolicyCacheKey(
+      expiringMembership,
+      "archive",
+      humanOperation,
+      "2026-08-23T12:30:00.000Z"
+    )
   );
 
   assert.notEqual(
     buildCampaignPolicyCacheKey(
       human({ assignedCharacterIds: ["character-a,b", "character-c"] }),
       "archive",
+      humanOperation,
       evaluatedAt
     ),
     buildCampaignPolicyCacheKey(
       human({ assignedCharacterIds: ["character-a", "b,character-c"] }),
       "archive",
+      humanOperation,
       evaluatedAt
     )
   );
 
   assert.throws(
-    () => buildCampaignPolicyCacheKey(human(), "archive", "0"),
+    () => buildCampaignPolicyCacheKey(human(), "archive", humanOperation, "0"),
     /Invalid campaign policy cache evaluation instant/
   );
   assert.throws(
-    () => buildCampaignPolicyCacheKey(null, "archive", evaluatedAt),
+    () => buildCampaignPolicyCacheKey(null, "archive", humanOperation, evaluatedAt),
     /Invalid campaign policy cache subject/
+  );
+});
+
+test("policy cache keys bind each decision to its exact operation and resource revision", () => {
+  const subject = human();
+  const resourceRead = buildCampaignPolicyCacheKey(
+    subject,
+    "archive",
+    humanCacheDiscriminator({ action: "resource.read" }),
+    evaluatedAt
+  );
+  assert.notEqual(
+    buildCampaignPolicyCacheKey(
+      subject,
+      "archive",
+      humanCacheDiscriminator({ action: "evidence.raw.read" }),
+      evaluatedAt
+    ),
+    resourceRead
+  );
+  assert.notEqual(
+    buildCampaignPolicyCacheKey(
+      subject,
+      "character",
+      humanCacheDiscriminator({ action: "character.read", targetCharacterId: "character-a" }),
+      evaluatedAt
+    ),
+    buildCampaignPolicyCacheKey(
+      subject,
+      "character",
+      humanCacheDiscriminator({ action: "character.read", targetCharacterId: "character-b" }),
+      evaluatedAt
+    )
+  );
+
+  const readA = buildCampaignPolicyCacheKey(
+    subject,
+    "archive",
+    { kind: "resourceRead", resourceId: "entry-a", resourcePolicyVersion: "revision-1" },
+    evaluatedAt
+  );
+  assert.notEqual(
+    buildCampaignPolicyCacheKey(
+      subject,
+      "archive",
+      { kind: "resourceRead", resourceId: "entry-b", resourcePolicyVersion: "revision-1" },
+      evaluatedAt
+    ),
+    readA
+  );
+  assert.notEqual(
+    buildCampaignPolicyCacheKey(
+      subject,
+      "archive",
+      { kind: "resourceRead", resourceId: "entry-a", resourcePolicyVersion: "revision-2" },
+      evaluatedAt
+    ),
+    readA
+  );
+
+  assert.notEqual(
+    buildCampaignPolicyCacheKey(
+      machine(),
+      "archive",
+      machineCacheDiscriminator({ channel: "job", capability: "archive:read:party" }),
+      evaluatedAt
+    ),
+    buildCampaignPolicyCacheKey(
+      machine(),
+      "archive",
+      machineCacheDiscriminator({ channel: "job", capability: "archive:read:gm" }),
+      evaluatedAt
+    )
+  );
+
+  assert.throws(
+    () => buildCampaignPolicyCacheKey(
+      subject,
+      "archive",
+      { ...humanCacheDiscriminator(), callerControlledExtra: "ignored-if-not-rejected" },
+      evaluatedAt
+    ),
+    /Invalid campaign policy cache discriminator/
   );
 });
