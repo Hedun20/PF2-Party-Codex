@@ -11,7 +11,7 @@
 Party Codex will use a small, application-owned identity boundary instead of adopting an authentication framework during the migration.
 
 1. Human browser authentication uses an **opaque, stateful session stored in MongoDB**. The browser receives only a high-entropy session token in a same-origin HttpOnly cookie.
-2. The current signed Bearer token remains an **Express compatibility input** for a bounded rollback window. It is never the Next.js session and is never exposed to a Server or Client Component.
+2. The current signed Bearer token remains an **Express compatibility input only while the Vite runtime is selected**. The Next profile neither issues nor verifies it. A rollback selects Vite and a freshly rotated legacy signing key atomically, then requires password reauthentication before issuing a new Bearer. A Bearer is never the Next.js session and is never exposed to a Server or Client Component.
 3. A session resolves only an account-level principal. Campaign role is loaded from the exact active Mongo membership for the route campaign on every protected operation.
 4. Cookie-authenticated mutations require an exact-origin check and a session-bound synchronizer CSRF token.
 5. Discord OAuth is an **authenticated account-link flow**, not a second login system. Only the Discord user ID and display metadata are retained; provider access and refresh tokens are not persisted.
@@ -101,7 +101,8 @@ The TTL index is cleanup only. Every read explicitly checks account status, `ses
 - Rotate the token at least every 24 hours and after reauthentication or another account-security boundary.
 - Use an atomic compare-and-swap. The immediately previous hash may remain valid for at most two minutes to tolerate concurrent browser requests. Reuse after the overlap is a replay signal and revokes the session family.
 - Update `lastSeenAt` and idle expiry at most once every fifteen minutes to avoid a write on every request.
-- `POST /api/auth/logout` revokes the current cookie session and expires the cookie.
+- While a Vite profile or the legacy verifier is enabled, `POST /api/auth/logout` increments `users.sessionVersion`, revokes every `webSession` for the user, and expires the cookie. The version change immediately invalidates every paired/retained legacy Bearer; compatibility logout is intentionally account-wide because the frozen stateless Bearer has no independently revocable session row.
+- After the legacy verifier is permanently removed, `POST /api/auth/logout` may revoke only the current cookie session and expire that cookie.
 - `POST /api/auth/logout-all`, password reset, account deactivation, and an administrative account revoke increment `users.sessionVersion` and revoke all `webSessions` for the user.
 - A password change performed from an authenticated settings page follows the same revoke-all rule and then creates one replacement session after reauthentication.
 - Email verification does not create a session. Verification and reset tokens remain hashed, single-use, expiring records.
@@ -122,7 +123,7 @@ Express receives one gateway result with `principal`, `authSource`, and safe aud
 
 The gateway reloads the user and current platform capabilities. Values stored in a cookie, a legacy token, or a session document are never sufficient to grant campaign or platform access without the current source-of-truth check.
 
-During `dual` and `cookie-preferred`, the presence of a valid same-user Bearer is an explicit non-ambient credential. For `POST`/`PUT`/`PATCH`/`DELETE`, that request is classified as `legacyBearer` for CSRF even though the browser also attached a valid cookie. This preserves the unchanged Vite client. Next.js never sends the Bearer, so its cookie mutations still require CSRF. The gateway records this compatibility path, and it cannot grant a different user or survive an invalid/conflicting dual input.
+During the `vite-dual` profile, the presence of a valid same-user Bearer is an explicit non-ambient credential. For `POST`/`PUT`/`PATCH`/`DELETE`, that request is classified as `legacyBearer` for CSRF even though the browser also attached a valid cookie. This preserves the unchanged Vite client. The Next profiles do not mount the legacy verifier and never send or mint a Bearer, so their cookie mutations always require CSRF. The gateway records the Vite compatibility path, and it cannot grant a different user or survive an invalid/conflicting dual input.
 
 ## CSRF and browser request boundary
 
@@ -236,7 +237,7 @@ Every job stores `jobId`, kind, exact campaign when applicable, `initiatedByUser
 |---|---|---|---|
 | `PUBLIC_APP_URL`, allowed origins | No | Web/API | Validated exact origins; production HTTPS only |
 | `MONGO_URI` | Yes | Separate web and worker workloads | Deployment secret manager; distinct least-privilege DB users |
-| `AUTH_SECRET` | Yes | Express compatibility API only | Existing Bearer verification; rotate with a bounded dual-key plan, then delete after retirement |
+| `AUTH_SECRET`, active key version | Yes | Vite compatibility API only | Injected only into a Vite profile; each rollback activation uses a fresh value/version, retired versions are never accepted again, and Next workloads do not receive the secret |
 | Session and CSRF raw tokens | Yes | Browser/session gateway | Raw session only in HttpOnly cookie; hashes only in Mongo; CSRF raw token browser memory only |
 | `DISCORD_CLIENT_ID` | No | Web/API | Environment configuration |
 | `DISCORD_CLIENT_SECRET` | Yes | OAuth callback handler only | Deployment secret manager; provider rotation runbook; never sent to browser/worker |
@@ -247,7 +248,7 @@ Every job stores `jobId`, kind, exact campaign when applicable, `initiatedByUser
 | Service credential secret | Yes | One named workload | Deployment secret manager; hash in Mongo; 30-day rotation |
 | `EMAIL_WEBHOOK_TOKEN` | Yes | Email worker after split | Remove from web workload after worker cutover |
 
-Production startup must reject development cookie settings, wildcard origins, default secrets, missing required secret ownership, or a mode that disables both approved session inputs.
+Production startup must reject development cookie settings, wildcard origins, default secrets, missing required secret ownership, an unknown browser-auth profile, a Vite profile without a fresh approved legacy key version, a Next profile that receives/accepts a legacy key, or a profile that disables its required session input.
 
 ## Audit contract
 
@@ -259,7 +260,7 @@ Extend audit actors without overloading `actorUserId`:
 - `initiatedByUserId` for queued work attribution;
 - exact `campaignId`, `requestId`, `jobId`, action, target, outcome, and safe reason code.
 
-Required security events include session create/rotate/revoke/replay, login success/failure, logout/all, reset/verification, CSRF rejection, dual-input conflict, campaign-context mismatch, membership denial, Discord link/start/success/failure/unlink/collision, pairing start/approve/deny/consume/expire/lock, connector use/rotate/revoke/scope denial, and service authentication/rotation/revocation/audience denial.
+Required security events include session create/rotate/revoke/replay, login success/failure, logout/all, browser-auth profile activation, legacy key activation/retirement, rollback reauthentication, reset/verification, CSRF rejection, dual-input conflict, campaign-context mismatch, membership denial, Discord link/start/success/failure/unlink/collision, pairing start/approve/deny/consume/expire/lock, connector use/rotate/revoke/scope denial, and service authentication/rotation/revocation/audience denial.
 
 Never log raw cookies, Bearer tokens, CSRF tokens, OAuth codes/state, provider tokens, pairing codes, connector/service secrets, passwords, reset/verification tokens, private imported content, or full provider responses. Email and IP values follow the existing privacy/redaction policy and retention window.
 
@@ -286,16 +287,18 @@ Public errors do not reveal whether an unrelated user, campaign, session, or cre
 
 ## Migration and rollback sequence
 
-Use one validated mode variable: `AUTH_SESSION_MODE=bearer-only|dual|cookie-preferred|cookie-only`. Unknown values fail startup.
+Use one validated control-plane variable that binds the browser bundle and credential behavior into an atomic profile: `BROWSER_AUTH_PROFILE=vite-bearer|vite-dual|next-cookie-preferred|next-cookie-only`. Unknown profiles fail startup. There is no independently mutable runtime/auth-mode pair and no request header, user agent, CSRF token, or client claim may select a profile.
 
-1. **Schema dark launch:** add collections/indexes, session application port, cookie/CSRF gateway, error codes, and metrics with `bearer-only`; no browser behavior changes.
-2. **Dual issuance:** use `dual`; login returns the legacy token for Vite and also sets the cookie. Add an authenticated Bearer-to-cookie exchange for already logged-in Vite sessions. Exchange returns no token body.
-3. **Cookie preference:** use `cookie-preferred`; Next.js uses cookie only. Vite may send both. Invalid/conflicting dual input fails closed as defined above.
-4. **Rollback recovery:** before any route cutover, add a Vite bootstrap that can obtain CSRF and call a same-origin, cookie-authenticated `POST /api/auth/legacy-session`. While the rollback flag is enabled, that endpoint mints a short-lived legacy Bearer for the same user/session version, audits the recovery, and returns it only to the legacy client. Exercise cookie-only login -> route rollback -> authenticated Vite in automation.
-5. **Stop ordinary issuance:** only after the recovery path and rollback rehearsal pass may the Next login stop returning Bearer tokens. The compatibility login/exchange/recovery paths and verifier remain enabled for the entire Vite rollback window.
-6. **Cookie only:** after the rollback window closes and Vite is no longer a target, disable issuance and recovery, disable the verifier, delete browser `localStorage` token code, invalidate remaining legacy tokens through secret/session-version policy, and remove `AUTH_SECRET`.
+The profile is immutable for the life of a release. Build metadata binds it to the matching browser artifact, API route manifest and legacy-key version; readiness fails on disagreement. Deployment shifts traffic only after that complete release is healthy. A feature-flag hot toggle may not change browser runtime, mount the verifier, or activate a signing key.
 
-Rollback from steps 2-5 routes traffic to Express/Vite and uses either the retained Bearer or the tested cookie-to-Bearer recovery path. Existing cookie sessions may be bulk-revoked without touching user passwords or Mongo campaign data. Rollback never makes Markdown authoritative and never downgrades a protected request from an invalid cookie to a Bearer token.
+1. **Schema dark launch:** add collections/indexes, session application port, cookie/CSRF gateway, error codes, and metrics with `vite-bearer`; no browser behavior changes.
+2. **Dual issuance on Vite:** use `vite-dual`; password login returns the legacy token to Vite and also sets the cookie. Add an authenticated Bearer-to-cookie exchange for already logged-in Vite sessions. The exchange returns no token body. Same-user dual mutation compatibility applies only in this profile.
+3. **Pre-cutover rollback rehearsal:** in disposable automation, switch atomically from `next-cookie-preferred` to `vite-dual` with a newly rotated legacy signing key. A cookie-only user with no accepted Bearer must see the frozen Vite login, reauthenticate with the password flow and its existing rate/enumeration controls, receive a new-version Bearer, and complete an authenticated Vite mutation. No cookie-to-Bearer endpoint exists.
+4. **Next cutover:** only after that rehearsal and the Phase 3 gate pass, atomically deploy the Next bundle with `next-cookie-preferred`. This profile stops Bearer issuance, unmounts the legacy verifier, retires every previously accepted legacy signing-key version, and removes `pf2-auth-token` from browser storage before application code runs. The same-origin `POST /api/auth/legacy-session` route is absent, so a Next XSS with cookie plus readable CSRF cannot mint a Bearer.
+5. **Bounded rollback window:** retain the frozen Vite artifact and legacy implementation, but keep them disabled while Next is live. A rollback is one control-plane release to `vite-dual` with another freshly rotated legacy signing key. Old Bearers remain invalid; every user without a newly issued Vite Bearer reauthenticates. Never re-enable a retired key version.
+6. **Cookie only:** after the rollback window closes, use `next-cookie-only`, remove the Vite artifact, issuance/verifier/exchange code and legacy browser storage code, and remove every legacy signing secret.
+
+Rollback from steps 4-5 never exposes a cookie-to-Bearer conversion surface. It trades transparent session continuity for a bounded, explicit Vite reauthentication while preserving passwords and all Mongo campaign data. Existing cookie sessions may be bulk-revoked without touching user passwords or campaign data. Rollback never makes Markdown authoritative and never downgrades a protected request from an invalid cookie to a Bearer token.
 
 ## Exit gates by implementation task
 
@@ -305,14 +308,15 @@ Phase 3 cannot exit until automated tests cover these boundaries with live Mongo
 
 | Threat | Required proof |
 |---|---|
-| Browser XSS steals cookie-session auth | The Next/cookie path exposes no credential in HTML, RSC props, Client Components, Next-owned `localStorage`, or logs; the session cookie is HttpOnly |
+| Browser XSS steals cookie-session auth | A Next profile exposes no credential in HTML, RSC props, Client Components, `localStorage`, or logs; the cookie is HttpOnly, the legacy verifier is unmounted, and no cookie-to-Bearer route exists |
 | Cross-site mutation | SameSite cookie plus exact Origin/Referer and synchronizer token; missing/invalid input denied |
 | Session fixation | Login ignores caller session ID and rotates any pre-auth state |
 | Session replay/rotation race | Previous token works only in bounded overlap; replay after overlap revokes family |
 | Reset/deactivation/logout-all bypass | Session version and session rows deny all previous sessions |
+| Compatibility logout bypass | In `vite-dual`, logout advances `sessionVersion`; the cookie, every `webSession`, and the paired/retained Bearer all fail immediately |
 | Dual-input downgrade/confusion | Invalid or cross-user cookie/Bearer combination fails closed |
 | Legacy dual mutation | Same-user Bearer + cookie preserves Vite mutation without CSRF; cookie-only mutation still requires CSRF |
-| Rollback session recovery | A user created after ordinary Bearer issuance stops can recover a short-lived Bearer and use Vite during rollback |
+| Rollback session recovery | From a cookie-only Next login, an atomic switch to `vite-dual` with a fresh signing key requires password reauthentication, issues a new Bearer, and permits Vite use; cookie+CSRF alone cannot mint one |
 | Cross-campaign header attack | Route/header mismatch rejected before repository access |
 | Removed member or role change | Existing account session remains, but fresh exact membership determines access immediately |
 | Platform-admin tenant escalation | Platform capability without membership cannot read or write campaign data |
@@ -320,7 +324,7 @@ Phase 3 cannot exit until automated tests cover these boundaries with live Mongo
 
 Passing this table, plus existing login, verification, recovery, invitation-return, and enumeration-safe tests, unblocks the Next.js foundation. Discord, Foundry, and worker features are not Phase 3 exit dependencies.
 
-During migration steps 2-5, the frozen Vite client is the only accepted exception to the browser-storage row: it may continue to own `pf2-auth-token` in its existing `localStorage` path so retained/recovered Bearers can support rollback. Tests must prove that this compatibility token is never read, copied, serialized, or logged by the Next/cookie path. Step 6 removes the exception and adds a repository-wide assertion that no browser auth token remains in `localStorage`.
+Only `vite-bearer` and `vite-dual` may own `pf2-auth-token` in the frozen Vite `localStorage` path. Entering a Next profile disables the verifier, retires its signing key and clears that storage entry before application code runs; tests prove an old token is rejected even if storage cleanup is blocked. Step 6 removes the compatibility code and adds a repository-wide assertion that no browser auth token path remains.
 
 ### Discord identity-link gate
 
@@ -363,7 +367,7 @@ Every task also adds contract tests for its stable errors, credential parsing, p
 HED-23 freezes behavior; it does not authorize runtime cutover. Implementation should be split so each review remains rollbackable:
 
 1. Add typed principal/error/session-store ports and Mongo indexes with no route cutover.
-2. Add the Express cookie/CSRF/legacy gateway behind `bearer-only`, including dual-mutation compatibility and cookie-to-Bearer rollback recovery. Exercise the session-specific rows, but do not claim the combined Phase 3 gate yet.
+2. Add the Express cookie/CSRF/legacy gateway behind `vite-bearer`, including Vite-only dual-mutation compatibility, profile/key-version enforcement, compatibility-wide logout and the reauthentication-based rollback rehearsal. Do not add a cookie-to-Bearer route. Exercise the session-specific rows, but do not claim the combined Phase 3 gate yet.
 3. Move all protected campaign adapters to exact route context, reject compatibility disagreement, and only then execute the complete Phase 3 human-session and campaign-context table.
 4. Add Discord identity linking as an independent provider adapter.
 5. Add Foundry pairing and connector authentication only with the first approved connector endpoints.
