@@ -116,11 +116,13 @@ Express receives one gateway result with `principal`, `authSource`, and safe aud
 | Neither | Anonymous |
 | Valid cookie only | `userSession` |
 | Valid legacy Bearer only | `legacyBearer` |
-| Both valid for the same active user/session version | Cookie principal; `authSource=dual` for metrics |
+| Both valid for the same active user/session version | One user principal with `authSource=dual`; safe requests prefer cookie, while unsafe legacy requests use the explicit Bearer as their CSRF classification until Vite sends CSRF |
 | Both present but one is invalid | Reject; do not downgrade to the valid input |
 | Both valid but resolve to different users or versions | `401 AUTH_INPUT_CONFLICT`; revoke the cookie session when identifiable |
 
 The gateway reloads the user and current platform capabilities. Values stored in a cookie, a legacy token, or a session document are never sufficient to grant campaign or platform access without the current source-of-truth check.
+
+During `dual` and `cookie-preferred`, the presence of a valid same-user Bearer is an explicit non-ambient credential. For `POST`/`PUT`/`PATCH`/`DELETE`, that request is classified as `legacyBearer` for CSRF even though the browser also attached a valid cookie. This preserves the unchanged Vite client. Next.js never sends the Bearer, so its cookie mutations still require CSRF. The gateway records this compatibility path, and it cannot grant a different user or survive an invalid/conflicting dual input.
 
 ## CSRF and browser request boundary
 
@@ -131,7 +133,7 @@ Every unsafe method (`POST`, `PUT`, `PATCH`, `DELETE`) authenticated by cookie m
 
 `GET /api/auth/csrf` returns the raw token only for an authenticated cookie session with `Cache-Control: no-store`. The browser client keeps it in memory and refreshes it after login/session rotation. It is never written to `localStorage`, a URL, a log, or an HTML attribute. A missing or invalid token returns `403 CSRF_VALIDATION_FAILED` and produces a redacted security audit fact.
 
-Bearer compatibility and machine routes do not use CSRF because their credentials are not ambient browser cookies. They retain exact CORS/origin policy where applicable and their own credential-kind checks. OAuth callbacks use one-time state binding described below.
+Bearer compatibility and machine routes do not use CSRF because their credentials are not ambient browser cookies. A dual unsafe request qualifies for this exemption only when its Bearer is valid and resolves to the same active user/session version as the cookie. They retain exact CORS/origin policy where applicable and their own credential-kind checks. OAuth callbacks use one-time state and PKCE binding described below.
 
 ## Exact campaign context
 
@@ -154,17 +156,18 @@ The authenticated principal and campaign authorization are separate application 
 HED-23 chooses Discord's confidential-server **authorization code grant** with the `identify` scope. The implicit grant is forbidden. Discord linking is available only to an already authenticated, email-verified Party Codex user.
 
 1. Cookie-authenticated `POST /api/auth/links/discord/start` passes CSRF and creates a ten-minute `oauthTransactions` record.
-2. Generate at least 256 random bits for `state`; store only `stateHash`, bound `userId`, bound `sessionId`, exact callback URI, validated local `returnTo`, creation/expiry, and consumption fields.
-3. Redirect to the exact registered Discord URI with only `identify` and `state`.
-4. The callback atomically consumes the matching unexpired transaction, requires the same active Party Codex session/user, and requires exact callback URI configuration.
-5. Exchange the code server-to-server with `DISCORD_CLIENT_SECRET`, fetch `/users/@me`, and create the identity link under unique provider/user constraints.
-6. Do not persist Discord access or refresh tokens. Revoke the grant best-effort after the identity record is complete and discard tokens from memory.
+2. Generate at least 256 random bits for `state` and an independent RFC 7636 verifier. Derive `code_challenge=BASE64URL(SHA256(code_verifier))` and require `code_challenge_method=S256`.
+3. Store only `stateHash` plus the bound `userId`, bound `sessionId`, exact callback URI, validated local `returnTo`, `pkceChallenge`, encrypted verifier with key version, creation/expiry, and consumption fields. `OAUTH_TRANSACTION_ENCRYPTION_KEY` owns encryption at rest; the verifier is never logged or returned to application JavaScript.
+4. Redirect to the exact registered Discord URI with only `identify`, `state`, and the S256 challenge.
+5. The callback atomically consumes the matching unexpired transaction, requires the same active Party Codex session/user, exact callback URI configuration, and the stored challenge/verifier binding.
+6. Exchange the code server-to-server with `DISCORD_CLIENT_SECRET` and the decrypted `code_verifier`, fetch `/users/@me`, and create the identity link under unique provider/user constraints.
+7. Do not persist Discord access or refresh tokens. Revoke the grant best-effort after the identity record is complete and discard tokens and the decrypted verifier from memory.
 
 `externalIdentities` stores `provider=discord`, `providerUserId`, `userId`, non-authoritative display metadata, linked/updated timestamps, and unlink metadata. Unique indexes on `{ provider, providerUserId }` and `{ provider, userId }` prevent account collision and duplicate links.
 
 Discord email is not requested or used to merge accounts. A Discord user ID never overrides the verified Party Codex email. Unlink requires a current session, CSRF, and recent password reauthentication. Discord login, guild installation, bots, and user-token retention require separate product and security decisions.
 
-The provider documents the authorization code grant, exact registered redirect URI, `state`, token revocation, and the difference between `identify` and `email`: <https://docs.discord.com/developers/topics/oauth2>. OAuth threat guidance is tracked against RFC 9700: <https://www.rfc-editor.org/info/rfc9700/>.
+The provider documents the authorization code grant, exact registered redirect URI, `state`, token revocation, and the difference between `identify` and `email`: <https://docs.discord.com/developers/topics/oauth2>. OAuth threat guidance is tracked against RFC 9700 and PKCE against RFC 7636. The Discord adapter must prove S256 support in a provider sandbox before the link feature is enabled. There is no silent state-only fallback; if the selected Discord flow cannot accept S256, HED-71 requires a separately reviewed provider-supported sender-constrained design.
 
 ## Foundry one-time pairing and connector credential
 
@@ -193,7 +196,18 @@ instanceId=<one installation>
 scopes=<allowlisted connector actions>
 ```
 
-Initial scopes are narrow capabilities such as `archive:read`, `import:propose`, `import:commit`, and `export:create`. `import:commit` and secret-bearing export scopes require explicit GM approval and may be omitted from the first module release. A connector never receives `owner`, `gm`, `player`, or platform-admin status.
+There is no generic `archive:read` or `export:create` scope. Initial scopes are explicit capabilities:
+
+| Scope | Data contract |
+|---|---|
+| `archive:read:party` | The existing player-safe allowlist for the exact campaign: active public/revealed content only; no GM fields, source metadata, audit/creator IDs, private notes, or player-specific records |
+| `archive:read:gm` | A dedicated connector DTO for the exact campaign; may include approved narrative `gmContent`, but never raw source provenance, account/private notes, player-specific private data, auth/provider data, or unconstrained Mongo documents |
+| `import:propose` | Submit normalized, untrusted proposals with provenance; cannot publish or mutate canonical archive records |
+| `import:commit` | Commit only a previously reviewed proposal under explicit current-GM approval and idempotency preconditions |
+| `export:create:party` | Build an artifact only from the `archive:read:party` DTO |
+| `export:create:gm` | Build an artifact only from the dedicated `archive:read:gm` DTO |
+
+Privileged `archive:read:gm`, `import:commit`, and `export:create:gm` require explicit approval by a current owner/GM during pairing or later scope elevation and may be omitted from the first module release. Elevation rechecks current membership and rotates the credential. Connector handlers call their scope-specific serializer; they never translate a connector into `role=gm`. A connector never receives `owner`, `gm`, `player`, or platform-admin status.
 
 Credentials expire after ninety days by default, show last-used time, and support named rotation. Rotation returns a new secret once and permits an explicitly displayed overlap of at most 24 hours before revoking the old credential. Removal from a campaign does not automatically remove a connector approved by a different active GM; connector revocation is an explicit campaign operation and is mandatory when the campaign is archived or the installation is removed.
 
@@ -226,6 +240,7 @@ Every job stores `jobId`, kind, exact campaign when applicable, `initiatedByUser
 | Session and CSRF raw tokens | Yes | Browser/session gateway | Raw session only in HttpOnly cookie; hashes only in Mongo; CSRF raw token browser memory only |
 | `DISCORD_CLIENT_ID` | No | Web/API | Environment configuration |
 | `DISCORD_CLIENT_SECRET` | Yes | OAuth callback handler only | Deployment secret manager; provider rotation runbook; never sent to browser/worker |
+| `OAUTH_TRANSACTION_ENCRYPTION_KEY` | Yes | OAuth start/callback handlers only | Versioned 256-bit deployment key; encrypts the temporary PKCE verifier; rotate after outstanding transactions expire |
 | Discord user tokens | Yes | OAuth callback memory only | Not persisted; revoke best-effort and discard |
 | `PAIRING_CODE_PEPPER` | Yes | Foundry pairing API only | Deployment secret manager; HMACs short user codes; rotate only after outstanding pairings expire |
 | Foundry connector secret | Yes | Foundry installation | Returned once; hash in Mongo; rotate/revoke per credential |
@@ -276,14 +291,17 @@ Use one validated mode variable: `AUTH_SESSION_MODE=bearer-only|dual|cookie-pref
 1. **Schema dark launch:** add collections/indexes, session application port, cookie/CSRF gateway, error codes, and metrics with `bearer-only`; no browser behavior changes.
 2. **Dual issuance:** use `dual`; login returns the legacy token for Vite and also sets the cookie. Add an authenticated Bearer-to-cookie exchange for already logged-in Vite sessions. Exchange returns no token body.
 3. **Cookie preference:** use `cookie-preferred`; Next.js uses cookie only. Vite may send both. Invalid/conflicting dual input fails closed as defined above.
-4. **Stop issuance:** after parity, rollback rehearsal, and Vite retirement approval, stop returning new Bearer tokens while the verifier remains available for the accepted rollback window.
-5. **Cookie only:** disable the verifier, delete browser `localStorage` token code, invalidate remaining legacy tokens through secret/session-version policy, and remove `AUTH_SECRET` after the rollback window.
+4. **Rollback recovery:** before any route cutover, add a Vite bootstrap that can obtain CSRF and call a same-origin, cookie-authenticated `POST /api/auth/legacy-session`. While the rollback flag is enabled, that endpoint mints a short-lived legacy Bearer for the same user/session version, audits the recovery, and returns it only to the legacy client. Exercise cookie-only login -> route rollback -> authenticated Vite in automation.
+5. **Stop ordinary issuance:** only after the recovery path and rollback rehearsal pass may the Next login stop returning Bearer tokens. The compatibility login/exchange/recovery paths and verifier remain enabled for the entire Vite rollback window.
+6. **Cookie only:** after the rollback window closes and Vite is no longer a target, disable issuance and recovery, disable the verifier, delete browser `localStorage` token code, invalidate remaining legacy tokens through secret/session-version policy, and remove `AUTH_SECRET`.
 
-Rollback from steps 2-3 routes traffic to Express/Vite and returns to the previous validated mode. Existing cookie sessions may be bulk-revoked without touching user passwords or Mongo campaign data. Rollback never makes Markdown authoritative and never downgrades a protected request from an invalid cookie to a Bearer token.
+Rollback from steps 2-5 routes traffic to Express/Vite and uses either the retained Bearer or the tested cookie-to-Bearer recovery path. Existing cookie sessions may be bulk-revoked without touching user passwords or Mongo campaign data. Rollback never makes Markdown authoritative and never downgrades a protected request from an invalid cookie to a Bearer token.
 
-## Threat-test gate
+## Exit gates by implementation task
 
-Phase 3 cannot exit until automated tests cover the following boundaries with live Mongo where persistence matters:
+### Phase 3 human-session and campaign-context gate
+
+Phase 3 cannot exit until automated tests cover these boundaries with live Mongo where persistence matters:
 
 | Threat | Required proof |
 |---|---|
@@ -293,27 +311,57 @@ Phase 3 cannot exit until automated tests cover the following boundaries with li
 | Session replay/rotation race | Previous token works only in bounded overlap; replay after overlap revokes family |
 | Reset/deactivation/logout-all bypass | Session version and session rows deny all previous sessions |
 | Dual-input downgrade/confusion | Invalid or cross-user cookie/Bearer combination fails closed |
+| Legacy dual mutation | Same-user Bearer + cookie preserves Vite mutation without CSRF; cookie-only mutation still requires CSRF |
+| Rollback session recovery | A user created after ordinary Bearer issuance stops can recover a short-lived Bearer and use Vite during rollback |
 | Cross-campaign header attack | Route/header mismatch rejected before repository access |
 | Removed member or role change | Existing account session remains, but fresh exact membership determines access immediately |
 | Platform-admin tenant escalation | Platform capability without membership cannot read or write campaign data |
+| Human-session audit leakage | Login/session/CSRF/context audit facts contain no token, code, secret, or private payload |
+
+Passing this table, plus existing login, verification, recovery, invitation-return, and enumeration-safe tests, unblocks the Next.js foundation. Discord, Foundry, and worker features are not Phase 3 exit dependencies.
+
+### Discord identity-link gate
+
+The Discord adapter cannot ship until its task proves:
+
+| Threat | Required proof |
+|---|---|
 | OAuth linking CSRF/state replay | State is high entropy, session/user bound, expiring, and atomically single-use |
+| OAuth code substitution | S256 verifier/challenge is transaction-bound; missing/mismatched/replayed verifier fails before identity lookup/write |
 | OAuth account collision | Discord ID and per-user provider indexes prevent reassignment/duplicate binding |
 | OAuth secret/token leakage | Client secret stays server-side; provider tokens are not persisted or logged |
+
+### Foundry connector gate
+
+The pairing/connector adapter cannot ship until its task proves:
+
+| Threat | Required proof |
+|---|---|
 | Pairing brute force/replay | Attempt limits, lock, TTL, hashed codes, exact one-time consumption |
 | Pairing campaign/scope escalation | Approval reloads owner/GM membership; credential is exact-campaign and allowlisted-scope |
+| Connector archive leakage | Party scope uses the player DTO; GM scope uses its dedicated allowlist; generic GM serializers and private/source/auth fields are unreachable |
 | Credential-kind confusion | Connector/service credentials fail on browser routes; user sessions fail on machine routes |
-| Connector/service rotation | Old credential works only during explicit overlap and fails immediately after revoke |
-| Job user impersonation | Initiating user is attribution only; worker authority comes from service principal and job scope |
-| Audit leakage | Redaction tests reject all raw token/code/secret fields and private payloads |
+| Connector rotation | Old credential works only during explicit overlap and fails immediately after revoke |
 
-Also preserve existing login, verification, recovery, invitation-return, and enumeration-safe response tests. Add contract tests for cookie flags/expiry, stable error envelopes, credential parsing, route/header disagreement, and principal-kind exhaustiveness.
+### Worker/service gate
+
+The worker split cannot ship until its task proves:
+
+| Threat | Required proof |
+|---|---|
+| Job user impersonation | Initiating user is attribution only; worker authority comes from service principal and job scope |
+| Service audience/scope confusion | Wrong workload, audience, route, or environment fails closed |
+| Service rotation | Old credential works only during explicit overlap and fails immediately after revoke |
+| Machine audit leakage | Redaction tests reject all raw token/code/secret fields and private payloads |
+
+Every task also adds contract tests for its stable errors, credential parsing, principal-kind exhaustiveness, and redacted diagnostics.
 
 ## Implementation boundaries and follow-up tasks
 
 HED-23 freezes behavior; it does not authorize runtime cutover. Implementation should be split so each review remains rollbackable:
 
 1. Add typed principal/error/session-store ports and Mongo indexes with no route cutover.
-2. Add the Express cookie/CSRF/legacy gateway behind `bearer-only`, then execute the Phase 3 test matrix.
+2. Add the Express cookie/CSRF/legacy gateway behind `bearer-only`, including dual-mutation compatibility and cookie-to-Bearer rollback recovery, then execute the Phase 3 table.
 3. Move all protected campaign adapters to exact route context and reject compatibility disagreement.
 4. Add Discord identity linking as an independent provider adapter.
 5. Add Foundry pairing and connector authentication only with the first approved connector endpoints.
@@ -327,5 +375,6 @@ Next.js foundation remains blocked until the human-session and exact campaign-co
 - Synchronizer token and origin validation guidance: <https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html>
 - OAuth 2.0 Security Best Current Practice: <https://www.rfc-editor.org/info/rfc9700/>
 - OAuth for browser-based applications: <https://www.rfc-editor.org/info/rfc10017/>
+- Proof Key for Code Exchange (PKCE): <https://www.rfc-editor.org/info/rfc7636/>
 - Discord OAuth2 provider behavior: <https://docs.discord.com/developers/topics/oauth2>
 - Next.js server cookie API: <https://nextjs.org/docs/app/api-reference/functions/cookies>
