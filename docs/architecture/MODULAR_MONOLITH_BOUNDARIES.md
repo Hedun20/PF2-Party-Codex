@@ -4,6 +4,7 @@
 - **Status:** target architecture contract; no runtime cutover, new process, queue, database write or deployment
 - **Machine-readable graph:** [`module-boundaries.v1.json`](./module-boundaries.v1.json)
 - **Job contract:** `packages/contracts/src/jobs.ts`
+- **Integration contract:** [`INTEGRATION_HUB_CONTRACT.md`](./INTEGRATION_HUB_CONTRACT.md) and `packages/contracts/src/integrations.ts`
 - **Policy prerequisite:** [`CAMPAIGN_POLICY_PORT.md`](./CAMPAIGN_POLICY_PORT.md)
 - **Migration prerequisite:** [`MONGO_MIGRATION_CONTRACT.md`](./MONGO_MIGRATION_CONTRACT.md)
 
