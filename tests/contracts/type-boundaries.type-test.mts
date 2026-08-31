@@ -2,6 +2,7 @@ import {
   parseCampaignId,
   parseCharacterId,
   parseDiscordChannelId,
+  parseDiscordAttachmentId,
   parseDiscordGuildId,
   parseEntryId,
   parseIntegrationConnectionId,
@@ -16,6 +17,7 @@ import {
   type CampaignId,
   type CharacterId,
   type DiscordChannelId,
+  type DiscordAttachmentId,
   type DiscordGuildId,
   type EntryId,
   type IntegrationConnectionId,
@@ -34,6 +36,7 @@ import {
 function requireCampaignId(_value: CampaignId): void {}
 function requireCharacterId(_value: CharacterId): void {}
 function requireDiscordChannelId(_value: DiscordChannelId): void {}
+function requireDiscordAttachmentId(_value: DiscordAttachmentId): void {}
 function requireDiscordGuildId(_value: DiscordGuildId): void {}
 function requireEntryId(_value: EntryId): void {}
 function requireIntegrationConnectionId(_value: IntegrationConnectionId): void {}
@@ -47,6 +50,7 @@ function requireWorkspaceId(_value: WorkspaceId): void {}
 const campaignId = parseCampaignId("campaign-redacted-001");
 const characterId = parseCharacterId("character-redacted-001");
 const discordChannelId = parseDiscordChannelId("123456789012345672");
+const discordAttachmentId = parseDiscordAttachmentId("123456789012345678");
 const discordGuildId = parseDiscordGuildId("123456789012345671");
 const entryId = parseEntryId("entry-redacted-001");
 const integrationConnectionId = parseIntegrationConnectionId("connection-redacted-001");
@@ -60,6 +64,7 @@ const workspaceId = parseWorkspaceId("workspace-redacted-001");
 requireCampaignId(campaignId);
 requireCharacterId(characterId);
 requireDiscordChannelId(discordChannelId);
+requireDiscordAttachmentId(discordAttachmentId);
 requireDiscordGuildId(discordGuildId);
 requireEntryId(entryId);
 requireIntegrationConnectionId(integrationConnectionId);
@@ -82,6 +87,8 @@ requireIntegrationEventId(integrationConnectionId);
 requireSessionId(integrationEventId);
 // @ts-expect-error Discord guild IDs must never cross a Discord channel boundary.
 requireDiscordChannelId(discordGuildId);
+// @ts-expect-error Discord channel IDs must never cross a Discord attachment boundary.
+requireDiscordAttachmentId(discordChannelId);
 // @ts-expect-error provider snowflakes must never cross an internal campaign boundary.
 requireCampaignId(discordChannelId);
 

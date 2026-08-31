@@ -1,5 +1,6 @@
 export * from "./archive.js";
 export * from "./discord.js";
+export * from "./discordCapture.js";
 export * from "./envelopes.js";
 export * from "./errors.js";
 export * from "./identity.js";

@@ -156,6 +156,30 @@ test("Discord connection modes freeze scopes, permissions, intents and exact ten
   assert.equal(commands.permissionBits, "19456");
   assert.deepEqual(commands.gatewayIntents, []);
 
+  const numericChannels = [
+    { channelId: "9", stream: "discord.channel.9" },
+    { channelId: "10", stream: "discord.channel.10" }
+  ];
+  assert.equal(
+    parseDiscordConnectionBinding(
+      binding({ channels: numericChannels }),
+      integrationConnection({
+        allowedStreams: numericChannels.map(({ stream }) => stream).sort()
+      })
+    ).channels.length,
+    2
+  );
+  assert.throws(
+    () =>
+      parseDiscordConnectionBinding(
+        binding({ channels: [...numericChannels].reverse() }),
+        integrationConnection({
+          allowedStreams: numericChannels.map(({ stream }) => stream).sort()
+        })
+      ),
+    ContractValidationError
+  );
+
   for (const candidate of [
     binding({ guildId: "223456789012345671" }),
     binding({ campaignId: "campaign-redacted-002" }),

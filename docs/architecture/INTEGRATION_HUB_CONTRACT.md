@@ -84,7 +84,7 @@ Pairing is a separate command. It authenticates a human manager under HED-21, ve
 - manual/transcript: `session.note.created`, `transcript.segment.created`, `transcript.segment.updated`, `transcript.segment.deleted`;
 - deletion lineage: `source.deleted`.
 
-The executable `INTEGRATION_EVENT_TYPES_BY_PROVIDER` allowlist prevents one credential from spoofing another provider's event family: Foundry owns chat/table-play/source deletion; Discord owns chat/source deletion; transcript owns transcript/source deletion; manual import owns session-note/source deletion. HED-57 maps supported Foundry v14/PF2e hooks to this taxonomy using anonymized fixtures. HED-70 maps Discord gateway/interactions data in [`DISCORD_INTEGRATION_ADR.md`](./DISCORD_INTEGRATION_ADR.md). Neither task may add an event value silently; it must amend this contract/version and its compatibility tests.
+The executable `INTEGRATION_EVENT_TYPES_BY_PROVIDER` allowlist prevents one credential from spoofing another provider's event family: Foundry owns chat/table-play/source deletion; Discord owns chat/source deletion; transcript owns transcript/source deletion; manual import owns session-note/source deletion. HED-57 maps supported Foundry v14/PF2e hooks to this taxonomy using anonymized fixtures. HED-70 maps Discord gateway/interactions data in [`DISCORD_INTEGRATION_ADR.md`](./DISCORD_INTEGRATION_ADR.md), and HED-74 adds the opted-in channel/thread capture pipeline in [`DISCORD_CHANNEL_CAPTURE.md`](./DISCORD_CHANNEL_CAPTURE.md). Neither task may add an event value silently; it must amend this contract/version and its compatibility tests.
 
 ## Canonicalization and idempotency
 
