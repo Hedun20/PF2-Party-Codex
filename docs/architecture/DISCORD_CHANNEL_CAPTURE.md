@@ -12,9 +12,9 @@
 1. Capture is active only for one exact HED-56 connection, workspace, campaign, guild and platform session during an explicit time window.
 2. Every eligible text channel or thread is listed separately. Configuring a parent channel does not silently opt every current or future thread into capture.
 3. Routing is evaluated before content-bearing parsing. An unconfigured guild/channel/thread produces only a safe ignored code; no message content, attachment name, author or raw provider object reaches evidence, quarantine, logs or storage.
-4. Discord `MESSAGE_CREATE`, complete `MESSAGE_UPDATE` and `MESSAGE_DELETE` become immutable HED-56 occurrences. Updates never overwrite earlier evidence. Delete creates lineage/tombstone evidence and invokes the versioned deletion policy separately.
+4. Discord `MESSAGE_CREATE`, complete `MESSAGE_UPDATE` and `MESSAGE_DELETE` become immutable HED-56 occurrences. Updates never overwrite earlier evidence. Delete creates lineage/tombstone evidence and invokes the versioned deletion policy separately. A trusted author-link resolution is bound to the exact Discord author ID before mapping.
 5. Discord Gateway sequence remains resume/provider evidence. The authenticated platform ingress idempotently reserves the contiguous HED-56 integration sequence after the configured-target filter and reuses that reservation on replay.
-6. Backfill uses `GET /channels/{id}/messages?after=...&limit=100`, sorts the provider's newest-first response oldest-first, commits a full page atomically and advances the cursor only after every eligible occurrence/receipt is durable.
+6. Backfill uses `GET /channels/{id}/messages?after=...&limit=100`, sorts the provider's newest-first response oldest-first, classifies the full provider page, commits every eligible occurrence atomically and advances to the newest scanned provider ID. Pagination depends on the scanned provider page length, not the smaller accepted-message count.
 7. Alpha stores bounded metadata only for reviewed attachments. It never fetches or stores attachment bytes or CDN/proxy URLs. Reviewed image/PDF/text metadata is marked `storedMetadata`; every other media type/oversized attachment is marked `ignoredUnsupported` by transient normalization and excluded from HED-56 evidence.
 8. Provider rate limits are learned from `X-RateLimit-*`/`Retry-After`, never hard-coded. A page or event waits/retries at the transport boundary without advancing its cursor or duplicating evidence.
 
@@ -41,7 +41,7 @@ sequenceDiagram
     end
 ```
 
-The adapter must not call the content-bearing decoder, allocate a quarantine payload or construct an evidence object until `resolveDiscordCaptureTarget` returns `eligible`. The routing input is exactly application, guild, channel and optional parent-channel snowflakes. The ignored result contains only one of:
+The adapter must not call the content-bearing decoder, allocate a quarantine payload or construct an evidence object until `resolveDiscordCaptureTarget` returns `eligible`. The routing input is exactly application, guild, channel and optional parent-channel snowflakes plus a trusted `live`/`backfill` ingress kind. Live routing requires an active scope at the current evaluation time. A manager-started backfill requires the connection's separate `events:replay` capability and may use the frozen scope after live capture pauses or ends, but the normalized message occurrence must still fall inside that scope's original time interval. The ignored result contains only one of:
 
 - `CAPTURE_INACTIVE`;
 - `OUTSIDE_SESSION_WINDOW`;
@@ -76,7 +76,7 @@ Active/public/announcement threads are not auto-discovered for capture. A manage
 - trusted adapter source kind (`user`, `bot`, `webhook` or `system`);
 - exact application/guild/channel/parent/message IDs;
 - supported `default` or `reply` message type and optional reply message ID;
-- Discord author ID plus a trusted platform-resolved link reference/version (not a user claim from Discord);
+- Discord author ID plus a trusted platform-resolved source-author ID and link reference/version (not a user claim from Discord); the source-author ID must equal the normalized message author;
 - bounded text, timestamps and metadata-only attachments.
 
 Create/update require `sourceKind=user` and a complete human message snapshot; bot and webhook input fails closed before mapping. Update requires the adapter to merge Discord's partial Gateway update with its cached prior snapshot or a permitted single-message fetch; if a complete snapshot cannot be proven, it is quarantined without altering the revision. Delete requires `sourceKind=system` and carries routing/message identifiers and occurrence time only. Bot, webhook, system content, thread-starter placeholder, forwarded snapshot, poll, call, activity, sticker, embed-only and attachments-only messages are unsupported in this v1 contract.
@@ -136,7 +136,7 @@ sequenceDiagram
     end
 ```
 
-`hed74-discord-backfill-v1` stores only connection/target, last committed Discord message ID, state, committed-page count, CAS version and time. Its connection must equal the active capture scope. `pending`/`running` cursors plan `after` requests with limit 100. A short committed page becomes `complete`; exactly 100 becomes `running`. Snowflakes are compared as unsigned decimal integers; IDs must be newer than the prior cursor, sorted oldest-first and unique. The cursor cannot be advanced from a response that was not fully normalized, deduped and committed.
+`hed74-discord-backfill-v1` stores only connection/target, last fully scanned Discord message ID, state, committed-page count, CAS version and time. Its connection must equal the frozen capture scope. `pending`/`running` cursors plan `after` requests with limit 100 even after live capture is paused. A scanned provider page shorter than 100 becomes `complete`; exactly 100 becomes `running`. Snowflakes are compared as unsigned decimal integers; scanned IDs must be newer than the prior cursor, sorted oldest-first and unique. Accepted IDs must be an ordered subset of the scanned page. The cursor advances to the newest scanned ID only after the whole provider page is classified and every eligible occurrence is durably committed; ignored bot/webhook/unsupported records therefore neither halt nor prematurely complete pagination.
 
 For an explicitly configured thread, the same channel-message endpoint and cursor rules apply to the thread ID. Listing archived public threads may help the manager choose a target, but listing does not opt it in. Private archived-thread enumeration requiring `MANAGE_THREADS` is out of scope.
 
@@ -159,6 +159,6 @@ Discord edit/delete appends lineage; the deletion workflow then applies the conn
 
 ## Acceptance evidence and exclusions
 
-The runtime suite proves configured channel/thread and active-session filtering, pre-content ignored results, trusted author-link binding, reply/attachment metadata rules, HED-56 create/edit/delete mapping, deterministic reconciliation, after/100/oldest-first backfill cursors, rate-limit bounds and payload-free state.
+The runtime suite proves configured channel/thread and active-session filtering, post-session backfill constrained to the frozen interval, pre-content ignored results, exact source-author/link binding, reply/attachment metadata rules, HED-56 create/edit/delete mapping, deterministic reconciliation, scanned-page/accepted-subset pagination, after/100/oldest-first backfill cursors, rate-limit bounds and payload-free state.
 
 This task does **not** connect to Discord, request an intent, download attachment bytes, create a Mongo collection/index, expose a production endpoint, capture real messages, run a real backfill, merge or deploy. Those operations require provider credentials, an approved environment and separate implementation/operations gates.

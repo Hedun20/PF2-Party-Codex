@@ -190,6 +190,8 @@ function mappingContext(overrides = {}) {
     maxClockSkewMs: 30_000,
     integrationSequence: "7",
     traceId: "trace-discord-capture-redacted-001",
+    ingressKind: "live",
+    authorLinkSourceUserId: ids.user,
     authorLinkRef: "discord-links/link-redacted-001",
     authorLinkVersion: "link-v2",
     sha256,
@@ -239,7 +241,8 @@ test("routing rejects unconfigured content before any storage-bearing message pa
     },
     scope(),
     binding(),
-    "2026-08-23T17:00:00.500Z"
+    "2026-08-23T17:00:00.500Z",
+    "live"
   );
   assert.deepEqual(decision, { outcome: "ignored", safeCode: "TARGET_NOT_CONFIGURED" });
   assert.doesNotMatch(JSON.stringify(decision), new RegExp(secretContent));
@@ -253,7 +256,8 @@ test("routing rejects unconfigured content before any storage-bearing message pa
     },
     scope(),
     binding(),
-    "2026-08-23T17:00:00.500Z"
+    "2026-08-23T17:00:00.500Z",
+    "live"
   );
   assert.equal(thread.outcome, "eligible");
   assert.equal(thread.target.kind, "thread");
@@ -271,13 +275,25 @@ test("routing fails closed while paused or outside the linked session window", (
       route,
       scope({ state: "paused" }),
       binding(),
-      "2026-08-23T17:00:00.500Z"
+      "2026-08-23T17:00:00.500Z",
+      "live"
     ).safeCode,
     "CAPTURE_INACTIVE"
   );
   assert.equal(
-    resolveDiscordCaptureTarget(route, scope(), binding(), "2026-08-23T20:00:00.000Z").safeCode,
+    resolveDiscordCaptureTarget(route, scope(), binding(), "2026-08-23T20:00:00.000Z", "live")
+      .safeCode,
     "OUTSIDE_SESSION_WINDOW"
+  );
+  assert.equal(
+    resolveDiscordCaptureTarget(
+      route,
+      scope({ state: "paused" }),
+      binding(),
+      "2026-08-23T20:00:00.000Z",
+      "backfill"
+    ).outcome,
+    "eligible"
   );
 });
 
@@ -297,7 +313,8 @@ test("eligible messages normalize replies and metadata-only supported/ignored at
     message({ content: "" }),
     message({ sourceKind: "bot" }),
     message({ sourceKind: "webhook" }),
-    message({ authorLinkRef: "discord-links/spoof", authorLinkVersion: "link-v2" })
+    message({ authorLinkRef: "discord-links/spoof", authorLinkVersion: "link-v2" }),
+    message({ authorId: ids.reply })
   ]) {
     assert.throws(
       () => parseDiscordCaptureMessage(candidate, parsedScope.targets[0], mappingContext()),
@@ -348,12 +365,57 @@ test("create, complete edit and delete become immutable restricted HED-56 eviden
     mappingContext({
       eventId: "event-discord-capture-redacted-003",
       integrationSequence: "9",
+      authorLinkSourceUserId: null,
       authorLinkRef: null,
       authorLinkVersion: null
     })
   );
   assert.equal(deleted.type, "chat.message.deleted");
   assert.equal(deleted.payload.content, null);
+
+  const recovered = mapDiscordCaptureMessageToIntegrationEvent(
+    message(),
+    mappingContext({
+      ingressKind: "backfill",
+      eventId: "event-discord-capture-redacted-004",
+      integrationSequence: "10",
+      receivedAt: "2026-08-23T20:30:00.000Z",
+      evaluatedAt: "2026-08-23T20:30:00.500Z"
+    })
+  );
+  assert.equal(recovered.type, "chat.message.created");
+  assert.throws(
+    () =>
+      mapDiscordCaptureMessageToIntegrationEvent(
+        message(),
+        mappingContext({
+          ingressKind: "backfill",
+          connection: connection({ capabilities: ["events:ingest"] }),
+          eventId: "event-discord-capture-redacted-005",
+          integrationSequence: "11",
+          receivedAt: "2026-08-23T20:30:00.000Z",
+          evaluatedAt: "2026-08-23T20:30:00.500Z"
+        })
+      ),
+    ContractValidationError
+  );
+  assert.throws(
+    () =>
+      mapDiscordCaptureMessageToIntegrationEvent(
+        message({
+          messageCreatedAt: "2026-08-23T20:00:00.000Z",
+          occurredAt: "2026-08-23T20:00:00.000Z"
+        }),
+        mappingContext({
+          ingressKind: "backfill",
+          eventId: "event-discord-capture-redacted-006",
+          integrationSequence: "12",
+          receivedAt: "2026-08-23T20:30:00.000Z",
+          evaluatedAt: "2026-08-23T20:30:00.500Z"
+        })
+      ),
+    ContractValidationError
+  );
 });
 
 test("edit/delete reconciliation is deterministic, idempotent and append-only", () => {
@@ -406,13 +468,17 @@ function cursor(overrides = {}) {
   };
 }
 
-test("backfill uses after cursors, page size 100 and advances only over ordered committed IDs", () => {
+test("backfill advances over every scanned provider message after eligible commits", () => {
   assert.deepEqual(planDiscordBackfillPage(cursor(), scope()), {
     channelId: ids.channel,
     afterMessageId: null,
     limit: 100,
     orderAfterFetch: "oldestFirst"
   });
+  assert.equal(
+    planDiscordBackfillPage(cursor(), scope({ state: "paused" })).orderAfterFetch,
+    "oldestFirst"
+  );
   assert.throws(
     () => planDiscordBackfillPage(cursor({ connectionId: "connection-redacted-002" }), scope()),
     ContractValidationError
@@ -420,7 +486,7 @@ test("backfill uses after cursors, page size 100 and advances only over ordered 
   const shortPage = advanceDiscordBackfillCursor(
     cursor(),
     [ids.reply, ids.user],
-    false,
+    [ids.reply, ids.user],
     "2026-08-23T17:00:00.000Z"
   );
   assert.equal(shortPage.state, "complete");
@@ -431,26 +497,38 @@ test("backfill uses after cursors, page size 100 and advances only over ordered 
     String(223456789012345600n + BigInt(index))
   );
   assert.equal(
-    advanceDiscordBackfillCursor(cursor(), hundred, true, "2026-08-23T17:00:00.000Z").state,
+    advanceDiscordBackfillCursor(cursor(), hundred, hundred.slice(0, 2), "2026-08-23T17:00:00.000Z")
+      .state,
     "running"
+  );
+  assert.equal(
+    advanceDiscordBackfillCursor(cursor(), hundred, hundred.slice(0, 2), "2026-08-23T17:00:00.000Z")
+      .afterMessageId,
+    hundred.at(-1)
   );
   assert.throws(
     () =>
       advanceDiscordBackfillCursor(
         cursor(),
         [ids.user, ids.reply],
-        false,
+        [ids.user, ids.reply],
         "2026-08-23T17:00:00.000Z"
       ),
     ContractValidationError
   );
   assert.throws(
-    () => advanceDiscordBackfillCursor(cursor(), [ids.reply], true, "2026-08-23T17:00:00.000Z"),
+    () =>
+      advanceDiscordBackfillCursor(
+        cursor(),
+        [ids.reply],
+        [ids.message],
+        "2026-08-23T17:00:00.000Z"
+      ),
     ContractValidationError
   );
   assert.equal(parseDiscordBackfillCursor(shortPage).version, 1);
   assert.equal(
-    advanceDiscordBackfillCursor(cursor(), ["9", "10"], false, "2026-08-23T17:00:00.000Z")
+    advanceDiscordBackfillCursor(cursor(), ["9", "10"], [], "2026-08-23T17:00:00.000Z")
       .afterMessageId,
     "10"
   );
@@ -459,7 +537,7 @@ test("backfill uses after cursors, page size 100 and advances only over ordered 
       advanceDiscordBackfillCursor(
         cursor({ afterMessageId: ids.user, state: "running" }),
         [ids.reply],
-        false,
+        [ids.reply],
         "2026-08-23T17:00:00.000Z"
       ),
     ContractValidationError

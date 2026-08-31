@@ -45,6 +45,7 @@ import {
 
 export const DISCORD_CAPTURE_TARGET_KINDS = ["channel", "thread"] as const;
 export const DISCORD_CAPTURE_STATES = ["active", "paused"] as const;
+export const DISCORD_CAPTURE_INGRESS_KINDS = ["live", "backfill"] as const;
 export const DISCORD_CAPTURE_VISIBILITIES = ["restricted", "managerOnly"] as const;
 export const DISCORD_CAPTURE_DISPATCHES = [
   "MESSAGE_CREATE",
@@ -65,6 +66,7 @@ export const DISCORD_RATE_LIMIT_SCOPES = ["route", "shared", "global"] as const;
 
 export type DiscordCaptureTargetKind = (typeof DISCORD_CAPTURE_TARGET_KINDS)[number];
 export type DiscordCaptureState = (typeof DISCORD_CAPTURE_STATES)[number];
+export type DiscordCaptureIngressKind = (typeof DISCORD_CAPTURE_INGRESS_KINDS)[number];
 export type DiscordCaptureVisibility = (typeof DISCORD_CAPTURE_VISIBILITIES)[number];
 export type DiscordCaptureDispatch = (typeof DISCORD_CAPTURE_DISPATCHES)[number];
 export type DiscordCaptureMessageType = (typeof DISCORD_CAPTURE_MESSAGE_TYPES)[number];
@@ -155,6 +157,8 @@ export interface DiscordCaptureMessageContract {
 
 export interface DiscordCaptureMappingContext extends DiscordEventMappingContext {
   readonly scope: unknown;
+  readonly ingressKind: DiscordCaptureIngressKind;
+  readonly authorLinkSourceUserId: DiscordUserId | null;
   readonly authorLinkRef: string | null;
   readonly authorLinkVersion: string | null;
 }
@@ -399,7 +403,8 @@ export function resolveDiscordCaptureTarget(
   value: unknown,
   scope: DiscordCaptureScopeContract,
   binding: DiscordConnectionBindingContract,
-  evaluatedAt: string
+  evaluatedAt: string,
+  ingressKindValue: unknown
 ): DiscordCaptureRouteDecision {
   const path = "discordCaptureRoute";
   const record = expectRecord(value, path);
@@ -412,12 +417,15 @@ export function resolveDiscordCaptureTarget(
       ? null
       : parseDiscordChannelId(record["parentChannelId"], `${path}.parentChannelId`);
   const now = Date.parse(parseCanonicalInstant(evaluatedAt, "evaluatedAt"));
-  if (scope.state !== "active") return { outcome: "ignored", safeCode: "CAPTURE_INACTIVE" };
-  if (
-    now < Date.parse(scope.startsAt) ||
-    (scope.endsAt !== null && now >= Date.parse(scope.endsAt))
-  ) {
-    return { outcome: "ignored", safeCode: "OUTSIDE_SESSION_WINDOW" };
+  const ingressKind = expectEnum(ingressKindValue, DISCORD_CAPTURE_INGRESS_KINDS, "ingressKind");
+  if (ingressKind === "live") {
+    if (scope.state !== "active") return { outcome: "ignored", safeCode: "CAPTURE_INACTIVE" };
+    if (
+      now < Date.parse(scope.startsAt) ||
+      (scope.endsAt !== null && now >= Date.parse(scope.endsAt))
+    ) {
+      return { outcome: "ignored", safeCode: "OUTSIDE_SESSION_WINDOW" };
+    }
   }
   if (applicationId !== binding.applicationId) {
     return { outcome: "ignored", safeCode: "APPLICATION_MISMATCH" };
@@ -543,17 +551,24 @@ export function parseDiscordCaptureMessage(
   if (channelId !== target.channelId || parentChannelId !== target.parentChannelId) {
     fail(path, "message target does not match the eligible routing decision");
   }
+  const authorId =
+    record["authorId"] === null ? null : parseDiscordUserId(record["authorId"], `${path}.authorId`);
+  const authorLinkSourceUserId =
+    context.authorLinkSourceUserId === null
+      ? null
+      : parseDiscordUserId(context.authorLinkSourceUserId, "context.authorLinkSourceUserId");
   const authorLinkRef = parseNullableSafeId(record["authorLinkRef"], `${path}.authorLinkRef`);
   const authorLinkVersion = parseNullableSafeId(
     record["authorLinkVersion"],
     `${path}.authorLinkVersion`
   );
   if (
+    authorId !== authorLinkSourceUserId ||
     authorLinkRef !== context.authorLinkRef ||
     authorLinkVersion !== context.authorLinkVersion ||
     (authorLinkRef === null) !== (authorLinkVersion === null)
   ) {
-    fail(path, "author link must match trusted platform resolution");
+    fail(path, "author identity and link must match trusted platform resolution");
   }
   const sequence = expectString(record["gatewaySequence"], `${path}.gatewaySequence`);
   if (!CANONICAL_SEQUENCE.test(sequence))
@@ -570,8 +585,6 @@ export function parseDiscordCaptureMessage(
   ) {
     fail(`${path}.sourceKind`, "only human create/update and system delete are supported");
   }
-  const authorId =
-    record["authorId"] === null ? null : parseDiscordUserId(record["authorId"], `${path}.authorId`);
   const content =
     record["content"] === null ? null : expectString(record["content"], `${path}.content`);
   if (content !== null && utf8ByteLength(content) > MAX_CONTENT_BYTES) {
@@ -679,6 +692,9 @@ export function mapDiscordCaptureMessageToIntegrationEvent(
   context: DiscordCaptureMappingContext
 ): NormalizedIntegrationEventContract {
   const connection = parseIntegrationConnection(context.connection);
+  if (context.ingressKind === "backfill" && !connection.capabilities.includes("events:replay")) {
+    fail("context.ingressKind", "backfill requires events:replay capability");
+  }
   const binding = parseDiscordConnectionBinding(context.binding, connection);
   const scope = parseDiscordCaptureScope(context.scope, binding, context.evaluatedAt);
   if (scope.sessionId !== context.sessionId)
@@ -693,10 +709,20 @@ export function mapDiscordCaptureMessageToIntegrationEvent(
     },
     scope,
     binding,
-    context.evaluatedAt
+    context.evaluatedAt,
+    context.ingressKind
   );
   if (route.outcome !== "eligible") fail("discordCaptureMessage", route.safeCode);
   const message = parseDiscordCaptureMessage(value, route.target, context);
+  if (context.ingressKind === "backfill") {
+    const occurredAt = Date.parse(message.occurredAt);
+    if (
+      occurredAt < Date.parse(scope.startsAt) ||
+      (scope.endsAt !== null && occurredAt >= Date.parse(scope.endsAt))
+    ) {
+      fail("discordCaptureMessage.occurredAt", "is outside the frozen capture interval");
+    }
+  }
   if (message.applicationId !== binding.applicationId || message.guildId !== binding.guildId) {
     fail("discordCaptureMessage", "application or guild binding mismatch");
   }
@@ -936,7 +962,7 @@ export function planDiscordBackfillPage(
   }
   const target = scope.targets.find((candidate) => candidate.channelId === cursor.targetChannelId);
   if (!target) fail("discordBackfill.targetChannelId", "target is not configured");
-  if (scope.state !== "active" || (cursor.state !== "pending" && cursor.state !== "running")) {
+  if (cursor.state !== "pending" && cursor.state !== "running") {
     fail("discordBackfill.state", "backfill is not runnable");
   }
   return {
@@ -949,34 +975,48 @@ export function planDiscordBackfillPage(
 
 export function advanceDiscordBackfillCursor(
   cursorValue: unknown,
+  scannedMessageIds: readonly unknown[],
   committedMessageIds: readonly unknown[],
-  pageWasFull: boolean,
   updatedAt: string
 ): DiscordBackfillCursorContract {
   const cursor = parseDiscordBackfillCursor(cursorValue);
-  if (committedMessageIds.length > 100)
-    fail("committedMessageIds", "page exceeds Discord limit 100");
-  const ids = committedMessageIds.map((value, index) =>
+  if (scannedMessageIds.length > 100) fail("scannedMessageIds", "page exceeds Discord limit 100");
+  if (committedMessageIds.length > scannedMessageIds.length) {
+    fail("committedMessageIds", "cannot exceed the scanned provider page");
+  }
+  const scannedIds = scannedMessageIds.map((value, index) =>
+    parseDiscordMessageId(value, `scannedMessageIds[${index}]`)
+  );
+  const committedIds = committedMessageIds.map((value, index) =>
     parseDiscordMessageId(value, `committedMessageIds[${index}]`)
   );
   if (
     cursor.afterMessageId !== null &&
-    ids[0] !== undefined &&
-    compareDiscordSnowflakes(ids[0], cursor.afterMessageId) <= 0
+    scannedIds[0] !== undefined &&
+    compareDiscordSnowflakes(scannedIds[0], cursor.afterMessageId) <= 0
   ) {
-    fail("committedMessageIds[0]", "must be newer than the committed after cursor");
+    fail("scannedMessageIds[0]", "must be newer than the committed after cursor");
   }
-  for (let index = 1; index < ids.length; index += 1) {
-    const current = ids[index];
-    const previous = ids[index - 1];
+  for (let index = 1; index < scannedIds.length; index += 1) {
+    const current = scannedIds[index];
+    const previous = scannedIds[index - 1];
     if (current && previous && compareDiscordSnowflakes(current, previous) <= 0) {
+      fail(`scannedMessageIds[${index}]`, "messages must be scanned oldest-first and unique");
+    }
+  }
+  const scannedSet = new Set(scannedIds);
+  for (let index = 0; index < committedIds.length; index += 1) {
+    const current = committedIds[index];
+    const previous = committedIds[index - 1];
+    if (!current || !scannedSet.has(current)) {
+      fail(`committedMessageIds[${index}]`, "must belong to the scanned provider page");
+    }
+    if (previous && compareDiscordSnowflakes(current, previous) <= 0) {
       fail(`committedMessageIds[${index}]`, "messages must be committed oldest-first and unique");
     }
   }
-  if (pageWasFull !== (ids.length === 100)) {
-    fail("pageWasFull", "must reflect the exact committed page length");
-  }
-  const afterMessageId = ids.at(-1) ?? cursor.afterMessageId;
+  const pageWasFull = scannedIds.length === 100;
+  const afterMessageId = scannedIds.at(-1) ?? cursor.afterMessageId;
   return {
     ...cursor,
     afterMessageId,
