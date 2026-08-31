@@ -55,7 +55,7 @@ The server config has no root export. Next server access begins with `import "se
 | `npm run build:target` | Ordered contracts/core/config/runtime builds plus Next production build |
 | `npm run test:workspace` | Build plus environment, package-lock, secret-boundary and cross-package runtime tests |
 | `npm run verify:target` | Lint, format check, typecheck, build and workspace tests |
-| `npm run verify` | Target verification followed by every existing rollback-runtime gate |
+| `npm run verify` | Target verification followed by the legacy production build and every existing rollback-runtime gate; the build runs before the server smoke test that serves `dist` |
 
 The existing `npm run build`, `start`, `dev` and production route remain Express/Vite. HED-16 does not silently repoint them to Next.js.
 
@@ -65,7 +65,7 @@ The minimal runtime test sends the same branded campaign ID through worker, Disc
 
 ## CI and deterministic install
 
-Both CI jobs install and verify npm 11.9.0 after setup-node and before their first `npm ci`; the setup-node npm cache remains enabled. The main job then runs `verify:target` before existing contract/security/runtime/build/audit gates. The committed lockfile contains every workspace and exact new dependency. No CI step runs a worker, bot, connector, migration or index command.
+Both CI jobs install and verify npm 11.9.0 after setup-node and before their first `npm ci`; the setup-node npm cache remains enabled. The main job then runs `verify:target` before existing contract/security/runtime/build/audit gates. Both the root `verify` script and the expanded CI job build the legacy Vite rollback app before the server smoke test serves its `dist` directory, so a clean checkout cannot inherit or require a stale local bundle. The committed lockfile contains every workspace and exact new dependency. No CI step runs a worker, bot, connector, migration or index command.
 
 ## Exit and rollback
 
