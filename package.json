@@ -28,7 +28,7 @@
     "check:syntax": "find apps/server/src apps/server/scripts scripts tests -type f \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
     "audit:production": "npm audit --omit=dev --audit-level=high",
     "verify:target": "npm run lint && npm run format:check && npm run typecheck:target && npm run build:target && npm run test:workspace:runtime",
-    "verify": "npm run verify:target && npm run typecheck && npm run test:contracts && npm test && npm run build && npm run check:syntax && npm run audit:production",
+    "verify": "npm run verify:target && npm run typecheck && npm run test:contracts && npm run build && npm test && npm run check:syntax && npm run audit:production",
     "demo:seed": "npm run demo:seed --workspace apps/server",
     "prestart": "npm run build",
     "start": "npm run start --workspace apps/server",
