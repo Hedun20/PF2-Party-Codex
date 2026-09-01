@@ -1,16 +1,20 @@
 /* Stage 19 hotfix: portal-backed dropdowns and reliable native select fallback. */
 
-/* Restore browser select mechanics everywhere that still uses a native select. */
+/* Keep native select semantics, but never render the browser chevron. The shared
+   magic-select layer owns the visual arrow everywhere in the app. */
 select:not([multiple]) {
-  appearance: auto !important;
-  -webkit-appearance: menulist !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
   position: relative !important;
   z-index: auto !important;
   transform: none !important;
   pointer-events: auto !important;
   touch-action: auto !important;
-  background-image: none !important;
   cursor: pointer !important;
+}
+
+select:not([multiple])::-ms-expand {
+  display: none;
 }
 
 select:not([multiple]):hover,
