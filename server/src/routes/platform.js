@@ -19,10 +19,10 @@ function publicAdminUser(user) {
     email: user.email || "",
     name: user.name || "",
     status: user.status || "active",
-    platformRole: user.platformRole || "user",
+    platformRoles: Array.isArray(user.platformRoles) ? user.platformRoles : [],
     emailVerified: Boolean(user.emailVerified),
     verificationMethod: user.verificationMethod || "",
-    verifiedAt: user.verifiedAt || "",
+    emailVerifiedAt: user.emailVerifiedAt || "",
     verifiedByUserId: user.verifiedByUserId ? String(user.verifiedByUserId) : "",
     createdAt: user.createdAt || "",
     updatedAt: user.updatedAt || ""
@@ -80,19 +80,19 @@ platformRouter.post("/platform/users/:id/verification", requirePlatformAdmin, as
     const patch = verified
       ? {
           emailVerified: true,
+          emailVerifiedAt: target.emailVerified && target.emailVerifiedAt ? target.emailVerifiedAt : stamp,
           verificationMethod: "platformAdmin",
-          verifiedAt: target.emailVerified && target.verifiedAt ? target.verifiedAt : stamp,
           verifiedByUserId: actorUserId || null,
-          emailVerifyTokenHash: null,
-          emailVerifyExpiresAt: null
+          emailVerifyTokenHash: "",
+          emailVerifyTokenExpiresAt: ""
         }
       : {
           emailVerified: false,
+          emailVerifiedAt: "",
           verificationMethod: "",
-          verifiedAt: "",
           verifiedByUserId: null,
-          emailVerifyTokenHash: null,
-          emailVerifyExpiresAt: null
+          emailVerifyTokenHash: "",
+          emailVerifyTokenExpiresAt: ""
         };
 
     const updated = await mongoUpdateUser(req.params.id, patch);
