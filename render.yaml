@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: pf2-party-codex-staging
+    runtime: docker
+    repo: https://github.com/Hedun20/PF2-Party-Codex
+    branch: agent/hed-110-hosted-staging
+    region: frankfurt
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: TRUST_PROXY
+        value: "1"
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DB_NAME
+        value: pf2_party_codex_staging
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: PUBLIC_APP_URL
+        value: https://pf2-party-codex-staging.onrender.com
+      - key: ALLOWED_ORIGINS
+        value: https://pf2-party-codex-staging.onrender.com
+      - key: EMAIL_MODE
+        value: outbox
+      - key: ALLOW_OUTBOX_EMAIL_IN_PRODUCTION
+        value: "true"
+      - key: EMAIL_FROM
+        value: Party Codex Staging <staging@pf2partycodex.com>
+      - key: BILLING_MODE
+        value: disabled
+      - key: API_RATE_LIMIT
+        value: "600"
+      - key: JSON_BODY_LIMIT
+        value: 6mb
+      - key: REQUEST_TIMEOUT_MS
+        value: "30000"
+      - key: HEADERS_TIMEOUT_MS
+        value: "35000"
+      - key: SHUTDOWN_GRACE_MS
+        value: "10000"
