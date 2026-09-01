@@ -1,0 +1,98 @@
+.admin-page {
+  display: grid;
+  gap: 24px;
+}
+
+.admin-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-summary-grid .codex-card {
+  display: grid;
+  gap: 8px;
+  min-height: 112px;
+  align-content: center;
+}
+
+.admin-summary-grid strong {
+  font-size: clamp(1.8rem, 3vw, 2.6rem);
+}
+
+.admin-users-section {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-search-field {
+  display: grid;
+  gap: 7px;
+  max-width: 34rem;
+  color: rgba(245, 239, 255, 0.78);
+  font-weight: 700;
+}
+
+.admin-search-field input {
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid rgba(218, 184, 103, 0.28);
+  border-radius: 12px;
+  color: #f7f0ff;
+  background: rgba(12, 10, 18, 0.9);
+  font: inherit;
+}
+
+.admin-search-field input:focus {
+  outline: 2px solid rgba(227, 190, 101, 0.45);
+  outline-offset: 1px;
+}
+
+.admin-user-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-user-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.admin-user-main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.admin-user-main > span,
+.admin-user-main > small {
+  overflow-wrap: anywhere;
+  color: rgba(245, 239, 255, 0.68);
+}
+
+.admin-user-actions {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 900px) {
+  .admin-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-user-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-user-actions .codex-button {
+    width: 100%;
+  }
+}
