@@ -14,6 +14,7 @@ const SESSION_LIFECYCLE_STATES = new Set([
 
 const SOURCE_PROVIDERS = new Set(["foundry", "discord", "manual"]);
 const SOURCE_STATES = new Set(["ready", "partial", "unavailable"]);
+const ACTOR_KINDS = new Set(["user", "worker", "system"]);
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const SAFE_CURSOR = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/;
 const SAFE_CODE = /^[A-Z][A-Z0-9_]{1,127}$/;
@@ -47,6 +48,14 @@ function cleanId(value, label) {
   const id = String(value || "").trim();
   if (!SAFE_ID.test(id)) throw lifecycleError(`${label} is invalid.`, 400, "SESSION_LIFECYCLE_INVALID");
   return id;
+}
+
+function cleanActorKind(value = "user") {
+  const kind = String(value || "").trim();
+  if (!ACTOR_KINDS.has(kind)) {
+    throw lifecycleError("Transition actor kind is invalid.", 400, "SESSION_LIFECYCLE_INVALID");
+  }
+  return kind;
 }
 
 function cleanCode(value, label) {
@@ -269,7 +278,8 @@ export function applySessionLifecycleTransition(current, input = {}) {
     throw lifecycleError(`Session lifecycle transition ${from} -> ${to} is not allowed.`, 409, "SESSION_TRANSITION_NOT_ALLOWED");
   }
 
-  const actorUserId = cleanId(input.actorUserId, "Transition actor user id");
+  const actorKind = cleanActorKind(input.actorKind || "user");
+  const actorId = cleanId(input.actorId || input.actorUserId, "Transition actor id");
   const stamp = canonicalInstant(input.occurredAt || new Date().toISOString(), "Transition time");
   const reasonCode = cleanCode(input.reasonCode || "GM_ACTION", "Transition reason code");
   const transitions = Array.isArray(current.transitions) ? current.transitions.map((item) => ({ ...item })) : [];
@@ -296,7 +306,8 @@ export function applySessionLifecycleTransition(current, input = {}) {
     sequence: transitions.length + 1,
     from,
     to,
-    actorUserId,
+    actorKind,
+    actorId,
     reasonCode,
     occurredAt: stamp
   });
@@ -310,7 +321,7 @@ export function applySessionLifecycleTransition(current, input = {}) {
       reviewSets,
       lifecycleRevision: transitions.length,
       transitions,
-      updatedBy: actorUserId,
+      updatedBy: actorKind === "user" ? actorId : current.updatedBy,
       updatedAt: stamp
     },
     idempotent: false
