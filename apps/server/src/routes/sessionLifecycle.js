@@ -1,6 +1,4 @@
 import { Router } from "express";
-import { logAuditEvent } from "../services/auditLogService.js";
-import { requireCampaignMember } from "../services/sessionService.js";
 import {
   endCampaignSessionLifecycle,
   ensureSessionLifecycle,
@@ -9,6 +7,9 @@ import {
   startCampaignSessionLifecycle,
   transitionCampaignSessionLifecycle
 } from "../repositories/sessionLifecycleRepository.js";
+import { freezeQueuedSessionProcessingSourceSnapshot } from "../repositories/sessionProcessingSourceSnapshotRepository.js";
+import { logAuditEvent } from "../services/auditLogService.js";
+import { requireCampaignMember } from "../services/sessionService.js";
 
 export const sessionLifecycleRouter = Router();
 sessionLifecycleRouter.use("/sessions/:sessionId/lifecycle", requireCampaignMember);
@@ -150,7 +151,11 @@ sessionLifecycleRouter.post("/sessions/:sessionId/lifecycle/queue", async (req, 
       ...scope,
       input: { to: "queued", occurredAt: req.body?.occurredAt, reasonCode: "GM_QUEUE_PROCESSING" }
     });
-    await auditLifecycle(req, "sessions.lifecycle.queue", result);
+    const frozen = await freezeQueuedSessionProcessingSourceSnapshot(scope);
+    await auditLifecycle(req, "sessions.lifecycle.queue", result, {
+      sourceSnapshotProcessingVersion: frozen.sourceSnapshot.processingVersion,
+      sourceSnapshotIdempotent: frozen.idempotent
+    });
     res.json(result);
   } catch (error) {
     next(error);
