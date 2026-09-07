@@ -45,16 +45,12 @@ test("worker reporter binds every progress report to the claimed session job att
     archivePort: collectingPort(reports)
   });
 
-  await reporter.progress(progressInput(
-    25,
-    "2026-09-07T11:01:00.000Z",
-    "2026-09-07T11:06:00.000Z"
-  ));
-  await reporter.progress(progressInput(
-    70,
-    "2026-09-07T11:02:00.000Z",
-    "2026-09-07T11:07:00.000Z"
-  ));
+  await reporter.progress(
+    progressInput(25, "2026-09-07T11:01:00.000Z", "2026-09-07T11:06:00.000Z")
+  );
+  await reporter.progress(
+    progressInput(70, "2026-09-07T11:02:00.000Z", "2026-09-07T11:07:00.000Z")
+  );
 
   assert.equal(reports.length, 2);
   for (const report of reports) {
@@ -65,14 +61,13 @@ test("worker reporter binds every progress report to the claimed session job att
     assert.equal(report.jobId, "job-session-redacted-001-v1");
     assert.equal(report.attempt, 2);
   }
-  assert.deepEqual(reports.map((report) => report.progressPercent), [25, 70]);
+  assert.deepEqual(
+    reports.map((report) => report.progressPercent),
+    [25, 70]
+  );
 
   await assert.rejects(
-    reporter.progress(progressInput(
-      69,
-      "2026-09-07T11:03:00.000Z",
-      "2026-09-07T11:08:00.000Z"
-    )),
+    reporter.progress(progressInput(69, "2026-09-07T11:03:00.000Z", "2026-09-07T11:08:00.000Z")),
     (error) => error.code === "SESSION_PROCESSING_PROGRESS_REGRESSION"
   );
   assert.equal(reports.length, 2, "regressing progress must not cross the archive port");
@@ -125,11 +120,7 @@ test("archive-port failure leaves reporter state retryable", async () => {
     }
   });
 
-  const input = progressInput(
-    40,
-    "2026-09-07T11:01:00.000Z",
-    "2026-09-07T11:06:00.000Z"
-  );
+  const input = progressInput(40, "2026-09-07T11:01:00.000Z", "2026-09-07T11:06:00.000Z");
   await assert.rejects(reporter.progress(input), /archive unavailable/);
   shouldFail = false;
   await reporter.progress(input);
@@ -146,8 +137,8 @@ test("worker reporter rejects raw or malformed processing input before any archi
     }
   };
 
-  assert.throws(
-    () => createSessionProcessingReporter({
+  assert.throws(() =>
+    createSessionProcessingReporter({
       request: { ...request(), rawEvidence: "must-not-cross-worker-boundary" },
       jobId: "job-session-redacted-001-v1",
       attempt: 1,
