@@ -48,7 +48,7 @@ test("critical header and Timeline controls use browser-native selects", async (
   const [topbar, timeline, css] = await Promise.all([
     source("apps/web/src/components/CodexTopbar.jsx"),
     source("apps/web/src/pages/TimelinePage.jsx"),
-    source("apps/web/src/styles/stage20-native-selects.css")
+    source("apps/web/src/styles/app.css")
   ]);
 
   assert.match(topbar, /<select aria-label="Активная кампания"/);
