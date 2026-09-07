@@ -6,6 +6,8 @@ import { closeMongo, connectMongo } from "./db/mongo.js";
 import { ensureCodexIndexes } from "./repositories/entriesRepository.js";
 import { ensureIdentityIndexes } from "./repositories/identityRepository.js";
 import { ensureInvitationIndexes } from "./repositories/invitationsRepository.js";
+import { ensureDiscordIdentityIndexes } from "./repositories/discordIdentityRepository.js";
+import { ensureDiscordIdentityConcurrencyIndexes } from "./repositories/discordIdentityConcurrencyIndexes.js";
 import { ensureWorldSystemIndexes } from "./repositories/worldSystemsRepository.js";
 import { startVaultWatcher } from "./services/fileWatchService.js";
 import { ensureEmailOutboxIndexes, startEmailOutboxWorker, stopEmailOutboxWorker } from "./services/emailService.js";
@@ -20,6 +22,8 @@ export async function initializeRuntime() {
   }
   await ensureIdentityIndexes();
   await ensureInvitationIndexes();
+  await ensureDiscordIdentityIndexes();
+  await ensureDiscordIdentityConcurrencyIndexes();
   await ensureCodexIndexes();
   await ensureWorldSystemIndexes();
   await ensureEmailOutboxIndexes();
