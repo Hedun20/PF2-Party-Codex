@@ -4,8 +4,6 @@ import CodexSidebar from "./CodexSidebar.jsx";
 import CodexTopbar from "./CodexTopbar.jsx";
 import PageBackButton from "./PageBackButton.jsx";
 import StatusMessage from "./ui/StatusMessage.jsx";
-import CinematicWorldBackground from "./world/CinematicWorldBackground.jsx";
-import { getThemeStyle, getWorldTheme } from "../theme/worldThemes.js";
 
 function activeMembershipRole(session) {
   return String(session?.activeMembership?.role || "").toLowerCase();
@@ -20,15 +18,13 @@ export default function FantasyShell({ children, ...props }) {
   const sidebarRef = useRef(null);
   const sidebarToggleRef = useRef(null);
   const location = useLocation();
-  const worldTheme = getWorldTheme(props.activeWorld);
   const signedIn = Boolean(props.session?.user);
   const hasMembership = hasCampaignMembership(props.session);
   const role = activeMembershipRole(props.session);
   const canManage = hasMembership && (role === "owner" || role === "gm");
   const shellClassName = [
     "app-shell",
-    sidebarOpen ? "sidebar-open" : "sidebar-closed",
-    `world-theme-${worldTheme.key}`
+    sidebarOpen ? "sidebar-open" : "sidebar-closed"
   ].join(" ");
 
   useEffect(() => {
@@ -68,9 +64,8 @@ export default function FantasyShell({ children, ...props }) {
   }, [sidebarOpen]);
 
   return (
-    <div className={shellClassName} data-world-theme={worldTheme.key} style={getThemeStyle(worldTheme)}>
+    <div className={shellClassName} data-ui-foundation="neutral">
       <a className="skip-link" href="#main-content">Skip to campaign content</a>
-      <CinematicWorldBackground theme={worldTheme} />
       {sidebarOpen && (
         <button
           type="button"
@@ -93,7 +88,7 @@ export default function FantasyShell({ children, ...props }) {
         onClose={() => setSidebarOpen(false)}
       />
       <main className="main-stage" id="main-content" tabIndex="-1">
-        <CodexTopbar {...props} worldTheme={worldTheme} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} sidebarToggleRef={sidebarToggleRef} />
+        <CodexTopbar {...props} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} sidebarToggleRef={sidebarToggleRef} />
         <section className="content-stage">
           <StatusMessage tone={props.campaignNotice?.tone || "info"} role={props.campaignNotice?.tone === "danger" ? "alert" : "status"}>
             {props.campaignNotice?.message || ""}
