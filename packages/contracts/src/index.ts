@@ -3,6 +3,7 @@ export * from "./discord.js";
 export * from "./discordCapture.js";
 export * from "./envelopes.js";
 export * from "./errors.js";
+export * from "./evidenceSearch.js";
 export * from "./identity.js";
 export * from "./ids.js";
 export * from "./integrations.js";
