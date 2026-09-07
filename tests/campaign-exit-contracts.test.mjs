@@ -36,7 +36,7 @@ test("leave route returns a repaired campaign context and audits only the real t
   assert.ok(start >= 0, "dedicated leave route must exist");
   assert.match(leaveRoute, /requireUser\(req\)/);
   assert.match(leaveRoute, /leaveCampaignMembership\(/);
-  assert.match(leaveRoute, /userId: req\.user\?_id \|\| req\.user\?\.id/);
+  assert.match(leaveRoute, /userId: req\.user\?\._id \|\| req\.user\?\.id/);
   assert.match(leaveRoute, /if \(!left\.idempotent\)/);
   assert.match(leaveRoute, /action: "memberships\.leave"/);
   assert.match(leaveRoute, /identityContextForUser\(req\.user\)/);
