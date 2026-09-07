@@ -49,11 +49,51 @@ function conflict(message = "Session lifecycle changed concurrently. Refresh and
   return error;
 }
 
+function invalidProcessing(message) {
+  const error = new Error(message);
+  error.status = 400;
+  error.code = "SESSION_PROCESSING_INVALID";
+  return error;
+}
+
 function notFound() {
   const error = new Error("Campaign session was not found.");
   error.status = 404;
   error.code = "SESSION_NOT_FOUND";
   return error;
+}
+
+function canonicalInstant(value, label) {
+  const instant = String(value || "").trim();
+  const parsed = Date.parse(instant);
+  if (!Number.isFinite(parsed) || new Date(parsed).toISOString() !== instant) {
+    throw invalidProcessing(`${label} must be a canonical UTC timestamp.`);
+  }
+  return instant;
+}
+
+function positiveInteger(value, label) {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    throw invalidProcessing(`${label} must be a positive integer.`);
+  }
+  return parsed;
+}
+
+function nonNegativeInteger(value, label) {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw invalidProcessing(`${label} must be a non-negative integer.`);
+  }
+  return parsed;
+}
+
+function processingProgress(value) {
+  const parsed = nonNegativeInteger(value, "Processing progress");
+  if (parsed >= 100) {
+    throw invalidProcessing("Progress reports must remain below 100 until review-ready completion.");
+  }
+  return parsed;
 }
 
 function assertLifecycleScope(lifecycle, { workspaceId, campaignId }) {
@@ -273,17 +313,31 @@ export async function reportSessionProcessingProgress({
   workspaceId,
   campaignId,
   sessionId,
+  processingVersion,
   jobId,
   attempt,
   progressPercent,
   costMicros,
   latencyMs,
-  leaseExpiresAt = null,
+  leaseExpiresAt,
   occurredAt = new Date().toISOString()
 }) {
   requireMongo();
   const campaignObjectId = requiredObjectId(campaignId, "Campaign id");
   const sessionObjectId = requiredObjectId(sessionId, "Session id");
+  const expectedProcessingVersion = positiveInteger(processingVersion, "Processing version");
+  const expectedAttempt = positiveInteger(attempt, "Processing attempt");
+  const nextProgress = processingProgress(progressPercent);
+  const nextCostMicros = nonNegativeInteger(costMicros, "Processing cost");
+  const nextLatencyMs = nonNegativeInteger(latencyMs, "Processing latency");
+  const stamp = canonicalInstant(occurredAt, "Processing report time");
+  const nextLeaseExpiresAt = canonicalInstant(leaseExpiresAt, "Processing lease expiry");
+  if (Date.parse(nextLeaseExpiresAt) <= Date.parse(stamp)) {
+    throw invalidProcessing("Processing lease expiry must be after the progress report time.");
+  }
+  const expectedJobId = String(jobId || "").trim();
+  if (!expectedJobId) throw invalidProcessing("Processing job id is required.");
+
   const session = await sessions().findOne({ _id: sessionObjectId, campaignId: campaignObjectId });
   if (!session?.lifecycle) throw notFound();
   assertLifecycleScope(session.lifecycle, { workspaceId, campaignId });
@@ -293,12 +347,12 @@ export async function reportSessionProcessingProgress({
     error.code = "SESSION_PROGRESS_NOT_ALLOWED";
     throw error;
   }
-  if (String(session.lifecycle.processing?.jobId || "") !== String(jobId || "")
-    || Number(session.lifecycle.processing?.attempt || 0) !== Number(attempt || 0)) {
-    throw conflict("Processing progress belongs to a stale job attempt.");
+  if (Number(session.lifecycle.processing?.processingVersion || 0) !== expectedProcessingVersion
+    || String(session.lifecycle.processing?.jobId || "") !== expectedJobId
+    || Number(session.lifecycle.processing?.attempt || 0) !== expectedAttempt) {
+    throw conflict("Processing progress belongs to a stale processing version or job attempt.");
   }
 
-  const nextProgress = Math.max(0, Math.min(100, Math.trunc(Number(progressPercent || 0))));
   const currentProgress = Number(session.lifecycle.processing?.progressPercent || 0);
   if (nextProgress < currentProgress) {
     const error = new Error("Processing progress cannot move backward.");
@@ -307,13 +361,12 @@ export async function reportSessionProcessingProgress({
     throw error;
   }
 
-  const stamp = new Date(occurredAt).toISOString();
   const nextProcessing = {
     ...session.lifecycle.processing,
     progressPercent: nextProgress,
-    costMicros: Math.max(0, Math.trunc(Number(costMicros ?? session.lifecycle.processing?.costMicros ?? 0))),
-    latencyMs: Math.max(0, Math.trunc(Number(latencyMs ?? session.lifecycle.processing?.latencyMs ?? 0))),
-    ...(leaseExpiresAt ? { leaseExpiresAt: new Date(leaseExpiresAt).toISOString() } : {})
+    costMicros: nextCostMicros,
+    latencyMs: nextLatencyMs,
+    leaseExpiresAt: nextLeaseExpiresAt
   };
 
   const update = await sessions().updateOne(
@@ -322,8 +375,10 @@ export async function reportSessionProcessingProgress({
       campaignId: campaignObjectId,
       "lifecycle.status": "processing",
       "lifecycle.lifecycleRevision": Number(session.lifecycle.lifecycleRevision || 0),
-      "lifecycle.processing.jobId": String(jobId),
-      "lifecycle.processing.attempt": Number(attempt)
+      "lifecycle.processing.processingVersion": expectedProcessingVersion,
+      "lifecycle.processing.jobId": expectedJobId,
+      "lifecycle.processing.attempt": expectedAttempt,
+      "lifecycle.processing.progressPercent": currentProgress
     },
     {
       $set: {
