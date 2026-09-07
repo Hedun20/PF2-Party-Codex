@@ -414,10 +414,17 @@ const PROCESSING_REPORT_KEYS = new Set([
 const PROCESSING_REPORT_OUTCOMES = new Set(["progress", "reviewReady", "failed"]);
 const SAFE_PROCESSING_ID = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/;
 const SAFE_PROCESSING_CODE = /^[A-Z][A-Z0-9_]{1,127}$/;
+const SAFE_ACTOR_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
 function stableProcessingId(value, label) {
   const id = String(value || "").trim();
   if (!SAFE_PROCESSING_ID.test(id)) throw invalidProcessing(`${label} is invalid.`);
+  return id;
+}
+
+function stableActorId(value, label) {
+  const id = String(value || "").trim();
+  if (!SAFE_ACTOR_ID.test(id)) throw invalidProcessing(`${label} is invalid.`);
   return id;
 }
 
@@ -479,7 +486,7 @@ function terminalReportMatches(lifecycle, report) {
 
 export async function submitSessionProcessingReport({ workerId, report } = {}) {
   const normalized = normalizeSessionProcessingReport(report);
-  const trustedWorkerId = stableProcessingId(workerId, "Worker id");
+  const trustedWorkerId = stableActorId(workerId, "Worker id");
   if (normalized.outcome === "progress") {
     if (normalized.leaseExpiresAt === null || Date.parse(normalized.leaseExpiresAt) <= Date.parse(normalized.occurredAt)) {
       throw invalidProcessing("Progress reports require a lease that expires after the report time.");
@@ -584,6 +591,107 @@ export async function submitSessionProcessingReport({ workerId, report } = {}) {
       return { session: publicLifecycle(session), idempotent: true };
     }
     throw conflict("Processing terminal result changed concurrently.");
+  }
+
+  const saved = await sessions().findOne({ _id: sessionObjectId, campaignId: campaignObjectId });
+  if (!saved) throw notFound();
+  return { session: publicLifecycle(saved), idempotent: false };
+}
+
+function processingClaimMatches(lifecycle, { processingVersion, jobId, workerId }) {
+  if (!lifecycle || lifecycle.status !== "processing"
+    || Number(lifecycle.processing?.processingVersion || 0) !== processingVersion
+    || String(lifecycle.processing?.jobId || "") !== jobId) {
+    return false;
+  }
+  const transition = Array.isArray(lifecycle.transitions) ? lifecycle.transitions.at(-1) : null;
+  return transition?.to === "processing"
+    && transition?.actorKind === "worker"
+    && transition?.actorId === workerId;
+}
+
+export async function claimSessionProcessing({
+  workspaceId,
+  campaignId,
+  sessionId,
+  workerId,
+  jobId,
+  leaseExpiresAt,
+  occurredAt = new Date().toISOString()
+} = {}) {
+  requireMongo();
+  const campaignObjectId = requiredObjectId(campaignId, "Campaign id");
+  const sessionObjectId = requiredObjectId(sessionId, "Session id");
+  const trustedWorkerId = stableActorId(workerId, "Worker id");
+  const trustedJobId = stableProcessingId(jobId, "Processing job id");
+  const stamp = canonicalInstant(occurredAt, "Processing claim time");
+  const lease = canonicalInstant(leaseExpiresAt, "Processing lease expiry");
+  if (Date.parse(lease) <= Date.parse(stamp)) {
+    throw invalidProcessing("Processing lease expiry must be after the claim time.");
+  }
+
+  let session = await sessions().findOne({ _id: sessionObjectId, campaignId: campaignObjectId });
+  if (!session) throw notFound();
+  if (!session.lifecycle) {
+    const error = new Error("Session lifecycle must be initialized and queued before a worker can claim it.");
+    error.status = 409;
+    error.code = "SESSION_LIFECYCLE_REQUIRED";
+    throw error;
+  }
+  assertLifecycleScope(session.lifecycle, { workspaceId, campaignId });
+  const processingVersion = positiveInteger(session.lifecycle.processing?.processingVersion, "Processing version");
+
+  if (processingClaimMatches(session.lifecycle, {
+    processingVersion,
+    jobId: trustedJobId,
+    workerId: trustedWorkerId
+  })) {
+    return { session: publicLifecycle(session), idempotent: true };
+  }
+  if (session.lifecycle.status !== "queued") {
+    const error = new Error("Only a queued session can be claimed for processing.");
+    error.status = 409;
+    error.code = "SESSION_PROCESSING_CLAIM_NOT_ALLOWED";
+    throw error;
+  }
+
+  const transition = applySessionLifecycleTransition(session.lifecycle, {
+    to: "processing",
+    actorKind: "worker",
+    actorId: trustedWorkerId,
+    reasonCode: "WORKER_CLAIM",
+    occurredAt: stamp,
+    jobId: trustedJobId,
+    leaseExpiresAt: lease
+  });
+  const update = await sessions().updateOne(
+    {
+      _id: sessionObjectId,
+      campaignId: campaignObjectId,
+      "lifecycle.status": "queued",
+      "lifecycle.lifecycleRevision": Number(session.lifecycle.lifecycleRevision || 0),
+      "lifecycle.processing.processingVersion": processingVersion
+    },
+    {
+      $set: {
+        lifecycle: transition.lifecycle,
+        updatedAt: transition.lifecycle.updatedAt
+      }
+    }
+  );
+
+  if (!update.modifiedCount) {
+    session = await sessions().findOne({ _id: sessionObjectId, campaignId: campaignObjectId });
+    if (!session) throw notFound();
+    assertLifecycleScope(session.lifecycle, { workspaceId, campaignId });
+    if (processingClaimMatches(session.lifecycle, {
+      processingVersion,
+      jobId: trustedJobId,
+      workerId: trustedWorkerId
+    })) {
+      return { session: publicLifecycle(session), idempotent: true };
+    }
+    throw conflict("Session processing claim changed concurrently.");
   }
 
   const saved = await sessions().findOne({ _id: sessionObjectId, campaignId: campaignObjectId });
