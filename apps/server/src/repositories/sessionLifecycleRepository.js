@@ -393,3 +393,200 @@ export async function reportSessionProcessingProgress({
   const saved = await sessions().findOne({ _id: sessionObjectId, campaignId: campaignObjectId });
   return { session: publicLifecycle(saved), idempotent: nextProgress === currentProgress };
 }
+
+const PROCESSING_REPORT_KEYS = new Set([
+  "schemaVersion",
+  "workspaceId",
+  "campaignId",
+  "sessionId",
+  "processingVersion",
+  "jobId",
+  "attempt",
+  "outcome",
+  "progressPercent",
+  "leaseExpiresAt",
+  "reviewSetId",
+  "costMicros",
+  "latencyMs",
+  "safeErrorCode",
+  "occurredAt"
+]);
+const PROCESSING_REPORT_OUTCOMES = new Set(["progress", "reviewReady", "failed"]);
+const SAFE_PROCESSING_ID = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/;
+const SAFE_PROCESSING_CODE = /^[A-Z][A-Z0-9_]{1,127}$/;
+
+function stableProcessingId(value, label) {
+  const id = String(value || "").trim();
+  if (!SAFE_PROCESSING_ID.test(id)) throw invalidProcessing(`${label} is invalid.`);
+  return id;
+}
+
+function normalizeSessionProcessingReport(report = {}) {
+  if (!report || typeof report !== "object" || Array.isArray(report)) {
+    throw invalidProcessing("Processing report must be an object.");
+  }
+  const keys = Object.keys(report);
+  if (keys.length !== PROCESSING_REPORT_KEYS.size || keys.some((key) => !PROCESSING_REPORT_KEYS.has(key))) {
+    throw invalidProcessing("Processing report contains an unknown or missing field.");
+  }
+  if (report.schemaVersion !== "hed27-session-processing-report-v1") {
+    throw invalidProcessing("Processing report schema version is unsupported.");
+  }
+  const outcome = String(report.outcome || "");
+  if (!PROCESSING_REPORT_OUTCOMES.has(outcome)) {
+    throw invalidProcessing("Processing report outcome is unsupported.");
+  }
+  const progressPercent = nonNegativeInteger(report.progressPercent, "Processing progress");
+  if (progressPercent > 100) throw invalidProcessing("Processing progress cannot exceed 100.");
+  const safeErrorCode = report.safeErrorCode === null ? null : String(report.safeErrorCode || "").trim();
+  if (safeErrorCode !== null && !SAFE_PROCESSING_CODE.test(safeErrorCode)) {
+    throw invalidProcessing("Processing error code is invalid.");
+  }
+  return {
+    schemaVersion: report.schemaVersion,
+    workspaceId: stableProcessingId(report.workspaceId, "Workspace id"),
+    campaignId: stableProcessingId(report.campaignId, "Campaign id"),
+    sessionId: stableProcessingId(report.sessionId, "Session id"),
+    processingVersion: positiveInteger(report.processingVersion, "Processing version"),
+    jobId: stableProcessingId(report.jobId, "Processing job id"),
+    attempt: positiveInteger(report.attempt, "Processing attempt"),
+    outcome,
+    progressPercent,
+    leaseExpiresAt: report.leaseExpiresAt === null ? null : canonicalInstant(report.leaseExpiresAt, "Processing lease expiry"),
+    reviewSetId: report.reviewSetId === null ? null : stableProcessingId(report.reviewSetId, "Review set id"),
+    costMicros: nonNegativeInteger(report.costMicros, "Processing cost"),
+    latencyMs: nonNegativeInteger(report.latencyMs, "Processing latency"),
+    safeErrorCode,
+    occurredAt: canonicalInstant(report.occurredAt, "Processing report time")
+  };
+}
+
+function terminalReportMatches(lifecycle, report) {
+  if (!lifecycle || Number(lifecycle.processing?.processingVersion || 0) !== report.processingVersion
+    || String(lifecycle.processing?.jobId || "") !== report.jobId
+    || Number(lifecycle.processing?.attempt || 0) !== report.attempt) {
+    return false;
+  }
+  if (report.outcome === "reviewReady" && lifecycle.status === "reviewReady") {
+    const review = (lifecycle.reviewSets || []).find((item) => Number(item.processingVersion) === report.processingVersion);
+    return review?.reviewSetId === report.reviewSetId;
+  }
+  if (report.outcome === "failed" && lifecycle.status === "failed") {
+    return lifecycle.processing?.safeErrorCode === report.safeErrorCode;
+  }
+  return false;
+}
+
+export async function submitSessionProcessingReport({ workerId, report } = {}) {
+  const normalized = normalizeSessionProcessingReport(report);
+  const trustedWorkerId = stableProcessingId(workerId, "Worker id");
+  if (normalized.outcome === "progress") {
+    if (normalized.leaseExpiresAt === null || Date.parse(normalized.leaseExpiresAt) <= Date.parse(normalized.occurredAt)) {
+      throw invalidProcessing("Progress reports require a lease that expires after the report time.");
+    }
+    if (normalized.reviewSetId !== null || normalized.safeErrorCode !== null || normalized.progressPercent >= 100) {
+      throw invalidProcessing("Progress report fields are inconsistent.");
+    }
+    return reportSessionProcessingProgress({
+      workspaceId: normalized.workspaceId,
+      campaignId: normalized.campaignId,
+      sessionId: normalized.sessionId,
+      processingVersion: normalized.processingVersion,
+      jobId: normalized.jobId,
+      attempt: normalized.attempt,
+      progressPercent: normalized.progressPercent,
+      costMicros: normalized.costMicros,
+      latencyMs: normalized.latencyMs,
+      leaseExpiresAt: normalized.leaseExpiresAt,
+      occurredAt: normalized.occurredAt
+    });
+  }
+
+  if (normalized.leaseExpiresAt !== null) {
+    throw invalidProcessing("Terminal processing reports must close the worker lease.");
+  }
+  if (normalized.outcome === "reviewReady") {
+    if (normalized.progressPercent !== 100 || !normalized.reviewSetId || normalized.safeErrorCode !== null) {
+      throw invalidProcessing("Review-ready report fields are inconsistent.");
+    }
+  } else if (normalized.reviewSetId !== null || !normalized.safeErrorCode) {
+    throw invalidProcessing("Failed processing report fields are inconsistent.");
+  }
+
+  requireMongo();
+  const campaignObjectId = requiredObjectId(normalized.campaignId, "Campaign id");
+  const sessionObjectId = requiredObjectId(normalized.sessionId, "Session id");
+  let session = await sessions().findOne({ _id: sessionObjectId, campaignId: campaignObjectId });
+  if (!session?.lifecycle) throw notFound();
+  assertLifecycleScope(session.lifecycle, normalized);
+
+  if (terminalReportMatches(session.lifecycle, normalized)) {
+    return { session: publicLifecycle(session), idempotent: true };
+  }
+  if (session.lifecycle.status !== "processing") {
+    throw conflict("Processing report targets a session that is no longer processing.");
+  }
+  if (Number(session.lifecycle.processing?.processingVersion || 0) !== normalized.processingVersion
+    || String(session.lifecycle.processing?.jobId || "") !== normalized.jobId
+    || Number(session.lifecycle.processing?.attempt || 0) !== normalized.attempt) {
+    throw conflict("Processing report belongs to a stale processing version or job attempt.");
+  }
+
+  const currentProgress = Number(session.lifecycle.processing?.progressPercent || 0);
+  if (normalized.progressPercent < currentProgress) {
+    const error = new Error("Terminal processing progress cannot move backward.");
+    error.status = 409;
+    error.code = "SESSION_PROGRESS_REGRESSION";
+    throw error;
+  }
+  const lifecycleForTransition = {
+    ...session.lifecycle,
+    processing: {
+      ...session.lifecycle.processing,
+      progressPercent: normalized.progressPercent
+    }
+  };
+  const transition = applySessionLifecycleTransition(lifecycleForTransition, {
+    to: normalized.outcome === "reviewReady" ? "reviewReady" : "failed",
+    actorKind: "worker",
+    actorId: trustedWorkerId,
+    reasonCode: normalized.outcome === "reviewReady" ? "WORKER_REVIEW_READY" : "WORKER_FAILURE",
+    occurredAt: normalized.occurredAt,
+    reviewSetId: normalized.reviewSetId,
+    safeErrorCode: normalized.safeErrorCode,
+    costMicros: normalized.costMicros,
+    latencyMs: normalized.latencyMs
+  });
+
+  const update = await sessions().updateOne(
+    {
+      _id: sessionObjectId,
+      campaignId: campaignObjectId,
+      "lifecycle.status": "processing",
+      "lifecycle.lifecycleRevision": Number(session.lifecycle.lifecycleRevision || 0),
+      "lifecycle.processing.processingVersion": normalized.processingVersion,
+      "lifecycle.processing.jobId": normalized.jobId,
+      "lifecycle.processing.attempt": normalized.attempt
+    },
+    {
+      $set: {
+        lifecycle: transition.lifecycle,
+        updatedAt: transition.lifecycle.updatedAt
+      }
+    }
+  );
+
+  if (!update.modifiedCount) {
+    session = await sessions().findOne({ _id: sessionObjectId, campaignId: campaignObjectId });
+    if (!session) throw notFound();
+    assertLifecycleScope(session.lifecycle, normalized);
+    if (terminalReportMatches(session.lifecycle, normalized)) {
+      return { session: publicLifecycle(session), idempotent: true };
+    }
+    throw conflict("Processing terminal result changed concurrently.");
+  }
+
+  const saved = await sessions().findOne({ _id: sessionObjectId, campaignId: campaignObjectId });
+  if (!saved) throw notFound();
+  return { session: publicLifecycle(saved), idempotent: false };
+}
