@@ -24,7 +24,25 @@ test("campaign exit is exact-scoped, idempotent, concurrency-aware, and owner-sa
   assert.match(leave, /removedReason: "left"/);
   assert.match(leave, /activeCampaignId: campaignObjectId/);
   assert.match(leave, /\$unset: \{ activeCampaignId: "", activeCampaignUpdatedAt: "" \}/);
+  assert.match(leave, /detachCharacterAssignments\(/);
+  assert.match(leave, /reason: "membershipLeft"/);
   assert.match(leave, /Campaign membership changed before it could be left\. Refresh and retry/);
+});
+
+test("ended memberships detach active character identity without deleting the character", () => {
+  const repository = read("apps/server/src/repositories/membershipManagementRepository.js");
+  const start = repository.indexOf("async function detachCharacterAssignments");
+  const end = repository.indexOf("export async function findCampaignMembership", start);
+  const detach = repository.slice(start, end);
+
+  assert.ok(start >= 0, "character detachment helper must exist");
+  assert.match(detach, /campaignId, \$or: matches/);
+  assert.match(detach, /assignedMembershipId: membership\._id/);
+  assert.match(detach, /assignedUserId: membership\.userId/);
+  assert.match(detach, /assignedUserId: null/);
+  assert.match(detach, /assignedMembershipId: null/);
+  assert.match(detach, /assignmentRemovedReason: reason/);
+  assert.doesNotMatch(detach, /deleteMany|deleteOne/);
 });
 
 test("leave route returns a repaired campaign context and audits only the real transition", () => {
