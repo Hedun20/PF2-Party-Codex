@@ -27,7 +27,7 @@ const ALLOWED_TRANSITIONS = {
   paused: new Set(["collecting", "ended", "failed", "canceled"]),
   ended: new Set(["queued", "canceled"]),
   queued: new Set(["processing", "canceled"]),
-  processing: new Set(["queued", "reviewReady", "failed", "canceled"]),
+  processing: new Set(["reviewReady", "failed", "canceled"]),
   reviewReady: new Set(["published", "queued", "canceled"]),
   published: new Set(),
   failed: new Set(["queued", "canceled"]),
@@ -342,7 +342,15 @@ export function recoverStaleSessionLifecycle(current, input = {}) {
   if (!leaseExpiresAt || Date.parse(leaseExpiresAt) > Date.parse(now)) {
     throw lifecycleError("The processing lease is still active; stale recovery is not allowed yet.", 409, "SESSION_LEASE_ACTIVE");
   }
-  return applySessionLifecycleTransition(current, {
+
+  const failed = applySessionLifecycleTransition(current, {
+    ...input,
+    to: "failed",
+    occurredAt: now,
+    reasonCode: "STALE_PROCESSING_LEASE",
+    safeErrorCode: "STALE_PROCESSING_LEASE"
+  });
+  return applySessionLifecycleTransition(failed.lifecycle, {
     ...input,
     to: "queued",
     occurredAt: now,
