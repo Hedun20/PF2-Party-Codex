@@ -9,4 +9,5 @@ export * from "./integrations.js";
 export * from "./jobs.js";
 export * from "./migration.js";
 export * from "./policy.js";
+export * from "./session.js";
 export * from "./validation.js";
