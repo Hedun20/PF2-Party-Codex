@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { CreditCard, Database, DoorOpen, Mail, Settings, ShieldCheck, TriangleAlert, UsersRound } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { CreditCard, Crown, Database, DoorOpen, Mail, RefreshCw, Settings, ShieldCheck, TriangleAlert, UsersRound } from "lucide-react";
 import { api } from "../api/client.js";
 import CodexButton from "../components/ui/CodexButton.jsx";
 
@@ -9,6 +10,12 @@ function activeRole(session) {
   if (role === "gm") return "GM";
   if (role === "player") return "Игрок";
   return "Без кампании";
+}
+
+function roleName(role = "player") {
+  if (role === "gm") return "GM";
+  if (role === "owner") return "Владелец";
+  return "Игрок";
 }
 
 function limitLabel(value) {
@@ -33,11 +40,25 @@ export default function SettingsPage({ session }) {
   const [leaving, setLeaving] = useState(false);
   const [leaveError, setLeaveError] = useState("");
   const [leaveCommitted, setLeaveCommitted] = useState(false);
+  const [memberships, setMemberships] = useState([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState("");
+  const [targetMembershipId, setTargetMembershipId] = useState("");
+  const [transferConfirming, setTransferConfirming] = useState(false);
+  const [transferring, setTransferring] = useState(false);
+  const [transferError, setTransferError] = useState("");
+  const [transferCommitted, setTransferCommitted] = useState(false);
 
   const campaignId = session?.activeCampaign?.id || "";
   const campaignName = session?.activeCampaign?.name || "текущей кампании";
+  const currentMembershipId = session?.activeMembership?.id || "";
   const role = String(session?.activeMembership?.role || "").toLowerCase();
-  const canLeave = Boolean(campaignId && session?.activeMembership?.id && role && role !== "owner");
+  const canLeave = Boolean(campaignId && currentMembershipId && role && role !== "owner");
+  const eligibleTransferTargets = useMemo(
+    () => memberships.filter((membership) => membership.status === "active" && membership.userId && membership.id !== currentMembershipId && membership.role !== "owner"),
+    [memberships, currentMembershipId]
+  );
+  const selectedTransferTarget = eligibleTransferTargets.find((membership) => membership.id === targetMembershipId) || null;
 
   useEffect(() => {
     let active = true;
@@ -53,12 +74,54 @@ export default function SettingsPage({ session }) {
     return () => { active = false; };
   }, [session?.activeWorkspace?.id]);
 
+  async function loadMemberships() {
+    if (!campaignId || role !== "owner") return;
+    setMembersLoading(true);
+    setMembersError("");
+    try {
+      const data = await api.campaignMemberships(campaignId);
+      const nextMemberships = Array.isArray(data.memberships) ? data.memberships : [];
+      setMemberships(nextMemberships);
+      setTargetMembershipId((current) => nextMemberships.some((item) => item.id === current && item.status === "active") ? current : "");
+    } catch (error) {
+      setMembersError(error.message || "Не удалось загрузить участников кампании.");
+    } finally {
+      setMembersLoading(false);
+    }
+  }
+
   useEffect(() => {
     setLeaveConfirming(false);
     setLeaving(false);
     setLeaveError("");
     setLeaveCommitted(false);
-  }, [campaignId]);
+    setMemberships([]);
+    setMembersError("");
+    setTargetMembershipId("");
+    setTransferConfirming(false);
+    setTransferring(false);
+    setTransferError("");
+    setTransferCommitted(false);
+    if (campaignId && role === "owner") loadMemberships();
+  }, [campaignId, role]);
+
+  async function transferOwnership() {
+    if (!campaignId || role !== "owner" || !targetMembershipId || transferring || transferCommitted) return;
+    setTransferring(true);
+    setTransferError("");
+    try {
+      await api.transferCampaignOwnership(campaignId, targetMembershipId);
+      setTransferCommitted(true);
+      setTransferConfirming(false);
+      // Rebuild authorization-sensitive session state. The former owner becomes GM.
+      window.location.assign("/settings");
+    } catch (error) {
+      setTransferError(error.message || "Не удалось передать владение. Обновите список участников и повторите попытку.");
+      if ([403, 409].includes(Number(error?.status || 0))) await loadMemberships();
+    } finally {
+      setTransferring(false);
+    }
+  }
 
   async function leaveCampaign() {
     if (!canLeave || leaving || leaveCommitted) return;
@@ -139,12 +202,102 @@ export default function SettingsPage({ session }) {
           <span className="kicker">Доступ к кампании</span>
           <h2 id="campaign-access-heading">Выйти из кампании</h2>
           {role === "owner" ? (
-            <div className="status-message warning-message" role="status">
-              <TriangleAlert size={18} aria-hidden="true" />
-              <div>
-                <strong>Владелец не может просто покинуть кампанию.</strong>
-                <p>Сначала необходимо передать владение другому активному участнику. Это защищает кампанию от состояния без владельца.</p>
+            <div className="campaign-ownership-transfer">
+              <div className="status-message warning-message" role="status">
+                <TriangleAlert size={18} aria-hidden="true" />
+                <div>
+                  <strong>Владелец не может просто покинуть кампанию.</strong>
+                  <p>Сначала передайте владение другому активному участнику. После успешной передачи ваша роль станет GM, и обычный выход из кампании станет доступен.</p>
+                </div>
               </div>
+
+              <div className="codex-field">
+                <label htmlFor="campaign-new-owner">Новый владелец</label>
+                <select
+                  id="campaign-new-owner"
+                  value={targetMembershipId}
+                  disabled={membersLoading || transferring || transferCommitted || eligibleTransferTargets.length === 0}
+                  onChange={(event) => {
+                    setTargetMembershipId(event.target.value);
+                    setTransferConfirming(false);
+                    setTransferError("");
+                  }}
+                >
+                  <option value="">Выберите активного участника</option>
+                  {eligibleTransferTargets.map((membership) => (
+                    <option key={membership.id} value={membership.id}>
+                      {membership.displayName || "Участник кампании"} · {roleName(membership.role)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {membersLoading ? <p className="save-message" role="status">Загружаем участников…</p> : null}
+              {membersError ? (
+                <div className="status-message danger-message" role="alert">
+                  <TriangleAlert size={18} aria-hidden="true" />
+                  <div>
+                    <strong>Список участников недоступен</strong>
+                    <p>{membersError}</p>
+                    <CodexButton type="button" size="sm" variant="secondary" onClick={loadMemberships} disabled={membersLoading || transferring}>
+                      <RefreshCw size={15} /> Повторить
+                    </CodexButton>
+                  </div>
+                </div>
+              ) : null}
+
+              {!membersLoading && !membersError && eligibleTransferTargets.length === 0 ? (
+                <div className="status-message" role="status">
+                  <UsersRound size={18} aria-hidden="true" />
+                  <div>
+                    <strong>Некому передать владение</strong>
+                    <p>Сначала пригласите другого пользователя и дождитесь, пока его membership станет активным.</p>
+                    <CodexButton as={Link} to="/players" size="sm" variant="secondary">Открыть участников</CodexButton>
+                  </div>
+                </div>
+              ) : null}
+
+              {eligibleTransferTargets.length > 0 && !transferConfirming ? (
+                <CodexButton
+                  type="button"
+                  variant="secondary"
+                  disabled={!selectedTransferTarget || transferring || transferCommitted}
+                  onClick={() => { setTransferConfirming(true); setTransferError(""); }}
+                >
+                  <Crown size={16} /> Передать владение
+                </CodexButton>
+              ) : null}
+
+              {transferConfirming && selectedTransferTarget ? (
+                <div className="campaign-leave-confirm" role="group" aria-label="Подтверждение передачи владения кампанией">
+                  <div className="status-message warning-message" role="status">
+                    <Crown size={18} aria-hidden="true" />
+                    <div>
+                      <strong>Передать кампанию пользователю {selectedTransferTarget.displayName || "выбранному участнику"}?</strong>
+                      <p>Новый владелец получит owner-права этой кампании. Ваша роль станет GM. Это изменение записывается в аудит и не выполняется по одному случайному клику.</p>
+                    </div>
+                  </div>
+                  <div className="campaign-leave-actions">
+                    <CodexButton type="button" variant="danger" onClick={transferOwnership} disabled={transferring || transferCommitted}>
+                      {transferring ? "Передаём…" : "Да, передать владение"}
+                    </CodexButton>
+                    <CodexButton type="button" variant="secondary" onClick={() => { setTransferConfirming(false); setTransferError(""); }} disabled={transferring || transferCommitted}>
+                      Отмена
+                    </CodexButton>
+                  </div>
+                </div>
+              ) : null}
+
+              {transferError ? (
+                <div className="status-message danger-message" role="alert" aria-live="assertive">
+                  <TriangleAlert size={18} aria-hidden="true" />
+                  <div>
+                    <strong>Передача не завершена</strong>
+                    <p>{transferError}</p>
+                    <p>Не повторяйте действие вслепую: список участников обновлён. Проверьте выбранного пользователя и повторите подтверждение.</p>
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : (
             <>
