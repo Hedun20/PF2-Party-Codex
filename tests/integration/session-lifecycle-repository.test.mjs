@@ -188,7 +188,7 @@ test("concurrent collection starts converge to one transition and one idempotent
   assert.equal(stored.lifecycle.transitions.filter((item) => item.to === "collecting").length, 1);
 });
 
-test("processing progress is bound to exact job attempt and cannot regress", async () => {
+test("processing progress is bound to exact version and job attempt and cannot regress", async () => {
   const primary = scope();
   await transitionCampaignSessionLifecycle({
     ...primary,
@@ -209,6 +209,8 @@ test("processing progress is bound to exact job attempt and cannot regress", asy
     ...primary,
     input: {
       to: "processing",
+      actorKind: "worker",
+      actorId: "session-processing-worker-test-v1",
       occurredAt: "2026-09-07T11:00:02.000Z",
       reasonCode: "WORKER_CLAIM",
       jobId: "job-repository-001",
@@ -216,11 +218,13 @@ test("processing progress is bound to exact job attempt and cannot regress", asy
     }
   });
   assert.equal(claimed.session.processing.attempt, 1);
+  assert.equal(claimed.session.transitions.at(-1).actorKind, "worker");
 
-  const progress = await reportSessionProcessingProgress({
+  const validProgress = {
     workspaceId: primary.workspaceId,
     campaignId: primary.campaignId,
     sessionId: primary.sessionId,
+    processingVersion: 1,
     jobId: "job-repository-001",
     attempt: 1,
     progressPercent: 45,
@@ -228,17 +232,15 @@ test("processing progress is bound to exact job attempt and cannot regress", asy
     latencyMs: 4100,
     leaseExpiresAt: "2026-09-07T11:06:00.000Z",
     occurredAt: "2026-09-07T11:00:30.000Z"
-  });
+  };
+  const progress = await reportSessionProcessingProgress(validProgress);
   assert.equal(progress.session.processing.progressPercent, 45);
   assert.equal(progress.session.processing.costMicros, 12000);
 
   await assert.rejects(
     reportSessionProcessingProgress({
-      workspaceId: primary.workspaceId,
-      campaignId: primary.campaignId,
-      sessionId: primary.sessionId,
-      jobId: "job-stale-attempt",
-      attempt: 1,
+      ...validProgress,
+      processingVersion: 2,
       progressPercent: 50,
       occurredAt: "2026-09-07T11:00:31.000Z"
     }),
@@ -247,16 +249,59 @@ test("processing progress is bound to exact job attempt and cannot regress", asy
 
   await assert.rejects(
     reportSessionProcessingProgress({
-      workspaceId: primary.workspaceId,
-      campaignId: primary.campaignId,
-      sessionId: primary.sessionId,
-      jobId: "job-repository-001",
-      attempt: 1,
+      ...validProgress,
+      jobId: "job-stale-attempt",
+      progressPercent: 50,
+      occurredAt: "2026-09-07T11:00:31.000Z"
+    }),
+    (error) => error.status === 409 && error.code === "SESSION_LIFECYCLE_CONCURRENT_CHANGE"
+  );
+
+  await assert.rejects(
+    reportSessionProcessingProgress({
+      ...validProgress,
       progressPercent: 44,
       occurredAt: "2026-09-07T11:00:32.000Z"
     }),
     (error) => error.status === 409 && error.code === "SESSION_PROGRESS_REGRESSION"
   );
+});
+
+test("malformed processing progress fails as a bounded client error before storage mutation", async () => {
+  const primary = scope();
+  const valid = {
+    workspaceId: primary.workspaceId,
+    campaignId: primary.campaignId,
+    sessionId: primary.sessionId,
+    processingVersion: 1,
+    jobId: "job-repository-001",
+    attempt: 1,
+    progressPercent: 55,
+    costMicros: 13000,
+    latencyMs: 5000,
+    leaseExpiresAt: "2026-09-07T11:07:00.000Z",
+    occurredAt: "2026-09-07T11:00:40.000Z"
+  };
+
+  for (const invalid of [
+    { progressPercent: 100 },
+    { progressPercent: -1 },
+    { processingVersion: 0 },
+    { attempt: 0 },
+    { costMicros: -1 },
+    { latencyMs: Number.NaN },
+    { occurredAt: "not-a-timestamp" },
+    { leaseExpiresAt: "2026-09-07T11:00:39.000Z" }
+  ]) {
+    await assert.rejects(
+      reportSessionProcessingProgress({ ...valid, ...invalid }),
+      (error) => error.status === 400 && error.code === "SESSION_PROCESSING_INVALID"
+    );
+  }
+
+  const stored = await database.collection("sessions").findOne({ _id: ids.session });
+  assert.equal(stored.lifecycle.processing.progressPercent, 45);
+  assert.equal(stored.lifecycle.processing.costMicros, 12000);
 });
 
 test("stale processing recovery persists failed evidence before requeueing", async () => {
