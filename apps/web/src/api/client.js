@@ -151,6 +151,10 @@ export const api = {
     setActiveCampaignId(data.activeCampaign?.id || campaignId);
     return data;
   },
+  transferCampaignOwnership: (campaignId, targetMembershipId) => request(`/campaigns/${encodeURIComponent(campaignId)}/ownership/transfer`, {
+    method: "POST",
+    body: JSON.stringify({ targetMembershipId })
+  }),
   leaveCampaign: async (campaignId) => {
     const data = await request(`/campaigns/${encodeURIComponent(campaignId)}/leave`, { method: "POST", body: JSON.stringify({}) });
     setActiveCampaignId(data.activeCampaign?.id || "");
