@@ -154,6 +154,35 @@ Safe errors may name source kind, stable source/job ID, retry state and policy c
 
 Audit records are payload-light. Required facts include policy/source ID, campaign/session, source state transition, consent notice/state transition, retention/deletion/export action, actor/principal reference, provider adapter version where relevant, safe outcome code and time. No audio bytes, transcript text, Discord/Foundry message content, provider credential, signature or model prompt is an audit field.
 
+## Feature-standard completeness map
+
+This contract is the **policy/architecture stage** of the user-facing capability “session evidence ingestion and privacy lifecycle.” The repository feature standard is applied explicitly so implementation tasks do not invent missing behavior later.
+
+- **Feature / Purpose:** securely collect session evidence from approved alpha sources, retain it for a bounded time, and make it available only to authorized downstream workflows.
+- **Actors:** campaign owner/GM, player-author for explicit manual/upload actions, Foundry/Discord connector identities, malware scanner, transcription adapter, background worker, retention/deletion/export jobs.
+- **Entry points:** source pairing/enablement, opted-in Discord capture, manual note creation, pasted transcript upload, explicit audio upload, disconnect/revoke, source deletion, export, retry.
+- **Preconditions:** authenticated campaign membership, exact workspace/campaign/session scope, current HED-21 authorization, source consent where required, active connection where required, bounded input, malware-clean audio before transcription.
+- **Happy path:** authorize → consent/pair → ingest immutable evidence → freeze source ranges under HED-27 → policy-filter downstream use → expire/delete raw evidence → preserve separately approved canon.
+- **Alternative paths:** manual note without integration connection; paused/resumed source; pasted transcript instead of audio; successful retry before raw-audio failure deadline; manager export of authorized evidence.
+- **Failure paths:** inactive/revoked consent or connection, sequence conflict/gap, malformed/oversized input, malware failure, transcription timeout/failure, invalid transcript, expired evidence, denied destination/projection, deletion/export scope mismatch.
+- **Recovery:** resume paused source after reauthorization; grant current consent version; replay according to HED-56; retry transcription only before the 168-hour deadline; re-upload after that deadline; rerun idempotent deletion/export jobs.
+- **States / transitions:** `configured → active ↔ paused → ended`, with `revoked` and `deleted` as non-ingesting terminal policy states; HED-56 owns connection/event transitions and HED-27 owns session processing transitions.
+- **Modification:** source visibility/consent/state changes require authorized commands and audit; provider evidence revisions append immutable lineage; approved canon is edited separately rather than mutating raw evidence.
+- **Cancellation / revocation / deletion:** disconnect/revoke stops new ingestion immediately; delete additionally applies destructive raw-data policy; neither silently deletes approved canon.
+- **Time / expiration:** 30-day raw/transcript maximum after source end, ≤24h raw-audio deletion after successful transcription, 168h absolute failure deadline.
+- **Permissions:** backend policy is authoritative. UI state alone never grants access; player projections cannot consume raw evidence.
+- **Notifications:** N/A for this contract freeze; user-facing delivery channels and notification preferences belong to runtime/UI implementation tasks. Runtime failures must nevertheless expose safe actionable status.
+- **Status visibility:** source state, consent state, retryability, safe failure code, processing/deletion status and deadlines must be visible to the authorized GM/runtime UI when those interfaces are implemented.
+- **History / audit:** payload-light source/consent/state/retention/deletion/export facts with actor, safe outcome and time.
+- **Idempotency / repeated actions:** HED-56 owns occurrence replay/dedupe; deletion/export/retry commands must converge on exact source/workflow identity and never duplicate evidence.
+- **Concurrency:** HED-56 cursor/CAS semantics remain authoritative; retention/deletion jobs must reauthorize current source state before destructive work and cannot restore expired visibility.
+- **Security / abuse:** exact tenant scoping, no provider authorization inheritance, secret-shaped payload rejection through HED-56, raw-audio destination allowlist, no raw evidence in player/shared-cache/analytics, prompt text treated as data only.
+- **Basic UX / accessibility:** N/A for this contract freeze. HED-101/HED-102 own concrete UI; they must provide loading/disabled/error/retry/status states and destructive-action confirmation where applicable.
+- **Success destination:** policy-safe evidence becomes available to HED-27/HED-28/HED-29 workflows; separately approved output enters Campaign Archive rather than bypassing review.
+- **Ownership of incomplete processes:** the campaign owner/GM owns visible failed/paused/retry states; HED-98 owns background-worker restart/health; retention jobs own overdue physical cleanup while logical expiry remains immediate.
+- **Troubleshooting:** safe codes identify consent, connection, ordering, upload, malware, transcription, retention or policy failures without exposing evidence contents. Authorized users can retry/re-consent/re-upload/reconnect where the state allows it.
+- **N/A decisions:** notification transport and concrete UX are intentionally deferred because HED-26 freezes policy/contracts only; live Discord voice is explicitly not part of alpha.
+
 ## Acceptance mapping
 
 - provider/source identity, ordering/dedupe: HED-56 + exact source registry;
@@ -168,6 +197,10 @@ Audit records are payload-light. Required facts include policy/source ID, campai
 - timestamps/speaker segmentation/correction: executable transcript contract;
 - automatic raw-audio deletion: 24-hour success / 168-hour failure deadlines;
 - no secret evidence in player/model/cache/analytics: executable exposure policy plus HED-28 second-gate requirement.
+
+## Definition of Done for HED-26
+
+HED-26 is complete when the contract and executable policy agree on the frozen alpha inputs, consent, lifecycle, retention, privacy and audio/transcript boundaries; adversarial contract tests cover allowed and denied paths; repository verification is green; no production data, connector, upload provider, cleanup process or deployment is activated; and each runtime/UI responsibility intentionally deferred above has a named follow-up owner rather than an implicit gap.
 
 ## Out of scope
 
