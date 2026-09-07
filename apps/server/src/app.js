@@ -24,6 +24,7 @@ import { pf2Router } from "./routes/pf2.js";
 import { platformRouter } from "./routes/platform.js";
 import { revealRouter } from "./routes/reveal.js";
 import { searchRouter } from "./routes/search.js";
+import { sessionLifecycleRouter } from "./routes/sessionLifecycle.js";
 import { subscriptionRouter } from "./routes/subscription.js";
 import { toolsRouter } from "./routes/tools.js";
 import { worldSystemsRouter } from "./routes/worldSystems.js";
@@ -77,6 +78,7 @@ export function createApp({ appConfig = config, appLogger = logger } = {}) {
   app.use("/api", notesRouter);
   app.use("/api", charactersRouter);
   app.use("/api", entriesRouter);
+  app.use("/api", sessionLifecycleRouter);
   app.use("/api", worldSystemsRouter);
   app.use("/api", importRouter);
   app.use("/api", pagesRouter);
