@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { identityContextForCampaign, identityContextForUser, isMongoIdentityEnabled, listCampaignMemberships, listUserCampaigns, workspaceUsage } from "../repositories/identityRepository.js";
-import { acceptInvitation, createCampaignInvitation, getInvitationPreview, listInvitationsForCampaign, resendCampaignInvitation } from "../repositories/invitationsRepository.js";
+import { createCampaignInvitation, getInvitationPreview, listInvitationsForCampaign, resendCampaignInvitation } from "../repositories/invitationsRepository.js";
+import { acceptInvitationSafely } from "../repositories/invitationAcceptanceRepository.js";
 import { changeCampaignMembershipRole, findCampaignMembership, leaveCampaignMembership, removeCampaignMembership, revokeCampaignInvitation } from "../repositories/membershipManagementRepository.js";
 import { toPublicUser } from "../services/authStore.js";
 import { logAuditEvent } from "../services/auditLogService.js";
@@ -297,7 +298,7 @@ invitationsRouter.post("/invitations/accept", async (req, res, next) => {
   try {
     requireMongoIdentity();
     requireUser(req);
-    const accepted = await acceptInvitation({ token: req.body?.token || req.query?.token || "", user: req.user });
+    const accepted = await acceptInvitationSafely({ token: req.body?.token || req.query?.token || "", user: req.user });
     const campaignContext = await identityContextForCampaign(req.user, accepted.invitation.campaignId);
     const user = await toPublicUser(req.user, { campaignId: accepted.invitation.campaignId });
     if (!accepted.idempotent) {
