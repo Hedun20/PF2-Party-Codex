@@ -35,10 +35,12 @@ export const SESSION_LIFECYCLE_STATES = [
 
 export const SESSION_SOURCE_PROVIDERS = ["foundry", "discord", "manual"] as const;
 export const SESSION_SOURCE_RANGE_STATES = ["ready", "partial", "unavailable"] as const;
+export const SESSION_LIFECYCLE_ACTOR_KINDS = ["user", "worker", "system"] as const;
 
 export type SessionLifecycleState = (typeof SESSION_LIFECYCLE_STATES)[number];
 export type SessionSourceProvider = (typeof SESSION_SOURCE_PROVIDERS)[number];
 export type SessionSourceRangeState = (typeof SESSION_SOURCE_RANGE_STATES)[number];
+export type SessionLifecycleActorKind = (typeof SESSION_LIFECYCLE_ACTOR_KINDS)[number];
 
 export interface SessionSourceRangeContract {
   readonly provider: SessionSourceProvider;
@@ -77,7 +79,8 @@ export interface SessionLifecycleTransitionRecordContract {
   readonly sequence: number;
   readonly from: SessionLifecycleState;
   readonly to: SessionLifecycleState;
-  readonly actorUserId: UserId;
+  readonly actorKind: SessionLifecycleActorKind;
+  readonly actorId: string;
   readonly reasonCode: string;
   readonly occurredAt: string;
 }
@@ -287,15 +290,20 @@ function parseReviewSet(value: unknown, path: string): SessionReviewSetRefContra
 
 function parseTransition(value: unknown, path: string): SessionLifecycleTransitionRecordContract {
   const record = expectRecord(value, path);
-  expectExactKeys(record, ["sequence", "from", "to", "actorUserId", "reasonCode", "occurredAt"], path);
+  expectExactKeys(record, ["sequence", "from", "to", "actorKind", "actorId", "reasonCode", "occurredAt"], path);
   const from = expectEnum(record["from"], SESSION_LIFECYCLE_STATES, `${path}.from`);
   const to = expectEnum(record["to"], SESSION_LIFECYCLE_STATES, `${path}.to`);
+  const actorKind = expectEnum(record["actorKind"], SESSION_LIFECYCLE_ACTOR_KINDS, `${path}.actorKind`);
+  const actorId = actorKind === "user"
+    ? parseUserId(record["actorId"], `${path}.actorId`)
+    : parseStableId(record["actorId"], `${path}.actorId`);
   assertSessionLifecycleTransition(from, to, path);
   return {
     sequence: parseNonNegativeInteger(record["sequence"], `${path}.sequence`),
     from,
     to,
-    actorUserId: parseUserId(record["actorUserId"], `${path}.actorUserId`),
+    actorKind,
+    actorId,
     reasonCode: parseSafeCode(record["reasonCode"], `${path}.reasonCode`),
     occurredAt: parseCanonicalInstant(record["occurredAt"], `${path}.occurredAt`)
   };
