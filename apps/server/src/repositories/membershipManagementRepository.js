@@ -15,6 +15,10 @@ function userCollection() {
   return getDb().collection(collections.users);
 }
 
+function characterCollection() {
+  return getDb().collection("characters");
+}
+
 function requiredObjectId(value, label) {
   const id = objectIdFrom(value);
   if (id) return id;
@@ -28,6 +32,28 @@ function requireMongo() {
   const error = new Error("MongoDB is required for campaign membership management.");
   error.status = 503;
   throw error;
+}
+
+async function detachCharacterAssignments({ campaignId, membership, reason, stamp }) {
+  if (!membership?._id && !membership?.userId) return { modifiedCount: 0 };
+  const matches = [];
+  if (membership?._id) matches.push({ assignedMembershipId: membership._id });
+  if (membership?.userId) matches.push({ assignedUserId: membership.userId });
+  if (!matches.length) return { modifiedCount: 0 };
+
+  return characterCollection().updateMany(
+    { campaignId, $or: matches },
+    {
+      $set: {
+        assignedUserId: null,
+        assignedMembershipId: null,
+        assignedAt: "",
+        assignmentRemovedAt: stamp,
+        assignmentRemovedReason: reason,
+        updatedAt: stamp
+      }
+    }
+  );
 }
 
 export async function findCampaignMembership({ campaignId, membershipId } = {}) {
@@ -96,6 +122,13 @@ export async function removeCampaignMembership({ campaignId, membershipId } = {}
     throw error;
   }
 
+  await detachCharacterAssignments({
+    campaignId: campaignObjectId,
+    membership: target,
+    reason: "membershipRemoved",
+    stamp
+  });
+
   if (target.userId) {
     await userCollection().updateOne(
       { _id: target.userId, activeCampaignId: campaignObjectId },
@@ -118,6 +151,12 @@ export async function leaveCampaignMembership({ campaignId, userId } = {}) {
   }
 
   if (target.status === "removed") {
+    await detachCharacterAssignments({
+      campaignId: campaignObjectId,
+      membership: target,
+      reason: target.removedReason === "left" ? "membershipLeft" : "membershipRemoved",
+      stamp: target.removedAt || new Date().toISOString()
+    });
     return {
       membership: publicMembership(target),
       idempotent: true
@@ -159,6 +198,12 @@ export async function leaveCampaignMembership({ campaignId, userId } = {}) {
   if (!result.modifiedCount) {
     const current = await membershipCollection().findOne({ _id: target._id, campaignId: campaignObjectId, userId: userObjectId });
     if (current?.status === "removed") {
+      await detachCharacterAssignments({
+        campaignId: campaignObjectId,
+        membership: current,
+        reason: current.removedReason === "left" ? "membershipLeft" : "membershipRemoved",
+        stamp: current.removedAt || stamp
+      });
       return {
         membership: publicMembership(current),
         idempotent: true
@@ -168,6 +213,13 @@ export async function leaveCampaignMembership({ campaignId, userId } = {}) {
     error.status = 409;
     throw error;
   }
+
+  await detachCharacterAssignments({
+    campaignId: campaignObjectId,
+    membership: target,
+    reason: "membershipLeft",
+    stamp
+  });
 
   // Authorization revocation wins even if the active-campaign pointer update is interrupted.
   // identityContextForUser() repairs a stale pointer on the next session read.
