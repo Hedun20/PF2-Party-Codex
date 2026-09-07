@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import {
+  canonicalSessionProcessingSourceSnapshot,
   ContractValidationError,
   parseSessionProcessingReportContract,
-  parseSessionProcessingRequestContract
+  parseSessionProcessingRequestContract,
+  parseSessionProcessingSourceSnapshotContract,
+  verifySessionProcessingSourceSnapshot
 } from "../../packages/contracts/dist/index.js";
 
 const scope = {
@@ -12,6 +16,44 @@ const scope = {
   campaignId: "campaign-redacted-001",
   sessionId: "session-redacted-001"
 };
+
+function sha256(value) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+function snapshot(overrides = {}) {
+  return {
+    schemaVersion: "hed27-session-source-snapshot-v1",
+    ...scope,
+    processingVersion: 1,
+    capturedAt: "2026-09-07T11:00:00.000Z",
+    sources: [
+      {
+        provider: "manual",
+        connectionId: null,
+        stream: "gm.manual",
+        state: "ready",
+        fromCursor: null,
+        toCursor: "20",
+        schemaVersion: "manual-v1",
+        adapterVersion: "manual-v1",
+        warningCode: null
+      },
+      {
+        provider: "discord",
+        connectionId: "connection-discord-redacted-001",
+        stream: "campaign.chat",
+        state: "partial",
+        fromCursor: "40",
+        toCursor: "72",
+        schemaVersion: "hed70-discord-message-v1",
+        adapterVersion: "discord-v10-adapter-v1",
+        warningCode: "MESSAGE_CONTENT_PARTIAL"
+      }
+    ],
+    ...overrides
+  };
+}
 
 function request(overrides = {}) {
   return {
@@ -70,6 +112,58 @@ test("processing requests carry only exact scope and a hashed source snapshot re
   );
   assert.throws(
     () => parseSessionProcessingRequestContract(request({ sourceSnapshotHash: "ABC" })),
+    ContractValidationError
+  );
+});
+
+test("processing source snapshots canonicalize source order and bind their request hash", () => {
+  const original = snapshot();
+  const reversed = snapshot({ sources: [...original.sources].reverse() });
+  const canonical = canonicalSessionProcessingSourceSnapshot(original);
+  assert.equal(canonicalSessionProcessingSourceSnapshot(reversed), canonical);
+  const hash = sha256(canonical);
+  const boundRequest = request({
+    sourceSnapshotRef: "session-source-snapshot:session-redacted-001:v1",
+    sourceSnapshotHash: hash
+  });
+
+  const verified = verifySessionProcessingSourceSnapshot(original, {
+    request: boundRequest,
+    sha256
+  });
+  assert.equal(verified.sources.length, 2);
+  assert.equal(verified.processingVersion, 1);
+
+  assert.throws(
+    () => verifySessionProcessingSourceSnapshot(snapshot({
+      sources: original.sources.map((source, index) => index === 0 ? { ...source, toCursor: "21" } : source)
+    }), { request: boundRequest, sha256 }),
+    ContractValidationError
+  );
+  assert.throws(
+    () => verifySessionProcessingSourceSnapshot(snapshot({ campaignId: "campaign-redacted-other" }), {
+      request: boundRequest,
+      sha256
+    }),
+    ContractValidationError
+  );
+});
+
+test("processing source snapshots reject raw fields and invalid provider authority", () => {
+  assert.throws(
+    () => parseSessionProcessingSourceSnapshotContract({ ...snapshot(), rawEvidence: "forbidden" }),
+    ContractValidationError
+  );
+  assert.throws(
+    () => parseSessionProcessingSourceSnapshotContract(snapshot({
+      sources: [{ ...snapshot().sources[1], connectionId: null }]
+    })),
+    ContractValidationError
+  );
+  assert.throws(
+    () => parseSessionProcessingSourceSnapshotContract(snapshot({
+      sources: [{ ...snapshot().sources[0], connectionId: "connection-forbidden" }]
+    })),
     ContractValidationError
   );
 });
