@@ -34,6 +34,7 @@ import { pf2Router } from "../apps/server/src/routes/pf2.js";
 import { platformRouter } from "../apps/server/src/routes/platform.js";
 import { revealRouter } from "../apps/server/src/routes/reveal.js";
 import { searchRouter } from "../apps/server/src/routes/search.js";
+import { sessionLifecycleRouter } from "../apps/server/src/routes/sessionLifecycle.js";
 import { subscriptionRouter } from "../apps/server/src/routes/subscription.js";
 import { toolsRouter } from "../apps/server/src/routes/tools.js";
 import { worldSystemsRouter } from "../apps/server/src/routes/worldSystems.js";
@@ -229,6 +230,7 @@ const routerMounts = [
   ["/api", "notesRouter", "notes.js", notesRouter],
   ["/api", "charactersRouter", "characters.js", charactersRouter],
   ["/api", "entriesRouter", "entries.js", entriesRouter],
+  ["/api", "sessionLifecycleRouter", "sessionLifecycle.js", sessionLifecycleRouter],
   ["/api", "worldSystemsRouter", "worldSystems.js", worldSystemsRouter],
   ["/api", "importRouter", "import.js", importRouter],
   ["/api", "pagesRouter", "pages.js", pagesRouter],
@@ -274,7 +276,7 @@ test("all backend route modules are mounted and endpoint signatures stay unique"
     .sort();
   const mountedFiles = [...new Set(routerMounts.map(([, , file]) => file))].sort();
   assert.deepEqual(routeFiles, mountedFiles, "Every route module must be mounted exactly through the route table");
-  assert.equal(signatures.length, 97, "Unexpected backend endpoint count");
+  assert.equal(signatures.length, 107, "Unexpected backend endpoint count");
   assert.equal(new Set(signatures).size, signatures.length, "Backend endpoint signatures must be unique");
 });
 
