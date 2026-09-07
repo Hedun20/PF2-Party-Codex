@@ -92,6 +92,170 @@ function ChecklistItem({ children }) {
   return <li><CheckCircle2 size={16} /> <span>{children}</span></li>;
 }
 
+function manualSessionDeskSource() {
+  return {
+    provider: "manual",
+    connectionId: null,
+    stream: "gm.sessionDesk",
+    state: "ready",
+    fromCursor: null,
+    toCursor: null,
+    schemaVersion: "manual-v1",
+    adapterVersion: "session-desk-v1",
+    warningCode: null
+  };
+}
+
+function lifecycleActionForStatus(status) {
+  switch (status) {
+    case "draft": return { action: "connect", label: "Подключить Session Desk" };
+    case "connected": return { action: "start", label: "Начать сбор" };
+    case "collecting": return { action: "pause", label: "Пауза" };
+    case "paused": return { action: "start", label: "Продолжить сбор" };
+    case "ended": return { action: "queue", label: "Запустить обработку" };
+    case "failed": return { action: "queue", label: "Повторить обработку" };
+    case "reviewReady": return { action: "publish", label: "Опубликовать recap" };
+    case "processing": return { action: "recover", label: "Восстановить зависшую задачу" };
+    default: return null;
+  }
+}
+
+function SessionLifecyclePanel({ sessionId, canEdit }) {
+  const [lifecycle, setLifecycle] = useState(null);
+  const [busy, setBusy] = useState("");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setLifecycle(null);
+    setMessage("");
+    if (!sessionId || !canEdit) return () => { cancelled = true; };
+    setBusy("load");
+    api.sessionLifecycle(sessionId)
+      .then((data) => {
+        if (!cancelled) setLifecycle(data.initialized ? data.session : null);
+      })
+      .catch((error) => {
+        if (!cancelled) setMessage(error.message || "Не удалось загрузить состояние сессии.");
+      })
+      .finally(() => {
+        if (!cancelled) setBusy("");
+      });
+    return () => { cancelled = true; };
+  }, [canEdit, sessionId]);
+
+  if (!canEdit) return null;
+
+  const runAction = async (action) => {
+    if (!sessionId || busy) return;
+    setBusy(action);
+    setMessage("");
+    const occurredAt = new Date().toISOString();
+    try {
+      let data;
+      if (action === "initialize") {
+        data = await api.initializeSessionLifecycle(sessionId, { occurredAt });
+      } else if (action === "connect") {
+        data = await api.connectSessionLifecycle(sessionId, {
+          occurredAt,
+          sourceRanges: [manualSessionDeskSource()]
+        });
+      } else if (action === "start") {
+        data = await api.startSessionLifecycle(sessionId, { occurredAt });
+      } else if (action === "pause") {
+        data = await api.pauseSessionLifecycle(sessionId, { occurredAt });
+      } else if (action === "end") {
+        data = await api.endSessionLifecycle(sessionId, { occurredAt });
+      } else if (action === "queue") {
+        data = await api.queueSessionLifecycle(sessionId, { occurredAt });
+      } else if (action === "publish") {
+        data = await api.publishSessionLifecycle(sessionId, { occurredAt });
+      } else if (action === "recover") {
+        data = await api.recoverSessionLifecycle(sessionId, { occurredAt });
+      }
+      if (data?.session) setLifecycle(data.session);
+      setMessage(data?.idempotent ? "Состояние уже было актуальным." : "Состояние сессии обновлено.");
+    } catch (error) {
+      setMessage(error.message || "Не удалось изменить состояние сессии.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const primaryAction = lifecycleActionForStatus(lifecycle?.status);
+  const canEnd = ["connected", "collecting", "paused"].includes(lifecycle?.status);
+  const progress = Number(lifecycle?.processing?.progressPercent || 0);
+  const warningCount = Array.isArray(lifecycle?.warnings) ? lifecycle.warnings.length : 0;
+
+  return (
+    <section className="codex-card session-panel">
+      <div className="session-panel-head">
+        <div>
+          <span className="kicker">Unified lifecycle</span>
+          <h2>Состояние сессии</h2>
+        </div>
+        <PlayCircle size={20} />
+      </div>
+
+      {!sessionId ? (
+        <p className="session-empty">Сначала сохрани Session Desk, затем включи отслеживание жизненного цикла.</p>
+      ) : !lifecycle ? (
+        <>
+          <p className="session-empty">{busy === "load" ? "Загрузка состояния..." : "Жизненный цикл ещё не инициализирован."}</p>
+          <CodexButton type="button" onClick={() => runAction("initialize")} disabled={Boolean(busy)}>
+            Включить отслеживание
+          </CodexButton>
+        </>
+      ) : (
+        <>
+          <div className="session-link-list">
+            <div className="session-link-row">
+              <div className="session-link-item">
+                <strong>{lifecycle.status}</strong>
+                <span>Revision {lifecycle.lifecycleRevision} · processing v{lifecycle.processing?.processingVersion || 0}</span>
+              </div>
+            </div>
+          </div>
+
+          {["queued", "processing", "reviewReady", "failed", "published"].includes(lifecycle.status) ? (
+            <div>
+              <label htmlFor="session-processing-progress">Обработка: {progress}%</label>
+              <progress id="session-processing-progress" max="100" value={progress}>{progress}%</progress>
+              <p className="session-note-hint">
+                Попытка {lifecycle.processing?.attempt || 0}
+                {lifecycle.processing?.safeErrorCode ? ` · ошибка ${lifecycle.processing.safeErrorCode}` : ""}
+              </p>
+            </div>
+          ) : null}
+
+          {warningCount ? (
+            <p className="session-note-hint">Источники с предупреждениями: {warningCount}. Проверь partial/unavailable evidence перед публикацией.</p>
+          ) : null}
+
+          <div className="session-notes-actions">
+            {primaryAction ? (
+              <CodexButton type="button" onClick={() => runAction(primaryAction.action)} disabled={Boolean(busy)}>
+                {busy === primaryAction.action ? "Обновление..." : primaryAction.label}
+              </CodexButton>
+            ) : null}
+            {canEnd ? (
+              <CodexButton type="button" variant="secondary" onClick={() => runAction("end")} disabled={Boolean(busy)}>
+                Завершить сессию
+              </CodexButton>
+            ) : null}
+          </div>
+
+          {lifecycle.status === "queued" ? <p className="session-note-hint">Сессия ожидает свободный worker.</p> : null}
+          {lifecycle.status === "processing" ? <p className="session-note-hint">Recovery сработает только после истечения worker lease.</p> : null}
+          {lifecycle.status === "published" ? <p className="session-note-hint">Review set опубликован и жизненный цикл закрыт.</p> : null}
+        </>
+      )}
+
+      {message ? <p className="session-note-hint">{message}</p> : null}
+    </section>
+  );
+}
+
 export default function SessionModePage({ pages = [], mode = "player", session }) {
   const { worldSlug } = useParams();
   const world = resolveWorldBySlug(pages, worldSlug);
@@ -232,6 +396,8 @@ export default function SessionModePage({ pages = [], mode = "player", session }
       {revealMessage && <div className={`status-message ${revealMessage.includes("нельзя") ? "danger-message" : ""}`}>{revealMessage}</div>}
 
       <section className="session-mode-grid">
+        <SessionLifecyclePanel sessionId={sessionDraftId} canEdit={canEdit} />
+
         {canEdit ? <section className="codex-card session-notes-panel">
           <div className="session-panel-head">
             <div>
