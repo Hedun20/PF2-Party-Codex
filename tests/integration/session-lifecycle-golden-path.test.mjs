@@ -10,6 +10,10 @@ import {
   claimSessionProcessing,
   submitSessionProcessingReport
 } from "../../apps/server/src/repositories/sessionLifecycleRepository.js";
+import {
+  buildQueuedSessionProcessingRequest,
+  readSessionProcessingSourceSnapshot
+} from "../../apps/server/src/repositories/sessionProcessingSourceSnapshotRepository.js";
 import { createSessionToken } from "../../apps/server/src/services/authTokens.js";
 
 const SAFE_DATABASE_PREFIX = "pf2_party_codex_test_";
@@ -191,7 +195,7 @@ after(async () => {
   await closeMongo({ silent: true });
 });
 
-test("GM HTTP lifecycle reaches worker review-ready and publishes one canonical review set", async () => {
+test("GM HTTP lifecycle freezes sources, reaches worker review-ready and publishes one canonical review set", async () => {
   const path = `/api/sessions/${ids.session}/lifecycle`;
 
   let response = await api(`${path}/initialize`, {
@@ -236,6 +240,39 @@ test("GM HTTP lifecycle reaches worker review-ready and publishes one canonical 
   assert.equal(response.status, 200);
   assert.equal(response.json.session.status, "queued");
   assert.equal(response.json.session.processing.processingVersion, 1);
+
+  const repeatedQueue = await api(`${path}/queue`, {
+    method: "POST",
+    body: { occurredAt: "2026-09-07T10:04:01.000Z" }
+  });
+  assert.equal(repeatedQueue.status, 200);
+  assert.equal(repeatedQueue.json.idempotent, true);
+
+  const processingRequest = await buildQueuedSessionProcessingRequest({
+    workspaceId: ids.workspace.toString(),
+    campaignId: ids.campaign.toString(),
+    sessionId: ids.session.toString(),
+    policyVersion: "campaign-policy-v1"
+  });
+  assert.equal(processingRequest.processingVersion, 1);
+  assert.match(processingRequest.sourceSnapshotHash, /^[a-f0-9]{64}$/);
+  assert.equal(processingRequest.requestedAt, "2026-09-07T10:04:00.000Z");
+
+  const frozenSnapshot = await readSessionProcessingSourceSnapshot({
+    workspaceId: processingRequest.workspaceId,
+    campaignId: processingRequest.campaignId,
+    sessionId: processingRequest.sessionId,
+    processingVersion: processingRequest.processingVersion,
+    sourceSnapshotRef: processingRequest.sourceSnapshotRef,
+    sourceSnapshotHash: processingRequest.sourceSnapshotHash
+  });
+  assert.equal(frozenSnapshot.capturedAt, "2026-09-07T10:04:00.000Z");
+  assert.equal(frozenSnapshot.sources.length, 1);
+  assert.equal(frozenSnapshot.sources[0].toCursor, "20");
+  assert.doesNotMatch(JSON.stringify(frozenSnapshot), /password|token|credential|rawEvidence/i);
+
+  let queuedStored = await database.collection("sessions").findOne({ _id: ids.session });
+  assert.equal(queuedStored.processingSourceSnapshots.length, 1, "queue retry must not duplicate the frozen snapshot");
 
   const claimed = await claimSessionProcessing({
     workspaceId: ids.workspace.toString(),
@@ -284,6 +321,7 @@ test("GM HTTP lifecycle reaches worker review-ready and publishes one canonical 
   assert.equal(stored.status, "planned", "golden path must preserve the rollback session status");
   assert.equal(stored.lifecycle.status, "published");
   assert.equal(stored.lifecycle.reviewSets.length, 1);
+  assert.equal(stored.processingSourceSnapshots.length, 1);
   assert.deepEqual(
     stored.lifecycle.transitions.slice(-3).map(({ actorKind, to }) => ({ actorKind, to })),
     [
