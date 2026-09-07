@@ -84,12 +84,6 @@ function isManager(subject: HumanCampaignPolicySubject): boolean {
   return subject.role === "owner" || subject.role === "gm";
 }
 
-function requestedKinds(request: EvidenceSearchRequestContract): readonly EvidenceSearchSourceKind[] {
-  return request.filters.sourceKinds.length
-    ? request.filters.sourceKinds
-    : EVIDENCE_SEARCH_SOURCE_KINDS;
-}
-
 function rawKind(kind: EvidenceSearchSourceKind): boolean {
   return kind !== "approvedCanon";
 }
@@ -159,9 +153,14 @@ export function deriveEvidenceSearchAccessPlan(
     campaignId: request.campaignId
   }, evaluatedAt);
   const rawEvidenceAllowed = rawDecision.allowed && isManager(subject);
-  const kinds = requestedKinds(request);
+  const explicitKinds = request.filters.sourceKinds;
+  const kinds: readonly EvidenceSearchSourceKind[] = explicitKinds.length
+    ? explicitKinds
+    : rawEvidenceAllowed
+      ? EVIDENCE_SEARCH_SOURCE_KINDS
+      : ["approvedCanon"];
 
-  if (!rawEvidenceAllowed && kinds.some(rawKind)) {
+  if (!rawEvidenceAllowed && explicitKinds.some(rawKind)) {
     return {
       decision: deny("RAW_EVIDENCE_SEARCH_DENIED"),
       viewer: readScope.scope.viewer,
