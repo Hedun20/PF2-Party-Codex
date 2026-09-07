@@ -216,6 +216,18 @@ function parseSha256(value: unknown, path: string): string {
   return SHA256.test(digest) ? digest : fail(path, "expected lowercase SHA-256");
 }
 
+function utf8ByteLength(value: string): number {
+  let bytes = 0;
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0;
+    if (codePoint <= 0x7f) bytes += 1;
+    else if (codePoint <= 0x7ff) bytes += 2;
+    else if (codePoint <= 0xffff) bytes += 3;
+    else bytes += 4;
+  }
+  return bytes;
+}
+
 function sourceRequiresExplicitConsent(kind: SessionIngestionSourceKind): boolean {
   return kind === "foundry" || kind === "discord" || kind === "pastedTranscript" || kind === "audioUpload";
 }
@@ -468,7 +480,7 @@ function parseTranscriptSegment(value: unknown, path: string): SessionTranscript
   const endMs = parsePositiveInteger(record["endMs"], `${path}.endMs`);
   if (endMs <= startMs) fail(`${path}.endMs`, "must be after startMs");
   const text = expectString(record["text"], `${path}.text`);
-  if (!text.trim() || Buffer.byteLength(text, "utf8") > MAX_SEGMENT_TEXT) {
+  if (!text.trim() || utf8ByteLength(text) > MAX_SEGMENT_TEXT) {
     fail(`${path}.text`, "must contain bounded transcript text");
   }
   const correctedSpeakerId = record["correctedSpeakerId"] === null ? null : parseStableId(record["correctedSpeakerId"], `${path}.correctedSpeakerId`);
