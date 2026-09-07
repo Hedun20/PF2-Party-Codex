@@ -1,8 +1,10 @@
+import crypto from "node:crypto";
 import { Router } from "express";
 import { identityContextForCampaign, identityContextForUser, isMongoIdentityEnabled, listCampaignMemberships, listUserCampaigns, workspaceUsage } from "../repositories/identityRepository.js";
 import { createCampaignInvitation, getInvitationPreview, listInvitationsForCampaign, resendCampaignInvitation } from "../repositories/invitationsRepository.js";
 import { acceptInvitationSafely } from "../repositories/invitationAcceptanceRepository.js";
 import { changeCampaignMembershipRole, findCampaignMembership, leaveCampaignMembership, removeCampaignMembership, revokeCampaignInvitation } from "../repositories/membershipManagementRepository.js";
+import { completeDiscordIdentityChallenge, createDiscordIdentityChallenge, discordIdentityStatus, revokeDiscordIdentityLink } from "../repositories/discordIdentityRepository.js";
 import { toPublicUser } from "../services/authStore.js";
 import { logAuditEvent } from "../services/auditLogService.js";
 import { assertPlanCapacity } from "../services/entitlementsService.js";
@@ -44,7 +46,7 @@ function isManager(role = "") {
   return role === "owner" || role === "gm";
 }
 
-async function campaignManagerContext(req) {
+async function campaignMemberContext(req) {
   requireMongoIdentity();
   requireUser(req);
   const context = await identityContextForCampaign(req.user, req.params.campaignId);
@@ -53,6 +55,11 @@ async function campaignManagerContext(req) {
     error.status = 403;
     throw error;
   }
+  return context;
+}
+
+async function campaignManagerContext(req) {
+  const context = await campaignMemberContext(req);
   if (!isManager(context.role)) {
     const error = new Error("GM or owner access is required for campaign player management.");
     error.status = 403;
@@ -66,6 +73,35 @@ function requireOwner(context) {
   const error = new Error("Only the workspace owner can change campaign roles.");
   error.status = 403;
   throw error;
+}
+
+function discordPairingAvailable() {
+  return Boolean(config.discordIdentityLinkEnabled && config.discordServiceCredential.length >= 32);
+}
+
+function requireDiscordPairingAvailable() {
+  if (discordPairingAvailable()) return;
+  const error = new Error("Discord account pairing is not configured for this deployment.");
+  error.status = 503;
+  error.code = "DISCORD_IDENTITY_PAIRING_UNAVAILABLE";
+  throw error;
+}
+
+function secureEqual(left = "", right = "") {
+  const leftBuffer = Buffer.from(String(left));
+  const rightBuffer = Buffer.from(String(right));
+  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function requireDiscordService(req) {
+  requireDiscordPairingAvailable();
+  const presented = String(req.get("x-party-codex-service-credential") || "");
+  if (!presented || !secureEqual(presented, config.discordServiceCredential)) {
+    const error = new Error("Discord connector authentication failed.");
+    error.status = 401;
+    error.code = "DISCORD_CONNECTOR_AUTH_REQUIRED";
+    throw error;
+  }
 }
 
 membershipsRouter.get("/campaigns/:campaignId/memberships", async (req, res, next) => {
@@ -107,6 +143,41 @@ membershipActionsRouter.patch("/", async (req, res, next) => {
   }
 });
 
+membershipActionsRouter.delete("/discord-identity", async (req, res, next) => {
+  try {
+    const context = await campaignManagerContext(req);
+    const target = await findCampaignMembership({ campaignId: context.activeCampaign.id, membershipId: req.params.membershipId });
+    if (!target || target.status === "removed") {
+      const error = new Error("Active campaign membership was not found.");
+      error.status = 404;
+      throw error;
+    }
+    if (context.role === "gm" && target.role !== "player" && idString(target._id) !== idString(context.activeMembership.id)) {
+      const error = new Error("A GM can unlink Discord for players only. Owner access is required to manage another GM.");
+      error.status = 403;
+      throw error;
+    }
+    const result = await revokeDiscordIdentityLink({
+      campaignId: context.activeCampaign.id,
+      membershipId: req.params.membershipId,
+      reason: idString(target._id) === idString(context.activeMembership.id) ? "userUnlinked" : "managerUnlinked"
+    });
+    if (!result.idempotent) {
+      await logAuditEvent({
+        req,
+        action: "discord.identity.unlink",
+        entityType: "membership",
+        entityId: idString(target._id),
+        campaignId: context.activeCampaign.id,
+        metadata: { targetUserId: idString(target.userId), assisted: idString(target._id) !== idString(context.activeMembership.id) }
+      });
+    }
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+});
+
 membershipActionsRouter.delete("/", async (req, res, next) => {
   try {
     const context = await campaignManagerContext(req);
@@ -142,6 +213,109 @@ membershipActionsRouter.delete("/", async (req, res, next) => {
 });
 
 membershipsRouter.use("/campaigns/:campaignId/memberships/:membershipId", membershipActionsRouter);
+
+membershipsRouter.get("/campaigns/:campaignId/discord-identity", async (req, res, next) => {
+  try {
+    const context = await campaignMemberContext(req);
+    const status = await discordIdentityStatus({
+      workspaceId: context.activeWorkspace.id,
+      campaignId: context.activeCampaign.id,
+      membershipId: context.activeMembership.id,
+      userId: req.user?._id || req.user?.id || ""
+    });
+    res.json({
+      ...status,
+      pairingAvailable: discordPairingAvailable(),
+      pairingCommand: "/codex link",
+      help: discordPairingAvailable()
+        ? "Create a one-time code here, then use /codex link <code> with the configured Party Codex bot."
+        : "Discord pairing is disabled until the deployment configures the verified bot connector."
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+membershipsRouter.post("/campaigns/:campaignId/discord-identity/challenge", async (req, res, next) => {
+  try {
+    requireDiscordPairingAvailable();
+    const context = await campaignMemberContext(req);
+    const challenge = await createDiscordIdentityChallenge({
+      workspaceId: context.activeWorkspace.id,
+      campaignId: context.activeCampaign.id,
+      membershipId: context.activeMembership.id,
+      userId: req.user?._id || req.user?.id || ""
+    });
+    await logAuditEvent({
+      req,
+      action: "discord.identity.challenge.create",
+      entityType: "membership",
+      entityId: context.activeMembership.id,
+      campaignId: context.activeCampaign.id,
+      metadata: { challengeId: challenge.id, expiresAt: challenge.expiresAt }
+    });
+    res.status(201).json({
+      challenge,
+      pairingAvailable: true,
+      pairingCommand: "/codex link",
+      instruction: `Run /codex link ${challenge.pairingCode} in the configured campaign Discord. The code expires shortly and is shown only now.`
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+membershipsRouter.delete("/campaigns/:campaignId/discord-identity", async (req, res, next) => {
+  try {
+    const context = await campaignMemberContext(req);
+    const result = await revokeDiscordIdentityLink({
+      campaignId: context.activeCampaign.id,
+      membershipId: context.activeMembership.id,
+      userId: req.user?._id || req.user?.id || "",
+      reason: "userUnlinked"
+    });
+    if (!result.idempotent) {
+      await logAuditEvent({
+        req,
+        action: "discord.identity.unlink",
+        entityType: "membership",
+        entityId: context.activeMembership.id,
+        campaignId: context.activeCampaign.id,
+        metadata: { assisted: false }
+      });
+    }
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+membershipsRouter.post("/internal/discord/identity/confirm", async (req, res, next) => {
+  try {
+    requireMongoIdentity();
+    requireDiscordService(req);
+    const completed = await completeDiscordIdentityChallenge({ proof: req.body || {} });
+    if (!completed.idempotent) {
+      await logAuditEvent({
+        req,
+        actorUserId: completed.link.userId,
+        actorRole: "discord-verified",
+        action: "discord.identity.link",
+        entityType: "membership",
+        entityId: completed.link.membershipId,
+        campaignId: completed.link.campaignId,
+        metadata: {
+          provider: "discord",
+          connectionId: String(req.body?.connectionId || ""),
+          interactionId: String(req.body?.interactionId || "")
+        }
+      });
+    }
+    res.json({ ok: true, ...completed });
+  } catch (error) {
+    next(error);
+  }
+});
 
 membershipsRouter.post("/campaigns/:campaignId/leave", async (req, res, next) => {
   try {

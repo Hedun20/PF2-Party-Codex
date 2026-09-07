@@ -2,6 +2,7 @@ import { getDb, mongoStatus } from "../db/mongo.js";
 import { collections } from "./collections.js";
 import { objectIdFrom, publicMembership } from "./identityRepository.js";
 import { publicInvitation } from "./invitationsRepository.js";
+import { revokeDiscordIdentityForMembership } from "./discordIdentityRepository.js";
 
 function membershipCollection() {
   return getDb().collection(collections.memberships);
@@ -127,6 +128,15 @@ export async function removeCampaignMembership({ campaignId, membershipId } = {}
   }
 
   const stamp = new Date().toISOString();
+  // External identity is never authority on its own, but revoke it before the membership
+  // transition so an interrupted cleanup cannot leave a stale provider binding behind.
+  await revokeDiscordIdentityForMembership({
+    campaignId: campaignObjectId,
+    membership: target,
+    reason: "membershipRemoved",
+    stamp
+  });
+
   const result = await membershipCollection().updateOne(
     { _id: target._id, campaignId: campaignObjectId, status: "active", role: { $ne: "owner" } },
     { $set: { status: "removed", removedAt: stamp, removedReason: "managerRemoved", updatedAt: stamp } }
@@ -325,12 +335,21 @@ export async function leaveCampaignMembership({ campaignId, userId } = {}) {
   }
 
   if (target.status === "removed") {
-    await detachCharacterAssignments({
-      campaignId: campaignObjectId,
-      membership: target,
-      reason: target.removedReason === "left" ? "membershipLeft" : "membershipRemoved",
-      stamp: target.removedAt || new Date().toISOString()
-    });
+    const reconcileStamp = target.removedAt || new Date().toISOString();
+    await Promise.all([
+      detachCharacterAssignments({
+        campaignId: campaignObjectId,
+        membership: target,
+        reason: target.removedReason === "left" ? "membershipLeft" : "membershipRemoved",
+        stamp: reconcileStamp
+      }),
+      revokeDiscordIdentityForMembership({
+        campaignId: campaignObjectId,
+        membership: target,
+        reason: target.removedReason === "left" ? "membershipLeft" : "membershipRemoved",
+        stamp: reconcileStamp
+      })
+    ]);
     return {
       membership: publicMembership(target),
       idempotent: true
@@ -351,6 +370,13 @@ export async function leaveCampaignMembership({ campaignId, userId } = {}) {
   }
 
   const stamp = new Date().toISOString();
+  await revokeDiscordIdentityForMembership({
+    campaignId: campaignObjectId,
+    membership: target,
+    reason: "membershipLeft",
+    stamp
+  });
+
   const result = await membershipCollection().updateOne(
     {
       _id: target._id,
@@ -372,12 +398,20 @@ export async function leaveCampaignMembership({ campaignId, userId } = {}) {
   if (!result.modifiedCount) {
     const current = await membershipCollection().findOne({ _id: target._id, campaignId: campaignObjectId, userId: userObjectId });
     if (current?.status === "removed") {
-      await detachCharacterAssignments({
-        campaignId: campaignObjectId,
-        membership: current,
-        reason: current.removedReason === "left" ? "membershipLeft" : "membershipRemoved",
-        stamp: current.removedAt || stamp
-      });
+      await Promise.all([
+        detachCharacterAssignments({
+          campaignId: campaignObjectId,
+          membership: current,
+          reason: current.removedReason === "left" ? "membershipLeft" : "membershipRemoved",
+          stamp: current.removedAt || stamp
+        }),
+        revokeDiscordIdentityForMembership({
+          campaignId: campaignObjectId,
+          membership: current,
+          reason: current.removedReason === "left" ? "membershipLeft" : "membershipRemoved",
+          stamp: current.removedAt || stamp
+        })
+      ]);
       return {
         membership: publicMembership(current),
         idempotent: true
