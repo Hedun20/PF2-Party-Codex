@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { identityContextForCampaign, isMongoIdentityEnabled, listCampaignMemberships, workspaceUsage } from "../repositories/identityRepository.js";
+import { identityContextForCampaign, identityContextForUser, isMongoIdentityEnabled, listCampaignMemberships, listUserCampaigns, workspaceUsage } from "../repositories/identityRepository.js";
 import { acceptInvitation, createCampaignInvitation, getInvitationPreview, listInvitationsForCampaign, resendCampaignInvitation } from "../repositories/invitationsRepository.js";
-import { changeCampaignMembershipRole, findCampaignMembership, removeCampaignMembership, revokeCampaignInvitation } from "../repositories/membershipManagementRepository.js";
+import { changeCampaignMembershipRole, findCampaignMembership, leaveCampaignMembership, removeCampaignMembership, revokeCampaignInvitation } from "../repositories/membershipManagementRepository.js";
 import { toPublicUser } from "../services/authStore.js";
 import { logAuditEvent } from "../services/auditLogService.js";
 import { assertPlanCapacity } from "../services/entitlementsService.js";
@@ -141,6 +141,50 @@ membershipActionsRouter.delete("/", async (req, res, next) => {
 });
 
 membershipsRouter.use("/campaigns/:campaignId/memberships/:membershipId", membershipActionsRouter);
+
+membershipsRouter.post("/campaigns/:campaignId/leave", async (req, res, next) => {
+  try {
+    requireMongoIdentity();
+    requireUser(req);
+    const leftCampaignId = req.params.campaignId || "";
+    const left = await leaveCampaignMembership({
+      campaignId: leftCampaignId,
+      userId: req.user?._id || req.user?.id || ""
+    });
+
+    if (!left.idempotent) {
+      await logAuditEvent({
+        req,
+        action: "memberships.leave",
+        entityType: "membership",
+        entityId: left.membership.id,
+        campaignId: leftCampaignId,
+        metadata: { role: left.membership.role }
+      });
+    }
+
+    const nextContext = await identityContextForUser(req.user);
+    const user = await toPublicUser(
+      req.user,
+      nextContext.activeCampaign?.id ? { campaignId: nextContext.activeCampaign.id } : {}
+    );
+    const campaigns = await listUserCampaigns(req.user);
+
+    res.json({
+      ok: true,
+      idempotent: left.idempotent,
+      leftMembership: left.membership,
+      user,
+      campaigns,
+      activeWorkspace: nextContext.activeWorkspace || null,
+      activeCampaign: nextContext.activeCampaign || null,
+      activeMembership: nextContext.activeMembership || null,
+      role: nextContext.role || "user"
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 invitationsRouter.get("/campaigns/:campaignId/invitations", async (req, res, next) => {
   try {
