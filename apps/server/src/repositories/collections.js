@@ -15,6 +15,8 @@ export const collections = {
   handouts: "handouts",
   assets: "assets",
   invitations: "invitations",
+  discordIdentityChallenges: "discordIdentityChallenges",
+  discordIdentityLinks: "discordIdentityLinks",
   emailOutbox: "emailOutbox",
   passwordResetTokens: "passwordResetTokens",
   auditLogs: "auditLogs",

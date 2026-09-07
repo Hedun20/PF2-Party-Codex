@@ -107,6 +107,18 @@ function setActiveCampaignId(campaignId = "") {
   writeStorage(CAMPAIGN_KEY, activeCampaignId);
 }
 
+function sessionLifecyclePath(sessionId, action = "") {
+  const base = `/sessions/${encodeURIComponent(sessionId)}/lifecycle`;
+  return action ? `${base}/${action}` : base;
+}
+
+function sessionLifecycleAction(sessionId, action, payload = {}) {
+  return request(sessionLifecyclePath(sessionId, action), {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 export const api = {
   setToken,
   setActiveCampaignId,
@@ -151,6 +163,15 @@ export const api = {
     setActiveCampaignId(data.activeCampaign?.id || campaignId);
     return data;
   },
+  transferCampaignOwnership: (campaignId, targetMembershipId) => request(`/campaigns/${encodeURIComponent(campaignId)}/ownership/transfer`, {
+    method: "POST",
+    body: JSON.stringify({ targetMembershipId })
+  }),
+  leaveCampaign: async (campaignId) => {
+    const data = await request(`/campaigns/${encodeURIComponent(campaignId)}/leave`, { method: "POST", body: JSON.stringify({}) });
+    setActiveCampaignId(data.activeCampaign?.id || "");
+    return data;
+  },
   pages: (mode) => request(`/pages?mode=${mode}`),
   missingLinks: (mode) => request(`/missing-links?mode=${mode}`),
   page: (path, mode) => request(`/page?path=${encodeURIComponent(path)}&mode=${mode}`),
@@ -177,6 +198,10 @@ export const api = {
   campaignMemberships: (campaignId) => request(`/campaigns/${encodeURIComponent(campaignId)}/memberships`),
   updateCampaignMembership: (campaignId, membershipId, payload) => request(`/campaigns/${encodeURIComponent(campaignId)}/memberships/${encodeURIComponent(membershipId)}`, { method: "PATCH", body: JSON.stringify(payload) }),
   removeCampaignMembership: (campaignId, membershipId) => request(`/campaigns/${encodeURIComponent(campaignId)}/memberships/${encodeURIComponent(membershipId)}`, { method: "DELETE" }),
+  managerUnlinkDiscordIdentity: (campaignId, membershipId) => request(`/campaigns/${encodeURIComponent(campaignId)}/memberships/${encodeURIComponent(membershipId)}/discord-identity`, { method: "DELETE" }),
+  discordIdentity: (campaignId) => request(`/campaigns/${encodeURIComponent(campaignId)}/discord-identity`),
+  createDiscordIdentityChallenge: (campaignId) => request(`/campaigns/${encodeURIComponent(campaignId)}/discord-identity/challenge`, { method: "POST", body: JSON.stringify({}) }),
+  unlinkDiscordIdentity: (campaignId) => request(`/campaigns/${encodeURIComponent(campaignId)}/discord-identity`, { method: "DELETE" }),
   campaignInvitations: (campaignId, params = {}) => request(`/campaigns/${encodeURIComponent(campaignId)}/invitations${queryString(params)}`),
   createCampaignInvitation: (campaignId, payload) => request(`/campaigns/${encodeURIComponent(campaignId)}/invitations`, { method: "POST", body: JSON.stringify(payload) }),
   resendCampaignInvitation: (campaignId, invitationId) => request(`/campaigns/${encodeURIComponent(campaignId)}/invitations/${encodeURIComponent(invitationId)}/resend`, { method: "POST", body: JSON.stringify({}) }),
@@ -205,6 +230,16 @@ export const api = {
   createSession: (payload) => request("/sessions", { method: "POST", body: JSON.stringify(payload) }),
   updateSession: (id, payload) => request(`/sessions/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }),
   deleteSession: (id) => request(`/sessions/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  sessionLifecycle: (id) => request(sessionLifecyclePath(id)),
+  initializeSessionLifecycle: (id, payload = {}) => sessionLifecycleAction(id, "initialize", payload),
+  connectSessionLifecycle: (id, payload) => sessionLifecycleAction(id, "connect", payload),
+  startSessionLifecycle: (id, payload = {}) => sessionLifecycleAction(id, "start", payload),
+  pauseSessionLifecycle: (id, payload = {}) => sessionLifecycleAction(id, "pause", payload),
+  endSessionLifecycle: (id, payload = {}) => sessionLifecycleAction(id, "end", payload),
+  queueSessionLifecycle: (id, payload = {}) => sessionLifecycleAction(id, "queue", payload),
+  publishSessionLifecycle: (id, payload = {}) => sessionLifecycleAction(id, "publish", payload),
+  cancelSessionLifecycle: (id, payload = {}) => sessionLifecycleAction(id, "cancel", payload),
+  recoverSessionLifecycle: (id, payload = {}) => sessionLifecycleAction(id, "recover", payload),
   handouts: (params = {}) => request(`/handouts${queryString(params)}`),
   createHandout: (payload) => request("/handouts", { method: "POST", body: JSON.stringify(payload) }),
   updateHandout: (id, payload) => request(`/handouts/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) }),

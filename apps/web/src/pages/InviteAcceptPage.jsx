@@ -63,6 +63,9 @@ export default function InviteAcceptPage({ session, onAccepted }) {
       await onAccepted?.();
     } catch (error) {
       setActionState((current) => ({ ...current, busy: false, error: error.message || "Invitation could not be accepted." }));
+      // Refresh the server state after a conflict so expired/revoked/accepted/accepting
+      // transitions are visible instead of leaving a stale actionable button on screen.
+      if ([409, 410].includes(Number(error?.status || 0))) await loadPreview();
     }
   }
 
@@ -81,6 +84,7 @@ export default function InviteAcceptPage({ session, onAccepted }) {
   const role = actionState.role || invitation?.role || "player";
   const mismatch = signedIn && invitation?.emailMatchesCurrentUser === false;
   const status = invitation?.status || "";
+  const processing = status === "accepting";
   const unavailable = ["expired", "revoked"].includes(status);
   const acceptedElsewhere = status === "accepted" && (!invitation?.acceptedByCurrentUser || invitation?.membershipActive === false) && !actionState.accepted;
 
@@ -148,6 +152,25 @@ export default function InviteAcceptPage({ session, onAccepted }) {
           <p>Аккаунт совпадает с приглашением. Нажатие создаст membership и сделает эту кампанию активной.</p>
           {actionState.error ? <p className="status-message status-message--danger" role="alert">{actionState.error}</p> : null}
           <CodexButton type="button" disabled={actionState.busy} onClick={acceptInvite}>{actionState.busy ? "Принимаем..." : "Accept invitation"}</CodexButton>
+        </section>
+      ) : null}
+
+      {invitation && processing && !accepted ? (
+        <section className="codex-card workspace-status-card">
+          <RefreshCw size={22} />
+          <span className="kicker">Принятие уже выполняется</span>
+          <p>Другой запрос уже закрепил эту ссылку на время завершения membership. Это защищает от двойного принятия и гонки с отзывом приглашения.</p>
+          {actionState.error ? <p className="status-message status-message--danger" role="alert">{actionState.error}</p> : null}
+          <div className="editor-actions">
+            <CodexButton type="button" variant="secondary" disabled={previewState.loading || actionState.busy} onClick={() => loadPreview()}>
+              <RefreshCw size={16} /><span>Проверить статус</span>
+            </CodexButton>
+            {signedIn && invitation.emailMatchesCurrentUser === true ? (
+              <CodexButton type="button" disabled={actionState.busy} onClick={acceptInvite}>
+                {actionState.busy ? "Сверяем..." : "Повторить принятие"}
+              </CodexButton>
+            ) : null}
+          </div>
         </section>
       ) : null}
 

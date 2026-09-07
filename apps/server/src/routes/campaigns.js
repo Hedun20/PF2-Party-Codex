@@ -5,6 +5,7 @@ import {
   listUserCampaigns,
   setActiveCampaignForUser
 } from "../repositories/identityRepository.js";
+import { transferCampaignOwnership } from "../repositories/membershipManagementRepository.js";
 import { logAuditEvent } from "../services/auditLogService.js";
 import { toPublicUser } from "../services/authStore.js";
 
@@ -24,6 +25,10 @@ function requireUser(req) {
     error.status = 401;
     throw error;
   }
+}
+
+function userId(req) {
+  return req.user?._id || req.user?.id || "";
 }
 
 campaignsRouter.get("/campaigns", async (req, res, next) => {
@@ -107,6 +112,57 @@ campaignsRouter.post("/campaigns/:campaignId/activate", async (req, res, next) =
       activeMembership: context.activeMembership,
       membership: context.activeMembership,
       role: context.role
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+campaignsRouter.post("/campaigns/:campaignId/ownership/transfer", async (req, res, next) => {
+  try {
+    requireUser(req);
+    requireMongoIdentity();
+    const targetMembershipId = String(req.body?.targetMembershipId || "").trim();
+    if (!targetMembershipId) {
+      const error = new Error("Choose a campaign member to receive ownership.");
+      error.status = 400;
+      throw error;
+    }
+
+    const transfer = await transferCampaignOwnership({
+      campaignId: req.params.campaignId,
+      currentUserId: userId(req),
+      targetMembershipId
+    });
+
+    const publicUser = await toPublicUser(req.user, { campaignId: req.params.campaignId });
+    const campaigns = await listUserCampaigns(req.user);
+
+    if (!transfer.idempotent) {
+      await logAuditEvent({
+        req,
+        actorUserId: publicUser?.id || userId(req),
+        actorEmail: publicUser?.email || req.user?.email || "",
+        actorRole: "owner",
+        campaignId: req.params.campaignId,
+        action: "campaigns.ownership.transfer",
+        entityType: "campaign",
+        entityId: req.params.campaignId,
+        metadata: {
+          previousOwnerMembershipId: transfer.previousOwner?.id || "",
+          newOwnerMembershipId: transfer.newOwner?.id || "",
+          newOwnerUserId: transfer.newOwner?.userId || ""
+        }
+      });
+    }
+
+    res.json({
+      ok: true,
+      idempotent: transfer.idempotent,
+      previousOwner: transfer.previousOwner,
+      newOwner: transfer.newOwner,
+      user: publicUser,
+      campaigns
     });
   } catch (error) {
     next(error);
