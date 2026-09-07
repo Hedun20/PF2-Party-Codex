@@ -13,6 +13,7 @@ import { campaignsRouter } from "./routes/campaigns.js";
 import { categoriesRouter } from "./routes/categories.js";
 import { charactersRouter } from "./routes/characters.js";
 import { entriesRouter } from "./routes/entries.js";
+import { evidenceSearchRouter } from "./routes/evidenceSearch.js";
 import { foundryRouter } from "./routes/foundry.js";
 import { healthRouter } from "./routes/health.js";
 import { importRouter } from "./routes/import.js";
@@ -78,6 +79,7 @@ export function createApp({ appConfig = config, appLogger = logger } = {}) {
   app.use("/api", notesRouter);
   app.use("/api", charactersRouter);
   app.use("/api", entriesRouter);
+  app.use("/api", evidenceSearchRouter);
   app.use("/api", sessionLifecycleRouter);
   app.use("/api", worldSystemsRouter);
   app.use("/api", importRouter);
