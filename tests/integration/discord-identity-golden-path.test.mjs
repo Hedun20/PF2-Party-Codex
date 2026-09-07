@@ -225,7 +225,7 @@ test("pairing codes are one-time secrets and exactly one membership can claim a 
   assert.equal(unlinkAgain.idempotent, true);
 });
 
-test("membership removal revokes Discord identity and pending pairing before authorization disappears", async () => {
+test("membership removal revokes Discord identity and defensive stale pending pairing before authorization disappears", async () => {
   const currentB = await database.collection("memberships").findOne({ _id: ids.membershipB });
   if (currentB.status !== "active") {
     await database.collection("memberships").updateOne(
@@ -249,8 +249,26 @@ test("membership removal revokes Discord identity and pending pairing before aut
   });
   assert.equal(linked.link.status, "active");
 
-  const pendingChallenge = await createDiscordIdentityChallenge(scope(ids.membershipB, ids.userB));
-  assert.equal(pendingChallenge.status, "pending");
+  await assert.rejects(
+    () => createDiscordIdentityChallenge(scope(ids.membershipB, ids.userB)),
+    (error) => error.code === "DISCORD_IDENTITY_ALREADY_LINKED" && error.status === 409
+  );
+
+  const pendingChallengeId = new ObjectId();
+  const pendingStamp = new Date().toISOString();
+  await database.collection("discordIdentityChallenges").insertOne({
+    _id: pendingChallengeId,
+    workspaceId: ids.workspace,
+    campaignId: ids.campaign,
+    membershipId: ids.membershipB,
+    userId: ids.userB,
+    codeHash: `stale-pending-${pendingChallengeId.toString()}`,
+    status: "pending",
+    expiresAt: new Date(Date.now() + 60_000),
+    purgeAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    createdAt: pendingStamp,
+    updatedAt: pendingStamp
+  });
 
   const removed = await removeCampaignMembership({
     campaignId: ids.campaign,
@@ -260,7 +278,7 @@ test("membership removal revokes Discord identity and pending pairing before aut
 
   const [linkAfter, challengeAfter] = await Promise.all([
     database.collection("discordIdentityLinks").findOne({ _id: new ObjectId(linked.link.id) }),
-    database.collection("discordIdentityChallenges").findOne({ _id: new ObjectId(pendingChallenge.id) })
+    database.collection("discordIdentityChallenges").findOne({ _id: pendingChallengeId })
   ]);
   assert.equal(linkAfter.status, "revoked");
   assert.equal(linkAfter.revokedReason, "membershipRemoved");
