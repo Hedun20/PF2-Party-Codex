@@ -61,15 +61,15 @@ test("invite page previews first and accepts only after explicit confirmation", 
 });
 
 test("accepted links are idempotent only while the original membership remains active", () => {
-  const repository = read("apps/server/src/repositories/invitationsRepository.js");
+  const repository = read("apps/server/src/repositories/invitationAcceptanceRepository.js");
   const acceptedStart = repository.indexOf('if (status === "accepted")');
-  const pendingStart = repository.indexOf('if (status !== "pending")', acceptedStart);
-  const acceptedBranch = repository.slice(acceptedStart, pendingStart);
+  const acceptingStart = repository.indexOf('if (status === "accepting")', acceptedStart);
+  const acceptedBranch = repository.slice(acceptedStart, acceptingStart);
 
   assert.match(repository, /async function existingAcceptedMembership/);
   assert.match(repository, /Invitation has already been used and campaign access is no longer active/);
   assert.match(acceptedBranch, /existingAcceptedMembership\(invitation, fullUser\)/);
-  assert.doesNotMatch(acceptedBranch, /activateInvitationMembership/);
+  assert.doesNotMatch(acceptedBranch, /activateClaimedMembership/);
   assert.match(acceptedBranch, /idempotent: true/);
 });
 
