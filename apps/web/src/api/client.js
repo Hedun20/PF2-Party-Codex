@@ -151,6 +151,11 @@ export const api = {
     setActiveCampaignId(data.activeCampaign?.id || campaignId);
     return data;
   },
+  leaveCampaign: async (campaignId) => {
+    const data = await request(`/campaigns/${encodeURIComponent(campaignId)}/leave`, { method: "POST", body: JSON.stringify({}) });
+    setActiveCampaignId(data.activeCampaign?.id || "");
+    return data;
+  },
   pages: (mode) => request(`/pages?mode=${mode}`),
   missingLinks: (mode) => request(`/missing-links?mode=${mode}`),
   page: (path, mode) => request(`/page?path=${encodeURIComponent(path)}&mode=${mode}`),
