@@ -1,10 +1,41 @@
 .app-shell {
   position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   min-height: 100vh;
   overflow: hidden;
-  background: var(--bg);
+  background: transparent;
+}
+
+.app-shell::before,
+.app-shell::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.app-shell::before {
+  z-index: -2;
+  background:
+    radial-gradient(circle at 82% 12%, transparent 0 170px, rgba(227, 182, 95, 0.055) 171px 172px, transparent 173px 246px, rgba(227, 182, 95, 0.03) 247px 248px, transparent 249px),
+    radial-gradient(circle at 18% 16%, rgba(112, 58, 190, 0.24), transparent 34%),
+    radial-gradient(circle at 74% 68%, rgba(85, 42, 145, 0.16), transparent 36%),
+    radial-gradient(circle at 86% 14%, rgba(227, 182, 95, 0.10), transparent 20%),
+    linear-gradient(145deg, #07060b 0%, #110d1c 44%, #0a0710 72%, #050408 100%);
+}
+
+.app-shell::after {
+  z-index: -1;
+  opacity: 0.32;
+  background-image:
+    radial-gradient(circle, rgba(245, 237, 247, 0.22) 0 1px, transparent 1.4px),
+    radial-gradient(circle, rgba(227, 182, 95, 0.16) 0 1px, transparent 1.5px),
+    linear-gradient(110deg, transparent 0 49.8%, rgba(168, 85, 247, 0.035) 50%, transparent 50.2%);
+  background-size: 132px 132px, 211px 211px, 100% 100%;
+  background-position: 18px 24px, 94px 62px, 0 0;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.86), rgba(0, 0, 0, 0.42) 58%, transparent 100%);
 }
 
 .sidebar {
@@ -20,7 +51,8 @@
   transform: translateX(-100%);
   transition: transform 180ms ease;
   border-right: 1px solid var(--line);
-  background: var(--panel-strong);
+  background: rgba(18, 14, 29, 0.97);
+  backdrop-filter: blur(18px);
 }
 
 .sidebar-open .sidebar {
@@ -33,7 +65,7 @@
   z-index: 15;
   border: 0;
   padding: 0;
-  background: rgba(0, 0, 0, 0.56);
+  background: rgba(0, 0, 0, 0.62);
   cursor: pointer;
 }
 
@@ -47,7 +79,7 @@
   gap: 12px;
   margin: -24px 0 24px;
   padding: 24px 0 16px;
-  background: var(--panel-strong);
+  background: rgba(18, 14, 29, 0.97);
 }
 
 .brand {
@@ -135,5 +167,12 @@
   .hero-panel h1,
   .list-header h1 {
     font-size: clamp(1.8rem, 9vw, 3rem);
+  }
+
+  .app-shell::before {
+    background:
+      radial-gradient(circle at 74% 10%, rgba(227, 182, 95, 0.08), transparent 20%),
+      radial-gradient(circle at 18% 14%, rgba(112, 58, 190, 0.22), transparent 38%),
+      linear-gradient(155deg, #07060b 0%, #110d1c 52%, #06050a 100%);
   }
 }
