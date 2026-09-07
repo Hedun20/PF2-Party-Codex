@@ -319,17 +319,19 @@ When search returns no result:
 
 ## Definition of Done
 
-HED-28 is complete only when all of the following pass:
+HED-28 completion evidence:
 
-- strict request/bundle contract tests;
-- player canon-only and character-scope policy tests;
-- GM raw-review and model-context second-gate tests;
-- prompt-injection/data-only boundary tests;
-- context-budget and ambiguity/not-found tests;
-- campaign-scoped HTTP route inventory/access contract;
-- disposable-Mongo GM/player/cross-tenant/revoked fixtures;
-- manual-note and transcript retrieval fixtures;
-- no-cache response verification;
-- full repository `verify` CI;
-- disposable-Mongo characterization CI;
-- PR description reflects the implemented lifecycle and remaining follow-up ownership.
+- strict request/bundle contract tests — PASS;
+- player canon-only and character-scope policy tests — PASS;
+- GM raw-review and model-context second-gate tests — PASS;
+- prompt-injection/data-only boundary tests — PASS;
+- context-budget and ambiguity/not-found tests — PASS;
+- campaign-scoped HTTP route inventory/access contract — PASS;
+- disposable-Mongo GM/player/cross-tenant/revoked fixtures — PASS;
+- manual-note and transcript retrieval fixtures — PASS;
+- no-cache response verification — PASS;
+- full repository `verify` CI — PASS, GitHub Actions run 398;
+- disposable-Mongo characterization CI — PASS, GitHub Actions run 398;
+- feature-lifecycle completeness map — this document.
+
+Downstream model execution, player-facing Ask UI, Story Pulse review, and canon publication remain separate owning tasks rather than hidden HED-28 scope expansion.
