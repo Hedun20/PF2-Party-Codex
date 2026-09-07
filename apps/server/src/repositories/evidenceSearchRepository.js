@@ -38,6 +38,21 @@ function notes() {
   return getDb().collection("notes");
 }
 
+function timeRangeVariants(from, to) {
+  if (!from && !to) return [];
+  const stringRange = {};
+  const dateRange = {};
+  if (from) {
+    stringRange.$gte = from;
+    dateRange.$gte = new Date(from);
+  }
+  if (to) {
+    stringRange.$lte = to;
+    dateRange.$lte = new Date(to);
+  }
+  return [stringRange, dateRange];
+}
+
 export async function findApprovedCanonSearchCandidates({
   campaignId,
   viewer = "player",
@@ -47,7 +62,8 @@ export async function findApprovedCanonSearchCandidates({
   requireMongo();
   const query = {
     campaignId: objectIdOrValue(campaignId),
-    status: "active"
+    status: "active",
+    $and: []
   };
   query.visibility = viewer === "manager"
     ? { $in: ["public", "revealed", "gmOnly", "hidden"] }
@@ -58,12 +74,20 @@ export async function findApprovedCanonSearchCandidates({
 
   const sessionIds = objectIds(filters.sessionIds || []);
   if (sessionIds.length) {
-    query.$or = [
-      { sessionId: { $in: sessionIds } },
-      { "source.sessionId": { $in: sessionIds } },
-      { "metadata.sessionId": { $in: sessionIds } }
-    ];
+    query.$and.push({
+      $or: [
+        { sessionId: { $in: sessionIds } },
+        { "source.sessionId": { $in: sessionIds } },
+        { "metadata.sessionId": { $in: sessionIds } }
+      ]
+    });
   }
+
+  const timeRanges = timeRangeVariants(filters.occurredFrom, filters.occurredTo);
+  if (timeRanges.length) {
+    query.$and.push({ $or: timeRanges.map((range) => ({ updatedAt: range })) });
+  }
+  if (!query.$and.length) delete query.$and;
 
   return entries().find(query, {
     projection: {
@@ -122,7 +146,8 @@ export async function findRawEvidenceSearchCandidates({
         $or: [
           { purgeAt: { $exists: false } },
           { purgeAt: null },
-          { purgeAt: { $gt: evaluatedAt } }
+          { purgeAt: { $gt: evaluatedAt } },
+          { purgeAt: { $gt: new Date(evaluatedAt) } }
         ]
       }
     ]
@@ -141,10 +166,10 @@ export async function findRawEvidenceSearchCandidates({
     });
   }
 
-  const occurredRange = {};
-  if (filters.occurredFrom) occurredRange.$gte = filters.occurredFrom;
-  if (filters.occurredTo) occurredRange.$lte = filters.occurredTo;
-  if (Object.keys(occurredRange).length) query.occurredAt = occurredRange;
+  const timeRanges = timeRangeVariants(filters.occurredFrom, filters.occurredTo);
+  if (timeRanges.length) {
+    query.$and.push({ $or: timeRanges.map((range) => ({ occurredAt: range })) });
+  }
 
   return evidenceRecords().find(query, {
     projection: {
@@ -203,10 +228,10 @@ export async function findManualNoteSearchCandidates({
   const entityIds = objectIds(filters.entityIds || []);
   if (entityIds.length) query.$and.push({ linkedEntryIds: { $in: entityIds } });
 
-  const timeRange = {};
-  if (filters.occurredFrom) timeRange.$gte = filters.occurredFrom;
-  if (filters.occurredTo) timeRange.$lte = filters.occurredTo;
-  if (Object.keys(timeRange).length) query.updatedAt = timeRange;
+  const timeRanges = timeRangeVariants(filters.occurredFrom, filters.occurredTo);
+  if (timeRanges.length) {
+    query.$and.push({ $or: timeRanges.map((range) => ({ updatedAt: range })) });
+  }
 
   return notes().find(query, {
     projection: {
