@@ -1,7 +1,41 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
-import { createSessionProcessingReporter } from "../../apps/worker/dist/index.js";
+import {
+  createSessionProcessingReporter,
+  loadVerifiedSessionProcessingSourceSnapshot
+} from "../../apps/worker/dist/index.js";
+import { canonicalSessionProcessingSourceSnapshot } from "../../packages/contracts/dist/index.js";
+
+function sha256(value) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+function sourceSnapshot(overrides = {}) {
+  return {
+    schemaVersion: "hed27-session-source-snapshot-v1",
+    workspaceId: "workspace-redacted-001",
+    campaignId: "campaign-redacted-001",
+    sessionId: "session-redacted-001",
+    processingVersion: 1,
+    capturedAt: "2026-09-07T11:00:00.000Z",
+    sources: [
+      {
+        provider: "manual",
+        connectionId: null,
+        stream: "gm.manual",
+        state: "ready",
+        fromCursor: null,
+        toCursor: "20",
+        schemaVersion: "manual-v1",
+        adapterVersion: "manual-v1",
+        warningCode: null
+      }
+    ],
+    ...overrides
+  };
+}
 
 function request(overrides = {}) {
   return {
@@ -35,6 +69,49 @@ function collectingPort(reports) {
     }
   };
 }
+
+test("worker loads only the exact frozen source snapshot named by the processing request", async () => {
+  const snapshot = sourceSnapshot();
+  const hash = sha256(canonicalSessionProcessingSourceSnapshot(snapshot));
+  const boundRequest = request({
+    sourceSnapshotRef: "session-source-snapshot:session-redacted-001:v1",
+    sourceSnapshotHash: hash
+  });
+  let readInput = null;
+  const loaded = await loadVerifiedSessionProcessingSourceSnapshot({
+    request: boundRequest,
+    sha256,
+    archivePort: {
+      async readSessionProcessingSourceSnapshot(input) {
+        readInput = input;
+        return snapshot;
+      }
+    }
+  });
+  assert.equal(loaded.sources[0].toCursor, "20");
+  assert.deepEqual(readInput, {
+    workspaceId: "workspace-redacted-001",
+    campaignId: "campaign-redacted-001",
+    sessionId: "session-redacted-001",
+    processingVersion: 1,
+    sourceSnapshotRef: "session-source-snapshot:session-redacted-001:v1",
+    sourceSnapshotHash: hash
+  });
+
+  await assert.rejects(
+    loadVerifiedSessionProcessingSourceSnapshot({
+      request: boundRequest,
+      sha256,
+      archivePort: {
+        async readSessionProcessingSourceSnapshot() {
+          return sourceSnapshot({
+            sources: [{ ...snapshot.sources[0], toCursor: "21" }]
+          });
+        }
+      }
+    })
+  );
+});
 
 test("worker reporter binds every progress report to the claimed session job attempt", async () => {
   const reports = [];
