@@ -5,6 +5,7 @@ import { ObjectId } from "mongodb";
 import { config } from "../../apps/server/src/config.js";
 import { closeMongo, connectMongo, getDb } from "../../apps/server/src/db/mongo.js";
 import {
+  claimSessionProcessing,
   endCampaignSessionLifecycle,
   ensureSessionLifecycle,
   startCampaignSessionLifecycle,
@@ -101,17 +102,14 @@ async function prepareProcessing(sessionId, jobId) {
       reasonCode: "GM_QUEUE_PROCESSING"
     }
   });
-  return transitionCampaignSessionLifecycle({
-    ...target,
-    input: {
-      to: "processing",
-      actorKind: "worker",
-      actorId: WORKER_ID,
-      occurredAt: "2026-09-07T10:05:00.000Z",
-      reasonCode: "WORKER_CLAIM",
-      jobId,
-      leaseExpiresAt: "2026-09-07T10:10:00.000Z"
-    }
+  return claimSessionProcessing({
+    workspaceId: target.workspaceId,
+    campaignId: target.campaignId,
+    sessionId: target.sessionId,
+    workerId: WORKER_ID,
+    jobId,
+    occurredAt: "2026-09-07T10:05:00.000Z",
+    leaseExpiresAt: "2026-09-07T10:10:00.000Z"
   });
 }
 
@@ -169,6 +167,38 @@ before(async () => {
 after(async () => {
   if (database) await database.dropDatabase();
   await closeMongo({ silent: true });
+});
+
+test("worker claim is exact, idempotent for the same lease owner and rejects competing jobs", async () => {
+  const repeated = await claimSessionProcessing({
+    workspaceId: ids.workspace.toString(),
+    campaignId: ids.campaign.toString(),
+    sessionId: ids.reviewSession.toString(),
+    workerId: WORKER_ID,
+    jobId: "job-review-session-v1",
+    occurredAt: "2026-09-07T10:05:30.000Z",
+    leaseExpiresAt: "2026-09-07T10:10:30.000Z"
+  });
+  assert.equal(repeated.idempotent, true);
+  assert.equal(repeated.session.processing.attempt, 1);
+  assert.equal(repeated.session.transitions.at(-1).actorKind, "worker");
+  assert.equal(repeated.session.transitions.at(-1).actorId, WORKER_ID);
+
+  await assert.rejects(
+    claimSessionProcessing({
+      workspaceId: ids.workspace.toString(),
+      campaignId: ids.campaign.toString(),
+      sessionId: ids.reviewSession.toString(),
+      workerId: WORKER_ID,
+      jobId: "job-competing-v1",
+      occurredAt: "2026-09-07T10:05:31.000Z",
+      leaseExpiresAt: "2026-09-07T10:10:31.000Z"
+    }),
+    (error) => error.status === 409 && error.code === "SESSION_PROCESSING_CLAIM_NOT_ALLOWED"
+  );
+
+  const stored = await database.collection("sessions").findOne({ _id: ids.reviewSession });
+  assert.equal(stored.updatedBy.toString(), ids.user.toString(), "worker claim must not impersonate a human editor");
 });
 
 test("worker progress crosses the archive owner only with exact scope, version and attempt", async () => {
