@@ -66,10 +66,12 @@ function sameScope(
   report: SessionProcessingReportContract,
   request: SessionProcessingRequestContract
 ): boolean {
-  return report.workspaceId === request.workspaceId
-    && report.campaignId === request.campaignId
-    && report.sessionId === request.sessionId
-    && report.processingVersion === request.processingVersion;
+  return (
+    report.workspaceId === request.workspaceId &&
+    report.campaignId === request.campaignId &&
+    report.sessionId === request.sessionId &&
+    report.processingVersion === request.processingVersion
+  );
 }
 
 export function createSessionProcessingReporter(
