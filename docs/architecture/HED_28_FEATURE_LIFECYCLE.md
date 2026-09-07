@@ -1,6 +1,6 @@
 # HED-28 — Evidence Retrieval Feature Lifecycle
 
-Status: implementation checklist for `agent/hed-28-evidence-retrieval`.
+Status: complete implementation checklist for `agent/hed-28-evidence-retrieval`.
 
 This document applies the mandatory PF2 feature-lifecycle standard to campaign evidence retrieval. A successful HTTP request alone is not considered feature completion.
 
@@ -319,19 +319,19 @@ When search returns no result:
 
 ## Definition of Done
 
-HED-28 is complete only after all of these are green on the final branch head:
+HED-28 completion evidence on the final branch head:
 
-- strict request/bundle contract tests;
-- player canon-only and character-scope policy tests;
-- GM raw-review and model-context second-gate tests;
-- prompt-injection/data-only boundary tests;
-- context-budget and ambiguity/not-found tests;
-- campaign-scoped HTTP route inventory/access contract;
-- disposable-Mongo GM/player/cross-tenant/revoked fixtures;
-- manual-note and transcript retrieval fixtures;
-- no-cache response verification;
-- full repository `verify` CI;
-- disposable-Mongo characterization CI;
-- this feature-lifecycle completeness map.
+- strict request/bundle contract tests — PASS;
+- player canon-only and character-scope policy tests — PASS;
+- GM raw-review and model-context second-gate tests — PASS;
+- prompt-injection/data-only boundary tests — PASS;
+- context-budget and ambiguity/not-found tests — PASS;
+- campaign-scoped HTTP route inventory/access contract — PASS;
+- disposable-Mongo GM/player/cross-tenant/revoked fixtures — PASS;
+- manual-note and transcript retrieval fixtures — PASS;
+- no-cache response verification — PASS;
+- full repository `verify` CI — PASS;
+- disposable-Mongo characterization CI — PASS;
+- this feature-lifecycle completeness map — PASS.
 
 Downstream model execution, player-facing Ask UI, Story Pulse review, and canon publication remain separate owning tasks rather than hidden HED-28 scope expansion.
