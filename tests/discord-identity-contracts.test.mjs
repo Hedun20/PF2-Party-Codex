@@ -39,9 +39,26 @@ test("Discord identity is subordinate to exact campaign membership and revoked b
 
   assert.match(repository, /workspaceId:\s*scope\.workspaceId[\s\S]*campaignId:\s*scope\.campaignId[\s\S]*membershipId:\s*scope\.membershipId[\s\S]*userId:\s*scope\.userId[\s\S]*status:\s*["']active["']/);
   assert.match(repository, /DISCORD_IDENTITY_MEMBERSHIP_INACTIVE/);
-  const revokePosition = membershipManagement.indexOf("await revokeDiscordIdentityForMembership");
-  const removePosition = membershipManagement.indexOf("status: \"removed\"");
-  assert.ok(revokePosition >= 0 && removePosition >= 0 && revokePosition < removePosition, "Discord identity must be revoked before membership removal");
+
+  const removeStart = membershipManagement.indexOf("export async function removeCampaignMembership");
+  const removeEnd = membershipManagement.indexOf("export async function transferCampaignOwnership", removeStart);
+  const removeFunction = membershipManagement.slice(removeStart, removeEnd);
+  const removeRevokePosition = removeFunction.indexOf("await revokeDiscordIdentityForMembership");
+  const removeWritePosition = removeFunction.indexOf("$set: { status: \"removed\"");
+  assert.ok(
+    removeRevokePosition >= 0 && removeWritePosition >= 0 && removeRevokePosition < removeWritePosition,
+    "Discord identity must be revoked before manager membership removal"
+  );
+
+  const leaveStart = membershipManagement.indexOf("export async function leaveCampaignMembership");
+  const leaveEnd = membershipManagement.indexOf("export async function revokeCampaignInvitation", leaveStart);
+  const leaveFunction = membershipManagement.slice(leaveStart, leaveEnd);
+  const leaveRevokePosition = leaveFunction.indexOf("await revokeDiscordIdentityForMembership");
+  const leaveWritePosition = leaveFunction.indexOf("status: \"removed\"");
+  assert.ok(
+    leaveRevokePosition >= 0 && leaveWritePosition >= 0 && leaveRevokePosition < leaveWritePosition,
+    "Discord identity must be revoked before self-leave removes campaign authorization"
+  );
 });
 
 test("active Discord bindings are protected by partial unique indexes while revoked history remains legal", async () => {
