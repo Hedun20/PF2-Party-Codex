@@ -76,12 +76,21 @@ function draftSession(overrides = {}) {
   };
 }
 
-function transition(sequence, from, to, occurredAt, reasonCode = "GM_ACTION") {
+function transition(
+  sequence,
+  from,
+  to,
+  occurredAt,
+  reasonCode = "GM_ACTION",
+  actorKind = "user",
+  actorId = "user-redacted-gm-001"
+) {
   return {
     sequence,
     from,
     to,
-    actorUserId: "user-redacted-gm-001",
+    actorKind,
+    actorId,
     reasonCode,
     occurredAt
   };
@@ -152,14 +161,71 @@ test("transition history is contiguous and revision-bound", () => {
   );
 });
 
+test("transition actors distinguish human GM actions from worker and system actions", () => {
+  const transitions = [
+    transition(1, "draft", "connected", "2026-09-07T10:01:00.000Z"),
+    transition(2, "connected", "collecting", "2026-09-07T10:02:00.000Z"),
+    transition(3, "collecting", "ended", "2026-09-07T11:00:00.000Z"),
+    transition(4, "ended", "queued", "2026-09-07T11:00:01.000Z"),
+    transition(
+      5,
+      "queued",
+      "processing",
+      "2026-09-07T11:00:02.000Z",
+      "WORKER_CLAIM",
+      "worker",
+      "session-processing-worker-v1"
+    )
+  ];
+  const processing = {
+    processingVersion: 1,
+    jobId: "job-session-001",
+    attempt: 1,
+    progressPercent: 0,
+    costMicros: 0,
+    latencyMs: 0,
+    queuedAt: "2026-09-07T11:00:01.000Z",
+    startedAt: "2026-09-07T11:00:02.000Z",
+    completedAt: null,
+    leaseExpiresAt: "2026-09-07T11:05:02.000Z",
+    safeErrorCode: null
+  };
+  const parsed = parseUnifiedSessionLifecycleContract(draftSession({
+    status: "processing",
+    processing,
+    lifecycleRevision: 5,
+    transitions,
+    updatedAt: "2026-09-07T11:00:02.000Z"
+  }));
+  assert.equal(parsed.transitions[4].actorKind, "worker");
+  assert.equal(parsed.transitions[4].actorId, "session-processing-worker-v1");
+
+  assert.throws(
+    () => parseUnifiedSessionLifecycleContract(draftSession({
+      status: "connected",
+      lifecycleRevision: 1,
+      transitions: [{
+        sequence: 1,
+        from: "draft",
+        to: "connected",
+        actorUserId: "user-redacted-gm-001",
+        reasonCode: "GM_CONNECT",
+        occurredAt: "2026-09-07T10:01:00.000Z"
+      }],
+      updatedAt: "2026-09-07T10:01:00.000Z"
+    })),
+    ContractValidationError
+  );
+});
+
 test("review-ready and published states enforce one review set per processing version", () => {
   const transitions = [
     transition(1, "draft", "connected", "2026-09-07T10:01:00.000Z"),
     transition(2, "connected", "collecting", "2026-09-07T10:02:00.000Z"),
     transition(3, "collecting", "ended", "2026-09-07T11:00:00.000Z"),
     transition(4, "ended", "queued", "2026-09-07T11:00:01.000Z"),
-    transition(5, "queued", "processing", "2026-09-07T11:00:02.000Z"),
-    transition(6, "processing", "reviewReady", "2026-09-07T11:02:00.000Z")
+    transition(5, "queued", "processing", "2026-09-07T11:00:02.000Z", "WORKER_CLAIM", "worker", "session-processing-worker-v1"),
+    transition(6, "processing", "reviewReady", "2026-09-07T11:02:00.000Z", "WORKER_REVIEW_READY", "worker", "session-processing-worker-v1")
   ];
   const processing = {
     processingVersion: 1,
