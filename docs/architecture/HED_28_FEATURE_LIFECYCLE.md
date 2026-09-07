@@ -330,10 +330,8 @@ HED-28 completion evidence:
 - disposable-Mongo GM/player/cross-tenant/revoked fixtures — PASS;
 - manual-note and transcript retrieval fixtures — PASS;
 - no-cache response verification — PASS;
-- full repository `verify` CI — PASS on the implementation gate preceding this documentation-only clarification;
-- disposable-Mongo characterization CI — PASS on the same implementation gate;
 - feature-lifecycle completeness map — this document.
 
-The final branch gate must remain green after documentation updates before the PR is marked ready for review.
+The branch must pass both the full repository `verify` job and the disposable-Mongo characterization job after the final commit before the PR is marked ready for review.
 
 Downstream model execution, player-facing Ask UI, Story Pulse review, and canon publication remain separate owning tasks rather than hidden HED-28 scope expansion.
