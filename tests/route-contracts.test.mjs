@@ -23,6 +23,7 @@ import { categoriesRouter } from "../apps/server/src/routes/categories.js";
 import { campaignsRouter } from "../apps/server/src/routes/campaigns.js";
 import { charactersRouter } from "../apps/server/src/routes/characters.js";
 import { entriesRouter } from "../apps/server/src/routes/entries.js";
+import { evidenceSearchRouter } from "../apps/server/src/routes/evidenceSearch.js";
 import { foundryRouter } from "../apps/server/src/routes/foundry.js";
 import { healthRouter } from "../apps/server/src/routes/health.js";
 import { importRouter } from "../apps/server/src/routes/import.js";
@@ -230,6 +231,7 @@ const routerMounts = [
   ["/api", "notesRouter", "notes.js", notesRouter],
   ["/api", "charactersRouter", "characters.js", charactersRouter],
   ["/api", "entriesRouter", "entries.js", entriesRouter],
+  ["/api", "evidenceSearchRouter", "evidenceSearch.js", evidenceSearchRouter],
   ["/api", "sessionLifecycleRouter", "sessionLifecycle.js", sessionLifecycleRouter],
   ["/api", "worldSystemsRouter", "worldSystems.js", worldSystemsRouter],
   ["/api", "importRouter", "import.js", importRouter],
@@ -276,7 +278,7 @@ test("all backend route modules are mounted and endpoint signatures stay unique"
     .sort();
   const mountedFiles = [...new Set(routerMounts.map(([, , file]) => file))].sort();
   assert.deepEqual(routeFiles, mountedFiles, "Every route module must be mounted exactly through the route table");
-  assert.equal(signatures.length, 113, "Unexpected backend endpoint count");
+  assert.equal(signatures.length, 114, "Unexpected backend endpoint count");
   assert.equal(new Set(signatures).size, signatures.length, "Backend endpoint signatures must be unique");
 });
 
@@ -374,6 +376,7 @@ test("campaign content reads require membership and GM metadata stays restricted
   ]) {
     assert.ok(middlewareNames(router, routePath).includes("requireCampaignMember"), `${routePath} must require campaign membership`);
   }
+  assert.ok(middlewareNames(evidenceSearchRouter, "/campaigns/:campaignId/evidence/search", "post").includes("requireCampaignMember"), "/campaigns/:campaignId/evidence/search must require campaign membership");
   assert.ok(middlewareNames(toolsRouter, "/metadata").includes("requireGm"), "/metadata must require GM access");
   assert.ok(middlewareNames(toolsRouter, "/assets/list").includes("requireGm"), "/assets/list must require GM access");
   assert.ok(middlewareNames(subscriptionRouter, "/subscription").includes("requireCampaignMember"), "/subscription must require campaign membership");
