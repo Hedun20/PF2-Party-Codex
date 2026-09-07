@@ -1,14 +1,33 @@
 import {
   parseSessionProcessingReportContract,
   parseSessionProcessingRequestContract,
+  verifySessionProcessingSourceSnapshot,
   type SessionProcessingReportContract,
-  type SessionProcessingRequestContract
+  type SessionProcessingRequestContract,
+  type SessionProcessingSourceSnapshotContract
 } from "@pf2-party-codex/contracts";
 
 export interface SessionProcessingArchivePort {
   readonly submitSessionProcessingReport: (
     report: SessionProcessingReportContract
   ) => Promise<void>;
+}
+
+export interface SessionProcessingSourceSnapshotArchivePort {
+  readonly readSessionProcessingSourceSnapshot: (input: {
+    readonly workspaceId: string;
+    readonly campaignId: string;
+    readonly sessionId: string;
+    readonly processingVersion: number;
+    readonly sourceSnapshotRef: string;
+    readonly sourceSnapshotHash: string;
+  }) => Promise<unknown>;
+}
+
+export interface LoadSessionProcessingSourceSnapshotOptions {
+  readonly request: unknown;
+  readonly archivePort: SessionProcessingSourceSnapshotArchivePort;
+  readonly sha256: (canonicalUtf8: string) => string;
 }
 
 export interface SessionProcessingReporterOptions {
@@ -72,6 +91,24 @@ function sameScope(
     report.sessionId === request.sessionId &&
     report.processingVersion === request.processingVersion
   );
+}
+
+export async function loadVerifiedSessionProcessingSourceSnapshot(
+  options: LoadSessionProcessingSourceSnapshotOptions
+): Promise<SessionProcessingSourceSnapshotContract> {
+  const request = parseSessionProcessingRequestContract(options.request);
+  const snapshot = await options.archivePort.readSessionProcessingSourceSnapshot({
+    workspaceId: request.workspaceId,
+    campaignId: request.campaignId,
+    sessionId: request.sessionId,
+    processingVersion: request.processingVersion,
+    sourceSnapshotRef: request.sourceSnapshotRef,
+    sourceSnapshotHash: request.sourceSnapshotHash
+  });
+  return verifySessionProcessingSourceSnapshot(snapshot, {
+    request,
+    sha256: options.sha256
+  });
 }
 
 export function createSessionProcessingReporter(
