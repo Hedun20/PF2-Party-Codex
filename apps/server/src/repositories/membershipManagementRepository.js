@@ -88,7 +88,7 @@ export async function removeCampaignMembership({ campaignId, membershipId } = {}
   const stamp = new Date().toISOString();
   const result = await membershipCollection().updateOne(
     { _id: target._id, campaignId: campaignObjectId, status: "active", role: { $ne: "owner" } },
-    { $set: { status: "removed", removedAt: stamp, updatedAt: stamp } }
+    { $set: { status: "removed", removedAt: stamp, removedReason: "managerRemoved", updatedAt: stamp } }
   );
   if (!result.modifiedCount) {
     const error = new Error("Campaign membership changed before it could be removed. Refresh and retry.");
@@ -102,7 +102,90 @@ export async function removeCampaignMembership({ campaignId, membershipId } = {}
       { $unset: { activeCampaignId: "", activeCampaignUpdatedAt: "" }, $set: { updatedAt: stamp } }
     );
   }
-  return publicMembership({ ...target, status: "removed", removedAt: stamp, updatedAt: stamp });
+  return publicMembership({ ...target, status: "removed", removedAt: stamp, removedReason: "managerRemoved", updatedAt: stamp });
+}
+
+export async function leaveCampaignMembership({ campaignId, userId } = {}) {
+  requireMongo();
+  const campaignObjectId = requiredObjectId(campaignId, "Campaign id");
+  const userObjectId = requiredObjectId(userId, "User id");
+  const target = await membershipCollection().findOne({ campaignId: campaignObjectId, userId: userObjectId });
+
+  if (!target) {
+    const error = new Error("Campaign membership was not found.");
+    error.status = 404;
+    throw error;
+  }
+
+  if (target.status === "removed") {
+    return {
+      membership: publicMembership(target),
+      idempotent: true
+    };
+  }
+
+  if (target.role === "owner") {
+    const error = new Error("Transfer campaign ownership before leaving this campaign.");
+    error.status = 409;
+    error.code = "OWNERSHIP_TRANSFER_REQUIRED";
+    throw error;
+  }
+
+  if (target.status !== "active") {
+    const error = new Error("Only an active campaign membership can be left.");
+    error.status = 409;
+    throw error;
+  }
+
+  const stamp = new Date().toISOString();
+  const result = await membershipCollection().updateOne(
+    {
+      _id: target._id,
+      campaignId: campaignObjectId,
+      userId: userObjectId,
+      status: "active",
+      role: { $ne: "owner" }
+    },
+    {
+      $set: {
+        status: "removed",
+        removedAt: stamp,
+        removedReason: "left",
+        updatedAt: stamp
+      }
+    }
+  );
+
+  if (!result.modifiedCount) {
+    const current = await membershipCollection().findOne({ _id: target._id, campaignId: campaignObjectId, userId: userObjectId });
+    if (current?.status === "removed") {
+      return {
+        membership: publicMembership(current),
+        idempotent: true
+      };
+    }
+    const error = new Error("Campaign membership changed before it could be left. Refresh and retry.");
+    error.status = 409;
+    throw error;
+  }
+
+  // Authorization revocation wins even if the active-campaign pointer update is interrupted.
+  // identityContextForUser() repairs a stale pointer on the next session read.
+  await userCollection().updateOne(
+    { _id: userObjectId, activeCampaignId: campaignObjectId },
+    { $unset: { activeCampaignId: "", activeCampaignUpdatedAt: "" }, $set: { updatedAt: stamp } }
+  );
+
+  return {
+    membership: publicMembership({
+      ...target,
+      status: "removed",
+      removedAt: stamp,
+      removedReason: "left",
+      updatedAt: stamp
+    }),
+    idempotent: false
+  };
 }
 
 export async function revokeCampaignInvitation({ campaignId, invitationId } = {}) {
