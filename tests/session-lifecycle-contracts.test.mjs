@@ -192,7 +192,7 @@ test("processing versions, retries and review sets stay deterministic", () => {
   }), /not allowed/i);
 });
 
-test("stale processing lease recovery requeues the same processing version", () => {
+test("stale processing lease recovery records failure before requeueing the same processing version", () => {
   let lifecycle = endSessionLifecycle(
     startSessionLifecycle(connect(baseLifecycle()), {
       actorUserId: GM,
@@ -220,6 +220,7 @@ test("stale processing lease recovery requeues the same processing version", () 
     occurredAt: "2026-09-07T11:00:30.000Z"
   }), /still active/i);
 
+  const beforeRecoveryRevision = lifecycle.lifecycleRevision;
   const recovered = recoverStaleSessionLifecycle(lifecycle, {
     actorUserId: GM,
     occurredAt: "2026-09-07T11:01:03.000Z"
@@ -227,7 +228,14 @@ test("stale processing lease recovery requeues the same processing version", () 
   assert.equal(recovered.lifecycle.status, "queued");
   assert.equal(recovered.lifecycle.processing.processingVersion, 1);
   assert.equal(recovered.lifecycle.processing.jobId, null);
-  assert.equal(recovered.lifecycle.transitions.at(-1).reasonCode, "STALE_PROCESSING_RECOVERY");
+  assert.equal(recovered.lifecycle.lifecycleRevision, beforeRecoveryRevision + 2);
+  assert.deepEqual(
+    recovered.lifecycle.transitions.slice(-2).map(({ from, to, reasonCode }) => ({ from, to, reasonCode })),
+    [
+      { from: "processing", to: "failed", reasonCode: "STALE_PROCESSING_LEASE" },
+      { from: "failed", to: "queued", reasonCode: "STALE_PROCESSING_RECOVERY" }
+    ]
+  );
 });
 
 test("partial sources are visible as bounded warnings and invalid authority fails closed", () => {
