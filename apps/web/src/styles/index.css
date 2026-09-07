@@ -1,4 +1,4 @@
-@layer theme, fantasy, components, design, buttons, stabilization, shell, blocks, campaign, accessibility, stage16a, stage16b, magicSelect, content, stage17, stage18, stage19, stage20, stage21, stage25;
+@layer theme, fantasy, components, design, buttons, stabilization, shell, blocks, campaign, accessibility, stage16a, stage16b, magicSelect, content, stage17, stage18, stage19, stage20, stage21, stage25, app;
 
 @import "./theme.css" layer(theme);
 @import "./fantasy.css" layer(fantasy);
@@ -20,3 +20,7 @@
 @import "./stage20-native-selects.css" layer(stage20);
 @import "./stage21-character-dossier.css" layer(stage21);
 @import "./stage25-player-management.css" layer(stage25);
+
+/* Stable product UI contract. New cross-app visual rules belong here while
+   historical layers above are retired module by module. */
+@import "./app.css" layer(app);
