@@ -73,6 +73,7 @@ export function productionConfigIssues(env = process.env) {
   const origins = csv(env.ALLOWED_ORIGINS);
   const emailMode = String(env.EMAIL_MODE || "outbox").trim().toLowerCase();
   const billingMode = String(env.BILLING_MODE || "disabled").trim().toLowerCase();
+  const discordIdentityLinkEnabled = envBoolean(env.DISCORD_IDENTITY_LINK_ENABLED, false);
 
   if (authSecret.length < 32 || authSecret === LOCAL_AUTH_SECRET || /change[_-]?me|replace[_-]?me/i.test(authSecret)) {
     issues.push("AUTH_SECRET must be a unique secret of at least 32 characters.");
@@ -101,6 +102,9 @@ export function productionConfigIssues(env = process.env) {
     issues.push("EMAIL_FROM must contain a valid deliverable sender address and may not use localhost.");
   }
   if (!BILLING_MODES.has(billingMode)) issues.push("BILLING_MODE must be 'disabled' or 'manual'; no payment provider is simulated.");
+  if (discordIdentityLinkEnabled && String(env.DISCORD_SERVICE_CREDENTIAL || "").length < 32) {
+    issues.push("DISCORD_SERVICE_CREDENTIAL must contain at least 32 characters when DISCORD_IDENTITY_LINK_ENABLED=true.");
+  }
   return issues;
 }
 
@@ -111,6 +115,7 @@ const allowedOrigins = csv(process.env.ALLOWED_ORIGINS || LOCAL_ORIGINS.join(","
 const dataDir = process.env.DATA_DIR || path.join(rootDir, "data");
 const emailMode = String(process.env.EMAIL_MODE || "outbox").trim().toLowerCase();
 const billingMode = String(process.env.BILLING_MODE || "disabled").trim().toLowerCase();
+const discordIdentityLinkEnabled = envBoolean(process.env.DISCORD_IDENTITY_LINK_ENABLED, false);
 const productionIssues = isProduction ? productionConfigIssues(process.env) : [];
 
 if (productionIssues.length) {
@@ -157,5 +162,7 @@ export const config = {
   emailWebhookTimeoutMs: positiveNumber(process.env.EMAIL_WEBHOOK_TIMEOUT_MS, 10_000),
   billingMode: BILLING_MODES.has(billingMode) ? billingMode : "disabled",
   platformAdminEmails: csv(process.env.PLATFORM_ADMIN_EMAILS).map((email) => email.toLowerCase()),
+  discordIdentityLinkEnabled,
+  discordServiceCredential: String(process.env.DISCORD_SERVICE_CREDENTIAL || ""),
   productionIssues
 };

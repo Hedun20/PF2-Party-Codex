@@ -6,14 +6,16 @@ function read(path) {
   return fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
-test("web client exposes membership role, removal and invitation revoke mutations", () => {
+test("web client exposes membership role, removal, Discord recovery and invitation revoke mutations", () => {
   const client = read("apps/web/src/api/client.js");
 
   assert.match(client, /updateCampaignMembership/);
   assert.match(client, /method: "PATCH"/);
   assert.match(client, /removeCampaignMembership/);
+  assert.match(client, /managerUnlinkDiscordIdentity/);
   assert.match(client, /revokeCampaignInvitation/);
   assert.match(client, /memberships\/\$\{encodeURIComponent\(membershipId\)\}/);
+  assert.match(client, /memberships\/\$\{encodeURIComponent\(membershipId\)\}\/discord-identity/);
   assert.match(client, /invitations\/\$\{encodeURIComponent\(invitationId\)\}/);
 });
 
@@ -25,18 +27,22 @@ test("players page mirrors owner and GM management permissions", () => {
   assert.match(page, /member\.role === "owner" \|\| isSelf\(member\)/);
   assert.match(page, /api\.updateCampaignMembership/);
   assert.match(page, /api\.removeCampaignMembership/);
+  assert.match(page, /api\.managerUnlinkDiscordIdentity/);
   assert.match(page, /api\.revokeCampaignInvitation/);
   assert.match(page, /<option value="player">Игрок<\/option>/);
   assert.match(page, /<option value="gm">GM<\/option>/);
 });
 
-test("destructive player management actions require inline confirmation", () => {
+test("destructive and external-identity recovery actions require inline confirmation", () => {
   const page = read("apps/web/src/pages/PlayersPage.jsx");
 
   assert.match(page, /confirmAction !== key/);
   assert.match(page, /remove-member:/);
+  assert.match(page, /unlink-discord:/);
   assert.match(page, /revoke-invite:/);
   assert.match(page, /Подтвердить/);
+  assert.match(page, /Сбросить Discord/);
+  assert.match(page, /Доступ к кампании не изменён/);
   assert.match(page, /setConfirmAction\(""\)/);
 });
 

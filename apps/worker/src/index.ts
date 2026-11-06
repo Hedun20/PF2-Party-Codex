@@ -2,6 +2,8 @@ import { parseWorkerEnvironment, type WorkerEnvironment } from "@pf2-party-codex
 import { parseCampaignId, type CampaignId } from "@pf2-party-codex/contracts";
 import { evaluatePlayerArchiveRead } from "@pf2-party-codex/core";
 
+export * from "./sessionProcessing.js";
+
 export const WORKER_RUNTIME = "worker" as const;
 
 export interface WorkerBoundaryProbe {

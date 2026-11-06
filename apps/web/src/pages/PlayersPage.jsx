@@ -285,6 +285,21 @@ export default function PlayersPage({ session }) {
     );
   }
 
+  async function resetMemberDiscord(member) {
+    const membershipId = getId(member);
+    const key = `unlink-discord:${membershipId}`;
+    if (!membershipId) return;
+    if (confirmAction !== key) {
+      setConfirmAction(key);
+      return;
+    }
+    await runManagementAction(
+      key,
+      () => api.managerUnlinkDiscordIdentity(activeCampaignId, membershipId),
+      `Discord-привязка ${memberName(member)} сброшена. Доступ к кампании не изменён.`
+    );
+  }
+
   async function removeMember(member) {
     const membershipId = getId(member);
     const key = `remove-member:${membershipId}`;
@@ -345,6 +360,12 @@ export default function PlayersPage({ session }) {
   }
 
   function canRemove(member) {
+    if (member.role === "owner" || isSelf(member)) return false;
+    if (managerRole === "owner") return true;
+    return managerRole === "gm" && member.role === "player";
+  }
+
+  function canRecoverDiscord(member) {
     if (member.role === "owner" || isSelf(member)) return false;
     if (managerRole === "owner") return true;
     return managerRole === "gm" && member.role === "player";
@@ -501,9 +522,13 @@ export default function PlayersPage({ session }) {
                   {members.items.map((member) => {
                     const membershipId = getId(member);
                     const roleActionKey = `role:${membershipId}`;
+                    const discordActionKey = `unlink-discord:${membershipId}`;
                     const removeActionKey = `remove-member:${membershipId}`;
                     const roleBusy = managementAction.loading && managementAction.key === roleActionKey;
+                    const discordBusy = managementAction.loading && managementAction.key === discordActionKey;
                     const removeBusy = managementAction.loading && managementAction.key === removeActionKey;
+                    const rowBusy = roleBusy || discordBusy || removeBusy;
+                    const confirmingDiscord = confirmAction === discordActionKey;
                     const confirmingRemoval = confirmAction === removeActionKey;
                     return (
                       <div className="players-row players-member-row" key={membershipId || `${member.userId}-${member.role}`}>
@@ -530,7 +555,7 @@ export default function PlayersPage({ session }) {
                                 <select
                                   className="players-role-select"
                                   value={member.role || "player"}
-                                  disabled={roleBusy || removeBusy}
+                                  disabled={rowBusy}
                                   onChange={(event) => changeMemberRole(member, event.target.value)}
                                   aria-label={`Роль участника ${memberName(member)}`}
                                 >
@@ -543,10 +568,30 @@ export default function PlayersPage({ session }) {
                                 {member.role === "owner" ? "Владелец защищён" : isSelf(member) ? "Собственная роль" : "Роль меняет владелец"}
                               </span>
                             )}
+                            {canRecoverDiscord(member) ? (
+                              <div className="players-destructive-actions">
+                                {confirmingDiscord ? (
+                                  <CodexButton type="button" variant="ghost" size="sm" onClick={() => setConfirmAction("")} disabled={rowBusy}>
+                                    <X size={14} aria-hidden="true" /> Отмена
+                                  </CodexButton>
+                                ) : null}
+                                <CodexButton
+                                  type="button"
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => resetMemberDiscord(member)}
+                                  disabled={rowBusy}
+                                  title="Сбросить внешнюю Discord-привязку, не меняя доступ участника к кампании"
+                                >
+                                  {discordBusy ? <LoaderCircle className="players-spinner" size={14} aria-hidden="true" /> : <Link2 size={14} aria-hidden="true" />}
+                                  {discordBusy ? "Сбрасываю..." : confirmingDiscord ? "Подтвердить Discord" : "Сбросить Discord"}
+                                </CodexButton>
+                              </div>
+                            ) : null}
                             {canRemove(member) ? (
                               <div className="players-destructive-actions">
                                 {confirmingRemoval ? (
-                                  <CodexButton type="button" variant="ghost" size="sm" onClick={() => setConfirmAction("")} disabled={removeBusy}>
+                                  <CodexButton type="button" variant="ghost" size="sm" onClick={() => setConfirmAction("")} disabled={rowBusy}>
                                     <X size={14} aria-hidden="true" /> Отмена
                                   </CodexButton>
                                 ) : null}
@@ -556,7 +601,7 @@ export default function PlayersPage({ session }) {
                                   size="sm"
                                   className={confirmingRemoval ? "players-danger-action is-confirming" : "players-danger-action"}
                                   onClick={() => removeMember(member)}
-                                  disabled={roleBusy || removeBusy}
+                                  disabled={rowBusy}
                                 >
                                   {removeBusy ? <LoaderCircle className="players-spinner" size={14} aria-hidden="true" /> : <Trash2 size={14} aria-hidden="true" />}
                                   {removeBusy ? "Удаляю..." : confirmingRemoval ? "Подтвердить" : "Удалить"}

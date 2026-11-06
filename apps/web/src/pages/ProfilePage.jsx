@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Crown, Languages, Mail, Palette, Save, ShieldCheck, UserRound, UsersRound } from "lucide-react";
 import { api } from "../api/client.js";
+import DiscordIdentityPanel from "../components/DiscordIdentityPanel.jsx";
 import { CodexButton, CodexCard, PageHero, PageShell, StatusMessage } from "../components/ui/index.js";
 
 function roleLabel(role = "user") {
@@ -145,6 +146,8 @@ export default function ProfilePage({ session, campaigns = [], onProfileChanged 
           </CodexCard>
         </div>
       </section>
+
+      {hasCampaign ? <DiscordIdentityPanel session={session} /> : null}
 
       <CodexCard as="section" className="workspace-status-card">
         <span className="kicker">Быстрые действия</span>

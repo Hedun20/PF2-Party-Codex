@@ -23,6 +23,7 @@ import { categoriesRouter } from "../apps/server/src/routes/categories.js";
 import { campaignsRouter } from "../apps/server/src/routes/campaigns.js";
 import { charactersRouter } from "../apps/server/src/routes/characters.js";
 import { entriesRouter } from "../apps/server/src/routes/entries.js";
+import { evidenceSearchRouter } from "../apps/server/src/routes/evidenceSearch.js";
 import { foundryRouter } from "../apps/server/src/routes/foundry.js";
 import { healthRouter } from "../apps/server/src/routes/health.js";
 import { importRouter } from "../apps/server/src/routes/import.js";
@@ -34,6 +35,7 @@ import { pf2Router } from "../apps/server/src/routes/pf2.js";
 import { platformRouter } from "../apps/server/src/routes/platform.js";
 import { revealRouter } from "../apps/server/src/routes/reveal.js";
 import { searchRouter } from "../apps/server/src/routes/search.js";
+import { sessionLifecycleRouter } from "../apps/server/src/routes/sessionLifecycle.js";
 import { subscriptionRouter } from "../apps/server/src/routes/subscription.js";
 import { toolsRouter } from "../apps/server/src/routes/tools.js";
 import { worldSystemsRouter } from "../apps/server/src/routes/worldSystems.js";
@@ -229,6 +231,8 @@ const routerMounts = [
   ["/api", "notesRouter", "notes.js", notesRouter],
   ["/api", "charactersRouter", "characters.js", charactersRouter],
   ["/api", "entriesRouter", "entries.js", entriesRouter],
+  ["/api", "evidenceSearchRouter", "evidenceSearch.js", evidenceSearchRouter],
+  ["/api", "sessionLifecycleRouter", "sessionLifecycle.js", sessionLifecycleRouter],
   ["/api", "worldSystemsRouter", "worldSystems.js", worldSystemsRouter],
   ["/api", "importRouter", "import.js", importRouter],
   ["/api", "pagesRouter", "pages.js", pagesRouter],
@@ -274,7 +278,7 @@ test("all backend route modules are mounted and endpoint signatures stay unique"
     .sort();
   const mountedFiles = [...new Set(routerMounts.map(([, , file]) => file))].sort();
   assert.deepEqual(routeFiles, mountedFiles, "Every route module must be mounted exactly through the route table");
-  assert.equal(signatures.length, 97, "Unexpected backend endpoint count");
+  assert.equal(signatures.length, 114, "Unexpected backend endpoint count");
   assert.equal(new Set(signatures).size, signatures.length, "Backend endpoint signatures must be unique");
 });
 
@@ -346,6 +350,35 @@ test("timeline API response keeps the frontend contract and compatibility alias"
   assert.match(source, /timelineEvents:\s*events,\s*events,/);
 });
 
+
+test("session queue validates evidence before committing queued state", async () => {
+  const source = await fs.readFile(path.join(rootDir, "apps/server/src/routes/sessionLifecycle.js"), "utf8");
+  const start = source.indexOf('sessionLifecycleRouter.post("/sessions/:sessionId/lifecycle/queue"');
+  const end = source.indexOf('sessionLifecycleRouter.post("/sessions/:sessionId/lifecycle/publish"', start);
+  const queueRoute = source.slice(start, end);
+  const readPosition = queueRoute.indexOf("readSessionLifecycle(scope)");
+  const transitionPosition = queueRoute.indexOf('to: "queued"');
+
+  assert.ok(start >= 0, "queue route must exist");
+  assert.ok(readPosition >= 0 && transitionPosition >= 0 && readPosition < transitionPosition);
+  assert.match(queueRoute, /current\.session\?\.sourceRanges/);
+  assert.match(queueRoute, /SESSION_SOURCE_SNAPSHOT_REQUIRED/);
+});
+
+test("stale processing recovery CAS includes the observed worker lease", async () => {
+  const source = await fs.readFile(path.join(rootDir, "apps/server/src/repositories/sessionLifecycleRepository.js"), "utf8");
+  const start = source.indexOf("export async function recoverCampaignSessionLifecycle");
+  const end = source.indexOf("export async function reportSessionProcessingProgress", start);
+  const recovery = source.slice(start, end);
+
+  assert.ok(start >= 0, "recoverCampaignSessionLifecycle must exist");
+  assert.match(recovery, /matchCurrent\(current\)/);
+  assert.match(recovery, /lifecycle\.processing\.processingVersion/);
+  assert.match(recovery, /lifecycle\.processing\.jobId/);
+  assert.match(recovery, /lifecycle\.processing\.attempt/);
+  assert.match(recovery, /lifecycle\.processing\.leaseExpiresAt/);
+});
+
 test("LAN URL discovery cannot crash server startup", () => {
   assert.deepEqual(localIpv4Addresses(() => { throw new Error("network interfaces unavailable"); }), []);
   assert.deepEqual(localIpv4Addresses(() => ({
@@ -372,6 +405,7 @@ test("campaign content reads require membership and GM metadata stays restricted
   ]) {
     assert.ok(middlewareNames(router, routePath).includes("requireCampaignMember"), `${routePath} must require campaign membership`);
   }
+  assert.ok(middlewareNames(evidenceSearchRouter, "/campaigns/:campaignId/evidence/search", "post").includes("requireCampaignMember"), "/campaigns/:campaignId/evidence/search must require campaign membership");
   assert.ok(middlewareNames(toolsRouter, "/metadata").includes("requireGm"), "/metadata must require GM access");
   assert.ok(middlewareNames(toolsRouter, "/assets/list").includes("requireGm"), "/assets/list must require GM access");
   assert.ok(middlewareNames(subscriptionRouter, "/subscription").includes("requireCampaignMember"), "/subscription must require campaign membership");
