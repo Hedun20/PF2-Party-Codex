@@ -225,6 +225,28 @@ test("pairing codes are one-time secrets and exactly one membership can claim a 
   assert.equal(unlinkAgain.idempotent, true);
 });
 
+test("idempotent unlink revokes a pending pairing challenge even without an active link", async () => {
+  await database.collection("discordIdentityLinks").updateMany(
+    { campaignId: ids.campaign, membershipId: ids.membershipA, status: { $in: ["active", "pending"] } },
+    { $set: { status: "revoked", revokedAt: new Date().toISOString(), revokedReason: "testReset" } }
+  );
+
+  const challenge = await createDiscordIdentityChallenge(scope(ids.membershipA, ids.userA));
+  const result = await revokeDiscordIdentityLink({
+    campaignId: ids.campaign,
+    membershipId: ids.membershipA,
+    userId: ids.userA,
+    reason: "managerUnlinked"
+  });
+  assert.equal(result.idempotent, true);
+  assert.equal(result.link, null);
+
+  const storedChallenge = await database.collection("discordIdentityChallenges").findOne({
+    _id: new ObjectId(challenge.id)
+  });
+  assert.equal(storedChallenge.status, "revoked");
+});
+
 test("membership removal revokes Discord identity and defensive stale pending pairing before authorization disappears", async () => {
   const currentB = await database.collection("memberships").findOne({ _id: ids.membershipB });
   if (currentB.status !== "active") {
@@ -255,6 +277,7 @@ test("membership removal revokes Discord identity and defensive stale pending pa
   );
 
   const pendingChallengeId = new ObjectId();
+  const provisionalLinkId = new ObjectId();
   const pendingStamp = new Date().toISOString();
   await database.collection("discordIdentityChallenges").insertOne({
     _id: pendingChallengeId,
@@ -269,6 +292,18 @@ test("membership removal revokes Discord identity and defensive stale pending pa
     createdAt: pendingStamp,
     updatedAt: pendingStamp
   });
+  await database.collection("discordIdentityLinks").insertOne({
+    _id: provisionalLinkId,
+    workspaceId: ids.workspace,
+    campaignId: ids.campaign,
+    membershipId: ids.membershipB,
+    userId: ids.userB,
+    provider: "discord",
+    discordUserId: "888888888888888888",
+    status: "pending",
+    createdAt: pendingStamp,
+    updatedAt: pendingStamp
+  });
 
   const removed = await removeCampaignMembership({
     campaignId: ids.campaign,
@@ -276,12 +311,15 @@ test("membership removal revokes Discord identity and defensive stale pending pa
   });
   assert.equal(removed.status, "removed");
 
-  const [linkAfter, challengeAfter] = await Promise.all([
+  const [linkAfter, provisionalAfter, challengeAfter] = await Promise.all([
     database.collection("discordIdentityLinks").findOne({ _id: new ObjectId(linked.link.id) }),
+    database.collection("discordIdentityLinks").findOne({ _id: provisionalLinkId }),
     database.collection("discordIdentityChallenges").findOne({ _id: pendingChallengeId })
   ]);
   assert.equal(linkAfter.status, "revoked");
   assert.equal(linkAfter.revokedReason, "membershipRemoved");
+  assert.equal(provisionalAfter.status, "revoked");
+  assert.equal(provisionalAfter.revokedReason, "membershipRemoved");
   assert.equal(challengeAfter.status, "revoked");
 
   await assert.rejects(
