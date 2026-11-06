@@ -51,6 +51,22 @@ test("losing ownership race compensates target role and completed retry reconcil
   assert.match(transfer, /OWNERSHIP_RECONCILE_REQUIRED/);
 });
 
+
+
+test("owner-only membership mutations require role and campaign owner pointer to agree", () => {
+  const routes = read("apps/server/src/routes/memberships.js");
+  const start = routes.indexOf("function requireOwner(context)");
+  const end = routes.indexOf("function discordPairingAvailable", start);
+  const requireOwner = routes.slice(start, end);
+
+  assert.ok(start >= 0, "requireOwner must exist");
+  assert.match(requireOwner, /context\.role === "owner"/);
+  assert.match(requireOwner, /context\.activeMembership\?\.userId/);
+  assert.match(requireOwner, /context\.activeCampaign\?\.ownerUserId/);
+  assert.match(requireOwner, /membershipUserId === campaignOwnerUserId/);
+  assert.match(requireOwner, /CAMPAIGN_OWNER_REQUIRED/);
+});
+
 test("ownership transfer route audits only the first completed transfer", () => {
   const routes = read("apps/server/src/routes/campaigns.js");
   const start = routes.indexOf('campaignsRouter.post("/campaigns/:campaignId/ownership/transfer"');
