@@ -61,6 +61,36 @@ test("Discord identity is subordinate to exact campaign membership and revoked b
   );
 });
 
+
+
+test("Discord pairing stays provisional until membership and challenge are revalidated", async () => {
+  const repository = await source("apps/server/src/repositories/discordIdentityRepository.js");
+  const start = repository.indexOf("export async function completeDiscordIdentityChallenge");
+  const end = repository.indexOf("export async function revokeDiscordIdentityLink", start);
+  const complete = repository.slice(start, end);
+
+  assert.match(complete, /status: "pending"/);
+  assert.match(complete, /liveMembership/);
+  assert.match(complete, /liveChallenge/);
+  assert.match(complete, /status: "consuming"/);
+  assert.match(complete, /status: "active"/);
+  assert.match(complete, /DISCORD_IDENTITY_MEMBERSHIP_CHANGED/);
+
+  const revokeStart = repository.indexOf("export async function revokeDiscordIdentityForMembership");
+  const revoke = repository.slice(revokeStart);
+  assert.match(revoke, /status: \{ \$in: \["active", "pending"\] \}/);
+  assert.match(revoke, /status: \{ \$in: \["pending", "consuming"\] \}/);
+});
+
+test("Discord profile clears campaign state and ignores stale status responses", async () => {
+  const panel = await source("apps/web/src/components/DiscordIdentityPanel.jsx");
+  assert.match(panel, /useRef/);
+  assert.match(panel, /campaignRef\.current !== requestedCampaignId/);
+  assert.match(panel, /requestSerial !== requestSerialRef\.current/);
+  assert.match(panel, /link: null/);
+  assert.match(panel, /challenge: null/);
+});
+
 test("active Discord bindings are protected by partial unique indexes while revoked history remains legal", async () => {
   const indexes = await source("apps/server/src/repositories/discordIdentityConcurrencyIndexes.js");
   assert.match(indexes, /campaignId:\s*1,\s*membershipId:\s*1/);
