@@ -146,7 +146,9 @@ authRouter.post("/auth/register", authAttemptLimiter, async (req, res, next) => 
       message: verification
         ? "Account created. Confirm the email, then log in to continue."
         : "Account created, but the confirmation email could not be queued. Use Resend email confirmation from the login form.",
-      devVerifyUrl: config.isProduction || !verification ? undefined : verification.verifyUrl
+      devVerifyUrl: !verification || (config.isProduction && !config.allowStagingRegistrationVerifyUrl)
+        ? undefined
+        : verification.verifyUrl
     });
   } catch (error) {
     next(error);
