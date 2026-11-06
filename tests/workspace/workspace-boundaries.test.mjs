@@ -55,7 +55,7 @@ test("the target workspace is pinned, private and represented in the lockfile", 
     assert.equal(workspacePackage.private, true, `${workspace} must remain private`);
     assert.equal(workspacePackage.type, "module", `${workspace} must be ESM`);
   }
-  assert.equal(lockfile.packages["apps/web-next"].dependencies.next, "16.3.2");
+  assert.equal(lockfile.packages["apps/web-next"].dependencies.next, "16.4.1");
   assert.equal(lockfile.packages["apps/web-next"].dependencies.react, "19.2.8");
   assert.equal(lockfile.packages["apps/foundry-module"].devDependencies.esbuild, "0.25.12");
   const foundryPackage = await readJson("apps/foundry-module/package.json");

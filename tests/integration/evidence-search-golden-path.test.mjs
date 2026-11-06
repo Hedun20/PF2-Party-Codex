@@ -283,6 +283,8 @@ before(async () => {
     }
   ]);
 
+  const activeEvidencePurgeAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
   await database.collection("evidenceRecords").insertMany([
     {
       _id: new ObjectId(),
@@ -294,7 +296,7 @@ before(async () => {
       state: "active",
       visibility: "restricted",
       occurredAt: "2026-09-07T11:10:00.000Z",
-      purgeAt: "2026-10-07T11:10:00.000Z",
+      purgeAt: activeEvidencePurgeAt,
       providerObjectId: "foundry-chat-001",
       providerEventId: "foundry-event-001",
       normalizedProjection: {
@@ -312,7 +314,7 @@ before(async () => {
       state: "active",
       visibility: "managerOnly",
       occurredAt: "2026-09-07T11:11:00.000Z",
-      purgeAt: "2026-10-07T11:11:00.000Z",
+      purgeAt: activeEvidencePurgeAt,
       providerObjectId: "discord-message-001",
       providerEventId: "discord-event-001",
       normalizedProjection: {
@@ -342,7 +344,7 @@ before(async () => {
       state: "ended",
       visibility: "restricted",
       occurredAt: "2026-09-07T11:13:00.000Z",
-      purgeAt: "2026-10-07T11:13:00.000Z",
+      purgeAt: activeEvidencePurgeAt,
       normalizedProjection: {
         segments: [
           {
@@ -365,7 +367,7 @@ before(async () => {
       state: "active",
       visibility: "restricted",
       occurredAt: "2026-09-07T11:14:00.000Z",
-      purgeAt: "2026-10-07T11:14:00.000Z",
+      purgeAt: activeEvidencePurgeAt,
       normalizedProjection: { text: "Cross-campaign ruined gate oath evidence." }
     }
   ]);

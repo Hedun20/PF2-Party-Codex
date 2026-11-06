@@ -58,8 +58,14 @@ jobs:
         env:
           AUTH_SECRET: ci-only-signing-secret-with-at-least-32-characters
 
+      - name: Build production web bundle and enforce budgets
+        run: npm run build
+
       - name: Run server smoke tests
-        run: node --test tests/server-smoke.test.mjs 2>&1 | tee server-smoke.log
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test tests/server-smoke.test.mjs 2>&1 | tee server-smoke.log
         env:
           AUTH_SECRET: ci-only-signing-secret-with-at-least-32-characters
 
@@ -76,9 +82,6 @@ jobs:
         env:
           AUTH_SECRET: ci-only-signing-secret-with-at-least-32-characters
 
-      - name: Build production web bundle and enforce budgets
-        run: npm run build
-
       - name: Check server and script syntax
         run: npm run check:syntax
 
@@ -86,11 +89,14 @@ jobs:
         run: npm run audit:production
 
   characterize-mongo:
-    runs-on: ubuntu-latest
+    # GitHub-hosted runners now expose kernels that MongoDB 8.0 refuses to start on.
+    # Keep the characterization on MongoDB 8.x, using 8.2 which is not affected by
+    # the current 8.0/8.3 startup guard on these hosted kernels.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     services:
       mongo:
-        image: mongo:8.0
+        image: mongo:8.2
         ports:
           - 27017:27017
         options: >-
