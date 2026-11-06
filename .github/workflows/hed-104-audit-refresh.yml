@@ -36,7 +36,7 @@ jobs:
       - name: Refresh compatible security dependencies
         run: |
           npm update express body-parser multer proxy-addr qs sharp baseline-browser-mapping js-yaml source-map-js --package-lock-only --ignore-scripts
-          npm pkg set dependencies.next=16.4.1 --workspace apps/web-next
+          npm pkg set dependencies.next=16.4.5 --workspace apps/web-next
           npm install --package-lock-only --ignore-scripts
 
       - name: Assert narrow generated diff
