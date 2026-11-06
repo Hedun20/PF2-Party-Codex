@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/hed-104-audit-refresh-20261106
+  pull_request:
+    branches:
+      - fix/hed-33-ci-smoke-truth-20261106
 
 permissions:
   contents: read
