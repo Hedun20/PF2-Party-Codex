@@ -43,6 +43,15 @@ test("Session Mode keeps lifecycle controls GM-only and surfaces progress, retry
   assert.match(page, /Recovery сработает только после истечения worker lease/);
 });
 
+
+test("Session Mode refreshes queued and processing lifecycle state while the worker runs", async () => {
+  const page = await source("apps/web/src/pages/SessionModePage.jsx");
+  assert.match(page, /\["queued", "processing"\]\.includes\(lifecycle\?\.status\)/);
+  assert.match(page, /window\.setInterval\(refreshLifecycle, 4000\)/);
+  assert.match(page, /api\.sessionLifecycle\(sessionId\)/);
+  assert.match(page, /window\.clearInterval\(timer\)/);
+});
+
 test("Session Desk connection is explicit manual evidence and cannot impersonate an integration connection", async () => {
   const page = await source("apps/web/src/pages/SessionModePage.jsx");
   const helper = page.match(/function manualSessionDeskSource\(\) \{[\s\S]*?\n\}/)?.[0] || "";
