@@ -72,6 +72,8 @@ export function productionConfigIssues(env = process.env) {
   const mongoDisabled = envBoolean(env.MONGO_DISABLED, false);
   const origins = csv(env.ALLOWED_ORIGINS);
   const emailMode = String(env.EMAIL_MODE || "outbox").trim().toLowerCase();
+  const allowOutboxEmailInProduction = envBoolean(env.ALLOW_OUTBOX_EMAIL_IN_PRODUCTION, false);
+  const allowStagingRegistrationVerifyUrl = envBoolean(env.ALLOW_STAGING_REGISTRATION_VERIFY_URL, false);
   const billingMode = String(env.BILLING_MODE || "disabled").trim().toLowerCase();
 
   if (authSecret.length < 32 || authSecret === LOCAL_AUTH_SECRET || /change[_-]?me|replace[_-]?me/i.test(authSecret)) {
@@ -86,8 +88,11 @@ export function productionConfigIssues(env = process.env) {
   }
   if (!EMAIL_MODES.has(emailMode)) {
     issues.push("EMAIL_MODE must be 'outbox' or 'webhook'.");
-  } else if (emailMode !== "webhook" && !envBoolean(env.ALLOW_OUTBOX_EMAIL_IN_PRODUCTION, false)) {
+  } else if (emailMode !== "webhook" && !allowOutboxEmailInProduction) {
     issues.push("EMAIL_MODE must be 'webhook' in production unless ALLOW_OUTBOX_EMAIL_IN_PRODUCTION=true is explicitly accepted.");
+  }
+  if (allowStagingRegistrationVerifyUrl && (emailMode !== "outbox" || !allowOutboxEmailInProduction)) {
+    issues.push("ALLOW_STAGING_REGISTRATION_VERIFY_URL=true requires EMAIL_MODE=outbox and ALLOW_OUTBOX_EMAIL_IN_PRODUCTION=true.");
   }
   if (emailMode === "webhook") {
     if (!env.EMAIL_WEBHOOK_URL || !validUrl(env.EMAIL_WEBHOOK_URL, { https: !allowHttp })) {
@@ -110,6 +115,8 @@ const authSecret = process.env.AUTH_SECRET || (isProduction ? "" : LOCAL_AUTH_SE
 const allowedOrigins = csv(process.env.ALLOWED_ORIGINS || LOCAL_ORIGINS.join(",")).map((origin) => origin.replace(/\/$/, ""));
 const dataDir = process.env.DATA_DIR || path.join(rootDir, "data");
 const emailMode = String(process.env.EMAIL_MODE || "outbox").trim().toLowerCase();
+const allowOutboxEmailInProduction = envBoolean(process.env.ALLOW_OUTBOX_EMAIL_IN_PRODUCTION, false);
+const allowStagingRegistrationVerifyUrl = envBoolean(process.env.ALLOW_STAGING_REGISTRATION_VERIFY_URL, false);
 const billingMode = String(process.env.BILLING_MODE || "disabled").trim().toLowerCase();
 const productionIssues = isProduction ? productionConfigIssues(process.env) : [];
 
@@ -151,6 +158,8 @@ export const config = {
   mongoUri: mongoDisabled ? "" : (process.env.MONGO_URI || ""),
   mongoDbName: process.env.MONGO_DB_NAME || "pf2_party_codex",
   emailMode: EMAIL_MODES.has(emailMode) ? emailMode : "outbox",
+  allowOutboxEmailInProduction,
+  allowStagingRegistrationVerifyUrl,
   emailFrom: process.env.EMAIL_FROM || "Party Codex <noreply@localhost>",
   emailWebhookUrl: process.env.EMAIL_WEBHOOK_URL || "",
   emailWebhookToken: process.env.EMAIL_WEBHOOK_TOKEN || "",
