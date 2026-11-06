@@ -207,6 +207,20 @@ test("pairing codes are one-time secrets and exactly one membership can claim a 
   const status = await discordIdentityStatus(winnerScope);
   assert.equal(status.link?.discordUserId, sharedDiscordUserId);
 
+  const leftoverPendingId = new ObjectId();
+  await database.collection("discordIdentityLinks").insertOne({
+    _id: leftoverPendingId,
+    workspaceId: ids.workspace,
+    campaignId: ids.campaign,
+    membershipId: winner.membershipId,
+    userId: winner.userId,
+    provider: "discord",
+    discordUserId: "999999999999999999",
+    status: "pending",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+
   const unlink = await revokeDiscordIdentityLink({
     campaignId: ids.campaign,
     membershipId: winner.membershipId,
@@ -215,6 +229,13 @@ test("pairing codes are one-time secrets and exactly one membership can claim a 
   });
   assert.equal(unlink.idempotent, false);
   assert.equal(unlink.link?.status, "revoked");
+
+  const linksAfterUnlink = await database.collection("discordIdentityLinks").find({
+    campaignId: ids.campaign,
+    membershipId: winner.membershipId,
+    status: { $in: ["active", "pending"] }
+  }).toArray();
+  assert.equal(linksAfterUnlink.length, 0, "unlink must revoke both active and provisional links");
 
   const unlinkAgain = await revokeDiscordIdentityLink({
     campaignId: ids.campaign,
