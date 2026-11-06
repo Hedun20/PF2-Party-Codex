@@ -24,7 +24,17 @@ concurrency:
 jobs:
   staging-contracts:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
+    services:
+      mongo:
+        image: mongo:8.2
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -54,3 +64,194 @@ jobs:
 
       - name: Build staging Docker image
         run: docker build --tag pf2-party-codex-staging-contract .
+
+      - name: Start staging runtime container
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --detach --name pf2-staging-runtime --network host \
+            --env NODE_ENV=production \
+            --env HOST=0.0.0.0 \
+            --env PORT=3050 \
+            --env TRUST_PROXY=1 \
+            --env MONGO_URI=mongodb://127.0.0.1:27017 \
+            --env MONGO_DB_NAME=pf2_party_codex_staging_smoke_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT} \
+            --env AUTH_SECRET=ci-staging-signing-secret-with-at-least-32-characters \
+            --env PUBLIC_APP_URL=https://pf2-party-codex-staging.onrender.com \
+            --env ALLOWED_ORIGINS=https://pf2-party-codex-staging.onrender.com \
+            --env EMAIL_MODE=outbox \
+            --env ALLOW_OUTBOX_EMAIL_IN_PRODUCTION=true \
+            --env ALLOW_STAGING_REGISTRATION_VERIFY_URL=true \
+            --env "EMAIL_FROM=Party Codex Staging <staging@pf2partycodex.com>" \
+            --env BILLING_MODE=disabled \
+            pf2-party-codex-staging-contract
+
+      - name: Run production-mode two-user staging smoke
+        env:
+          STAGING_SMOKE_RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+
+          const apiBase = "http://127.0.0.1:3050/api";
+          const publicOrigin = "https://pf2-party-codex-staging.onrender.com";
+          const runId = String(process.env.STAGING_SMOKE_RUN_ID || "local").replace(/[^a-zA-Z0-9-]/g, "-");
+          const password = "StagingSmoke-Only-Password-42!";
+
+          async function jsonRequest(path, { method = "GET", token = "", campaignId = "", body } = {}) {
+            const headers = {};
+            if (body !== undefined) headers["Content-Type"] = "application/json";
+            if (token) headers.Authorization = `Bearer ${token}`;
+            if (campaignId) headers["X-Campaign-Id"] = campaignId;
+            const response = await fetch(`${apiBase}${path}`, {
+              method,
+              headers,
+              body: body === undefined ? undefined : JSON.stringify(body),
+              redirect: "manual"
+            });
+            const text = await response.text();
+            let payload = {};
+            try {
+              payload = text ? JSON.parse(text) : {};
+            } catch {
+              payload = { raw: text };
+            }
+            if (!response.ok) {
+              throw new Error(`${method} ${path} -> ${response.status}: ${JSON.stringify(payload)}`);
+            }
+            return { response, payload };
+          }
+
+          async function waitForReady() {
+            let last = null;
+            for (let attempt = 0; attempt < 40; attempt += 1) {
+              try {
+                const response = await fetch(`${apiBase}/health`);
+                const payload = await response.json();
+                last = payload;
+                if (response.ok && payload.ready === true) return payload;
+              } catch (error) {
+                last = { error: String(error?.message || error) };
+              }
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+            throw new Error(`staging runtime never became ready: ${JSON.stringify(last)}`);
+          }
+
+          async function verifyFromReturnedUrl(url) {
+            assert.equal(typeof url, "string");
+            const parsed = new URL(url);
+            assert.equal(parsed.origin, publicOrigin);
+            assert.equal(parsed.pathname, "/api/auth/verify-email");
+            assert.ok(parsed.searchParams.get("token"), "verification URL must contain a token");
+            const response = await fetch(`${apiBase}/auth/verify-email?${parsed.searchParams.toString()}`, {
+              redirect: "manual"
+            });
+            assert.equal(response.status, 302);
+            assert.match(response.headers.get("location") || "", /verified=1/);
+          }
+
+          const health = await waitForReady();
+          assert.equal(health.email?.mode, "outbox");
+          assert.equal(health.email?.ready, true);
+          assert.equal(health.email?.automaticDelivery, false);
+
+          const gmEmail = `gm-${runId}@example.test`;
+          const playerEmail = `player-${runId}@example.test`;
+
+          const gmRegistration = await jsonRequest("/auth/register", {
+            method: "POST",
+            body: { name: "Staging GM", email: gmEmail, password }
+          });
+          assert.equal(gmRegistration.payload.verificationQueued, true);
+          await verifyFromReturnedUrl(gmRegistration.payload.devVerifyUrl);
+
+          const gmLogin = await jsonRequest("/auth/login", {
+            method: "POST",
+            body: { email: gmEmail, password }
+          });
+          assert.ok(gmLogin.payload.token);
+
+          const onboarding = await jsonRequest("/onboarding/workspace", {
+            method: "POST",
+            token: gmLogin.payload.token,
+            body: {
+              workspaceName: "Staging Smoke Workspace",
+              campaignName: "Staging Smoke Campaign",
+              gameSystem: "system-agnostic"
+            }
+          });
+          const campaignId = onboarding.payload.activeCampaign?.id || onboarding.payload.campaign?.id;
+          assert.ok(campaignId, "GM onboarding must create a campaign");
+
+          const invitation = await jsonRequest(`/campaigns/${encodeURIComponent(campaignId)}/invitations`, {
+            method: "POST",
+            token: gmLogin.payload.token,
+            campaignId,
+            body: { email: playerEmail, role: "player" }
+          });
+          const inviteUrl = invitation.payload.invitation?.inviteUrl;
+          assert.equal(typeof inviteUrl, "string");
+          const invite = new URL(inviteUrl);
+          assert.equal(invite.origin, publicOrigin);
+          const inviteToken = decodeURIComponent(invite.pathname.split("/").filter(Boolean).at(-1) || "");
+          assert.ok(inviteToken.length >= 16);
+
+          const playerRegistration = await jsonRequest("/auth/register", {
+            method: "POST",
+            body: {
+              name: "Staging Player",
+              email: playerEmail,
+              password,
+              returnTo: invite.pathname
+            }
+          });
+          await verifyFromReturnedUrl(playerRegistration.payload.devVerifyUrl);
+
+          const playerLogin = await jsonRequest("/auth/login", {
+            method: "POST",
+            body: { email: playerEmail, password }
+          });
+          assert.ok(playerLogin.payload.token);
+
+          const accepted = await jsonRequest("/invitations/accept", {
+            method: "POST",
+            token: playerLogin.payload.token,
+            body: { token: inviteToken }
+          });
+          assert.equal(accepted.payload.activeCampaign?.id, campaignId);
+          assert.equal(accepted.payload.role, "player");
+
+          const me = await jsonRequest("/auth/me", { token: playerLogin.payload.token });
+          assert.equal(me.payload.activeCampaign?.id, campaignId);
+          assert.equal(me.payload.role, "player");
+
+          const resend = await jsonRequest("/auth/resend-verification", {
+            method: "POST",
+            body: { email: playerEmail, returnTo: invite.pathname }
+          });
+          assert.equal(Object.hasOwn(resend.payload, "devVerifyUrl"), false);
+
+          const reset = await jsonRequest("/auth/password-recovery/request", {
+            method: "POST",
+            body: { email: playerEmail, returnTo: invite.pathname }
+          });
+          assert.equal(Object.hasOwn(reset.payload, "devResetUrl"), false);
+
+          console.log("Two-user staging smoke passed:", {
+            ready: health.ready,
+            campaignId,
+            gmEmail,
+            playerEmail,
+            outboxReady: health.email?.ready,
+            automaticDelivery: health.email?.automaticDelivery
+          });
+          NODE
+
+      - name: Show staging runtime diagnostics
+        if: failure()
+        run: docker logs pf2-staging-runtime || true
+
+      - name: Stop staging runtime container
+        if: always()
+        run: docker rm --force pf2-staging-runtime || true
