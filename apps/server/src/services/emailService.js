@@ -55,7 +55,9 @@ export function emailDeliveryReadiness() {
   const webhookReady = Boolean(config.emailWebhookUrl && config.emailWebhookToken.length >= 16);
   return {
     mode: config.emailMode,
-    ready: config.emailMode === "outbox" ? !config.isProduction : webhookReady,
+    ready: config.emailMode === "outbox"
+      ? (!config.isProduction || config.allowOutboxEmailInProduction)
+      : webhookReady,
     automaticDelivery: config.emailMode === "webhook" && webhookReady
   };
 }
