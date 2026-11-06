@@ -350,6 +350,35 @@ test("timeline API response keeps the frontend contract and compatibility alias"
   assert.match(source, /timelineEvents:\s*events,\s*events,/);
 });
 
+
+test("session queue validates evidence before committing queued state", async () => {
+  const source = await fs.readFile(path.join(rootDir, "apps/server/src/routes/sessionLifecycle.js"), "utf8");
+  const start = source.indexOf('sessionLifecycleRouter.post("/sessions/:sessionId/lifecycle/queue"');
+  const end = source.indexOf('sessionLifecycleRouter.post("/sessions/:sessionId/lifecycle/publish"', start);
+  const queueRoute = source.slice(start, end);
+  const readPosition = queueRoute.indexOf("readSessionLifecycle(scope)");
+  const transitionPosition = queueRoute.indexOf('to: "queued"');
+
+  assert.ok(start >= 0, "queue route must exist");
+  assert.ok(readPosition >= 0 && transitionPosition >= 0 && readPosition < transitionPosition);
+  assert.match(queueRoute, /current\.session\?\.sourceRanges/);
+  assert.match(queueRoute, /SESSION_SOURCE_SNAPSHOT_REQUIRED/);
+});
+
+test("stale processing recovery CAS includes the observed worker lease", async () => {
+  const source = await fs.readFile(path.join(rootDir, "apps/server/src/repositories/sessionLifecycleRepository.js"), "utf8");
+  const start = source.indexOf("export async function recoverCampaignSessionLifecycle");
+  const end = source.indexOf("export async function reportSessionProcessingProgress", start);
+  const recovery = source.slice(start, end);
+
+  assert.ok(start >= 0, "recoverCampaignSessionLifecycle must exist");
+  assert.match(recovery, /matchCurrent\(current\)/);
+  assert.match(recovery, /lifecycle\.processing\.processingVersion/);
+  assert.match(recovery, /lifecycle\.processing\.jobId/);
+  assert.match(recovery, /lifecycle\.processing\.attempt/);
+  assert.match(recovery, /lifecycle\.processing\.leaseExpiresAt/);
+});
+
 test("LAN URL discovery cannot crash server startup", () => {
   assert.deepEqual(localIpv4Addresses(() => { throw new Error("network interfaces unavailable"); }), []);
   assert.deepEqual(localIpv4Addresses(() => ({
