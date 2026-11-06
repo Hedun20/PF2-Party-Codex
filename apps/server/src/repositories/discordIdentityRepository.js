@@ -536,47 +536,62 @@ export async function revokeDiscordIdentityLink({ campaignId, membershipId, user
   requireMongo();
   const campaignObjectId = requiredObjectId(campaignId, "Campaign id");
   const membershipObjectId = requiredObjectId(membershipId, "Membership id");
-  const query = {
+  const linkScope = {
     campaignId: campaignObjectId,
-    membershipId: membershipObjectId,
-    status: { $in: ["active", "pending"] }
+    membershipId: membershipObjectId
   };
-  if (userId) query.userId = requiredObjectId(userId, "User id");
-  const existing = await links().findOne(query);
+  if (userId) linkScope.userId = requiredObjectId(userId, "User id");
+
+  const [activeLink, pendingLink] = await Promise.all([
+    links().findOne({ ...linkScope, status: "active" }),
+    links().findOne({ ...linkScope, status: "pending" })
+  ]);
+  const representative = activeLink || pendingLink || null;
   const stamp = new Date().toISOString();
 
-  const revokeChallenges = () => challenges().updateMany(
-    {
-      campaignId: campaignObjectId,
-      membershipId: membershipObjectId,
-      status: { $in: ["pending", "consuming"] }
-    },
-    {
-      $set: { status: "revoked", revokedAt: stamp, updatedAt: stamp },
-      $unset: { consumingAt: "", consumingInteractionId: "" }
+  const [linkUpdate] = await Promise.all([
+    links().updateMany(
+      { ...linkScope, status: { $in: ["active", "pending"] } },
+      { $set: { status: "revoked", revokedAt: stamp, revokedReason: reason, updatedAt: stamp } }
+    ),
+    challenges().updateMany(
+      {
+        campaignId: campaignObjectId,
+        membershipId: membershipObjectId,
+        status: { $in: ["pending", "consuming"] }
+      },
+      {
+        $set: { status: "revoked", revokedAt: stamp, updatedAt: stamp },
+        $unset: { consumingAt: "", consumingInteractionId: "" }
+      }
+    )
+  ]);
+
+  if (!linkUpdate.modifiedCount) {
+    const stillLive = await links().findOne({
+      ...linkScope,
+      status: { $in: ["active", "pending"] }
+    });
+    if (stillLive) {
+      const error = new Error("Discord identity link changed before it could be revoked. Refresh and retry.");
+      error.status = 409;
+      error.code = "DISCORD_IDENTITY_CHANGED";
+      throw error;
     }
-  );
-
-  if (!existing) {
-    await revokeChallenges();
-    return { link: null, idempotent: true };
+    return {
+      link: representative
+        ? publicLink({ ...representative, status: "revoked", revokedAt: stamp, revokedReason: reason, updatedAt: stamp })
+        : null,
+      idempotent: true
+    };
   }
 
-  const update = await links().updateOne(
-    { _id: existing._id, status: { $in: ["active", "pending"] } },
-    { $set: { status: "revoked", revokedAt: stamp, revokedReason: reason, updatedAt: stamp } }
-  );
-  if (!update.modifiedCount) {
-    const latest = await links().findOne({ _id: existing._id });
-    await revokeChallenges();
-    if (latest?.status === "revoked") return { link: publicLink(latest), idempotent: true };
-    const error = new Error("Discord identity link changed before it could be revoked. Refresh and retry.");
-    error.status = 409;
-    error.code = "DISCORD_IDENTITY_CHANGED";
-    throw error;
-  }
-  await revokeChallenges();
-  return { link: publicLink({ ...existing, status: "revoked", revokedAt: stamp, revokedReason: reason, updatedAt: stamp }), idempotent: false };
+  return {
+    link: representative
+      ? publicLink({ ...representative, status: "revoked", revokedAt: stamp, revokedReason: reason, updatedAt: stamp })
+      : null,
+    idempotent: false
+  };
 }
 
 export async function revokeDiscordIdentityForMembership({ campaignId, membership, reason = "membershipRemoved", stamp = new Date().toISOString() } = {}) {
