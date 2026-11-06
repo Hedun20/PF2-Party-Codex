@@ -55,16 +55,17 @@ test("losing ownership race compensates target role and completed retry reconcil
 
 test("owner-only membership mutations require role and campaign owner pointer to agree", () => {
   const routes = read("apps/server/src/routes/memberships.js");
-  const start = routes.indexOf("function requireOwner(context)");
-  const end = routes.indexOf("function discordPairingAvailable", start);
-  const requireOwner = routes.slice(start, end);
+  const ownerStart = routes.indexOf("function isCanonicalOwner(context)");
+  const managerStart = routes.indexOf("async function campaignManagerContext", ownerStart);
+  const ownerBoundary = routes.slice(ownerStart, routes.indexOf("function discordPairingAvailable", managerStart));
 
-  assert.ok(start >= 0, "requireOwner must exist");
-  assert.match(requireOwner, /context\.role === "owner"/);
-  assert.match(requireOwner, /context\.activeMembership\?\.userId/);
-  assert.match(requireOwner, /context\.activeCampaign\?\.ownerUserId/);
-  assert.match(requireOwner, /membershipUserId === campaignOwnerUserId/);
-  assert.match(requireOwner, /CAMPAIGN_OWNER_REQUIRED/);
+  assert.ok(ownerStart >= 0, "isCanonicalOwner must exist");
+  assert.match(ownerBoundary, /context\.role === "owner"/);
+  assert.match(ownerBoundary, /context\.activeMembership\?\.userId/);
+  assert.match(ownerBoundary, /context\.activeCampaign\?\.ownerUserId/);
+  assert.match(ownerBoundary, /membershipUserId === campaignOwnerUserId/);
+  assert.match(ownerBoundary, /CAMPAIGN_OWNER_RECONCILE_REQUIRED/);
+  assert.match(ownerBoundary, /CAMPAIGN_OWNER_REQUIRED/);
 });
 
 test("ownership transfer route audits only the first completed transfer", () => {
