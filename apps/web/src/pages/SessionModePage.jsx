@@ -144,6 +144,26 @@ function SessionLifecyclePanel({ sessionId, canEdit }) {
     return () => { cancelled = true; };
   }, [canEdit, sessionId]);
 
+  useEffect(() => {
+    if (!sessionId || !canEdit || !["queued", "processing"].includes(lifecycle?.status)) return undefined;
+    let cancelled = false;
+    const refreshLifecycle = async () => {
+      try {
+        const data = await api.sessionLifecycle(sessionId);
+        if (!cancelled && data.initialized && data.session) {
+          setLifecycle(data.session);
+        }
+      } catch (error) {
+        if (!cancelled) setMessage(error.message || "Не удалось обновить состояние обработки.");
+      }
+    };
+    const timer = window.setInterval(refreshLifecycle, 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [canEdit, sessionId, lifecycle?.status]);
+
   if (!canEdit) return null;
 
   const runAction = async (action) => {
