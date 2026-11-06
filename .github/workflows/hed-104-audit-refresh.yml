@@ -9,7 +9,7 @@ on:
       - fix/hed-33-ci-smoke-truth-20261106
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   refresh:
@@ -36,7 +36,7 @@ jobs:
       - name: Refresh compatible security dependencies
         run: |
           npm update express body-parser multer proxy-addr qs sharp baseline-browser-mapping js-yaml source-map-js --package-lock-only --ignore-scripts
-          npm pkg set dependencies.next=16.4.5 --workspace apps/web-next
+          npm pkg set dependencies.next=16.4.1 --workspace apps/web-next
           npm install --package-lock-only --ignore-scripts
 
       - name: Assert narrow generated diff
@@ -81,3 +81,18 @@ jobs:
             resolved-versions.txt
             npm-audit-production.txt
           retention-days: 3
+
+      - name: Commit generated remediation
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- package-lock.json apps/web-next/package.json; then
+            echo "Generated dependency files already match the verified remediation."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json apps/web-next/package.json
+          git commit -m "chore(security): apply HED-104 dependency refresh [hed-104-generated]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
