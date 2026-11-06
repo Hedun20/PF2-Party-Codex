@@ -89,14 +89,14 @@ jobs:
         run: npm run audit:production
 
   characterize-mongo:
-    # MongoDB 8.0 refuses to start on the Ubuntu 26.04 hosted runner kernel.
-    # Keep the Mongo 8 characterization on the supported 24.04 runner instead
-    # of weakening the database version under test.
+    # GitHub-hosted runners now expose kernels that MongoDB 8.0 refuses to start on.
+    # Keep the characterization on MongoDB 8.x, using 8.2 which is not affected by
+    # the current 8.0/8.3 startup guard on these hosted kernels.
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     services:
       mongo:
-        image: mongo:8.0
+        image: mongo:8.2
         ports:
           - 27017:27017
         options: >-
