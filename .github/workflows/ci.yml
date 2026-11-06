@@ -89,7 +89,10 @@ jobs:
         run: npm run audit:production
 
   characterize-mongo:
-    runs-on: ubuntu-latest
+    # MongoDB 8.0 refuses to start on the Ubuntu 26.04 hosted runner kernel.
+    # Keep the Mongo 8 characterization on the supported 24.04 runner instead
+    # of weakening the database version under test.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     services:
       mongo:
