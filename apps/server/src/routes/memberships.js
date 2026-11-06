@@ -69,9 +69,17 @@ async function campaignManagerContext(req) {
 }
 
 function requireOwner(context) {
-  if (context.role === "owner") return;
-  const error = new Error("Only the workspace owner can change campaign roles.");
+  const membershipUserId = idString(context.activeMembership?.userId);
+  const campaignOwnerUserId = idString(context.activeCampaign?.ownerUserId);
+  if (context.role === "owner"
+    && membershipUserId
+    && campaignOwnerUserId
+    && membershipUserId === campaignOwnerUserId) {
+    return;
+  }
+  const error = new Error("Only the current campaign owner can change campaign roles.");
   error.status = 403;
+  error.code = "CAMPAIGN_OWNER_REQUIRED";
   throw error;
 }
 
