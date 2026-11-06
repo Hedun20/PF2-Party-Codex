@@ -36,17 +36,20 @@ export default function DiscordIdentityPanel({ session }) {
   const [copied, setCopied] = useState(false);
   const [confirmUnlink, setConfirmUnlink] = useState(false);
   const campaignRef = useRef(campaignId);
-  const requestSerialRef = useRef(0);
+  const campaignGenerationRef = useRef(0);
+  const refreshInFlightRef = useRef(false);
   campaignRef.current = campaignId;
 
   async function refresh({ quiet = false } = {}) {
-    if (!campaignId) return;
+    if (!campaignId || refreshInFlightRef.current) return;
     const requestedCampaignId = campaignId;
-    const requestSerial = ++requestSerialRef.current;
+    const requestedGeneration = campaignGenerationRef.current;
+    refreshInFlightRef.current = true;
     if (!quiet) setState((current) => ({ ...current, loading: true, error: "" }));
     try {
       const data = await api.discordIdentity(requestedCampaignId);
-      if (campaignRef.current !== requestedCampaignId || requestSerial !== requestSerialRef.current) return;
+      if (campaignRef.current !== requestedCampaignId
+        || requestedGeneration !== campaignGenerationRef.current) return;
       setState((current) => ({
         ...current,
         loading: false,
@@ -63,7 +66,8 @@ export default function DiscordIdentityPanel({ session }) {
         setConfirmUnlink(false);
       }
     } catch (error) {
-      if (campaignRef.current !== requestedCampaignId || requestSerial !== requestSerialRef.current) return;
+      if (campaignRef.current !== requestedCampaignId
+        || requestedGeneration !== campaignGenerationRef.current) return;
       if (!quiet) {
         setState((current) => ({
           ...current,
@@ -71,11 +75,16 @@ export default function DiscordIdentityPanel({ session }) {
           error: error.message || "Не удалось проверить Discord-привязку."
         }));
       }
+    } finally {
+      if (requestedGeneration === campaignGenerationRef.current) {
+        refreshInFlightRef.current = false;
+      }
     }
   }
 
   useEffect(() => {
-    requestSerialRef.current += 1;
+    campaignGenerationRef.current += 1;
+    refreshInFlightRef.current = false;
     setState({
       loading: false,
       working: false,
