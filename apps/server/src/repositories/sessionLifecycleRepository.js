@@ -189,7 +189,8 @@ async function runLifecycleMutation({
   sessionId,
   userId,
   occurredAt,
-  mutate
+  mutate,
+  matchCurrent = null
 }) {
   const initialized = await ensureSessionLifecycle({ workspaceId, campaignId, sessionId, userId, occurredAt });
   const current = initialized.session;
@@ -203,7 +204,8 @@ async function runLifecycleMutation({
       _id: sessionObjectId,
       campaignId: campaignObjectId,
       "lifecycle.lifecycleRevision": current.lifecycleRevision,
-      "lifecycle.status": current.status
+      "lifecycle.status": current.status,
+      ...(typeof matchCurrent === "function" ? matchCurrent(current) : {})
     },
     {
       $set: {
@@ -305,6 +307,14 @@ export async function recoverCampaignSessionLifecycle({
     occurredAt: input.occurredAt,
     mutate(current) {
       return recoverStaleSessionLifecycle(current, { ...input, actorUserId: userId });
+    },
+    matchCurrent(current) {
+      return {
+        "lifecycle.processing.processingVersion": Number(current.processing?.processingVersion || 0),
+        "lifecycle.processing.jobId": String(current.processing?.jobId || ""),
+        "lifecycle.processing.attempt": Number(current.processing?.attempt || 0),
+        "lifecycle.processing.leaseExpiresAt": current.processing?.leaseExpiresAt || null
+      };
     }
   });
 }
@@ -368,6 +378,18 @@ export async function reportSessionProcessingProgress({
     latencyMs: nextLatencyMs,
     leaseExpiresAt: nextLeaseExpiresAt
   };
+  const reportAlreadyApplied = (processing = {}) => (
+    Number(processing.processingVersion || 0) === expectedProcessingVersion
+    && String(processing.jobId || "") === expectedJobId
+    && Number(processing.attempt || 0) === expectedAttempt
+    && Number(processing.progressPercent || 0) === nextProgress
+    && Number(processing.costMicros || 0) === nextCostMicros
+    && Number(processing.latencyMs || 0) === nextLatencyMs
+    && String(processing.leaseExpiresAt || "") === nextLeaseExpiresAt
+  );
+  if (reportAlreadyApplied(session.lifecycle.processing)) {
+    return { session: publicLifecycle(session), idempotent: true };
+  }
 
   const update = await sessions().updateOne(
     {
@@ -388,10 +410,16 @@ export async function reportSessionProcessingProgress({
       }
     }
   );
-  if (!update.modifiedCount) throw conflict("Processing progress changed concurrently.");
+  if (!update.modifiedCount) {
+    const latest = await sessions().findOne({ _id: sessionObjectId, campaignId: campaignObjectId });
+    if (latest?.lifecycle && reportAlreadyApplied(latest.lifecycle.processing)) {
+      return { session: publicLifecycle(latest), idempotent: true };
+    }
+    throw conflict("Processing progress changed concurrently.");
+  }
 
   const saved = await sessions().findOne({ _id: sessionObjectId, campaignId: campaignObjectId });
-  return { session: publicLifecycle(saved), idempotent: nextProgress === currentProgress };
+  return { session: publicLifecycle(saved), idempotent: false };
 }
 
 const PROCESSING_REPORT_KEYS = new Set([

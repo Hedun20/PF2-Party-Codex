@@ -85,7 +85,7 @@ test("settings gives non-owner members explicit confirmation, failure recovery, 
   assert.match(settings, /window\.location\.assign\(result\.activeCampaign\?\.id \? "\/" : "\/campaigns"\)/);
   assert.match(settings, /Ваш доступ считается сохранённым, пока сервер не подтвердит выход/);
   assert.match(settings, /Владелец не может просто покинуть кампанию/);
-  assert.match(settings, /Сначала необходимо передать владение другому активному участнику/);
+  assert.match(settings, /Сначала передайте владение другому активному участнику/);
   assert.match(settings, /disabled=\{leaving \|\| leaveCommitted\}/);
 });
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, Clock3, Copy, Link2, RefreshCw, ShieldCheck, Unlink } from "lucide-react";
 import { api } from "../api/client.js";
 import { CodexButton, CodexCard, StatusMessage } from "./ui/index.js";
@@ -35,12 +35,21 @@ export default function DiscordIdentityPanel({ session }) {
   const [instruction, setInstruction] = useState("");
   const [copied, setCopied] = useState(false);
   const [confirmUnlink, setConfirmUnlink] = useState(false);
+  const campaignRef = useRef(campaignId);
+  const campaignGenerationRef = useRef(0);
+  const refreshInFlightRef = useRef(false);
+  campaignRef.current = campaignId;
 
   async function refresh({ quiet = false } = {}) {
-    if (!campaignId) return;
+    if (!campaignId || refreshInFlightRef.current) return;
+    const requestedCampaignId = campaignId;
+    const requestedGeneration = campaignGenerationRef.current;
+    refreshInFlightRef.current = true;
     if (!quiet) setState((current) => ({ ...current, loading: true, error: "" }));
     try {
-      const data = await api.discordIdentity(campaignId);
+      const data = await api.discordIdentity(requestedCampaignId);
+      if (campaignRef.current !== requestedCampaignId
+        || requestedGeneration !== campaignGenerationRef.current) return;
       setState((current) => ({
         ...current,
         loading: false,
@@ -57,6 +66,8 @@ export default function DiscordIdentityPanel({ session }) {
         setConfirmUnlink(false);
       }
     } catch (error) {
+      if (campaignRef.current !== requestedCampaignId
+        || requestedGeneration !== campaignGenerationRef.current) return;
       if (!quiet) {
         setState((current) => ({
           ...current,
@@ -64,10 +75,25 @@ export default function DiscordIdentityPanel({ session }) {
           error: error.message || "Не удалось проверить Discord-привязку."
         }));
       }
+    } finally {
+      if (requestedGeneration === campaignGenerationRef.current) {
+        refreshInFlightRef.current = false;
+      }
     }
   }
 
   useEffect(() => {
+    campaignGenerationRef.current += 1;
+    refreshInFlightRef.current = false;
+    setState({
+      loading: false,
+      working: false,
+      error: "",
+      link: null,
+      challenge: null,
+      pairingAvailable: false,
+      help: ""
+    });
     setPairingCode("");
     setInstruction("");
     setCopied(false);
@@ -91,7 +117,9 @@ export default function DiscordIdentityPanel({ session }) {
     setCopied(false);
     setConfirmUnlink(false);
     try {
-      const data = await api.createDiscordIdentityChallenge(campaignId);
+      const requestedCampaignId = campaignId;
+      const data = await api.createDiscordIdentityChallenge(requestedCampaignId);
+      if (campaignRef.current !== requestedCampaignId) return;
       setPairingCode(data.challenge?.pairingCode || "");
       setInstruction(data.instruction || "");
       setState((current) => ({
@@ -124,7 +152,9 @@ export default function DiscordIdentityPanel({ session }) {
     if (!campaignId || state.working) return;
     setState((current) => ({ ...current, working: true, error: "" }));
     try {
-      await api.unlinkDiscordIdentity(campaignId);
+      const requestedCampaignId = campaignId;
+      await api.unlinkDiscordIdentity(requestedCampaignId);
+      if (campaignRef.current !== requestedCampaignId) return;
       setPairingCode("");
       setInstruction("");
       setCopied(false);

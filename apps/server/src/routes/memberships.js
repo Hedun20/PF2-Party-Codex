@@ -58,6 +58,15 @@ async function campaignMemberContext(req) {
   return context;
 }
 
+function isCanonicalOwner(context) {
+  const membershipUserId = idString(context.activeMembership?.userId);
+  const campaignOwnerUserId = idString(context.activeCampaign?.ownerUserId);
+  return context.role === "owner"
+    && Boolean(membershipUserId)
+    && Boolean(campaignOwnerUserId)
+    && membershipUserId === campaignOwnerUserId;
+}
+
 async function campaignManagerContext(req) {
   const context = await campaignMemberContext(req);
   if (!isManager(context.role)) {
@@ -65,13 +74,20 @@ async function campaignManagerContext(req) {
     error.status = 403;
     throw error;
   }
+  if (context.role === "owner" && !isCanonicalOwner(context)) {
+    const error = new Error("Campaign owner authority is being reconciled. Refresh before managing members.");
+    error.status = 409;
+    error.code = "CAMPAIGN_OWNER_RECONCILE_REQUIRED";
+    throw error;
+  }
   return context;
 }
 
 function requireOwner(context) {
-  if (context.role === "owner") return;
-  const error = new Error("Only the workspace owner can change campaign roles.");
+  if (isCanonicalOwner(context)) return;
+  const error = new Error("Only the current campaign owner can change campaign roles.");
   error.status = 403;
+  error.code = "CAMPAIGN_OWNER_REQUIRED";
   throw error;
 }
 

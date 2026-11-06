@@ -236,6 +236,13 @@ test("processing progress is bound to exact version and job attempt and cannot r
   const progress = await reportSessionProcessingProgress(validProgress);
   assert.equal(progress.session.processing.progressPercent, 45);
   assert.equal(progress.session.processing.costMicros, 12000);
+  assert.equal(progress.idempotent, false);
+
+  const retry = await reportSessionProcessingProgress(validProgress);
+  assert.equal(retry.idempotent, true);
+  assert.equal(retry.session.processing.progressPercent, 45);
+  assert.equal(retry.session.processing.costMicros, 12000);
+  assert.equal(retry.session.processing.leaseExpiresAt, validProgress.leaseExpiresAt);
 
   await assert.rejects(
     reportSessionProcessingProgress({
