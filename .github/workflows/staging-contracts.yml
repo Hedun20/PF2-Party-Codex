@@ -1,0 +1,56 @@
+name: Hosted staging contracts
+
+on:
+  pull_request:
+    paths:
+      - "render.yaml"
+      - "Dockerfile"
+      - "docs/deployment/STAGING_RENDER.md"
+      - "apps/server/src/config.js"
+      - "apps/server/src/services/emailService.js"
+      - "apps/server/src/routes/auth.js"
+      - "apps/web/src/pages/AuthPage.jsx"
+      - "apps/web/src/pages/PlayersPage.jsx"
+      - "tests/staging-deployment-contracts.test.mjs"
+      - ".github/workflows/staging-contracts.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-contracts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  staging-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Use Node.js 24 LTS
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Use pinned npm 11.9.0
+        run: |
+          npm install --global npm@11.9.0
+          npm --version | grep --fixed-strings --line-regexp 11.9.0
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify hosted staging security contract
+        run: node --test tests/staging-deployment-contracts.test.mjs
+
+      - name: Build current functional web bundle
+        run: npm run build
+
+      - name: Check server and test syntax
+        run: npm run check:syntax
+
+      - name: Build staging Docker image
+        run: docker build --tag pf2-party-codex-staging-contract .
