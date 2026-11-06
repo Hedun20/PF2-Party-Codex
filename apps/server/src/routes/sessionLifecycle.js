@@ -147,6 +147,13 @@ sessionLifecycleRouter.post("/sessions/:sessionId/lifecycle/end", async (req, re
 sessionLifecycleRouter.post("/sessions/:sessionId/lifecycle/queue", async (req, res, next) => {
   try {
     const scope = context(req);
+    const current = await readSessionLifecycle(scope);
+    if (!Array.isArray(current.session?.sourceRanges) || current.session.sourceRanges.length === 0) {
+      const error = new Error("Queued processing requires at least one session evidence source.");
+      error.status = 409;
+      error.code = "SESSION_SOURCE_SNAPSHOT_REQUIRED";
+      throw error;
+    }
     const result = await transitionCampaignSessionLifecycle({
       ...scope,
       input: { to: "queued", occurredAt: req.body?.occurredAt, reasonCode: "GM_QUEUE_PROCESSING" }
