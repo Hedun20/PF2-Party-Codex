@@ -86,9 +86,22 @@ test("Discord profile clears campaign state and ignores stale status responses",
   const panel = await source("apps/web/src/components/DiscordIdentityPanel.jsx");
   assert.match(panel, /useRef/);
   assert.match(panel, /campaignRef\.current !== requestedCampaignId/);
-  assert.match(panel, /requestSerial !== requestSerialRef\.current/);
+  assert.match(panel, /requestedGeneration !== campaignGenerationRef\.current/);
+  assert.match(panel, /refreshInFlightRef\.current/);
+  assert.match(panel, /if \(!campaignId \|\| refreshInFlightRef\.current\) return/);
   assert.match(panel, /link: null/);
   assert.match(panel, /challenge: null/);
+});
+
+test("unlink revokes every provisional and active link in the membership scope", async () => {
+  const repository = await source("apps/server/src/repositories/discordIdentityRepository.js");
+  const start = repository.indexOf("export async function revokeDiscordIdentityLink");
+  const end = repository.indexOf("export async function revokeDiscordIdentityForMembership", start);
+  const revoke = repository.slice(start, end);
+
+  assert.match(revoke, /links\(\)\.updateMany/);
+  assert.match(revoke, /status: \{ \$in: \["active", "pending"\] \}/);
+  assert.match(revoke, /challenges\(\)\.updateMany/);
 });
 
 test("active Discord bindings are protected by partial unique indexes while revoked history remains legal", async () => {
