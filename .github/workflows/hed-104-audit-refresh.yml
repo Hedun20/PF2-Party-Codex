@@ -1,0 +1,80 @@
+name: HED-104 dependency refresh
+
+on:
+  push:
+    branches:
+      - fix/hed-104-audit-refresh-20261106
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Use Node.js 24 LTS
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Use pinned npm 11.9.0
+        run: |
+          npm install --global npm@11.9.0
+          npm --version | grep --fixed-strings --line-regexp 11.9.0
+
+      - name: Install current locked graph
+        run: npm ci
+
+      - name: Refresh compatible security dependencies
+        run: |
+          npm update express body-parser multer proxy-addr qs sharp --package-lock-only --ignore-scripts
+          npm pkg set dependencies.next=16.3.3 --workspace apps/web-next
+          npm install --package-lock-only --ignore-scripts
+
+      - name: Assert narrow generated diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only | tee generated-files.txt
+          unexpected="$(git diff --name-only | grep -Ev '^(package-lock\.json|apps/web-next/package\.json)$' || true)"
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected generated files:" >&2
+            echo "$unexpected" >&2
+            exit 1
+          fi
+
+      - name: Record resolved versions
+        run: |
+          node - <<'NODE' | tee resolved-versions.txt
+          const fs = require('node:fs');
+          const lock = JSON.parse(fs.readFileSync('package-lock.json','utf8'));
+          const names = ['express','body-parser','multer','proxy-addr','qs','next','sharp','react-router','react-router-dom'];
+          for (const name of names) {
+            const p = lock.packages['node_modules/' + name];
+            console.log(name + '=' + (p?.version ?? 'missing'));
+          }
+          NODE
+
+      - name: Production audit
+        shell: bash
+        run: |
+          set -o pipefail
+          npm audit --omit=dev --audit-level=high 2>&1 | tee npm-audit-production.txt
+
+      - name: Upload generated remediation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hed-104-audit-refresh
+          path: |
+            package-lock.json
+            apps/web-next/package.json
+            generated-files.txt
+            resolved-versions.txt
+            npm-audit-production.txt
+          retention-days: 3
